@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Stopping Distance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.1rem;
+            background: #f8fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .spinner {
+            border: 2px solid rgba(168, 85, 247, 0.2);
+            border-top-color: #a855f7;
+            border-radius: 50%;
+            width: 1rem;
+            height: 1rem;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 opacity-10 transform rotate-12 text-9xl">⚛️</div>
+            <h1 class="text-2xl font-bold relative z-10">Physics Coach: Work, Energy & Stopping Distance</h1>
+            <p class="mt-2 opacity-90 relative z-10">Solve the 4-part problem step-by-step. Earn up to a max score of 8/5 by answering correctly on your first try without hints!</p>
+        </div>
+
+        <!-- Problem Statement -->
+        <div class="p-6 border-b border-gray-200 bg-blue-50">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="font-semibold text-lg text-blue-800">The Setup:</h2>
+                <button id="remix-btn" onclick="remixScenario()" class="text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-1.5 rounded-full font-bold transition flex items-center gap-2 shadow-sm border border-purple-200">
+                    ✨ Remix Scenario
+                </button>
+            </div>
+            
+            <!-- Illustration -->
+            <div class="mb-6 flex justify-center bg-white p-3 rounded-xl shadow-sm border border-blue-100">
+                <img src="https://docs.google.com/drawings/d/e/2PACX-1vRvTR1hZ61RqtnSQWW8jlx2KlMjdDYIA7JnFXnYAwHovPnyicfXkICo5mEjXgHI4NbS72Awcd6twE2l/pub?w=960&h=720" alt="Block Sliding Down Ramp" class="max-w-full h-auto rounded-lg max-h-64 object-contain">
+            </div>
+
+            <div id="scenario-text" class="text-gray-700 leading-relaxed space-y-4 bg-white p-4 rounded-xl border border-blue-100 shadow-sm transition-all duration-300">
+                <p>
+                    A <span id="var-m" class="font-bold text-blue-600"></span> kg block is moving along a lower frictionless track with an initial velocity of v<sub>o</sub> = <span id="var-vo" class="font-bold text-blue-600"></span> m/s. It slides <strong>up</strong> a frictionless ramp to a height of h = <span id="var-h" class="font-bold text-blue-600"></span> m.
+                </p>
+                <p>
+                    After reaching the top, the block slides onto a rough horizontal surface with a coefficient of kinetic friction μ<sub>k</sub> = <span id="var-mu" class="font-bold text-blue-600"></span>. The block slides a distance <strong>d</strong> before coming to rest.
+                </p>
+                <p class="font-medium text-blue-800 bg-blue-50 p-2 rounded-lg inline-block">
+                    🎯 Goal: Calculate the stopping distance d.
+                </p>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 space-y-8" id="questions-container">
+            
+            <!-- Question 1 -->
+            <div id="q1-box" class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800">Part 1: Initial Mechanical Energy</h3>
+                    <p class="text-gray-600 mt-1">Calculate the total initial mechanical energy (E<sub>i</sub>) of the block at the bottom (where h = 0).</p>
+                    <div class="equation block">
+                        E<sub>i</sub> = <sup>1</sup>/<sub>2</sub>mv<sub>o</sub><sup>2</sup>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q1-input-area">
+                    <input type="number" id="q1-input" step="0.01" class="border border-gray-300 rounded-lg px-4 py-2 w-36 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Joules">
+                    <button onclick="checkAnswer(1)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(1)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-1" onclick="askAITutor(1)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-purple-200 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q1-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+            <!-- Question 2 (Hidden Initially) -->
+            <div id="q2-box" class="space-y-4 hidden pt-6 border-t border-gray-200 fade-in">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800">Part 2: Kinetic Energy at the Top</h3>
+                    <p class="text-gray-600 mt-1">The ramp is frictionless. What is the Kinetic Energy (KE<sub>top</sub>) of the block right as it reaches the top, just before it hits the rough surface?</p>
+                    <div class="equation block">
+                        E<sub>i</sub> = KE<sub>top</sub> + mgh &nbsp;&nbsp;&nbsp; (g = 9.8 m/s<sup>2</sup>)
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q2-input-area">
+                    <input type="number" id="q2-input" step="0.01" class="border border-gray-300 rounded-lg px-4 py-2 w-36 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Joules">
+                    <button onclick="checkAnswer(2)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(2)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-2" onclick="askAITutor(2)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-purple-200 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q2-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+            <!-- Question 3 (Hidden Initially) -->
+            <div id="q3-box" class="space-y-4 hidden pt-6 border-t border-gray-200 fade-in">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800">Part 3: Force of Friction</h3>
+                    <p class="text-gray-600 mt-1">The block is now on the flat, rough surface. Calculate the magnitude of the kinetic friction force (f<sub>k</sub>) acting on the block.</p>
+                    <div class="equation block">
+                        f<sub>k</sub> = μ<sub>k</sub>N &nbsp;&nbsp;&nbsp; (N = mg on a flat surface)
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q3-input-area">
+                    <input type="number" id="q3-input" step="0.01" class="border border-gray-300 rounded-lg px-4 py-2 w-36 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Newtons">
+                    <button onclick="checkAnswer(3)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(3)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-3" onclick="askAITutor(3)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-purple-200 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q3-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+            <!-- Question 4 (Hidden Initially) -->
+            <div id="q4-box" class="space-y-4 hidden pt-6 border-t border-gray-200 fade-in">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800">Part 4: Stopping Distance</h3>
+                    <p class="text-gray-600 mt-1">Finally, use the Work-Energy Theorem to find the stopping distance <strong>d</strong>. The friction does negative work to remove the block's remaining kinetic energy.</p>
+                    <div class="equation block">
+                        KE<sub>top</sub> + W<sub>nc</sub> = KE<sub>final</sub> &nbsp;&nbsp;&nbsp; &rarr; &nbsp;&nbsp;&nbsp; KE<sub>top</sub> - f<sub>k</sub>(d) = 0
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q4-input-area">
+                    <input type="number" id="q4-input" step="0.01" class="border border-gray-300 rounded-lg px-4 py-2 w-36 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="meters">
+                    <button onclick="checkAnswer(4)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(4)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-4" onclick="askAITutor(4)" class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-purple-200 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q4-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-gray-50 p-8 text-center fade-in border-t border-gray-200">
+            <span class="text-xs uppercase tracking-widest text-purple-500 font-bold mb-4 block flex items-center justify-center gap-2">
+                ✨ Challenge Complete ✨
+            </span>
+            <div class="mb-6">
+                <p class="text-gray-600 text-lg mb-1">Final Score</p>
+                <div class="flex items-end justify-center gap-2">
+                    <span class="text-6xl font-extrabold text-blue-600 drop-shadow-sm" id="final-score">8.0</span>
+                    <span class="text-2xl text-gray-400 mb-2 font-light">/ 5</span>
+                </div>
+                <p class="text-xs text-gray-400 uppercase tracking-wider mt-2 font-semibold">Physics Coach: Stopping Distance</p>
+                <p class="text-sm text-gray-500 mt-3 max-w-sm mx-auto bg-white p-2 rounded-lg border border-gray-200">(Base Score is 5. Bonus points are awarded for precise calculations without relying on hints!)</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-2xl shadow-sm border border-purple-100 inline-block max-w-lg mb-4 w-full relative">
+                <div class="absolute -top-3 -left-3 text-2xl">🤖</div>
+                <p id="unique-message" class="text-lg font-medium text-gray-800 italic leading-relaxed">
+                    <span class="spinner"></span> <i>AI Coach is analyzing your performance...</i>
+                </p>
+            </div>
+            
+            <p class="text-sm text-gray-500 mt-4 font-medium">Screenshot this exact view and turn it in to your teacher for credit!</p>
+            <button onclick="location.reload()" class="mt-8 bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-full shadow-md transition font-medium">Restart with new numbers</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Gemini API Setup ---
+        // API key removed for Vercel deployment. It will be stored safely in Vercel environment variables!
+        
+        async function fetchWithRetry(url, options, retries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (e) {
+                    if (i === retries - 1) throw e;
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            // Point to our new Vercel Serverless Function instead of directly to Google's API
+            const url = `/api/gemini`;
+            const payload = {
+                prompt: prompt,
+                systemInstruction: systemInstruction
+            };
+            try {
+                const data = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                // Our Vercel backend will send the text back inside a "text" property
+                return data.text;
+            } catch (error) {
+                // Silently return null on error. This prevents [CONSOLE_ERROR] stack traces from cluttering 
+                // the logs and gracefully triggers the UI fallbacks (like "Offline Mode") below.
+                console.error("Backend Error:", error);
+                return null;
+            }
+        }
+
+        function formatMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+        }
+
+        // --- Physics App Logic ---
+        let m, h, vo, mu;
+        let exactAnswers = {};
+        let currentQ = 1;
+        let totalScore = 0;
+        let currentAttempts = 0;
+        let currentHints = 0;
+
+        // Static Hint Database Fallback
+        const hintsDB = {
+            1: ["Hint 1: At the bottom of the ramp, the block's height is 0, so it has no potential energy.", "Hint 2: All of its initial energy is Kinetic Energy (KE).", "Hint 3: Calculate 0.5 * m * vo²."],
+            2: ["Hint 1: Think about the Law of Conservation of Energy.", "Hint 2: As the block goes UP the ramp, it gains Potential Energy (mgh), losing Kinetic Energy.", "Hint 3: Subtract PE top (m*9.8*h) from your initial total energy."],
+            3: ["Hint 1: On a flat surface, normal force equals gravity.", "Hint 2: Normal Force (N) = m * g", "Hint 3: Multiply coefficient of friction (μk) by mass (m) and gravity (9.8)."],
+            4: ["Hint 1: Work = Force * Distance.", "Hint 2: KE_top = f_k * d", "Hint 3: Divide KE from Part 2 by Friction from Part 3."]
+        };
+
+        const genMsgFallback = {
+            highScore: ["Stellar work acing those equations!", "Fantastic problem-solving mastering this problem!", "Brilliant execution conquering the work-energy theorem!"],
+            lowScore: ["Solid effort! Keep practicing, you'll get it next time!", "Determined try! Physics takes time, keep your chin up!", "Good progress! Review the steps, practice makes perfect!"]
+        };
+
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function init() {
+            // Setup variables cleanly
+            m = 2.00; 
+            mu = 0.60; 
+            h = (Math.floor(Math.random() * 20) + 10) / 10; // 1.0 to 3.0 m
+            let g = 9.8;
+            let v_min = Math.sqrt(2 * g * h);
+            vo = v_min + (Math.floor(Math.random() * 40) + 20) / 10; // v_min + 2.0 to 6.0 m/s
+
+            // Populate DOM
+            document.getElementById('var-m').innerText = m.toFixed(2);
+            document.getElementById('var-vo').innerText = vo.toFixed(2);
+            document.getElementById('var-h').innerText = h.toFixed(2);
+            document.getElementById('var-mu').innerText = mu.toFixed(2);
+
+            // Calculate exact answers
+            exactAnswers[1] = 0.5 * m * vo * vo;
+            exactAnswers[2] = exactAnswers[1] - (m * g * h);
+            exactAnswers[3] = mu * m * g;
+            exactAnswers[4] = exactAnswers[2] / exactAnswers[3];
+        }
+
+        // --- AI Interactivity ---
+
+        async function remixScenario() {
+            const btn = document.getElementById('remix-btn');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> Remixing...';
+            btn.disabled = true;
+
+            const prompt = `Rewrite this physics problem into a short, highly creative, fun 2-paragraph story.
+            Keep these EXACT numerical variables identical and explicitly state them in the text: 
+            - mass = ${m.toFixed(2)} kg
+            - initial velocity = ${vo.toFixed(2)} m/s
+            - height = ${h.toFixed(2)} m
+            - kinetic friction coefficient = ${mu.toFixed(2)}
+            
+            The object must start at the bottom, go up a frictionless ramp, and then hit a rough horizontal patch where it stops. 
+            Do NOT solve the problem or reveal the stopping distance. Return ONLY the story text, using HTML <p> tags for the paragraphs. 
+            Format the numbers nicely in bold blue like this: <span class="font-bold text-blue-600">${m.toFixed(2)} kg</span>. Make it absurd and fun (e.g. escaping aliens, runaway cheese wheel, magical penguin). End with the goal text in a blue rounded box like this: <p class="font-medium text-blue-800 bg-blue-50 p-2 rounded-lg inline-block">🎯 Goal: Calculate the stopping distance d.</p>`;
+            
+            const result = await callGemini(prompt);
+            
+            if (result) {
+                document.getElementById('scenario-text').innerHTML = result;
+                document.getElementById('scenario-text').classList.add('bg-purple-50', 'border-purple-200');
+            } else {
+                document.getElementById('scenario-text').innerHTML += `<p class="mt-4 text-red-600 font-medium bg-red-50 p-2 rounded-lg border border-red-200">⚠️ AI Coach is currently offline or the request timed out. Please try again later.</p>`;
+            }
+            
+            btn.innerHTML = '✨ Remixed!';
+            setTimeout(() => { btn.innerHTML = origHtml; btn.disabled = false; }, 2000);
+        }
+
+        async function askAITutor(q) {
+            const btn = document.getElementById(`ai-btn-${q}`);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> Thinking...';
+            btn.disabled = true;
+
+            const inputVal = document.getElementById(`q${q}-input`).value;
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = 'text-sm rounded-lg p-3 mt-3 fade-in block font-medium bg-purple-50 text-purple-800 border border-purple-200';
+            fb.innerHTML = '✨ <i>Consulting the AI Coach...</i>';
+            
+            const contexts = {
+                1: "They need to calculate initial mechanical energy (Ei) at the bottom (h=0). Equation: Ei = 1/2*m*vo^2.",
+                2: "They need to calculate kinetic energy (KE) at the top. Equation: Ei = KE_top + mgh.",
+                3: "They need to calculate the kinetic friction force (fk). Equation: fk = mu*m*g.",
+                4: "They need to find stopping distance (d). Equation: KE_top = fk*d."
+            };
+
+            let studentAttempt = inputVal ? `The student guessed: ${inputVal}. ` : "The student hasn't typed a guess yet. ";
+
+            const prompt = `A student is working on this step: ${contexts[q]}
+            The problem variables are: mass=${m.toFixed(2)}kg, initial velocity=${vo.toFixed(2)}m/s, ramp height=${h.toFixed(2)}m, friction coefficient=${mu.toFixed(2)}. 
+            The exact correct answer for this step is ${exactAnswers[q].toFixed(3)}.
+            ${studentAttempt}
+            Give them a highly customized, encouraging conceptual hint. If they made a guess, point out mathematically where they might have gone wrong based on standard errors (e.g. forgot to square velocity, forgot gravity). DO NOT give them the exact numerical answer. Keep it to 2-3 brief sentences. Start directly without greetings.`;
+            
+            const result = await callGemini(prompt);
+            
+            if(result) {
+                fb.innerHTML = `✨ <b>AI Coach:</b> ${formatMarkdown(result)}`;
+                // Add a small penalty for relying on AI too much, similar to hints
+                currentHints += 0.5;
+            } else {
+                fb.innerHTML = `🤖 <b>Offline Mode:</b> ${hintsDB[q][0]}`;
+                currentHints++;
+            }
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        async function generateAIFinalMessage(score) {
+            const msgEl = document.getElementById('unique-message');
+            
+            const prompt = `A student just completed a 4-step physics problem on the Work-Energy Theorem.
+            They scored ${score.toFixed(2)} out of 5.00 base points (max 8.00 with flawless execution bonuses). 
+            Write a highly personalized, creative, 2-sentence feedback message acknowledging their specific score. If they got > 6.5, praise their flawless, hint-free math. If they got lower, praise their grit and encourage them. Use a fun emoji.`;
+            
+            const result = await callGemini(prompt);
+            
+            if (result) {
+                msgEl.innerHTML = formatMarkdown(result);
+            } else {
+                // Fallback
+                msgEl.innerHTML = score >= 6.5 ? getRandomItem(genMsgFallback.highScore) : getRandomItem(genMsgFallback.lowScore);
+            }
+        }
+
+        // --- Core UI functions ---
+        function showFeedback(q, msg, type) {
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = `text-sm rounded-lg p-3 mt-3 fade-in block font-medium ${
+                type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                type === 'hint' ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' :
+                'bg-green-50 text-green-700 border border-green-200'
+            }`;
+            fb.innerHTML = msg;
+        }
+
+        function showHint(q) {
+            if (currentHints < 3) {
+                const hintText = hintsDB[q][Math.floor(currentHints)];
+                currentHints++;
+                showFeedback(q, `💡 <b>Standard Hint:</b> ${hintText}`, 'hint');
+            } else {
+                showFeedback(q, "You've used all standard hints! Try the AI Tutor or do your best calculation.", 'hint');
+            }
+        }
+
+        function calculatePoints() {
+            let pts = 2.0 - (currentHints * 0.4) - (currentAttempts * 0.25);
+            return Math.max(1.25, pts);
+        }
+
+        function checkAnswer(q) {
+            const inputVal = parseFloat(document.getElementById(`q${q}-input`).value);
+            const exact = exactAnswers[q];
+
+            if (isNaN(inputVal)) {
+                showFeedback(q, "Please enter a valid number.", "error");
+                return;
+            }
+
+            const margin = Math.max(Math.abs(exact * 0.02), 0.005);
+
+            if (Math.abs(inputVal - exact) <= margin) {
+                const pointsEarned = calculatePoints();
+                totalScore += pointsEarned;
+                
+                let successMsg = `✅ Correct! The answer is exactly ${exact.toFixed(3)}. <br><em>Points earned: ${pointsEarned.toFixed(2)} / 2.00 max</em>`;
+                showFeedback(q, successMsg, "success");
+                
+                document.getElementById(`q${q}-input-area`).classList.add('hidden');
+                currentAttempts = 0;
+                currentHints = 0;
+
+                if (q < 4) {
+                    document.getElementById(`q${q+1}-box`).classList.remove('hidden');
+                } else {
+                    finishGame();
+                }
+
+            } else {
+                currentAttempts++;
+                if (q === 2 && Math.abs(inputVal - exactAnswers[1]) <= margin) {
+                    showFeedback(q, "❌ Close! But the block lost some kinetic energy by climbing the ramp. Remember to subtract the potential energy (mgh) it gained.", "error");
+                } else {
+                    showFeedback(q, "❌ Not quite right. Double check your math or ask the AI Tutor!", "error");
+                }
+            }
+        }
+
+        function finishGame() {
+            document.getElementById('questions-container').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+            
+            document.getElementById('final-score').innerText = totalScore.toFixed(2);
+            
+            // Trigger Gemini Final Message
+            generateAIFinalMessage(totalScore);
+
+            if (totalScore >= 5.0) {
+                shootBallisticConfetti();
+            }
+        }
+
+        // --- Confetti ---
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 150; i++) {
+                const isLeft = Math.random() < 0.5;
+                particles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 15 + 5) : -(Math.random() * 15 + 5), 
+                    vy: -(Math.random() * 15 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 15 
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4; 
+                    p.rotation += p.rs;
+
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+
+                if (active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
