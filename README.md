@@ -1,2 +1,0 @@
-# physics
-interactive physics assignments
