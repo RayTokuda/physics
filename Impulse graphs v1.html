@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Impulse & Velocity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #0f172a; /* Darker theme for space */
+            color: #f8fafc;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.1rem;
+            background: #1e293b;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 1px solid #334155;
+            color: #60a5fa;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .spinner {
+            border: 2px solid rgba(168, 85, 247, 0.2);
+            border-top-color: #a855f7;
+            border-radius: 50%;
+            width: 1rem;
+            height: 1rem;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+        .graph-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        canvas#force-graph {
+            width: 100%;
+            height: auto;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+        <!-- Header -->
+        <div class="bg-indigo-600 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 opacity-20 transform rotate-12 text-9xl">🚀</div>
+            <h1 class="text-2xl font-bold relative z-10">Physics Coach: Impulse & Velocity</h1>
+            <p class="mt-2 opacity-90 relative z-10">Analyze the Force vs. Time graph to determine the spacecraft's change in velocity. Maximize your extra credit by answering correctly without hints!</p>
+        </div>
+
+        <!-- Problem Statement -->
+        <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="font-semibold text-xl text-indigo-400">Mission Briefing:</h2>
+                <button id="remix-btn" onclick="remixScenario()" class="text-sm bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 px-4 py-1.5 rounded-full font-bold transition flex items-center gap-2 border border-indigo-500/30">
+                    ✨ Generate New Story
+                </button>
+            </div>
+            
+            <div id="scenario-text" class="text-slate-300 leading-relaxed space-y-4 bg-slate-900/50 p-5 rounded-xl border border-slate-700 shadow-inner transition-all duration-300 mb-6">
+                <p>
+                    <span class="spinner"></span> <i>Awaiting AI Mission Generation...</i>
+                </p>
+            </div>
+
+            <!-- The Graph -->
+            <div class="graph-container shadow-lg">
+                <h3 class="text-center text-slate-800 font-bold mb-2">Thruster Output: Force vs. Time</h3>
+                <canvas id="force-graph" width="600" height="400"></canvas>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 space-y-8" id="questions-container">
+            
+            <!-- Question 1 -->
+            <div id="q1-box" class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-lg text-slate-200">Part 1: Calculate the Impulse</h3>
+                    <p class="text-slate-400 mt-1">Impulse (J) is the area under the Force vs. Time graph. Use the grid lines to calculate the total area of the shapes (rectangles/triangles).</p>
+                    <div class="equation block">
+                        J = Area = &Sigma; F&Delta;t
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q1-input-area">
+                    <input type="number" id="q1-input" step="1" class="bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 w-48 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white" placeholder="Newton-seconds (N·s)">
+                    <button onclick="checkAnswer(1)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(1)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-1" onclick="askAITutor(1)" class="bg-fuchsia-900/40 hover:bg-fuchsia-900/60 text-fuchsia-300 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-fuchsia-700/50 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q1-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div id="q2-box" class="space-y-4 hidden pt-6 border-t border-slate-700 fade-in">
+                <div>
+                    <h3 class="font-semibold text-lg text-slate-200">Part 2: Change in Velocity</h3>
+                    <p class="text-slate-400 mt-1">Using the Impulse-Momentum Theorem, calculate the total change in velocity (&Delta;v) caused by the thrusters. The mass (m) is <span id="display-m" class="text-indigo-400 font-bold"></span> kg.</p>
+                    <div class="equation block">
+                        J = &Delta;p = m&Delta;v &nbsp;&nbsp;&nbsp; &rarr; &nbsp;&nbsp;&nbsp; &Delta;v = J / m
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q2-input-area">
+                    <input type="number" id="q2-input" step="0.1" class="bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 w-48 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white" placeholder="m/s">
+                    <button onclick="checkAnswer(2)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(2)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-2" onclick="askAITutor(2)" class="bg-fuchsia-900/40 hover:bg-fuchsia-900/60 text-fuchsia-300 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-fuchsia-700/50 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q2-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+            <!-- Question 3 -->
+            <div id="q3-box" class="space-y-4 hidden pt-6 border-t border-slate-700 fade-in">
+                <div>
+                    <h3 class="font-semibold text-lg text-slate-200">Part 3: Final Velocity</h3>
+                    <p class="text-slate-400 mt-1">The spacecraft was initially moving at v<sub>i</sub> = <span id="display-vi" class="text-indigo-400 font-bold"></span> m/s. What is its final velocity (v<sub>f</sub>) after the thruster burn?</p>
+                    <div class="equation block">
+                        v<sub>f</sub> = v<sub>i</sub> + &Delta;v
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3" id="q3-input-area">
+                    <input type="number" id="q3-input" step="0.1" class="bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 w-48 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-white" placeholder="m/s">
+                    <button onclick="checkAnswer(3)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-medium transition shadow-sm">Submit</button>
+                    <button onclick="showHint(3)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-5 py-2 rounded-lg font-medium transition">Standard Hint</button>
+                    <button id="ai-btn-3" onclick="askAITutor(3)" class="bg-fuchsia-900/40 hover:bg-fuchsia-900/60 text-fuchsia-300 px-5 py-2 rounded-lg font-medium transition flex items-center gap-2 border border-fuchsia-700/50 shadow-sm">✨ Ask AI Tutor</button>
+                </div>
+                <div id="q3-feedback" class="text-sm rounded-lg p-3 hidden transition-all"></div>
+            </div>
+
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-900 p-8 text-center fade-in border-t border-slate-700 relative overflow-hidden">
+            <span class="text-xs uppercase tracking-widest text-indigo-400 font-bold mb-4 block flex items-center justify-center gap-2">
+                ✨ MISSION COMPLETE ✨
+            </span>
+            <div class="mb-6 relative z-10">
+                <div class="flex items-end justify-center gap-2 mb-1">
+                    <span class="text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-fuchsia-400 drop-shadow-sm" id="final-score">15.0</span>
+                    <span class="text-3xl text-slate-500 mb-2 font-light">/ 10</span>
+                </div>
+                <p class="text-sm text-slate-400 tracking-wider font-semibold uppercase mb-6">Physics Coach: Impulse & Velocity</p>
+                
+                <div id="retry-msg" class="hidden bg-red-900/30 text-red-300 border border-red-800/50 p-3 rounded-lg max-w-sm mx-auto mb-6 text-sm font-medium">
+                    You missed a few coordinates on this jump. Review your steps and try again to improve your rating!
+                </div>
+            </div>
+            
+            <div class="bg-slate-800/80 p-6 rounded-2xl shadow-xl border border-indigo-500/20 inline-block max-w-xl mb-6 w-full relative z-10 backdrop-blur-sm">
+                <div class="absolute -top-4 -left-4 text-3xl drop-shadow-md">🤖</div>
+                <p id="unique-message" class="text-lg font-medium text-slate-200 italic leading-relaxed">
+                    <span class="spinner"></span> <i>AI Coach is generating your official mission debriefing...</i>
+                </p>
+            </div>
+            
+            <p class="text-xs text-slate-500 mt-2 font-medium uppercase tracking-widest relative z-10">Screenshot this exact view for credit</p>
+            
+            <div class="mt-8 relative z-10">
+                <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg tracking-wide border border-indigo-400/50">Load Next Simulation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent');
+            const delays = [1000, 2000, 4000, 8000, 16000]; // Exponential backoff delays
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        // If deployed to your Vercel server, use your dedicated backend!
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    // Fetch as text first to prevent JSON.parse crashes on empty/invalid responses
+                    const responseText = await response.text();
+                    if (!responseText) {
+                        throw new Error("Empty response body received");
+                    }
+                    
+                    const data = JSON.parse(responseText);
+                    
+                    if (isPreview) {
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+                    } else {
+                        return data.text || null;
+                    }
+                    
+                } catch (error) {
+                    // If we've exhausted all retries, fail gracefully
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline after retries:", error);
+                        return null;
+                    }
+                    // Wait for the specified delay before retrying
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+        }
+
+        // --- Physics Engine & Variables ---
+        let m, vi;
+        let graphPoints = [];
+        let exactAnswers = {};
+        
+        let totalErrors = 0; // Tracks BOTH hints and wrong guesses
+        let currentHints = {1: 0, 2: 0, 3: 0};
+        
+        // Dynamic Story Context
+        let storyContext = "";
+
+        // Standard Hints Database (Progressive)
+        const hintsDB = {
+            1: [
+                "The impulse is the total area bound by the graph and the time (x) axis.",
+                "Break the graph up into simple shapes like rectangles and triangles. The area of a rectangle is base × height. The area of a triangle is ½ × base × height.",
+                "Calculate the area for each segment carefully using the grid, then add them all together to get the total Impulse (J)."
+            ],
+            2: [
+                "The Impulse-Momentum Theorem states that Impulse equals the change in momentum: J = Δp.",
+                "Since momentum (p) is mass × velocity, a change in momentum is mass × change in velocity: J = m × Δv.",
+                "To find Δv, take your correct Impulse from Part 1 and divide it by the spacecraft's mass."
+            ],
+            3: [
+                "Change in velocity (Δv) means final velocity minus initial velocity: Δv = vf - vi.",
+                "If the impulse was positive, the spacecraft sped up. Add the change in velocity to the initial velocity.",
+                "Just calculate: vf = vi + Δv using your answers from the previous steps!"
+            ]
+        };
+
+        const offlineWinMessages = [
+            "Flawless trajectory calculations! The fleet is safe.",
+            "Excellent work managing those thrust vectors. Commander status achieved!",
+            "Outstanding impulse calculations! The physics federation is impressed."
+        ];
+
+        function generateGraphShape() {
+            // Randomize grid scale to create huge variety
+            const timeScale = Math.floor(Math.random() * 3) + 2; // 2s, 3s, or 4s per block
+            const forceScale = (Math.floor(Math.random() * 5) + 2) * 1000; // 2k to 6k N per block
+
+            const maxT_blocks = 8; // Grid is 8 blocks wide
+            const maxF_blocks = 6; // Grid is 6 blocks high
+
+            const profile = Math.floor(Math.random() * 4); // 4 different graph shapes
+            let points = [];
+            let area = 0;
+            let shapeName = "";
+
+            if (profile === 0) {
+                // Triangle
+                shapeName = "a sudden triangular surge";
+                const peakT = Math.floor(Math.random() * 4) + 2; 
+                const peakF = Math.floor(Math.random() * 3) + 3;
+                const endT = peakT + (Math.floor(Math.random() * 3) + 2);
+                
+                points = [
+                    {x: 0, y: 0},
+                    {x: peakT, y: peakF},
+                    {x: endT, y: 0}
+                ];
+                area = 0.5 * (endT * timeScale) * (peakF * forceScale);
+            } 
+            else if (profile === 1) {
+                // Rectangle
+                shapeName = "a constant sustained burn";
+                const lengthT = Math.floor(Math.random() * 4) + 4;
+                const heightF = Math.floor(Math.random() * 3) + 2;
+                
+                points = [
+                    {x: 0, y: heightF},
+                    {x: lengthT, y: heightF},
+                    {x: lengthT, y: 0}
+                ];
+                // Need 0,0 for drawing logic consistency sometimes, but let's stick to path:
+                points.unshift({x: 0, y: 0});
+                area = (lengthT * timeScale) * (heightF * forceScale);
+            }
+            else if (profile === 2) {
+                // Trapezoid
+                shapeName = "a steady ramp-up, hold, and ramp-down sequence";
+                const rampUpT = Math.floor(Math.random() * 2) + 1;
+                const holdT = Math.floor(Math.random() * 3) + 2;
+                const rampDownT = Math.floor(Math.random() * 2) + 1;
+                const heightF = Math.floor(Math.random() * 3) + 3;
+                
+                points = [
+                    {x: 0, y: 0},
+                    {x: rampUpT, y: heightF},
+                    {x: rampUpT + holdT, y: heightF},
+                    {x: rampUpT + holdT + rampDownT, y: 0}
+                ];
+                
+                const base1 = (rampUpT + holdT + rampDownT) * timeScale;
+                const base2 = holdT * timeScale;
+                area = 0.5 * (base1 + base2) * (heightF * forceScale);
+            }
+            else {
+                // Right Triangle (Decelerating thrust)
+                shapeName = "an immediate max thrust that linearly fades to zero";
+                const lengthT = Math.floor(Math.random() * 4) + 4;
+                const heightF = Math.floor(Math.random() * 3) + 3;
+                
+                points = [
+                    {x: 0, y: 0},
+                    {x: 0, y: heightF},
+                    {x: lengthT, y: 0}
+                ];
+                area = 0.5 * (lengthT * timeScale) * (heightF * forceScale);
+            }
+
+            return { points, area, timeScale, forceScale, shapeName, maxT_blocks, maxF_blocks };
+        }
+
+        function drawGraph(graphData) {
+            const canvas = document.getElementById('force-graph');
+            const ctx = canvas.getContext('2d');
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const padX = 60;
+            const padY = 40;
+            const graphW = w - padX - 20;
+            const graphH = h - padY - 20;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Grid Lines
+            const blockW = graphW / graphData.maxT_blocks;
+            const blockH = graphH / graphData.maxF_blocks;
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#e2e8f0'; // light gray
+            ctx.lineWidth = 2;
+
+            for(let i=0; i<=graphData.maxT_blocks; i++) {
+                let x = padX + i*blockW;
+                ctx.moveTo(x, 20);
+                ctx.lineTo(x, h - padY);
+            }
+            for(let i=0; i<=graphData.maxF_blocks; i++) {
+                let y = h - padY - i*blockH;
+                ctx.moveTo(padX, y);
+                ctx.lineTo(w - 20, y);
+            }
+            ctx.stroke();
+
+            // Draw Axes
+            ctx.beginPath();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 3;
+            // Y axis
+            ctx.moveTo(padX, 20);
+            ctx.lineTo(padX, h - padY);
+            // X axis
+            ctx.moveTo(padX, h - padY);
+            ctx.lineTo(w - 20, h - padY);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Time (s)`, padX + graphW/2, h - 5);
+            
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(`Force (N)`, 0, 0);
+            ctx.restore();
+
+            // Tick Marks & Numbers
+            ctx.font = '12px sans-serif';
+            for(let i=1; i<=graphData.maxT_blocks; i++) {
+                ctx.fillText(i * graphData.timeScale, padX + i*blockW, h - padY + 18);
+            }
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for(let i=1; i<=graphData.maxF_blocks; i++) {
+                ctx.fillText(i * graphData.forceScale, padX - 8, h - padY - i*blockH);
+            }
+
+            // Draw Graph Path
+            ctx.beginPath();
+            ctx.moveTo(padX, h - padY); // origin
+            
+            graphData.points.forEach((p, index) => {
+                let px = padX + (p.x * blockW);
+                let py = (h - padY) - (p.y * blockH);
+                if(index === 0 && p.x === 0 && p.y === 0) {
+                    // skip drawing line to origin if it's the first point
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            });
+
+            ctx.lineTo(padX + (graphData.points[graphData.points.length-1].x * blockW), h - padY); // drop to x axis
+            
+            // Fill area
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.3)'; // Indigo semi-transparent
+            ctx.fill();
+            
+            // Draw thick line
+            ctx.beginPath();
+            ctx.strokeStyle = '#4f46e5'; // Indigo-600
+            ctx.lineWidth = 4;
+            graphData.points.forEach((p, index) => {
+                let px = padX + (p.x * blockW);
+                let py = (h - padY) - (p.y * blockH);
+                if(index === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+        }
+
+        async function init() {
+            // Setup Randomized Variables
+            m = Math.floor(Math.random() * 4500) + 500; // 500 to 5000 kg
+            vi = Math.floor(Math.random() * 900) + 100; // 100 to 1000 m/s
+            
+            const graphData = generateGraphShape();
+            drawGraph(graphData);
+
+            document.getElementById('display-m').innerText = m;
+            document.getElementById('display-vi').innerText = vi;
+
+            // Math Engine
+            exactAnswers[1] = graphData.area;
+            exactAnswers[2] = exactAnswers[1] / m;
+            exactAnswers[3] = vi + exactAnswers[2];
+
+            // Generate Context for AI
+            storyContext = `Mass: ${m}kg. Initial Velocity: ${vi}m/s. Thrust profile: ${graphData.shapeName}.`;
+
+            // Auto-generate story on load
+            await remixScenario(graphData.shapeName);
+        }
+
+        async function remixScenario(shapeInfo = null) {
+            const btn = document.getElementById('remix-btn');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner border-indigo-300 border-t-indigo-100"></span> Generating...';
+            btn.disabled = true;
+
+            const prompt = `Write a highly engaging, 2-paragraph sci-fi story about a spacecraft that needs to execute a critical thruster burn. 
+            You MUST explicitly include these numbers in the text formatting them in bold blue (e.g., <span class="text-indigo-400 font-bold">${m} kg</span>):
+            - Mass: ${m} kg
+            - Initial velocity: ${vi} m/s
+            The thruster burn follows this graph profile: ${shapeInfo || storyContext}. 
+            Do NOT solve the physics problem. Return ONLY HTML <p> tags. End with: <p class="text-indigo-300 font-medium italic mt-2">Analyze the telemetry graph below to calculate the results of the burn.</p>`;
+            
+            const result = await callGemini(prompt);
+            
+            if (result) {
+                document.getElementById('scenario-text').innerHTML = result;
+            } else {
+                document.getElementById('scenario-text').innerHTML = `
+                    <p>The <span class="text-indigo-400 font-bold">${m} kg</span> heavy cruiser is drifting through the outer rim at <span class="text-indigo-400 font-bold">${vi} m/s</span>.</p>
+                    <p>Suddenly, the ship's computer initiates an emergency thruster burn. Analyze the thrust telemetry on the graph below to determine the new velocity.</p>`;
+            }
+            
+            btn.innerHTML = '✨ Generate New Story';
+            btn.disabled = false;
+        }
+
+        // --- Core UI & Logic ---
+
+        function showFeedback(q, msg, type) {
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = `text-sm rounded-lg p-3 mt-3 fade-in block font-medium ${
+                type === 'error' ? 'bg-red-900/30 text-red-300 border border-red-800/50' :
+                type === 'hint' ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-800/50' :
+                'bg-emerald-900/30 text-emerald-300 border border-emerald-800/50'
+            }`;
+            fb.innerHTML = msg;
+        }
+
+        function showHint(q) {
+            totalErrors++;
+            let hintIndex = currentHints[q];
+            if (hintIndex < hintsDB[q].length) {
+                showFeedback(q, `💡 <b>Standard Hint:</b> ${hintsDB[q][hintIndex]}`, 'hint');
+                currentHints[q]++;
+            } else {
+                showFeedback(q, "You've viewed all standard hints for this step! Look closely at your equations.", 'hint');
+            }
+        }
+
+        async function askAITutor(q) {
+            const btn = document.getElementById(`ai-btn-${q}`);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner border-fuchsia-300 border-t-fuchsia-100"></span> Thinking...';
+            btn.disabled = true;
+
+            const inputVal = document.getElementById(`q${q}-input`).value;
+            totalErrors++; // AI hint counts as an error/correction
+            
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = 'text-sm rounded-lg p-3 mt-3 fade-in block font-medium bg-fuchsia-900/30 text-fuchsia-300 border border-fuchsia-800/50';
+            fb.innerHTML = '✨ <i>Consulting the AI Coach...</i>';
+            
+            const contexts = {
+                1: "Calculating Impulse (Area under the Force-Time graph).",
+                2: `Calculating change in velocity (Delta V = Impulse / mass). Mass is ${m}kg.`,
+                3: `Calculating final velocity (vf = vi + Delta V). Initial velocity is ${vi}m/s.`
+            };
+
+            let studentAttempt = inputVal ? `The student incorrectly guessed: ${inputVal}.` : "The student hasn't typed a guess yet.";
+
+            const prompt = `A student is working on a physics web app.
+            Current Step: ${contexts[q]}
+            The exact correct numerical answer they need to find is ${exactAnswers[q]}.
+            ${studentAttempt}
+            Act as an encouraging tutor. Give them a highly customized conceptual hint to help them find the right path. If they guessed, point out common math errors (e.g., forgot the 1/2 for a triangle area, multiplied instead of divided). DO NOT give them the exact correct numerical answer. Keep it to 2-3 brief sentences. Start directly without greetings.`;
+            
+            const result = await callGemini(prompt);
+            
+            if(result) {
+                fb.innerHTML = `✨ <b>AI Coach:</b> ${formatMarkdown(result)}`;
+            } else {
+                showHint(q); // Fallback to standard hint
+            }
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        function checkAnswer(q) {
+            const inputVal = parseFloat(document.getElementById(`q${q}-input`).value);
+            const exact = exactAnswers[q];
+
+            if (isNaN(inputVal)) {
+                showFeedback(q, "Please enter a valid number.", "error");
+                return;
+            }
+
+            // Margin of error: 1% or 0.1
+            const margin = Math.max(Math.abs(exact * 0.01), 0.1);
+
+            if (Math.abs(inputVal - exact) <= margin) {
+                let successMsg = `✅ Correct! The exact answer is ${exact.toFixed(1)}.`;
+                showFeedback(q, successMsg, "success");
+                
+                document.getElementById(`q${q}-input-area`).classList.add('hidden');
+
+                if (q < 3) {
+                    document.getElementById(`q${q+1}-box`).classList.remove('hidden');
+                } else {
+                    finishGame();
+                }
+            } else {
+                totalErrors++;
+                showFeedback(q, "❌ Incorrect telemetry data. Double check your math or ask for a hint!", "error");
+            }
+        }
+
+        // --- Scoring & Game Over ---
+
+        function finishGame() {
+            document.getElementById('questions-container').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+            
+            // Calculate Score Logic
+            // Base = 10. Max = 15. Start deducting below 10 ONLY after 10 errors.
+            let finalScore = 15.0;
+            
+            if (totalErrors === 0) {
+                finalScore = 15.0; // Perfect Execution
+            } else if (totalErrors <= 10) {
+                // Lose the 5 extra credit points gradually
+                finalScore = 15.0 - (totalErrors * 0.5); 
+            } else {
+                // Drop below 10 (100%)
+                finalScore = 10.0 - ((totalErrors - 10) * 0.5);
+            }
+            
+            finalScore = Math.max(1.0, finalScore); // Floor at 1.0
+            
+            document.getElementById('final-score').innerText = finalScore.toFixed(1);
+
+            if (finalScore < 8.0) {
+                document.getElementById('retry-msg').classList.remove('hidden');
+                document.getElementById('final-score').classList.replace('text-indigo-400', 'text-red-400');
+                document.getElementById('final-score').classList.replace('to-fuchsia-400', 'to-red-600');
+            }
+
+            // Confetti Logic
+            if (finalScore === 15.0) {
+                triggerConfettiRounds(3);
+            } else if (finalScore >= 12.0) {
+                triggerConfettiRounds(2);
+            } else if (finalScore >= 10.0) {
+                triggerConfettiRounds(1);
+            }
+
+            generateAIFinalMessage(finalScore, totalErrors);
+        }
+
+        async function generateAIFinalMessage(score, errors) {
+            const msgEl = document.getElementById('unique-message');
+            
+            const prompt = `A student just completed an interactive physics simulation calculating Impulse and Change in Velocity from a Force vs. Time graph.
+            Their final score is ${score.toFixed(1)} out of 10.0 (Scores above 10 mean they earned extra credit!).
+            They made a total of ${errors} mistakes/hint requests during the process.
+            Write a highly unique, 2-sentence congratulatory/debriefing message. Use sci-fi/spacecraft terminology. Mention their specific score. If they got >10, praise their flawless execution. If they got <8, encourage them to run the simulation again. Provide ONLY the message text.`;
+            
+            const result = await callGemini(prompt);
+            
+            if (result) {
+                msgEl.innerHTML = formatMarkdown(result);
+            } else {
+                msgEl.innerHTML = offlineWinMessages[Math.floor(Math.random() * offlineWinMessages.length)];
+            }
+        }
+
+        function triggerConfettiRounds(rounds) {
+            for(let i = 0; i < rounds; i++) {
+                setTimeout(() => shootBallisticConfetti(), i * 1500);
+            }
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 150; i++) {
+                const isLeft = Math.random() < 0.5;
+                particles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 15 + 5) : -(Math.random() * 15 + 5), 
+                    vy: -(Math.random() * 15 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 80%, 60%)`, // Brighter colors for dark mode
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 15 
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4; // gravity
+                    p.rotation += p.rs;
+
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+
+                if (active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
