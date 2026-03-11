@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Boxing & Impulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.25rem;
+            background: #ffffff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 1px solid #cbd5e1;
+            color: #b91c1c;
+            font-weight: bold;
+        }
+        #illustration-container {
+            position: relative;
+            z-index: 10;
+        }
+        canvas {
+            user-select: none;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .graph-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden relative z-20" id="main-card">
+        <!-- Header -->
+        <div class="bg-red-700 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 opacity-10 transform rotate-12 text-9xl">🥊</div>
+            <h1 class="text-3xl font-bold relative z-10">Physics Coach: Boxing & Impulse</h1>
+            <p class="mt-2 opacity-90 relative z-10 text-lg">Analyze the Impulse-Momentum Theorem and the inverse relationship between Force and Time.</p>
+        </div>
+
+        <!-- Problem Statement & Visuals -->
+        <div class="p-6 border-b border-gray-200 bg-slate-50">
+            <div class="flex justify-center mb-6 relative">
+                <div class="graph-container w-full max-w-4xl text-center overflow-hidden bg-white border-2 border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-700 mb-2">Impulse - Momentum Theorem</h2>
+                    <div class="flex justify-center items-center mb-2 flex-col">
+                        <div class="equation text-2xl tracking-widest">
+                            <span class="border border-red-600 px-2 py-1 inline-block">F t</span> = 
+                            <span class="border border-red-600 px-2 py-1 inline-block">m Δv</span>
+                        </div>
+                        <button onclick="explainEquation()" id="explain-eq-btn" class="mt-2 text-sm text-purple-600 hover:text-purple-800 font-bold transition flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">✨ Explain this simply</button>
+                        <div id="equation-explanation" class="hidden max-w-lg mt-3 p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 text-sm text-left leading-relaxed shadow-inner"></div>
+                    </div>
+                    
+                    <!-- Reference Image and Typo Note -->
+                    <div class="my-4">
+                        <img src="https://docs.google.com/drawings/d/e/2PACX-1vR5gbecrKOKb_GfLUFae3wvk-siLRtxIhysZ-I_aAatUqB-xWI8R-9MCWD4u_X_tLxlXIU06izOIfIe/pub?w=793&h=539" alt="Boxing Impulse Diagram" class="mx-auto border rounded shadow-sm max-w-full">
+                    </div>
+
+                    <div class="max-w-[700px] mx-auto flex justify-end mb-1">
+                        <button onclick="startAnimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded shadow-sm text-sm font-bold transition flex items-center gap-1">
+                            🔄 Replay Animation
+                        </button>
+                    </div>
+                    <canvas id="illustrationCanvas" width="700" height="280" class="mx-auto"></canvas>
+                </div>
+            </div>
+            <p class="text-gray-700 leading-relaxed text-lg text-center max-w-2xl mx-auto italic">
+                This theorem reveals some interesting relationships, such as the <strong>INVERSE</strong> relationship between <strong>FORCE</strong> and <strong>TIME</strong> when the change in momentum is constant.
+            </p>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 space-y-8 bg-white" id="questions-container">
+            
+            <!-- Q1 -->
+            <div id="q1-box" class="space-y-3 fade-in">
+                <h3 class="font-bold text-lg text-gray-800 border-b pb-2">Part 1: Conceptual Relationships</h3>
+                <p class="text-gray-700 font-medium">1) In the left picture the boxer is "slipping the punch" prolonging the impact time.</p>
+                <p class="text-gray-700">Does this increase or decrease the force of the punch?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q1-input-area">
+                    <select id="q1-input" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200 bg-white cursor-pointer">
+                        <option value="">Select...</option>
+                        <option value="Increase">Increase</option>
+                        <option value="Decrease">Decrease</option>
+                    </select>
+                    <button onclick="checkAnswer(1)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q1-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q1-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q2 -->
+            <div id="q2-box" class="space-y-3 hidden pt-4 fade-in">
+                <p class="text-gray-700 font-medium">2) In the right picture the boxer is moving forward into the punch and the impact time is much less.</p>
+                <p class="text-gray-700">Does this increase or decrease the force of the punch?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q2-input-area">
+                    <select id="q2-input" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200 bg-white cursor-pointer">
+                        <option value="">Select...</option>
+                        <option value="Increase">Increase</option>
+                        <option value="Decrease">Decrease</option>
+                    </select>
+                    <button onclick="checkAnswer(2)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q2-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q2-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q3 -->
+            <div id="q3-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-gray-800 border-b pb-2">Part 2: Change in Velocity</h3>
+                <p class="text-gray-700 font-medium">3) In the left picture the boxer starts out at rest so <span class="font-mono text-blue-700">v<sub>i</sub> = 0</span> and ends up moving left so his final velocity is <span class="font-mono text-blue-700">v<sub>f</sub> = -<span id="var-v-left"></span> m/s</span>.</p>
+                <p class="text-gray-700">Since <span class="font-mono bg-slate-100 px-1 rounded">Δv = v<sub>f</sub> - v<sub>i</sub></span>, what is Δv?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q3-input-area">
+                    <input type="number" id="q3-input" step="0.1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Δv (m/s)">
+                    <button onclick="checkAnswer(3)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q3-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q3-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q4 -->
+            <div id="q4-box" class="space-y-3 hidden pt-4 fade-in">
+                <p class="text-gray-700 font-medium">4) In the right picture the boxer is initially moving to the right at <span class="font-mono text-blue-700"><span id="var-v-right"></span> m/s</span> and the punch stops him so <span class="font-mono text-blue-700">v<sub>f</sub> = 0</span>.</p>
+                <p class="text-gray-700">What is Δv in this case?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q4-input-area">
+                    <input type="number" id="q4-input" step="0.1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Δv (m/s)">
+                    <button onclick="checkAnswer(4)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q4-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q4-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q5 -->
+            <div id="q5-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-gray-800 border-b pb-2">Part 3: Momentum & Impulse</h3>
+                <p class="text-gray-700 font-medium">5) The mass of the boxer's head and shoulders (which are the only parts of him that are moving) is <strong class="text-red-600"><span id="var-mass"></span> kilograms</strong>.</p>
+                <p class="text-gray-700">What is the boxer's change in momentum in each case? <br><span class="text-sm text-slate-500 italic">(The units of momentum are kg•m/s since momentum is mass • velocity.)</span></p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q5-input-area">
+                    <input type="number" id="q5-input" step="0.1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Δp (kg·m/s)">
+                    <button onclick="checkAnswer(5)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q5-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q5-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q6 -->
+            <div id="q6-box" class="space-y-3 hidden pt-4 fade-in">
+                <p class="text-gray-700 font-medium">6) What is the impulse on the boxer in each case?</p>
+                <p class="text-sm text-slate-500 italic">The units of Impulse are Newton•seconds or N•s since impulse is force • time.</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q6-input-area">
+                    <input type="number" id="q6-input" step="0.1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Impulse (N·s)">
+                    <button onclick="checkAnswer(6)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q6-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q6-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q7 -->
+            <div id="q7-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-gray-800 border-b pb-2">Part 4: Proof of Units</h3>
+                <p class="text-gray-700 font-medium">7) If <strong>1 N = 1 kg·m/s²</strong>, explain how it is possible for a <strong>N·s</strong> to equal a <strong>kg·m/s</strong>.</p>
+                
+                <div class="flex flex-col gap-3 mt-4" id="q7-input-area">
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q7-radio" value="A" class="w-5 h-5 text-red-600">
+                        <span class="text-lg">N·s = (kg·m/s²) / s = <strong>kg·m/s³</strong></span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q7-radio" value="B" class="w-5 h-5 text-red-600">
+                        <span class="text-lg">N·s = (kg·m/s²) · s = <strong>kg·m/s</strong></span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q7-radio" value="C" class="w-5 h-5 text-red-600">
+                        <span class="text-lg">N·s = (kg·m/s) · s = <strong>kg·m·s</strong></span>
+                    </label>
+                    
+                    <button onclick="checkAnswer(7)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md w-48 mt-2">Check</button>
+                </div>
+                <div id="q7-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q7-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q8 -->
+            <div id="q8-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-gray-800 border-b pb-2">Part 5: Calculating Force</h3>
+                <p class="text-gray-700 font-medium">8) If the impact time of the punch on the <strong>right</strong> is <strong class="text-red-600"><span id="var-t-right"></span> seconds</strong>, what is the force of the punch?</p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-yellow-800 rounded-r mt-2">
+                    <strong>Note:</strong> Since momentum changed in the negative (leftward) direction, the resulting Force vector should also be negative!
+                </div>
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q8-input-area">
+                    <input type="number" id="q8-input" step="1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Force (N)">
+                    <button onclick="checkAnswer(8)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q8-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q8-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q9 -->
+            <div id="q9-box" class="space-y-3 hidden pt-4 fade-in">
+                <p class="text-gray-700 font-medium">9) If the impact time of the punch on the <strong>left</strong> is <strong class="text-red-600"><span id="var-t-left"></span> seconds</strong>, what is the force of the slipped punch?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q9-input-area">
+                    <input type="number" id="q9-input" step="1" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-200" placeholder="Force (N)">
+                    <button onclick="checkAnswer(9)" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Submit Final Answer</button>
+                </div>
+                <div id="q9-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q9-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-50 p-10 text-center fade-in border-t border-slate-200">
+            <div class="inline-block bg-white p-8 rounded-2xl shadow-lg border border-slate-100 max-w-xl w-full">
+                
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Lesson Complete!</h2>
+                
+                <div class="my-8">
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-7xl font-black text-red-600 drop-shadow-sm" id="final-score">10.0</span>
+                        <span class="text-3xl text-gray-400 mb-2 font-light">/ 10</span>
+                    </div>
+                    
+                    <div id="extra-credit-message" class="hidden text-green-600 font-extrabold text-2xl mt-4 animate-bounce drop-shadow-sm">
+                        🌟 +5 EXTRA CREDIT FOR A PERFECT RUN! 🌟
+                    </div>
+
+                    <!-- Unique Congratulatory Message -->
+                    <p id="unique-message" class="text-xl font-bold text-purple-600 mt-4 italic leading-relaxed"></p>
+                    
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mt-6 font-semibold">physics coach: boxing & impulse</p>
+                </div>
+                
+                <p id="retry-message" class="text-slate-500 font-medium mb-6 hidden bg-slate-100 p-3 rounded-lg"></p>
+                
+                <div class="flex justify-center flex-wrap gap-4 mt-4">
+                    <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg">
+                        Play Again (New Numbers)
+                    </button>
+                    <button id="analogy-btn" onclick="generateAnalogy()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg flex items-center gap-2">
+                        ✨ Generate Real-World Analogy
+                    </button>
+                </div>
+                <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
+
+                <!-- New AI Feature: Safety Engineer Mini-Game -->
+                <div class="mt-8 bg-slate-50 border-2 border-slate-200 rounded-xl p-6 text-left shadow-inner">
+                    <h3 class="text-xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <span>🛡️</span> ✨ Bonus Challenge: Safety Engineer
+                    </h3>
+                    <p class="text-slate-600 mb-4 text-sm leading-relaxed">Now that you understand how increasing impact time decreases force, how would you design a landing pad to safely catch a falling egg? Describe your materials and design!</p>
+                    <textarea id="safety-design-input" rows="3" class="w-full border-2 border-slate-300 rounded-lg p-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition text-slate-700 mb-3" placeholder="E.g., I would build a giant net made of elastic bands suspended over a pool of marshmallows..."></textarea>
+                    <button id="evaluate-design-btn" onclick="evaluateSafetyDesign()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md w-full flex justify-center items-center gap-2">✨ Evaluate My Design</button>
+                    <div id="safety-evaluation-result" class="hidden mt-4 p-4 bg-white border-2 border-purple-100 rounded-lg text-slate-700 text-base leading-relaxed shadow-sm"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent');
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const responseText = await response.text();
+                    if (!responseText) throw new Error("Empty response");
+                    
+                    const data = JSON.parse(responseText);
+                    return isPreview ? (data.candidates?.[0]?.content?.parts?.[0]?.text || null) : (data.text || null);
+                } catch (error) {
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline:", error);
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+        }
+
+        // --- State Variables ---
+        let V, m, t_right, t_left;
+        let exactAnswers = {};
+        let totalMistakes = 0;
+        let hintsShown = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0};
+
+        // Animation State
+        let animStartTime = null;
+        let animationReqId = null;
+
+        // Messaging Pools
+        const adjs1 = ["Incredible", "Amazing", "Spectacular", "Fantastic", "Marvelous", "Outstanding", "Phenomenal", "Stellar"];
+        const nouns2 = ["job", "work", "effort", "performance", "execution", "problem-solving", "analysis", "deduction"];
+        const phrases3 = ["mastering momentum!", "crushing the impulse theorem!", "analyzing that punch!", "understanding force and time!", "acing the physics!", "solving the collision!"];
+
+        function getUniqueMessage() {
+            return `${adjs1[Math.floor(Math.random() * adjs1.length)]} ${nouns2[Math.floor(Math.random() * nouns2.length)]} ${phrases3[Math.floor(Math.random() * phrases3.length)]}`;
+        }
+
+        // --- Initialization ---
+        function init() {
+            // 1. Generate Random Physics Values
+            V = [8, 10, 12, 14][Math.floor(Math.random()*4)];
+            m = [5, 6, 7, 8, 9][Math.floor(Math.random()*5)];
+            t_right = [0.02, 0.025, 0.03, 0.035, 0.04][Math.floor(Math.random()*5)];
+            t_left = [0.08, 0.1, 0.12, 0.15][Math.floor(Math.random()*4)];
+
+            // 2. Setup Answers
+            exactAnswers[1] = "Decrease";
+            exactAnswers[2] = "Increase";
+            exactAnswers[3] = -V; 
+            exactAnswers[4] = -V; 
+            exactAnswers[5] = m * (-V);
+            exactAnswers[6] = m * (-V);
+            exactAnswers[7] = "B"; 
+            exactAnswers[8] = (m * -V) / t_right;
+            exactAnswers[9] = (m * -V) / t_left;
+
+            // 3. Populate DOM
+            document.getElementById('var-v-left').innerText = V;
+            document.getElementById('var-v-right').innerText = V;
+            document.getElementById('var-mass').innerText = m;
+            document.getElementById('var-t-right').innerText = t_right;
+            document.getElementById('var-t-left').innerText = t_left;
+
+            // 4. Start Animation
+            startAnimation();
+        }
+
+        // --- Animation Logic ---
+        function startAnimation() {
+            if (animationReqId) cancelAnimationFrame(animationReqId);
+            animStartTime = null;
+            animationReqId = requestAnimationFrame(runAnimation);
+        }
+
+        function runAnimation(timestamp) {
+            if (!animStartTime) animStartTime = timestamp;
+            const elapsed = timestamp - animStartTime;
+            
+            const canvas = document.getElementById('illustrationCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            const duration = 1500; // 1.5s total animation loop
+            let progress = Math.min(elapsed / duration, 1);
+            
+            // Ease out for punch
+            let t = progress * (2 - progress);
+
+            // Draw Titles
+            ctx.fillStyle = "#b91c1c";
+            ctx.font = "bold 20px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("IMPULSE", w/4, 30);
+            ctx.fillText("CHANGE IN MOMENTum", 3*w/4, 30);
+
+            // Left Scenario (Slipping)
+            drawSlippingPunch(ctx, w/4, 150, t);
+            
+            // Right Scenario (Leaning In)
+            drawLeaningPunch(ctx, 3*w/4, 150, t);
+
+            if (progress < 1) {
+                animationReqId = requestAnimationFrame(runAnimation);
+            }
+        }
+
+        function drawSlippingPunch(ctx, cx, cy, t) {
+            // Head moving backwards (left) slowly
+            let headX = cx + 20 - (40 * t);
+            let gloveX = cx + 120 - (100 * t);
+            
+            // Body/Shoulders
+            ctx.fillStyle = "#fde047"; // Skin tone approx
+            ctx.beginPath();
+            ctx.arc(headX, cy, 40, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+            
+            // Face features
+            ctx.fillStyle = "#000";
+            ctx.beginPath(); ctx.arc(headX-15, cy-10, 4, 0, Math.PI*2); ctx.fill(); // eye
+            ctx.beginPath(); ctx.arc(headX-5, cy-10, 4, 0, Math.PI*2); ctx.fill(); // eye
+            ctx.beginPath(); ctx.arc(headX-20, cy+5, 8, Math.PI/2, Math.PI*1.5, true); ctx.stroke(); // nose
+            
+            // "POOF" text if impact
+            if (t > 0.8) {
+                ctx.fillStyle = "#22c55e"; // Green text
+                ctx.font = "italic bold 24px marker felt, comic sans ms, sans-serif";
+                ctx.fillText("POOF!", headX+30, cy-50);
+            }
+
+            // Glove
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.ellipse(gloveX, cy+10, 30, 20, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+            // glove laces
+            ctx.beginPath(); ctx.moveTo(gloveX+10, cy); ctx.lineTo(gloveX+20, cy+20); ctx.stroke();
+
+            // Formula Text (Small F, Large t)
+            ctx.fillStyle = "#000";
+            ctx.font = "italic 20px 'Times New Roman', serif";
+            ctx.fillText("F", cx - 40, cy + 100);
+            ctx.font = "20px sans-serif";
+            ctx.fillText("·", cx - 25, cy + 100);
+            ctx.font = "italic 40px 'Times New Roman', serif";
+            ctx.fillText("t", cx - 10, cy + 100);
+            ctx.font = "20px sans-serif";
+            ctx.fillText("= m Δv", cx + 40, cy + 100);
+        }
+
+        function drawLeaningPunch(ctx, cx, cy, t) {
+            // Head moving forwards (right) into punch, sudden stop
+            let headX = cx - 40 + (30 * Math.min(t*1.5, 1));
+            let gloveX = cx + 100 - (110 * Math.min(t*1.5, 1));
+            
+            // Body/Shoulders
+            ctx.fillStyle = "#fde047"; 
+            ctx.beginPath();
+            ctx.arc(headX, cy, 40, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+            
+            // Face features (squinting eyes at impact)
+            ctx.fillStyle = "#000";
+            if (t > 0.6) {
+                ctx.beginPath(); ctx.moveTo(headX-20, cy-10); ctx.lineTo(headX-10, cy-8); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(headX-5, cy-10); ctx.lineTo(headX+5, cy-8); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.arc(headX-15, cy-10, 4, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(headX-5, cy-10, 4, 0, Math.PI*2); ctx.fill(); 
+            }
+            ctx.beginPath(); ctx.arc(headX-20, cy+5, 8, Math.PI/2, Math.PI*1.5, true); ctx.stroke(); 
+            
+            // "WHAP" text if impact
+            if (t > 0.6) {
+                ctx.fillStyle = "#06b6d4"; // Cyan text
+                ctx.font = "italic bold 28px marker felt, comic sans ms, sans-serif";
+                ctx.fillText("WHAP!", headX+30, cy-50);
+            }
+
+            // Glove
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.ellipse(gloveX, cy+10, 30, 20, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gloveX+10, cy); ctx.lineTo(gloveX+20, cy+20); ctx.stroke();
+
+            // Formula Text (Large F, Small t)
+            ctx.fillStyle = "#000";
+            ctx.font = "italic 40px 'Times New Roman', serif";
+            ctx.fillText("F", cx - 40, cy + 100);
+            ctx.font = "20px sans-serif";
+            ctx.fillText("·", cx - 15, cy + 100);
+            ctx.font = "italic 20px 'Times New Roman', serif";
+            ctx.fillText("t", cx + 5, cy + 100);
+            ctx.font = "20px sans-serif";
+            ctx.fillText("= m Δv", cx + 45, cy + 100);
+        }
+
+        // --- Game Logic ---
+        
+        function checkDecimalError(userVal, exactAns, actualT) {
+            // Check for missing zeroes (e.g. 0.2 instead of 0.02)
+            const multipliers = [10, 100, 1000];
+            for (let mult of multipliers) {
+                let wrongT = actualT * mult;
+                let wrongAns = exactAns / mult;
+                if (Math.abs(userVal - wrongAns) <= Math.max(Math.abs(wrongAns * 0.015), 0.001)) {
+                    return `💡 <strong>Decimal warning!</strong> It looks like you divided by ${wrongT}s instead of ${actualT}s. Double-check your zeros!`;
+                }
+            }
+            
+            // Check for integer error (e.g. dividing by 2 instead of 0.02)
+            let t_str = actualT.toString();
+            if (t_str.startsWith("0.")) {
+                let int_t = parseFloat(t_str.replace("0.", ""));
+                let wrongAnsInt = exactAns * (actualT / int_t);
+                if (Math.abs(userVal - wrongAnsInt) <= Math.max(Math.abs(wrongAnsInt * 0.015), 0.001)) {
+                    return `💡 <strong>Decimal warning!</strong> It looks like you divided by ${int_t}s instead of ${actualT}s. Check your decimal places!`;
+                }
+            }
+            return null;
+        }
+
+        function getHint(q, mistakeCount, userVal) {
+            if (q === 1) {
+                return "💡 <strong>Hint:</strong> Prolonging the impact time spreads out the change in momentum over a longer duration. Remember the equation: <em>F = (mΔv) / t</em>. If <em>t</em> gets larger, what happens to <em>F</em>?";
+            }
+            if (q === 2) {
+                return "💡 <strong>Hint:</strong> Stopping suddenly means the change in momentum happens in a very short time. If <em>t</em> in the denominator is very small, what happens to the force <em>F</em>?";
+            }
+            if (q === 3) {
+                if (userVal == V) return "💡 <strong>Check your signs!</strong> The final velocity is moving LEFT, which is a negative direction.";
+                return `💡 <strong>Hint:</strong> Δv = v<sub>f</sub> - v<sub>i</sub>. Plug in v<sub>f</sub> = -${V} and v<sub>i</sub> = 0.`;
+            }
+            if (q === 4) {
+                if (userVal == V) return "💡 <strong>Check your algebra!</strong> Δv = v<sub>f</sub> - v<sub>i</sub>. The final velocity is 0, and the initial was positive.";
+                return `💡 <strong>Hint:</strong> Δv = v<sub>f</sub> - v<sub>i</sub>. Plug in v<sub>f</sub> = 0 and v<sub>i</sub> = ${V}.`;
+            }
+            if (q === 5) {
+                if (userVal > 0) return "💡 <strong>Check your signs!</strong> Since Δv is negative, the change in momentum must also be negative.";
+                return `💡 <strong>Hint:</strong> Change in momentum (Δp) is mass × Δv. Multiply the mass (${m} kg) by the Δv you found earlier (-${V} m/s).`;
+            }
+            if (q === 6) {
+                return "💡 <strong>Hint:</strong> The Impulse-Momentum Theorem states that Impulse (J) is EXACTLY EQUAL to the change in momentum (Δp).";
+            }
+            if (q === 7) {
+                return "💡 <strong>Hint:</strong> Substitute (kg·m/s²) for Newtons in the expression N·s. The 's' in the numerator will cancel out one 's' in the denominator's s².";
+            }
+            if (q === 8) {
+                let decimalErr = checkDecimalError(userVal, exactAnswers[8], t_right);
+                if (decimalErr) return decimalErr;
+
+                if (userVal > 0) return "💡 <strong>Sign Warning!</strong> The impulse was negative, and time is positive. So the resulting Force MUST be negative!";
+                return `💡 <strong>Hint:</strong> Force = Impulse / time. Divide your Impulse (-${m*V}) by the time given (${t_right} s).`;
+            }
+            if (q === 9) {
+                let decimalErr = checkDecimalError(userVal, exactAnswers[9], t_left);
+                if (decimalErr) return decimalErr;
+
+                if (userVal > 0) return "💡 <strong>Sign Warning!</strong> The impulse was negative, and time is positive. So the resulting Force MUST be negative!";
+                return `💡 <strong>Hint:</strong> Force = Impulse / time. Divide your Impulse (-${m*V}) by the new prolonged time (${t_left} s).`;
+            }
+            return "";
+        }
+
+        function showFeedback(q, msg, type) {
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = `text-sm rounded-lg p-3 mt-3 fade-in block font-medium ${
+                type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
+                'bg-green-50 text-green-800 border-green-200'
+            }`;
+            fb.innerHTML = msg;
+        }
+
+        function checkAnswer(q) {
+            let isCorrect = false;
+            let userVal = "";
+            let exact = exactAnswers[q];
+
+            // 1. Get User Input
+            if (q === 1 || q === 2) {
+                userVal = document.getElementById(`q${q}-input`).value;
+                if (!userVal) { showFeedback(q, "⚠️ Please select an option.", "error"); return; }
+                isCorrect = (userVal === exact);
+            } else if (q === 7) {
+                const selected = document.querySelector(`input[name="q7-radio"]:checked`);
+                if (!selected) { showFeedback(q, "⚠️ Please select an option.", "error"); return; }
+                userVal = selected.value;
+                isCorrect = (userVal === exact);
+            } else {
+                // Numeric
+                const inputEl = document.getElementById(`q${q}-input`);
+                userVal = parseFloat(inputEl.value);
+                if (isNaN(userVal)) { showFeedback(q, "⚠️ Please enter a valid number.", "error"); return; }
+                
+                const margin = Math.max(Math.abs(exact * 0.015), 0.001); 
+                isCorrect = Math.abs(userVal - exact) <= margin;
+            }
+
+            // 2. Handle Result
+            if (isCorrect) {
+                let successMsg = `✅ Correct!`;
+                if (typeof exact === 'number') {
+                    successMsg += ` The exact value is ${exact.toFixed(2)}.`;
+                }
+                showFeedback(q, successMsg, "success");
+                
+                // Disable inputs
+                if (q === 1 || q === 2) { document.getElementById(`q${q}-input`).disabled = true; }
+                else if (q === 7) { document.querySelectorAll(`input[name="q7-radio"]`).forEach(el => el.disabled = true); }
+                else { document.getElementById(`q${q}-input`).disabled = true; }
+                
+                document.querySelector(`#q${q}-input-area button`).style.display = 'none';
+
+                if (q < 9) {
+                    const nextBox = document.getElementById(`q${q+1}-box`);
+                    nextBox.classList.remove('hidden');
+                    setTimeout(() => {
+                        nextBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                } else {
+                    finishGame();
+                }
+
+            } else {
+                totalMistakes++;
+                hintsShown[q]++;
+                
+                let feedbackHTML = `❌ Not quite right.`;
+                let hintTxt = getHint(q, hintsShown[q], userVal);
+                
+                let aiButtonHTML = `<button onclick="askAITutor(${q}, '${userVal}')" id="btn-ai-${q}" class="mt-3 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-4 py-1.5 rounded-md text-sm font-bold transition shadow-sm flex items-center gap-2">✨ Ask AI Tutor for a Custom Hint</button>`;
+                
+                showFeedback(q, `${feedbackHTML}<br><br><span class="text-slate-600">${hintTxt}</span>${aiButtonHTML}`, "error");
+            }
+        }
+
+        function finishGame() {
+            setTimeout(() => {
+                document.getElementById('questions-container').classList.add('hidden');
+                document.getElementById('win-screen').classList.remove('hidden');
+                document.getElementById('win-screen').scrollIntoView({ behavior: 'smooth' });
+                
+                let rawScore = 10 - (totalMistakes * 0.5);
+                let finalScore = Math.max(0, rawScore);
+                
+                if (totalMistakes === 0) {
+                    finalScore += 5;
+                    document.getElementById('extra-credit-message').classList.remove('hidden');
+                }
+                
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+
+                document.getElementById('unique-message').innerText = getUniqueMessage();
+
+                if (finalScore < 7) {
+                    const retryEl = document.getElementById('retry-message');
+                    retryEl.classList.remove('hidden');
+                    retryEl.innerText = "Physics is a process! We invite you to play again to improve your score.";
+                }
+
+                if (totalMistakes === 0) shootConfettiSequence(5);
+                else if (finalScore >= 9) shootConfettiSequence(3);
+                else if (finalScore >= 8) shootConfettiSequence(2);
+            }, 500);
+        }
+
+        // --- Confetti ---
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            function fire() {
+                shootBallisticConfetti();
+                currentRound++;
+                if (currentRound < rounds) setTimeout(fire, 1500);
+            }
+            fire();
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                particles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), 
+                    vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 20 
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rotation += p.rs;
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+                if (active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        // --- AI Features ---
+        async function askAITutor(q, userVal) {
+            const btn = document.getElementById(`btn-ai-${q}`);
+            const aiResponseDiv = document.getElementById(`q${q}-ai-response`);
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Thinking...";
+            aiResponseDiv.classList.remove('hidden');
+            aiResponseDiv.innerHTML = `<span class="animate-pulse">Analyzing your answer...</span>`;
+
+            let exactAns = exactAnswers[q];
+            let questionContext = "";
+            
+            if (q===1) questionContext = "Conceptual: Does prolonging impact time increase or decrease the force of a punch?";
+            if (q===2) questionContext = "Conceptual: Does moving forward into a punch (shorter time) increase or decrease the force?";
+            if (q===3) questionContext = `Find change in velocity. Starts at rest (vi=0), ends moving left (vf=-${V}).`;
+            if (q===4) questionContext = `Find change in velocity. Starts moving right (vi=${V}), ends stopped (vf=0).`;
+            if (q===5) questionContext = `Find change in momentum. Mass = ${m} kg, Δv = -${V} m/s.`;
+            if (q===6) questionContext = `Find impulse given change in momentum is ${m*-V} kg m/s.`;
+            if (q===7) questionContext = `Prove N*s = kg*m/s given 1 N = 1 kg*m/s^2. Student picked option ${userVal}.`;
+            if (q===8) questionContext = `Find Force. Impulse = ${m*-V} N*s, Time = ${t_right} s.`;
+            if (q===9) questionContext = `Find Force. Impulse = ${m*-V} N*s, Time = ${t_left} s.`;
+
+            const prompt = `A physics student is solving: "${questionContext}"
+            Correct Answer: ${exactAns}
+            Student's Incorrect Answer: ${userVal}
+            
+            Provide a short, 2-3 sentence friendly hint to help them understand their mistake. Do NOT give them the final exact answer. Ask a guiding question to point them in the right direction.`;
+
+            const systemInstruction = "You are an encouraging, expert high school physics tutor helping a student with the Impulse-Momentum Theorem.";
+
+            const reply = await callGemini(prompt, systemInstruction);
+            
+            if (reply) {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-red-600">Sorry, the AI tutor is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Ask AI Tutor again";
+            btn.disabled = false;
+        }
+
+        async function generateAnalogy() {
+            const btn = document.getElementById('analogy-btn');
+            const responseDiv = document.getElementById('analogy-response');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Generating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600">Consulting the boxing ring...</span>`;
+
+            const F_hard = Math.abs(exactAnswers[8]).toFixed(0);
+            const F_soft = Math.abs(exactAnswers[9]).toFixed(0);
+
+            const prompt = `A physics student just finished calculating that taking a punch by leaning into it (short time) creates a massive ${F_hard} Newtons of force, while "slipping" the punch (longer time) reduces the force to only ${F_soft} Newtons, even though the change in momentum is exactly the same!
+            
+            Write a fun, encouraging 2-3 sentence paragraph giving a vivid, real-world analogy outside of boxing for this specific "impulse time vs force" concept. For example, compare jumping onto concrete vs jumping onto a trampoline. Keep it highly entertaining and praise them for completing the module!`;
+
+            const reply = await callGemini(prompt);
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ Fun Real-World Analogy:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                responseDiv.innerHTML = `<strong>✨ Fun Real-World Analogy:</strong><br><span class="mt-2 block text-red-600">Sorry, the AI is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Generate Another Analogy";
+            btn.disabled = false;
+        }
+
+        async function explainEquation() {
+            const btn = document.getElementById('explain-eq-btn');
+            const responseDiv = document.getElementById('equation-explanation');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Translating physics to English...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Thinking...</span>`;
+
+            const prompt = `Explain the Impulse-Momentum theorem (F * t = m * Δv) in one simple, easy-to-understand paragraph for a high schooler. Break down what each letter means and how they relate (specifically emphasizing the inverse relationship between force and time). Keep it highly engaging.`;
+
+            const reply = await callGemini(prompt, "You are a fun, highly accurate physics coach.");
+            
+            if (reply) {
+                responseDiv.innerHTML = formatMarkdown(reply).replace(/\n/g, '<br>');
+                btn.style.display = 'none'; // Hide button after a successful answer
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI is currently unavailable.</span>`;
+                btn.innerHTML = "✨ Try Again";
+                btn.disabled = false;
+            }
+        }
+
+        async function evaluateSafetyDesign() {
+            const inputEl = document.getElementById('safety-design-input');
+            const btn = document.getElementById('evaluate-design-btn');
+            const responseDiv = document.getElementById('safety-evaluation-result');
+            const designText = inputEl.value.trim();
+
+            if (!designText) {
+                // Flash the textarea if empty
+                inputEl.classList.add('border-red-500', 'bg-red-50');
+                setTimeout(() => inputEl.classList.remove('border-red-500', 'bg-red-50'), 500);
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Evaluating Physics...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Running physics simulations...</span>`;
+
+            const prompt = `A student is designing a landing pad to safely catch a falling egg. Their design is: "${designText}". 
+            
+            Evaluate this design STRICTLY based on the Impulse-Momentum theorem (F*t = m*Δv). 
+            1. Explain how their specific materials/design affects the impact time (t) and the resulting force (F). 
+            2. Give their design a 'Safety Rating' out of 10. 
+            Keep it highly encouraging, fun, and under 4 sentences. Format with bolding for emphasis.`;
+
+            const reply = await callGemini(prompt, "You are a fun, highly accurate physics coach and eccentric safety engineer.");
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ Coach's Engineering Review:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI simulator is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Evaluate Another Design";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
