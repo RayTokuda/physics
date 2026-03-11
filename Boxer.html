@@ -1,3 +1,4 @@
+The following image can be moved on the page using keyboard controls (left, right, up, down)
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,13 +75,11 @@
             <div class="flex justify-center mb-6 relative">
                 <div class="graph-container w-full max-w-4xl text-center overflow-hidden bg-white border-2 border-slate-200">
                     <h2 class="text-xl font-bold text-slate-700 mb-2">Impulse - Momentum Theorem</h2>
-                    <div class="flex justify-center items-center mb-2 flex-col">
+                    <div class="flex justify-center items-center mb-2">
                         <div class="equation text-2xl tracking-widest">
                             <span class="border border-red-600 px-2 py-1 inline-block">F t</span> = 
                             <span class="border border-red-600 px-2 py-1 inline-block">m Δv</span>
                         </div>
-                        <button onclick="explainEquation()" id="explain-eq-btn" class="mt-2 text-sm text-purple-600 hover:text-purple-800 font-bold transition flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">✨ Explain this simply</button>
-                        <div id="equation-explanation" class="hidden max-w-lg mt-3 p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 text-sm text-left leading-relaxed shadow-inner"></div>
                     </div>
                     
                     <!-- Reference Image and Typo Note -->
@@ -280,18 +279,6 @@
                     </button>
                 </div>
                 <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
-
-                <!-- New AI Feature: Safety Engineer Mini-Game -->
-                <div class="mt-8 bg-slate-50 border-2 border-slate-200 rounded-xl p-6 text-left shadow-inner">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2 flex items-center gap-2">
-                        <span>🛡️</span> ✨ Bonus Challenge: Safety Engineer
-                    </h3>
-                    <p class="text-slate-600 mb-4 text-sm leading-relaxed">Now that you understand how increasing impact time decreases force, how would you design a landing pad to safely catch a falling egg? Describe your materials and design!</p>
-                    <textarea id="safety-design-input" rows="3" class="w-full border-2 border-slate-300 rounded-lg p-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition text-slate-700 mb-3" placeholder="E.g., I would build a giant net made of elastic bands suspended over a pool of marshmallows..."></textarea>
-                    <button id="evaluate-design-btn" onclick="evaluateSafetyDesign()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md w-full flex justify-center items-center gap-2">✨ Evaluate My Design</button>
-                    <div id="safety-evaluation-result" class="hidden mt-4 p-4 bg-white border-2 border-purple-100 rounded-lg text-slate-700 text-base leading-relaxed shadow-sm"></div>
-                </div>
-
             </div>
         </div>
     </div>
@@ -412,124 +399,110 @@
             
             ctx.clearRect(0, 0, w, h);
             
-            const duration = 1500; // 1.5s total animation loop
-            let progress = Math.min(elapsed / duration, 1);
+            // Draw floor and center divider
+            ctx.fillStyle = "#f1f5f9";
+            ctx.fillRect(0, h - 40, w, 40);
             
-            // Ease out for punch
-            let t = progress * (2 - progress);
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(w/2, 20);
+            ctx.lineTo(w/2, h - 20);
+            ctx.stroke();
 
-            // Draw Titles
-            ctx.fillStyle = "#b91c1c";
-            ctx.font = "bold 20px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("IMPULSE", w/4, 30);
-            ctx.fillText("CHANGE IN MOMENTum", 3*w/4, 30);
+            // Total animation loop is 2500ms (1.5s active + 1s pause)
+            const duration = 1500;
+            const totalCycle = 2500;
+            let cycleTime = elapsed % totalCycle;
+            let progress = Math.min(cycleTime / duration, 1);
 
-            // Left Scenario (Slipping)
-            drawSlippingPunch(ctx, w/4, 150, t);
-            
+            // Left Scenario (Rolling/Slipping)
+            // Target waits, then rolls backward (left) with the punch.
+            let leftGloveX, leftBlockX;
+            if (progress < 0.4) { // Approach
+                let ease = progress / 0.4;
+                leftGloveX = 300 - (135 * ease); // 300 to 165
+                leftBlockX = 120; // Waiting at 120
+            } else if (progress < 0.8) { // Impact and roll
+                let ease = (progress - 0.4) / 0.4;
+                let easeOut = 1 - Math.pow(1 - ease, 3); // smooth deceleration
+                leftGloveX = 165 - (60 * easeOut); // rolls left
+                leftBlockX = 120 - (60 * easeOut); // rolls left
+            } else { // Hold position
+                leftGloveX = 105;
+                leftBlockX = 60;
+            }
+
             // Right Scenario (Leaning In)
-            drawLeaningPunch(ctx, 3*w/4, 150, t);
-
-            if (progress < 1) {
-                animationReqId = requestAnimationFrame(runAnimation);
-            }
-        }
-
-        function drawSlippingPunch(ctx, cx, cy, t) {
-            // Head moving backwards (left) slowly
-            let headX = cx + 20 - (40 * t);
-            let gloveX = cx + 120 - (100 * t);
-            
-            // Body/Shoulders
-            ctx.fillStyle = "#fde047"; // Skin tone approx
-            ctx.beginPath();
-            ctx.arc(headX, cy, 40, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
-            
-            // Face features
-            ctx.fillStyle = "#000";
-            ctx.beginPath(); ctx.arc(headX-15, cy-10, 4, 0, Math.PI*2); ctx.fill(); // eye
-            ctx.beginPath(); ctx.arc(headX-5, cy-10, 4, 0, Math.PI*2); ctx.fill(); // eye
-            ctx.beginPath(); ctx.arc(headX-20, cy+5, 8, Math.PI/2, Math.PI*1.5, true); ctx.stroke(); // nose
-            
-            // "POOF" text if impact
-            if (t > 0.8) {
-                ctx.fillStyle = "#22c55e"; // Green text
-                ctx.font = "italic bold 24px marker felt, comic sans ms, sans-serif";
-                ctx.fillText("POOF!", headX+30, cy-50);
+            // Target moves forward (right) INTO the punch, sudden stop.
+            let rightGloveX, rightBlockX;
+            if (progress < 0.4) { // Approach
+                let ease = progress / 0.4;
+                rightGloveX = 680 - (155 * ease); // Moves left: 680 to 525
+                rightBlockX = 420 + (60 * ease);  // Moves right: 420 to 480
+            } else { // Abrupt stop at impact
+                rightGloveX = 525;
+                rightBlockX = 480;
             }
 
-            // Glove
+            // --- DRAWING ---
+            
+            // Titles
+            ctx.fillStyle = "#1e293b";
+            ctx.font = "bold 16px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(`Left: Slipping (t = ${t_left}s)`, w/4, 30);
+            ctx.fillText(`Right: Leaning In (t = ${t_right}s)`, 3*w/4, 30);
+
+            // Draw targets (gray blocks)
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillRect(leftBlockX - 20, 150 - 40, 40, 80);
+            ctx.fillRect(rightBlockX - 20, 150 - 40, 40, 80);
+
+            // Draw gloves (red balls with arms extending right)
+            // Left Glove Arm
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(leftGloveX, 150 - 10, w/2 - leftGloveX, 20); 
+            // Left Glove Ball
             ctx.fillStyle = "#ef4444";
-            ctx.beginPath();
-            ctx.ellipse(gloveX, cy+10, 30, 20, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.stroke();
-            // glove laces
-            ctx.beginPath(); ctx.moveTo(gloveX+10, cy); ctx.lineTo(gloveX+20, cy+20); ctx.stroke();
-
-            // Formula Text (Small F, Large t)
-            ctx.fillStyle = "#000";
-            ctx.font = "italic 20px 'Times New Roman', serif";
-            ctx.fillText("F", cx - 40, cy + 100);
-            ctx.font = "20px sans-serif";
-            ctx.fillText("·", cx - 25, cy + 100);
-            ctx.font = "italic 40px 'Times New Roman', serif";
-            ctx.fillText("t", cx - 10, cy + 100);
-            ctx.font = "20px sans-serif";
-            ctx.fillText("= m Δv", cx + 40, cy + 100);
-        }
-
-        function drawLeaningPunch(ctx, cx, cy, t) {
-            // Head moving forwards (right) into punch, sudden stop
-            let headX = cx - 40 + (30 * Math.min(t*1.5, 1));
-            let gloveX = cx + 100 - (110 * Math.min(t*1.5, 1));
+            ctx.beginPath(); ctx.arc(leftGloveX, 150, 25, 0, Math.PI * 2); ctx.fill();
             
-            // Body/Shoulders
-            ctx.fillStyle = "#fde047"; 
-            ctx.beginPath();
-            ctx.arc(headX, cy, 40, 0, Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
-            
-            // Face features (squinting eyes at impact)
-            ctx.fillStyle = "#000";
-            if (t > 0.6) {
-                ctx.beginPath(); ctx.moveTo(headX-20, cy-10); ctx.lineTo(headX-10, cy-8); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(headX-5, cy-10); ctx.lineTo(headX+5, cy-8); ctx.stroke();
-            } else {
-                ctx.beginPath(); ctx.arc(headX-15, cy-10, 4, 0, Math.PI*2); ctx.fill(); 
-                ctx.beginPath(); ctx.arc(headX-5, cy-10, 4, 0, Math.PI*2); ctx.fill(); 
-            }
-            ctx.beginPath(); ctx.arc(headX-20, cy+5, 8, Math.PI/2, Math.PI*1.5, true); ctx.stroke(); 
-            
-            // "WHAP" text if impact
-            if (t > 0.6) {
-                ctx.fillStyle = "#06b6d4"; // Cyan text
-                ctx.font = "italic bold 28px marker felt, comic sans ms, sans-serif";
-                ctx.fillText("WHAP!", headX+30, cy-50);
-            }
-
-            // Glove
+            // Right Glove Arm
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(rightGloveX, 150 - 10, w - rightGloveX, 20); 
+            // Right Glove Ball
             ctx.fillStyle = "#ef4444";
-            ctx.beginPath();
-            ctx.ellipse(gloveX, cy+10, 30, 20, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(gloveX+10, cy); ctx.lineTo(gloveX+20, cy+20); ctx.stroke();
+            ctx.beginPath(); ctx.arc(rightGloveX, 150, 25, 0, Math.PI * 2); ctx.fill();
 
-            // Formula Text (Large F, Small t)
-            ctx.fillStyle = "#000";
-            ctx.font = "italic 40px 'Times New Roman', serif";
-            ctx.fillText("F", cx - 40, cy + 100);
-            ctx.font = "20px sans-serif";
-            ctx.fillText("·", cx - 15, cy + 100);
-            ctx.font = "italic 20px 'Times New Roman', serif";
-            ctx.fillText("t", cx + 5, cy + 100);
-            ctx.font = "20px sans-serif";
-            ctx.fillText("= m Δv", cx + 45, cy + 100);
+            // Pow effect for the right (sudden impact)
+            if (progress >= 0.4 && progress < 0.6) {
+                ctx.fillStyle = "#fde047";
+                ctx.beginPath(); ctx.arc(502, 150, 40, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#ea580c";
+                ctx.font = "bold 24px marker felt, comic sans ms, sans-serif";
+                ctx.fillText("BAM!", 502, 158);
+            }
+
+            // Feedback Text Below
+            if (progress >= 0.4) {
+                // Left text
+                ctx.fillStyle = "#16a34a"; // Green
+                ctx.font = "bold 18px sans-serif";
+                ctx.fillText("Long Impact Time", w/4, 230);
+                ctx.fillStyle = "#000";
+                ctx.font = "18px 'Times New Roman', serif";
+                ctx.fillText("Small Force", w/4, 250);
+                
+                // Right text
+                ctx.fillStyle = "#dc2626"; // Red
+                ctx.font = "bold 18px sans-serif";
+                ctx.fillText("Short Impact Time!", 3*w/4, 230);
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 22px 'Times New Roman', serif";
+                ctx.fillText("LARGE Force", 3*w/4, 250);
+            }
+
+            animationReqId = requestAnimationFrame(runAnimation);
         }
 
         // --- Game Logic ---
@@ -819,66 +792,6 @@
             }
             
             btn.innerHTML = "✨ Generate Another Analogy";
-            btn.disabled = false;
-        }
-
-        async function explainEquation() {
-            const btn = document.getElementById('explain-eq-btn');
-            const responseDiv = document.getElementById('equation-explanation');
-            
-            btn.disabled = true;
-            btn.innerHTML = "✨ Translating physics to English...";
-            responseDiv.classList.remove('hidden');
-            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Thinking...</span>`;
-
-            const prompt = `Explain the Impulse-Momentum theorem (F * t = m * Δv) in one simple, easy-to-understand paragraph for a high schooler. Break down what each letter means and how they relate (specifically emphasizing the inverse relationship between force and time). Keep it highly engaging.`;
-
-            const reply = await callGemini(prompt, "You are a fun, highly accurate physics coach.");
-            
-            if (reply) {
-                responseDiv.innerHTML = formatMarkdown(reply).replace(/\n/g, '<br>');
-                btn.style.display = 'none'; // Hide button after a successful answer
-            } else {
-                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI is currently unavailable.</span>`;
-                btn.innerHTML = "✨ Try Again";
-                btn.disabled = false;
-            }
-        }
-
-        async function evaluateSafetyDesign() {
-            const inputEl = document.getElementById('safety-design-input');
-            const btn = document.getElementById('evaluate-design-btn');
-            const responseDiv = document.getElementById('safety-evaluation-result');
-            const designText = inputEl.value.trim();
-
-            if (!designText) {
-                // Flash the textarea if empty
-                inputEl.classList.add('border-red-500', 'bg-red-50');
-                setTimeout(() => inputEl.classList.remove('border-red-500', 'bg-red-50'), 500);
-                return;
-            }
-            
-            btn.disabled = true;
-            btn.innerHTML = "✨ Evaluating Physics...";
-            responseDiv.classList.remove('hidden');
-            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Running physics simulations...</span>`;
-
-            const prompt = `A student is designing a landing pad to safely catch a falling egg. Their design is: "${designText}". 
-            
-            Evaluate this design STRICTLY based on the Impulse-Momentum theorem (F*t = m*Δv). 
-            1. Explain how their specific materials/design affects the impact time (t) and the resulting force (F). 
-            2. Give their design a 'Safety Rating' out of 10. 
-            Keep it highly encouraging, fun, and under 4 sentences. Format with bolding for emphasis.`;
-
-            const reply = await callGemini(prompt, "You are a fun, highly accurate physics coach and eccentric safety engineer.");
-            
-            if (reply) {
-                responseDiv.innerHTML = `<strong>✨ Coach's Engineering Review:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
-            } else {
-                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI simulator is currently unavailable.</span>`;
-            }
-            
-            btn.innerHTML = "✨ Evaluate Another Design";
             btn.disabled = false;
         }
     </script>
