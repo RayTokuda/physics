@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Superball Momentum</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.15rem;
+            background: #ffffff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 1px solid #cbd5e1;
+            color: #2563eb;
+            font-weight: bold;
+        }
+        #illustration-container {
+            position: relative;
+            z-index: 10;
+            transition: transform 0.1s linear;
+            cursor: move;
+            display: inline-block;
+        }
+        canvas {
+            user-select: none;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .graph-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden relative z-20" id="main-card">
+        <!-- Header -->
+        <div class="bg-blue-700 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 opacity-10 transform rotate-12 text-9xl">🏀</div>
+            <h1 class="text-3xl font-bold relative z-10">Physics Coach: Superball Momentum</h1>
+            <p class="mt-2 opacity-90 relative z-10 text-lg">Analyze the force-time graph and vector geometry to solve for the mass of the superball.</p>
+        </div>
+
+        <!-- Problem Statement -->
+        <div class="p-6 border-b border-gray-200 bg-slate-50">
+            <h2 class="font-semibold text-xl text-blue-900 mb-3">The Scenario:</h2>
+            <p class="text-gray-700 leading-relaxed text-lg mb-4">
+                A superball is thrown against a vertical wall with an initial speed of <strong><span id="var-v" class="text-blue-600 font-bold"></span> m/s</strong>. 
+                It strikes the wall at an angle of incidence <strong class="text-blue-600">θ = <span id="var-theta"></span>°</strong> with respect to the normal. 
+                The ball bounces off the wall with the same speed and with an angle of reflection equal to the angle of incidence. 
+                The force the wall exerts on the ball during the collision is modeled by the graph below.
+            </p>
+
+            <div class="flex flex-col md:flex-row gap-6 items-start justify-center mt-6">
+                <!-- Force vs Time Graph -->
+                <div class="graph-container flex-1 w-full text-center">
+                    <h3 class="font-bold text-gray-600 mb-2">Force vs. Time</h3>
+                    <canvas id="graphCanvas" width="380" height="280" class="mx-auto border border-gray-100 rounded"></canvas>
+                </div>
+
+                <!-- Movable Illustration -->
+                <div class="graph-container flex-1 w-full text-center overflow-hidden bg-slate-100 border-dashed border-2 border-slate-300 relative" style="height: 335px;">
+                    <div class="absolute top-2 left-2 text-xs text-slate-500 text-left w-full pointer-events-none z-20">
+                        ⌨️ Use <strong>Arrow Keys</strong> to move this illustration!
+                    </div>
+                    <div class="absolute top-2 right-2 z-20">
+                        <button onclick="startAnimation()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">
+                            🔄 Replay
+                        </button>
+                    </div>
+                    <!-- The container that moves -->
+                    <div id="illustration-container" class="w-full h-full">
+                        <canvas id="illustrationCanvas" width="380" height="280"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="font-semibold text-blue-800 bg-blue-100 p-3 rounded-lg inline-block mt-6 w-full text-center text-lg shadow-sm border border-blue-200">
+                🎯 Goal: Calculate the mass of the superball.
+            </p>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 space-y-8 bg-white" id="questions-container">
+            
+            <!-- Part 1 -->
+            <div id="q1-box" class="space-y-3">
+                <h3 class="font-bold text-xl text-gray-800">Part 1: The Impulse</h3>
+                <p class="text-gray-700">Determine the magnitude of the impulse (<em>J</em>) exerted on the superball by the wall during the collision.</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q1-input-area">
+                    <input type="number" id="q1-input" step="0.01" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Impulse (N·s)">
+                    <button onclick="checkAnswer(1)" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Submit</button>
+                </div>
+                <div id="q1-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q1-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Part 2 -->
+            <div id="q2-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-xl text-gray-800">Part 2: Change in Velocity</h3>
+                <p class="text-gray-700">Calculate the magnitude of the change in velocity (Δ<em>v</em>) of the ball.</p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-yellow-800 rounded-r">
+                    <strong>Vector Note:</strong> The vertical component of the momentum is the same before and after the collision, so the only change in momentum comes from the horizontal components reversing direction!
+                </div>
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q2-input-area">
+                    <input type="number" id="q2-input" step="0.01" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Δv (m/s)">
+                    <button onclick="checkAnswer(2)" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Submit</button>
+                </div>
+                <div id="q2-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q2-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Part 3 -->
+            <div id="q3-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-xl text-gray-800">Part 3: Solving for Mass</h3>
+                <p class="text-gray-700">Using your answers from Part 1 and Part 2, apply the Impulse-Momentum Theorem to solve for the mass of the superball.</p>
+                <div class="equation block">
+                    J = m · Δv
+                </div>
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q3-input-area">
+                    <input type="number" id="q3-input" step="0.001" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Mass (kg)">
+                    <button onclick="checkAnswer(3)" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Submit Final Answer</button>
+                </div>
+                <div id="q3-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q3-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-50 p-10 text-center fade-in border-t border-slate-200">
+            <div class="inline-block bg-white p-8 rounded-2xl shadow-lg border border-slate-100 max-w-xl w-full">
+                
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Simulation Complete!</h2>
+                
+                <div class="my-8">
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-7xl font-black text-blue-600 drop-shadow-sm" id="final-score">10.0</span>
+                        <span class="text-3xl text-gray-400 mb-2 font-light">/ 10</span>
+                    </div>
+                    <!-- Unique Congratulatory Message -->
+                    <p id="unique-message" class="text-xl font-bold text-purple-600 mt-4 italic leading-relaxed"></p>
+                    
+                    <!-- Exercise Title (Small letters) -->
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mt-6 font-semibold">physics coach: superball momentum</p>
+                </div>
+                
+                <p id="retry-message" class="text-slate-500 font-medium mb-6 hidden bg-slate-100 p-3 rounded-lg"></p>
+                
+                <div class="flex justify-center flex-wrap gap-4 mt-4">
+                    <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg">
+                        Play Again (New Numbers)
+                    </button>
+                    <button id="analogy-btn" onclick="generateAnalogy()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg flex items-center gap-2">
+                        ✨ Real-World Analogy
+                    </button>
+                </div>
+                <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent');
+            const delays = [1000, 2000, 4000, 8000, 16000]; // Exponential backoff delays
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        // If deployed to your Vercel server, use your dedicated backend!
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    // Fetch as text first to prevent JSON.parse crashes on empty/invalid responses
+                    const responseText = await response.text();
+                    if (!responseText) {
+                        throw new Error("Empty response body received");
+                    }
+                    
+                    const data = JSON.parse(responseText);
+                    
+                    if (isPreview) {
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+                    } else {
+                        return data.text || null;
+                    }
+                    
+                } catch (error) {
+                    // If we've exhausted all retries, fail gracefully
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline after retries:", error);
+                        return null;
+                    }
+                    // Wait for the specified delay before retrying
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+        }
+
+        // --- Variables & State ---
+        let theta, v, t_b, f_max;
+        let exactAnswers = {};
+        let totalMistakes = 0;
+        let hintsShown = { 1: 0, 2: 0, 3: 0 };
+        
+        // Movable image state
+        let imgX = 0;
+        let imgY = 0;
+
+        // Animation State
+        let animStartTime = null;
+        let animationReqId = null;
+        const durationPre = 800;   // ms for incoming
+        const durationImpact = 500; // ms for collision/graph drawing
+        const durationPost = 800;  // ms for outgoing
+
+        // Messaging Pools (10x10x10 = 1000 Unique messages)
+        const adjs1 = ["Incredible", "Amazing", "Spectacular", "Fantastic", "Marvelous", "Outstanding", "Phenomenal", "Stellar", "Brilliant", "Superb"];
+        const nouns2 = ["job", "work", "effort", "performance", "execution", "calculation", "problem-solving", "analysis", "deduction", "success"];
+        const phrases3 = ["mastering momentum!", "crushing the impulse theorem!", "analyzing that bounce!", "finding the mass like a pro!", "acing the physics!", "conquering the graph!", "understanding vectors!", "solving the collision!", "defying the rebound!", "calculating the force!"];
+
+        function getUniqueMessage() {
+            const w1 = adjs1[Math.floor(Math.random() * adjs1.length)];
+            const w2 = nouns2[Math.floor(Math.random() * nouns2.length)];
+            const w3 = phrases3[Math.floor(Math.random() * phrases3.length)];
+            return `${w1} ${w2} ${w3}`;
+        }
+
+        // --- Initialization ---
+        function init() {
+            // 1. Generate Random Physics Values
+            // Angles: 20, 25, 30, 35, 40, 45, 50, 55, 60
+            const angles = [20, 25, 30, 35, 40, 45, 50, 55, 60];
+            theta = angles[Math.floor(Math.random() * angles.length)];
+            
+            // Velocity: 10 to 30 m/s
+            v = Math.floor(Math.random() * 21) + 10;
+            
+            // Time base: 0.1, 0.2, 0.3, or 0.4 seconds
+            const times = [0.1, 0.2, 0.3, 0.4];
+            t_b = times[Math.floor(Math.random() * times.length)];
+            
+            // Peak Force: 50 to 450 N (multiples of 10)
+            f_max = (Math.floor(Math.random() * 41) + 5) * 10;
+
+            // 2. Calculate Exact Answers
+            exactAnswers[1] = 0.5 * f_max * t_b; // Impulse (Area of triangle)
+            
+            // delta V = 2 * v * cos(theta). Ensure degrees to radians conversion!
+            const thetaRad = theta * Math.PI / 180;
+            exactAnswers[2] = 2 * v * Math.cos(thetaRad); // Magnitude of velocity change
+            
+            // Mass = J / deltaV
+            exactAnswers[3] = exactAnswers[1] / exactAnswers[2];
+
+            // 3. Populate DOM
+            document.getElementById('var-v').innerText = v.toFixed(1);
+            document.getElementById('var-theta').innerText = theta;
+
+            // 4. Render Visuals via Animation
+            startAnimation();
+            setupKeyboardControls();
+        }
+
+        // --- Animation Logic ---
+        function startAnimation() {
+            if (animationReqId) cancelAnimationFrame(animationReqId);
+            animStartTime = null;
+            animationReqId = requestAnimationFrame(runAnimation);
+        }
+
+        function runAnimation(timestamp) {
+            if (!animStartTime) animStartTime = timestamp;
+            const elapsed = timestamp - animStartTime;
+            
+            const canvas = document.getElementById('illustrationCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // Always draw the background diagram
+            drawStaticIllustration(ctx, w, h);
+            
+            // Setup Geometry for ball
+            const wallX = 300;
+            const centerY = 140;
+            const lineLen = 140;
+            const thetaRad = theta * Math.PI / 180;
+            
+            const startX = wallX - lineLen * Math.cos(thetaRad);
+            const startY = centerY - lineLen * Math.sin(thetaRad);
+            const endX = wallX - lineLen * Math.cos(thetaRad);
+            const endY = centerY + lineLen * Math.sin(thetaRad);
+
+            let ballX, ballY;
+            let animPhase = 'pre';
+            let squishX = 1;
+            let squishY = 1;
+            let graphProgress = 0;
+
+            if (elapsed < durationPre) {
+                // Ball is traveling towards the wall
+                animPhase = 'pre';
+                let t = elapsed / durationPre;
+                // Ease out
+                t = t * (2 - t); 
+                ballX = startX + (wallX - startX) * t;
+                ballY = startY + (centerY - startY) * t;
+                graphProgress = 0;
+
+            } else if (elapsed < durationPre + durationImpact) {
+                // Ball is hitting the wall (Squish + Graph drawing)
+                animPhase = 'impact';
+                let t = (elapsed - durationPre) / durationImpact;
+                ballX = wallX;
+                ballY = centerY;
+                
+                // Squish effect: max squish at t=0.5
+                let squishAmount = t < 0.5 ? t * 2 : (1 - t) * 2; 
+                squishX = 1 - (0.35 * squishAmount); // squish width
+                squishY = 1 + (0.25 * squishAmount); // expand height
+                
+                graphProgress = t;
+
+            } else if (elapsed < durationPre + durationImpact + durationPost) {
+                // Ball is traveling away from the wall
+                animPhase = 'post';
+                let t = (elapsed - durationPre - durationImpact) / durationPost;
+                // Ease in
+                t = t * t; 
+                ballX = wallX + (endX - wallX) * t;
+                ballY = centerY + (endY - centerY) * t;
+                graphProgress = 1;
+
+            } else {
+                // Animation finished
+                animPhase = 'done';
+                ballX = endX;
+                ballY = endY;
+                graphProgress = 1;
+            }
+
+            // Sync the graph with the current progress
+            drawDynamicGraph(graphProgress);
+
+            // Draw the Superball
+            ctx.beginPath();
+            ctx.ellipse(ballX, ballY, 12 * squishX, 12 * squishY, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#f59e0b"; // Amber 500
+            ctx.fill();
+            ctx.strokeStyle = "#b45309"; // Amber 700
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Loop until done
+            if (animPhase !== 'done') {
+                animationReqId = requestAnimationFrame(runAnimation);
+            }
+        }
+
+        // --- Drawing Functions ---
+        function drawDynamicGraph(progress) {
+            const canvas = document.getElementById('graphCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // Margins
+            const padL = 60, padB = 40, padT = 30, padR = 20;
+            const graphW = w - padL - padR;
+            const graphH = h - padT - padB;
+            
+            // Y Grid Lines (Force)
+            const maxForce = Math.ceil((f_max + 20) / 50) * 50; 
+            
+            for(let val = 0; val <= maxForce; val += 10) {
+                let y = padT + graphH - (val / maxForce) * graphH;
+                
+                ctx.beginPath();
+                if (val % 50 === 0) {
+                    ctx.strokeStyle = "#cbd5e1"; 
+                    ctx.lineWidth = 1;
+                } else {
+                    ctx.strokeStyle = "#f1f5f9"; 
+                    ctx.lineWidth = 1;
+                }
+                ctx.moveTo(padL, y);
+                ctx.lineTo(w - padR, y);
+                ctx.stroke();
+                
+                if (val % 50 === 0) {
+                    ctx.fillStyle = "#64748b";
+                    ctx.font = "12px sans-serif";
+                    ctx.textAlign = "right";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(val, padL - 10, y);
+                }
+            }
+            
+            // X Grid Lines (Time)
+            ctx.beginPath();
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 1;
+            const maxTimeScale = 0.5; 
+            const xTicks = 5; 
+            for(let i=0; i<=xTicks; i++) {
+                let x = padL + (i/xTicks)*graphW;
+                ctx.moveTo(x, padT);
+                ctx.lineTo(x, h - padB);
+                
+                ctx.fillStyle = "#64748b";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "top";
+                let val = (i/xTicks) * maxTimeScale;
+                ctx.fillText(val.toFixed(1), x, h - padB + 10);
+            }
+            ctx.stroke();
+
+            // Bold Axes
+            ctx.beginPath();
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 2;
+            ctx.moveTo(padL, padT);
+            ctx.lineTo(padL, h - padB);
+            ctx.lineTo(w - padR, h - padB);
+            ctx.stroke();
+            
+            // Axis Titles
+            ctx.fillStyle = "#1e293b";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Time (s)", padL + graphW/2, h - 10);
+            
+            ctx.save();
+            ctx.translate(15, padT + graphH/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText("Force (N)", 0, 0);
+            ctx.restore();
+
+            // --- Draw the Triangle Data Dynamically ---
+            const t0_x = padL;
+            const t0_y = padT + graphH;
+            
+            const tPeak_x = padL + ((t_b/2)/maxTimeScale)*graphW;
+            const tPeak_y = padT + graphH - (f_max / maxForce) * graphH;
+            
+            const tEnd_x = padL + (t_b/maxTimeScale)*graphW;
+            const tEnd_y = padT + graphH;
+
+            // Calculate current X position of the drawing head
+            let currentX = t0_x + (tEnd_x - t0_x) * progress;
+
+            // Use clipping to reveal the graph progressively
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(padL, padT - 10, currentX - padL, graphH + 20);
+            ctx.clip();
+
+            // Draw full triangle path (only revealed up to currentX)
+            ctx.beginPath();
+            ctx.moveTo(t0_x, t0_y);
+            ctx.lineTo(tPeak_x, tPeak_y);
+            ctx.lineTo(tEnd_x, tEnd_y);
+            
+            ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
+            ctx.fill();
+            
+            ctx.strokeStyle = "#2563eb";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Peak label point
+            if (currentX >= tPeak_x) {
+                ctx.beginPath();
+                ctx.arc(tPeak_x, tPeak_y, 4, 0, Math.PI*2);
+                ctx.fillStyle = "#1d4ed8";
+                ctx.fill();
+            }
+
+            ctx.restore(); // End clipping
+
+            // Draw recording indicator (red laser line + dot) during impact
+            if (progress > 0 && progress < 1) {
+                let currentY;
+                if (currentX <= tPeak_x) {
+                    let t = (currentX - t0_x) / (tPeak_x - t0_x);
+                    currentY = t0_y + (tPeak_y - t0_y) * t;
+                } else {
+                    let t = (currentX - tPeak_x) / (tEnd_x - tPeak_x);
+                    currentY = tPeak_y + (tEnd_y - tPeak_y) * t;
+                }
+                
+                // Red laser line down to axis
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(currentX, t0_y);
+                ctx.lineTo(currentX, currentY);
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Glowing recording dot
+                ctx.beginPath();
+                ctx.arc(currentX, currentY, 5, 0, Math.PI*2);
+                ctx.fillStyle = "#ef4444";
+                ctx.fill();
+            }
+        }
+
+        function drawStaticIllustration(ctx, w, h) {
+            // Geometry setup
+            const wallX = 300;
+            const centerY = 140;
+            const lineLen = 140;
+            const thetaRad = theta * Math.PI / 180;
+            
+            // 1. Draw Normal Line (Dashed)
+            ctx.beginPath();
+            ctx.setLineDash([8, 8]);
+            ctx.moveTo(50, centerY);
+            ctx.lineTo(wallX, centerY);
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]); // reset
+            
+            // Normal label
+            ctx.fillStyle = "#64748b";
+            ctx.font = "italic 14px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText("Normal", 60, centerY - 10);
+
+            // 2. Draw Wall
+            ctx.fillStyle = "#cbd5e1";
+            ctx.fillRect(wallX, 20, 30, h - 40);
+            ctx.strokeStyle = "#475569";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(wallX, 20, 30, h - 40);
+            
+            // Draw wall hash marks
+            ctx.beginPath();
+            ctx.strokeStyle = "#94a3b8";
+            ctx.lineWidth = 1;
+            for(let y=30; y<h-30; y+=10) {
+                ctx.moveTo(wallX + 10, y - 5);
+                ctx.lineTo(wallX + 30, y + 5);
+            }
+            ctx.stroke();
+
+            // 3. Draw Incoming Vector (Top Left to Center)
+            const startX = wallX - lineLen * Math.cos(thetaRad);
+            const startY = centerY - lineLen * Math.sin(thetaRad);
+            
+            drawArrow(ctx, startX, startY, wallX, centerY, "#ef4444", 3);
+            
+            // 4. Draw Outgoing Vector (Center to Bottom Left)
+            const endX = wallX - lineLen * Math.cos(thetaRad);
+            const endY = centerY + lineLen * Math.sin(thetaRad);
+            
+            drawArrow(ctx, wallX, centerY, endX, endY, "#3b82f6", 3);
+            
+            // 5. Draw Arcs and Angles
+            const arcRadius = 40;
+            ctx.beginPath();
+            ctx.arc(wallX, centerY, arcRadius, Math.PI, Math.PI + thetaRad);
+            ctx.strokeStyle = "#1e293b";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(wallX, centerY, arcRadius, Math.PI - thetaRad, Math.PI);
+            ctx.stroke();
+            
+            // Angle Texts
+            ctx.fillStyle = "#1e293b";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "right";
+            // Upper angle
+            ctx.fillText(`θ = ${theta}°`, wallX - arcRadius - 10, centerY - 15);
+            // Lower angle
+            ctx.fillText(`θ = ${theta}°`, wallX - arcRadius - 10, centerY + 25);
+            
+            // Velocity Texts
+            ctx.textAlign = "left";
+            
+            ctx.fillStyle = "#ef4444";
+            ctx.font = "italic bold 18px serif";
+            let v1Width = ctx.measureText("v").width;
+            ctx.fillText("v", startX + 20, startY - 10);
+            ctx.font = "italic bold 13px serif";
+            ctx.fillText("i", startX + 20 + v1Width, startY - 5);
+            
+            ctx.fillStyle = "#3b82f6";
+            ctx.font = "italic bold 18px serif";
+            let v2Width = ctx.measureText("v").width;
+            ctx.fillText("v", endX + 20, endY + 20);
+            ctx.font = "italic bold 13px serif";
+            ctx.fillText("f", endX + 20 + v2Width, endY + 25);
+        }
+
+        // Helper to draw arrow
+        function drawArrow(ctx, fromx, fromy, tox, toy, color, width){
+            const headlen = 15; // length of head in pixels
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.stroke();
+            
+            // Arrowhead
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI/6), toy - headlen * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI/6), toy - headlen * Math.sin(angle + Math.PI/6));
+            ctx.lineTo(tox, toy);
+            ctx.fill();
+        }
+
+        // --- Controls ---
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', (e) => {
+                // Ignore if typing in input
+                if (document.activeElement.tagName === 'INPUT') return;
+                
+                const speed = 15;
+                let moved = false;
+                
+                if (e.key === 'ArrowUp') { imgY -= speed; moved = true; }
+                if (e.key === 'ArrowDown') { imgY += speed; moved = true; }
+                if (e.key === 'ArrowLeft') { imgX -= speed; moved = true; }
+                if (e.key === 'ArrowRight') { imgX += speed; moved = true; }
+                
+                if (moved) {
+                    e.preventDefault(); // stop page scrolling
+                    document.getElementById('illustration-container').style.transform = `translate(${imgX}px, ${imgY}px)`;
+                }
+            });
+        }
+
+        // --- Game Logic ---
+        
+        function getHint(part, mistakeCount) {
+            if (part === 1) {
+                if (mistakeCount === 1) return "💡 <strong>Hint 1:</strong> Impulse is equal to the area under the Force vs. Time graph.";
+                if (mistakeCount === 2) return "💡 <strong>Hint 2:</strong> The graph forms a triangle. The area is (1/2) × base × height.";
+                return `💡 <strong>Hint 3:</strong> Calculate 0.5 × ${t_b} s × ${f_max} N.`;
+            }
+            if (part === 2) {
+                if (mistakeCount === 1) return "💡 <strong>Hint 1:</strong> The horizontal velocity component reverses direction. Δv = |v<sub>final_x</sub> - v<sub>initial_x</sub>|";
+                if (mistakeCount === 2) return "💡 <strong>Hint 2:</strong> Since it bounces back perfectly, the change is v<sub>x</sub> - (-v<sub>x</sub>) = 2(v<sub>x</sub>).";
+                return `💡 <strong>Hint 3:</strong> Calculate 2 × ${v.toFixed(1)} × cos(${theta}°). Make sure your calculator is in Degree mode!`;
+            }
+            if (part === 3) {
+                if (mistakeCount === 1) return "💡 <strong>Hint 1:</strong> Use the Impulse-Momentum Theorem: J = m·Δv.";
+                if (mistakeCount === 2) return "💡 <strong>Hint 2:</strong> Rearrange to solve for mass: m = J / Δv.";
+                return "💡 <strong>Hint 3:</strong> Divide your correct answer from Part 1 by your correct answer from Part 2.";
+            }
+            return "";
+        }
+
+        function showFeedback(q, msg, type) {
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = `text-sm rounded-lg p-3 mt-3 fade-in block font-medium ${
+                type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
+                'bg-green-50 text-green-800 border-green-200'
+            }`;
+            fb.innerHTML = msg;
+        }
+
+        function checkAnswer(q) {
+            const inputEl = document.getElementById(`q${q}-input`);
+            const inputVal = parseFloat(inputEl.value);
+            const exact = exactAnswers[q];
+
+            if (isNaN(inputVal)) {
+                showFeedback(q, "⚠️ Please enter a valid number.", "error");
+                return;
+            }
+
+            // 1.5% tolerance for rounding variations
+            const margin = Math.max(Math.abs(exact * 0.015), 0.001); 
+
+            if (Math.abs(Math.abs(inputVal) - exact) <= margin) {
+                // Correct
+                let successMsg = `✅ Correct! The exact value is ${exact.toFixed(3)}.`;
+                if (hintsShown[q] === 0) {
+                    successMsg += " <em>(Flawless calculation!)</em>";
+                }
+                showFeedback(q, successMsg, "success");
+                
+                inputEl.disabled = true;
+                document.querySelector(`#q${q}-input-area button`).style.display = 'none';
+
+                if (q < 3) {
+                    document.getElementById(`q${q+1}-box`).classList.remove('hidden');
+                } else {
+                    finishGame();
+                }
+
+            } else {
+                // Incorrect
+                totalMistakes++;
+                hintsShown[q]++;
+                
+                let feedbackHTML = `❌ Not quite right. Try checking your math.`;
+                let hintTxt = "";
+                
+                // Specific error detection for Part 2
+                if (q === 2) {
+                    const thetaRad = theta * Math.PI / 180;
+                    const halfAns = v * Math.cos(thetaRad);
+                    const sinAns = 2 * v * Math.sin(thetaRad);
+                    const halfSinAns = v * Math.sin(thetaRad);
+                    
+                    if (Math.abs(Math.abs(inputVal) - halfAns) <= Math.max(Math.abs(halfAns * 0.015), 0.001)) {
+                        hintTxt = "💡 <strong>Specific Hint:</strong> It looks like you only found the velocity for one direction! Remember that the ball bounces back. The change is final minus initial, and subtracting a negative velocity is the same as adding: <em>v - (-v) = 2v</em>.";
+                    } else if (Math.abs(Math.abs(inputVal) - sinAns) <= Math.max(Math.abs(sinAns * 0.015), 0.001) || Math.abs(Math.abs(inputVal) - halfSinAns) <= Math.max(Math.abs(halfSinAns * 0.015), 0.001)) {
+                        hintTxt = "💡 <strong>Specific Hint:</strong> Did you use sine instead of cosine? Look closely at the angle θ. It is measured from the normal (the horizontal dashed line). The component of velocity changing is adjacent to this angle, so you need cosine!";
+                    }
+                }
+                
+                if (!hintTxt) {
+                    hintTxt = getHint(q, hintsShown[q]);
+                }
+                
+                let aiButtonHTML = `<button onclick="askAITutor(${q}, ${inputVal})" id="btn-ai-${q}" class="mt-3 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-4 py-1.5 rounded-md text-sm font-bold transition shadow-sm flex items-center gap-2">✨ Ask AI Tutor for a Custom Hint</button>`;
+                
+                showFeedback(q, `${feedbackHTML}<br><br><span class="text-slate-600">${hintTxt}</span>${aiButtonHTML}`, "error");
+            }
+        }
+
+        function finishGame() {
+            document.getElementById('questions-container').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('hidden');
+            
+            // Scoring Logic:
+            // Max Base: 10. Max EC: 5. Total Possible starts at 15.
+            // Every mistake subtracts 0.5 from the total 15.
+            let rawScore = 15 - (totalMistakes * 0.5);
+            let finalScore = Math.max(0, rawScore); // don't go below zero
+            
+            let displayScore = finalScore;
+            
+            // Enforce max 10 display string, but logic keeps true score for confetti
+            if (finalScore > 10) {
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+                document.getElementById('final-score').classList.add('text-purple-600');
+                document.getElementById('final-score').classList.remove('text-blue-600');
+            } else {
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+            }
+
+            // Unique message
+            document.getElementById('unique-message').innerText = getUniqueMessage();
+
+            // Retry logic
+            if (finalScore < 8) {
+                const retryEl = document.getElementById('retry-message');
+                retryEl.classList.remove('hidden');
+                retryEl.innerText = "Physics is all about iteration. We invite you to try again to improve your score!";
+            }
+
+            // Confetti Logic
+            if (finalScore >= 13) { // High extra credit
+                shootConfettiSequence(3);
+            } else if (finalScore > 10) { // Some extra credit
+                shootConfettiSequence(2);
+            } else if (finalScore === 10) { // Exactly 100%
+                shootConfettiSequence(1);
+            }
+        }
+
+        // --- Confetti Animation ---
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            
+            function fire() {
+                shootBallisticConfetti();
+                currentRound++;
+                if (currentRound < rounds) {
+                    setTimeout(fire, 1500); // 1.5s between rounds
+                }
+            }
+            
+            fire();
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                particles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), 
+                    vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 20 
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.5; // gravity
+                    p.rotation += p.rs;
+
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+
+                if (active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        // --- AI Features ---
+        async function askAITutor(q, userVal) {
+            const btn = document.getElementById(`btn-ai-${q}`);
+            const aiResponseDiv = document.getElementById(`q${q}-ai-response`);
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Thinking...";
+            aiResponseDiv.classList.remove('hidden');
+            aiResponseDiv.innerHTML = `<span class="animate-pulse">Analyzing your answer...</span>`;
+
+            let questionContext = "";
+            let exactAns = exactAnswers[q];
+            
+            if (q === 1) questionContext = `Part 1: Find the impulse (area under the Force-Time graph). Base time = ${t_b} s, Peak force = ${f_max} N.`;
+            if (q === 2) questionContext = `Part 2: Find the change in velocity. Initial velocity = ${v} m/s, Angle to normal = ${theta} degrees. The ball bounces back symmetrically.`;
+            if (q === 3) questionContext = `Part 3: Find the mass using m = Impulse / Change_in_velocity. The correct Impulse is ${exactAnswers[1].toFixed(3)} and Change in Velocity is ${exactAnswers[2].toFixed(3)}.`;
+
+            const prompt = `A student is solving this physics problem:
+            Question: ${questionContext}
+            Correct Answer: ${exactAns.toFixed(3)}
+            Student's Incorrect Answer: ${userVal}
+            
+            Provide a short, 2-3 sentence friendly hint to help them understand what they might have done wrong mathematically or conceptually. Do NOT give them the final exact answer. Ask a guiding question to prompt them in the right direction.`;
+
+            const systemInstruction = "You are an encouraging, expert high school physics tutor. Focus on diagnosing the specific mistake the student likely made based on comparing their numerical input to the variables and the correct answer.";
+
+            const reply = await callGemini(prompt, systemInstruction);
+            
+            if (reply) {
+                const formattedReply = formatMarkdown(reply).replace(/\n/g, '<br>');
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-slate-700">${formattedReply}</span>`;
+            } else {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-red-600">Sorry, the AI tutor is currently unavailable. Please try again later.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Ask AI Tutor again";
+            btn.disabled = false;
+        }
+
+        async function generateAnalogy() {
+            const btn = document.getElementById('analogy-btn');
+            const responseDiv = document.getElementById('analogy-response');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Generating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600">Consulting the universe...</span>`;
+
+            const mass = exactAnswers[3].toFixed(3);
+            const prompt = `A physics student just finished an exercise calculating that a superball hitting a wall at ${v} m/s (angle ${theta} deg) and experiencing a peak force of ${f_max} N has a mass of ${mass} kg. 
+            
+            Write a fun, encouraging 2-3 sentence paragraph giving a vivid, real-world analogy for this specific collision event based on the calculated mass and speed. For example, "A ${mass}kg ball hitting a wall at ${v}m/s is roughly like a [animal/object] crashing into a wall at highway speeds!" Keep it entertaining!`;
+
+            const reply = await callGemini(prompt);
+            
+            if (reply) {
+                const formattedReply = formatMarkdown(reply).replace(/\n/g, '<br>');
+                responseDiv.innerHTML = `<strong>✨ Fun Real-World Analogy:</strong><br><span class="mt-2 block text-slate-700">${formattedReply}</span>`;
+            } else {
+                responseDiv.innerHTML = `<strong>✨ Fun Real-World Analogy:</strong><br><span class="mt-2 block text-red-600">Sorry, the AI is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Generate Another Analogy";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
