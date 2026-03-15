@@ -1,0 +1,719 @@
+The following image can be moved on the page using keyboard controls (left, right, up, down)
+
+paintball.html
+
+Page
+1
+/
+1
+100%
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Paintballs & Momentum</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering equations -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc; /* Slate 50 */
+            color: #0f172a;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.5rem;
+            background: #ffffff;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 2px solid #cbd5e1;
+            color: #ea580c; /* Orange 600 */
+            font-weight: bold;
+            letter-spacing: 0.1em;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9999;
+        }
+        .correct-bg { background-color: #ecfdf5; border-color: #10b981; }
+        .wrong-bg { background-color: #fef2f2; border-color: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden relative z-20 border border-slate-200" id="main-card">
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-5 -top-10 opacity-10 transform rotate-12 text-9xl">🎯</div>
+            <h1 class="text-3xl font-bold relative z-10 text-orange-400">Physics Coach: Continuous Impact</h1>
+            <p class="mt-2 text-slate-300 relative z-10 text-lg">Analyze the macroscopic force of a continuous stream of projectiles.</p>
+        </div>
+
+        <!-- Problem Statement & Visuals -->
+        <div class="p-6 border-b border-gray-200 bg-slate-50">
+            
+            <div class="flex flex-col items-center mb-6">
+                <!-- Reference Image -->
+                <div class="bg-white border-2 border-slate-200 rounded-xl p-4 shadow-sm w-full max-w-2xl mb-6">
+                    <img src="https://docs.google.com/drawings/d/e/2PACX-1vQYdPYZ-pMz_7X-evhFGdres8x7w28t9d3eVJIxNzbzE_4hwrjT4VJ5a9sQRnCOfHrwT_bsfyg5hq7g/pub?w=636&h=257" alt="Paintball Diagram" class="w-full h-auto object-contain">
+                </div>
+
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-slate-700 mb-2">Macroscopic Force Theorem</h2>
+                    <div class="equation">
+                        $F = \frac{m \cdot \Delta v}{\Delta t}$
+                    </div>
+                    <div class="mt-3">
+                        <button onclick="explainEquation()" id="explain-eq-btn" class="text-sm text-purple-600 hover:text-purple-800 font-bold transition flex items-center justify-center gap-1 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-full border border-purple-200 shadow-sm mx-auto">
+                            ✨ Explain this simply
+                        </button>
+                    </div>
+                    <div id="equation-explanation" class="hidden w-full max-w-2xl mt-4 mx-auto p-5 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-left leading-relaxed shadow-inner text-base"></div>
+                </div>
+
+                <!-- Animation Canvas -->
+                <div class="w-full max-w-3xl border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner relative">
+                    <div class="absolute top-2 right-2 text-xs font-bold text-slate-500 bg-white/80 px-2 py-1 rounded">LIVE SIMULATION</div>
+                    <canvas id="illustrationCanvas" width="768" height="280" class="w-full h-auto block"></canvas>
+                </div>
+            </div>
+
+            <div class="text-slate-700 leading-relaxed text-lg max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="mb-4">
+                    A paintball gun fires <strong class="text-orange-600"><span id="var-rate">--</span> paintballs per minute</strong> that hit a target and stop dead on impact. 
+                    Each paintball has a mass of <strong class="text-orange-600"><span id="var-mass">--</span> kg</strong>. The initial impact speed is <strong class="text-orange-600"><span id="var-vel">--</span> m/s</strong>.
+                </p>
+                <p class="text-sm italic text-slate-500">
+                    * Assume the target is rigid and does not move. The time interval we are observing ($\Delta t$) is exactly 60 seconds (1 minute).
+                </p>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 md:p-8 space-y-8 bg-white" id="questions-container">
+            <h3 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">Analysis Questions</h3>
+            <div id="q-list" class="space-y-6">
+                <!-- Questions injected via JS -->
+            </div>
+            
+            <!-- ✨ New Feature: Gemini Conclusion Grading -->
+            <div id="conclusion-block" class="hidden mt-8 bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl p-6 shadow-sm fade-in">
+                <h4 class="text-xl font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                    <span>Final Challenge: Draw a Conclusion</span>
+                </h4>
+                <p class="text-slate-700 mb-4 leading-relaxed">
+                    Based on your calculations, compare the force of objects that <em>stop</em> (paintballs) vs. objects that <em>bounce</em> (rubber balls). <br>
+                    <strong>If you were designing a water wheel to generate maximum power, would you want the water to splash and stop, or bounce back off the blades? Explain why based on momentum.</strong>
+                </p>
+                <textarea id="conclusion-input" rows="4" placeholder="Type your conclusion here..." class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-slate-700 mb-3"></textarea>
+                <button id="submit-conclusion-btn" onclick="gradeConclusion()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold transition shadow-sm w-full md:w-auto">
+                    ✨ Submit to AI for Final Grade
+                </button>
+                <div id="conclusion-feedback" class="mt-4 hidden p-4 rounded-lg text-base"></div>
+            </div>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-50 p-10 text-center fade-in border-t border-slate-200">
+            <div class="inline-block bg-white p-8 rounded-2xl shadow-lg border border-slate-100 max-w-xl w-full">
+                
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Lesson Complete! 🎯</h2>
+                
+                <div class="my-8">
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-7xl font-black text-orange-600 drop-shadow-sm" id="final-score">10.0</span>
+                        <span class="text-3xl text-gray-400 mb-2 font-light">/ 10</span>
+                    </div>
+                    
+                    <div id="extra-credit-message" class="hidden text-green-600 font-extrabold text-2xl mt-4 animate-bounce drop-shadow-sm">
+                        🌟 +5 EXTRA CREDIT FOR A PERFECT RUN! 🌟
+                    </div>
+
+                    <p id="unique-message" class="text-xl font-bold text-slate-700 mt-4 italic leading-relaxed"></p>
+                </div>
+                
+                <p id="retry-message" class="text-slate-500 font-medium mb-6 hidden bg-slate-100 p-3 rounded-lg"></p>
+                
+                <div class="flex justify-center flex-wrap gap-4 mt-4">
+                    <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg">
+                        Play Again (New Numbers)
+                    </button>
+                    <button id="analogy-btn" onclick="generateAnalogy()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg flex items-center gap-2">
+                        ✨ Generate AI Analogy
+                    </button>
+                </div>
+                <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration (Dual Environment) ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent') || window.location.hostname === 'localhost';
+            const delays = [1000, 2000, 4000, 8000];
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const responseText = await response.text();
+                    if (!responseText) throw new Error("Empty response");
+                    
+                    const data = JSON.parse(responseText);
+                    return isPreview ? (data.candidates?.[0]?.content?.parts?.[0]?.text || null) : (data.text || null);
+                } catch (error) {
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline:", error);
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            if (!text) return "";
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
+        }
+
+        // --- Physics Game State ---
+        let rate_N, mass_b, vel_i;
+        let exactAnswers = [];
+        let totalMistakes = 0;
+        let mistakesMap = {};
+        const totalQuestions = 4;
+        let conclusionPoints = 0;
+
+        function init() {
+            // Generate Random Physics Values
+            rate_N = [400, 500, 600, 700, 800][Math.floor(Math.random() * 5)]; // Balls per minute
+            mass_b = [0.002, 0.003, 0.004, 0.005][Math.floor(Math.random() * 4)]; // Mass per ball
+            vel_i = [150, 200, 250, 300][Math.floor(Math.random() * 4)]; // Impact speed
+            let totalMass = rate_N * mass_b;
+
+            // DOM Population
+            document.getElementById('var-rate').innerText = rate_N;
+            document.getElementById('var-mass').innerText = mass_b.toFixed(3);
+            document.getElementById('var-vel').innerText = vel_i;
+
+            const questionsData = [
+                { 
+                    label: `1. What is the total mass ($m$) of all the paintballs that hit the target in $\\Delta t = 60$ seconds? <strong>(in kg)</strong>`, 
+                    val: totalMass, 
+                    hint: `There are ${rate_N} paintballs hitting the target in 60 seconds. Multiply the number of paintballs by the mass of a single paintball (${mass_b} kg).`
+                },
+                { 
+                    label: `2. What is the change in velocity ($\\Delta v$) of the paintballs if they stop dead on impact? <strong>(in m/s)</strong>`, 
+                    val: -vel_i, 
+                    hint: `Remember $\\Delta v = v_f - v_i$. The paintballs hit at ${vel_i} m/s and come to a complete stop ($v_f = 0$). Don't forget the negative sign!`
+                },
+                { 
+                    label: `3. What is the average force on the target that results from these impacts? <strong>(in N)</strong><br><span class="text-sm font-normal text-slate-500">*Note: The force on the paintballs is to the left (negative), but we are asking for the force ON the target (to the right, positive).</span>`, 
+                    val: (totalMass * vel_i) / 60, // F_target is positive (opposite of F_balls)
+                    hint: `Use the formula $F = (m \\cdot |\\Delta v|) / \\Delta t$. Multiply the total mass (from Q1) by the speed change (${vel_i}), then divide by the total time (60 s).`
+                },
+                { 
+                    label: `4. If instead the gun fired ${mass_b} kg <strong>rubber balls</strong> that bounce backward off the target with a velocity of -${vel_i} m/s, what would be the average force on the target? <strong>(in N)</strong>`, 
+                    val: (totalMass * (2 * vel_i)) / 60, 
+                    hint: `The rubber balls reverse direction! So $\\Delta v = v_f - v_i = -${vel_i} - ${vel_i} = -${2 * vel_i}$. This means the change in momentum (and the resulting force) is exactly DOUBLE that of the paintballs.`
+                }
+            ];
+
+            // Setup Answers Array (1-based index)
+            exactAnswers = [0]; 
+            questionsData.forEach(q => exactAnswers.push(q.val));
+
+            // Generate UI Questions
+            const qList = document.getElementById('q-list');
+            questionsData.forEach((q, idx) => {
+                const qNum = idx + 1;
+                const html = `
+                    <div id="q-block-${qNum}" class="bg-white border-2 border-slate-200 rounded-xl p-5 shadow-sm transition-all duration-300 ${qNum !== 1 ? 'opacity-40 pointer-events-none' : ''}">
+                        <label class="block text-lg font-medium text-slate-800 mb-3">${q.label}</label>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <input type="number" id="input-${qNum}" class="w-48 px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 text-lg text-slate-700" step="any">
+                            <button id="btn-${qNum}" onclick="checkAnswer(${qNum})" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-sm">Check</button>
+                            <span id="status-${qNum}" class="text-2xl hidden"></span>
+                        </div>
+                        <div id="feedback-${qNum}" class="mt-3 text-sm hidden font-medium px-4 py-3 rounded-lg border"></div>
+                        <div id="ai-response-${qNum}" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+                    </div>
+                `;
+                qList.insertAdjacentHTML('beforeend', html);
+                mistakesMap[qNum] = 0;
+            });
+
+            if (window.MathJax) MathJax.typesetPromise().catch((err) => console.error(err));
+            
+            // Start Animation Loop
+            requestAnimationFrame(renderSimulation);
+        }
+
+        // --- Continuous Stream Simulation ---
+        const canvas = document.getElementById('illustrationCanvas');
+        const ctx = canvas.getContext('2d');
+        let simParticles = [];
+        let lastSpawnTime = 0;
+        
+        function renderSimulation(timestamp) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background and Target
+            ctx.fillStyle = "#f1f5f9"; // light gray background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Divider Line
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height/2);
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+
+            // Text Labels
+            ctx.fillStyle = "#64748b";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText("PAINTBALLS: Stop on impact (Δv = -v)", 20, 25);
+            ctx.fillText("RUBBER BALLS: Bounce back (Δv = -2v)", 20, canvas.height/2 + 25);
+
+            // Target Wall
+            const targetX = 650;
+            ctx.fillStyle = "#475569";
+            ctx.fillRect(targetX, 0, 40, canvas.height);
+            // Wall stripes
+            ctx.strokeStyle = "#cbd5e1";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let y=10; y<canvas.height; y+=20) {
+                ctx.moveTo(targetX, y);
+                ctx.lineTo(targetX + 40, y - 10);
+            }
+            ctx.stroke();
+
+            // Spawn Projectiles
+            if (timestamp - lastSpawnTime > 150) { // Spawn rate
+                // Paintball (Top)
+                simParticles.push({ type: 'paint', x: 0, y: 70 + (Math.random()*40-20), vx: 12, state: 'flying' });
+                // Rubber ball (Bottom)
+                simParticles.push({ type: 'rubber', x: 0, y: 210 + (Math.random()*40-20), vx: 12, state: 'flying' });
+                lastSpawnTime = timestamp;
+            }
+
+            // Update & Draw Particles
+            for (let i = simParticles.length - 1; i >= 0; i--) {
+                let p = simParticles[i];
+                
+                if (p.state === 'flying') {
+                    p.x += p.vx;
+                    
+                    if (p.x >= targetX - 8) { // Collision
+                        if (p.type === 'paint') {
+                            p.state = 'splat';
+                            p.x = targetX - 4;
+                            p.life = 1.0; // Splats fade out
+                        } else if (p.type === 'rubber') {
+                            p.state = 'bouncing';
+                            p.vx = -12; // Reverses direction completely
+                        }
+                    }
+                } else if (p.state === 'bouncing') {
+                    p.x += p.vx;
+                }
+
+                // Drawing logic
+                if (p.type === 'paint') {
+                    if (p.state === 'flying') {
+                        ctx.fillStyle = "#3b82f6"; // Blue paintball
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill();
+                        // Motion blur
+                        ctx.fillStyle = "rgba(59, 130, 246, 0.3)";
+                        ctx.fillRect(p.x - 20, p.y - 4, 20, 8);
+                    } else if (p.state === 'splat') {
+                        p.life -= 0.02;
+                        if (p.life <= 0) { simParticles.splice(i, 1); continue; }
+                        ctx.fillStyle = `rgba(59, 130, 246, ${p.life})`;
+                        ctx.beginPath(); ctx.ellipse(p.x, p.y, 4, 15, 0, 0, Math.PI*2); ctx.fill();
+                    }
+                } else if (p.type === 'rubber') {
+                    if (p.x < -20) { simParticles.splice(i, 1); continue; } // Remove when off-screen left
+                    ctx.fillStyle = "#ef4444"; // Red rubber ball
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill();
+                    // Black outline
+                    ctx.strokeStyle = "#7f1d1d";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    // Motion blur based on direction
+                    ctx.fillStyle = "rgba(239, 68, 68, 0.3)";
+                    if (p.vx > 0) ctx.fillRect(p.x - 20, p.y - 4, 20, 8);
+                    else ctx.fillRect(p.x + 8, p.y - 4, 20, 8);
+                }
+            }
+
+            requestAnimationFrame(renderSimulation);
+        }
+
+        // --- Checking Logic ---
+        function checkAnswer(q) {
+            const inputEl = document.getElementById(`input-${q}`);
+            const btnEl = document.getElementById(`btn-${q}`);
+            const statusEl = document.getElementById(`status-${q}`);
+            const feedbackEl = document.getElementById(`feedback-${q}`);
+            const blockEl = document.getElementById(`q-block-${q}`);
+            
+            if (inputEl.value === "") return;
+            
+            const userVal = parseFloat(inputEl.value);
+            const exactAns = exactAnswers[q];
+            
+            // Allow 1.5% margin of error
+            const tolerance = Math.max(Math.abs(exactAns * 0.015), 0.01);
+            const isCorrect = Math.abs(userVal - exactAns) <= tolerance;
+
+            statusEl.classList.remove('hidden');
+            feedbackEl.classList.remove('hidden', 'correct-bg', 'wrong-bg', 'text-green-800', 'text-red-800');
+
+            if (isCorrect) {
+                statusEl.innerHTML = "✅";
+                inputEl.disabled = true;
+                btnEl.style.display = 'none';
+                inputEl.classList.add('bg-green-50', 'border-green-400');
+                blockEl.classList.add('border-green-400', 'bg-green-50/30');
+                feedbackEl.classList.add('correct-bg', 'text-green-800');
+                feedbackEl.innerHTML = `Correct! The exact value is ${exactAns.toFixed(2)}.`;
+                
+                if (q < totalQuestions) {
+                    const nextBlock = document.getElementById(`q-block-${q+1}`);
+                    nextBlock.classList.remove('opacity-40', 'pointer-events-none');
+                    nextBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById(`input-${q+1}`).focus();
+                } else {
+                    const concBlock = document.getElementById('conclusion-block');
+                    concBlock.classList.remove('hidden');
+                    concBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                mistakesMap[q]++;
+                totalMistakes++;
+                statusEl.innerHTML = "❌";
+                inputEl.classList.add('border-red-400');
+                feedbackEl.classList.add('wrong-bg', 'text-red-800');
+                
+                // Static Hint injection
+                let hintTxt = "";
+                if (q === 1) hintTxt = `💡 <strong>Hint:</strong> Mass = (Number of balls) × (Mass per ball). You have ${rate_N} balls and each is ${mass_b} kg.`;
+                if (q === 2 && userVal > 0) hintTxt = `💡 <strong>Check your signs!</strong> The balls are traveling forward and stopping. Final velocity is 0. Since $\\Delta v = v_f - v_i$, the answer must be negative!`;
+                else if (q === 2) hintTxt = `💡 <strong>Hint:</strong> Final velocity is 0 m/s. Initial is ${vel_i} m/s. $\\Delta v = 0 - ${vel_i}$.`;
+                
+                if (q === 3) {
+                    if (Math.abs(userVal - (-exactAns)) <= tolerance) {
+                        hintTxt = `💡 <strong>Check your signs!</strong> You calculated the force ON the paintballs (which is negative, to the left). By Newton's Third Law, the force ON the target is equal and opposite (positive, to the right).`;
+                    } else {
+                        hintTxt = `💡 <strong>Hint:</strong> Use $F = (m_{total} \\cdot |\\Delta v|) / \\Delta t$. So multiply your answer from Q1 by your answer from Q2 (use the absolute value of the velocity change), and divide by 60 seconds.`;
+                    }
+                }
+                
+                if (q === 4) hintTxt = `💡 <strong>Hint:</strong> Bouncing back means the change in velocity is TWICE as large as stopping dead. This means the resulting force will be exactly DOUBLE your answer from Q3.`;
+
+                // Add AI Tutor Button
+                let aiBtnHTML = `<button onclick="askAITutor(${q}, ${userVal})" id="btn-ai-${q}" class="mt-3 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1 shadow-sm">✨ Ask AI Tutor</button>`;
+                
+                feedbackEl.innerHTML = `Not quite. Try again!<br><br><span class="text-slate-700">${hintTxt}</span>${aiBtnHTML}`;
+                inputEl.classList.add('bg-red-50');
+                setTimeout(() => inputEl.classList.remove('bg-red-50'), 300);
+
+                // Render the dynamically injected math symbols
+                if (window.MathJax) {
+                    MathJax.typesetPromise([feedbackEl]).catch((err) => console.error(err));
+                }
+            }
+        }
+
+        async function gradeConclusion() {
+            const input = document.getElementById('conclusion-input').value.trim();
+            if(!input) return;
+            
+            const btn = document.getElementById('submit-conclusion-btn');
+            const feedbackDiv = document.getElementById('conclusion-feedback');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ AI Grading...";
+            
+            const prompt = `A physics student was asked: "Compare the force of objects that stop vs. bounce. For a water wheel, would you want water to splash/stop, or bounce back? Explain why."
+            
+            Student's Answer: "${input}"
+            
+            Evaluate their answer. They should recognize that bouncing causes a greater change in momentum (Δv is doubled), thus exerting more force on the blades.
+            Score them from 0 to 2 points (integers only):
+            2 = Fully understands bouncing gives more force/momentum change.
+            1 = Partially correct (e.g. picks bounce but misses the 'why').
+            0 = Incorrect or irrelevant.
+            
+            Return ONLY a JSON object in this exact format, with no markdown formatting:
+            {"points": 2, "feedback": "Your short, encouraging feedback here."}`;
+            
+            const systemInstruction = "You are an expert physics grader. Return ONLY pure JSON.";
+            
+            try {
+                let reply = await callGemini(prompt, systemInstruction);
+                // Clean up markdown block formatting if Gemini includes it
+                reply = reply.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const result = JSON.parse(reply);
+                
+                conclusionPoints = result.points;
+                
+                feedbackDiv.classList.remove('hidden');
+                feedbackDiv.classList.add('bg-white', 'border', 'border-indigo-200', 'text-indigo-900');
+                
+                const continueBtnHTML = `
+                    <div class="mt-6 text-center">
+                        <button onclick="finishGame()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg transition transform hover:scale-105 animate-bounce inline-block">
+                            🎉 View Final Score 🎉
+                        </button>
+                    </div>
+                `;
+
+                feedbackDiv.innerHTML = `<strong>✨ AI Feedback:</strong> ${formatMarkdown(result.feedback)}<br><br><span class="text-indigo-600 font-bold">Conclusion Score: +${conclusionPoints} / 2 pts</span>` + continueBtnHTML;
+                
+                btn.style.display = 'none'; // Hide original submit button to prevent confusion
+                
+            } catch(e) {
+                console.error("AI grading failed", e);
+                feedbackDiv.classList.remove('hidden');
+                
+                const continueBtnHTML = `
+                    <div class="mt-6 text-center">
+                        <button onclick="finishGame()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg transition transform hover:scale-105 animate-bounce inline-block">
+                            🎉 View Final Score 🎉
+                        </button>
+                    </div>
+                `;
+                
+                feedbackDiv.innerHTML = `<span class="text-red-600">Grading failed due to network error. Giving full credit (+2)!</span>` + continueBtnHTML;
+                conclusionPoints = 2;
+                btn.style.display = 'none'; // Hide original submit button
+            }
+        }
+
+        function finishGame() {
+            setTimeout(() => {
+                document.getElementById('questions-container').classList.add('hidden');
+                document.getElementById('win-screen').classList.remove('hidden');
+                document.getElementById('win-screen').scrollIntoView({ behavior: 'smooth' });
+                
+                // Base math score is now out of 8 points. Conclusion is out of 2 points.
+                let mathScore = 8 - (totalMistakes * 1.5);
+                mathScore = Math.max(0, mathScore);
+                let finalScore = mathScore + conclusionPoints;
+                
+                if (totalMistakes === 0 && conclusionPoints === 2) {
+                    finalScore += 5; // Extra credit
+                    document.getElementById('extra-credit-message').classList.remove('hidden');
+                }
+                
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+
+                const msgs = ["A flawless calculation!", "Excellent work!", "Great job pushing through!", "Keep practicing, you're getting it!"];
+                document.getElementById('unique-message').innerText = (totalMistakes === 0 && conclusionPoints === 2) ? msgs[0] : (totalMistakes < 3 ? msgs[1] : (totalMistakes < 5 ? msgs[2] : msgs[3]));
+
+                if (finalScore < 7) {
+                    const retryEl = document.getElementById('retry-message');
+                    retryEl.classList.remove('hidden');
+                    retryEl.innerText = "Don't give up! We invite you to play again to improve your score.";
+                }
+
+                if (totalMistakes === 0 && conclusionPoints === 2) shootConfettiSequence(5);
+                else if (finalScore >= 9) shootConfettiSequence(3);
+                else if (finalScore >= 8) shootConfettiSequence(2);
+            }, 500);
+        }
+
+        // --- AI Interactivity ---
+        async function explainEquation() {
+            const btn = document.getElementById('explain-eq-btn');
+            const responseDiv = document.getElementById('equation-explanation');
+            btn.disabled = true;
+            btn.innerHTML = "✨ Translating physics...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Thinking...</span>`;
+
+            const prompt = `Explain the Macroscopic Force formula $F = \\frac{m \\cdot \\Delta v}{\\Delta t}$ in the context of a continuous stream of objects (like water from a hose, or a stream of paintballs) hitting a wall. Explain why lots of tiny microscopic collisions create one steady macroscopic force. Keep it highly engaging, simple, and 1 paragraph. Use $ $ for math variables.`;
+
+            const reply = await callGemini(prompt);
+            if (reply) {
+                responseDiv.innerHTML = formatMarkdown(reply);
+                btn.style.display = 'none'; 
+                if (window.MathJax) MathJax.typesetPromise([responseDiv]).catch((err) => console.error(err));
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI is currently unavailable.</span>`;
+                btn.innerHTML = "✨ Try Again";
+                btn.disabled = false;
+            }
+        }
+
+        async function askAITutor(q, userVal) {
+            const btn = document.getElementById(`btn-ai-${q}`);
+            const aiResponseDiv = document.getElementById(`ai-response-${q}`);
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Thinking...";
+            aiResponseDiv.classList.remove('hidden');
+            aiResponseDiv.innerHTML = `<span class="animate-pulse">Analyzing your math...</span>`;
+
+            let exactAns = exactAnswers[q];
+            let questionContext = "";
+            
+            if (q===1) questionContext = `Calculate total mass of ${rate_N} paintballs if each is ${mass_b} kg.`;
+            if (q===2) questionContext = `Calculate change in velocity. Initial is ${vel_i} m/s, final is 0.`;
+            if (q===3) questionContext = `Calculate force using Force = (mass * velocity_change) / time. Total mass = ${exactAnswers[1]} kg, velocity change = ${exactAnswers[2]} m/s, time = 60s.`;
+            if (q===4) questionContext = `Calculate force if objects bounce back instead of stopping. This means velocity change is doubled.`;
+
+            const prompt = `A physics student is solving: "${questionContext}"
+            Correct Answer: ${exactAns}
+            Student's Incorrect Answer: ${userVal}
+            
+            Provide a short, 2-3 sentence friendly hint to help them understand their mistake. Do NOT give them the final exact answer. Ask a guiding question to point them in the right direction. Use $ $ for math variables.`;
+
+            const reply = await callGemini(prompt, "You are an encouraging, expert high school physics tutor.");
+            
+            if (reply) {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-slate-700">${formatMarkdown(reply)}</span>`;
+                if (window.MathJax) MathJax.typesetPromise([aiResponseDiv]).catch((err) => console.error(err));
+            } else {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-red-600">Sorry, the AI tutor is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Ask AI Tutor again";
+            btn.disabled = false;
+        }
+
+        async function generateAnalogy() {
+            const btn = document.getElementById('analogy-btn');
+            const responseDiv = document.getElementById('analogy-response');
+            btn.disabled = true;
+            btn.innerHTML = "✨ Generating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600">Consulting the universe...</span>`;
+
+            const prompt = `A student just learned that a stream of objects bouncing off a target (like rubber balls) exerts TWICE as much force as a stream of objects stopping dead (like paintballs splatting). 
+            Write a fun, vivid real-world analogy to explain why "bouncing" pushes harder than "splatting". Keep it under 3 sentences and highly entertaining.`;
+
+            const reply = await callGemini(prompt);
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ AI Analogy:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply)}</span>`;
+            } else {
+                responseDiv.innerHTML = `<strong>✨ AI Analogy:</strong><br><span class="mt-2 block text-red-600">Sorry, the AI is currently unavailable.</span>`;
+            }
+            btn.innerHTML = "✨ Generate Another Analogy";
+            btn.disabled = false;
+        }
+
+        // --- Confetti ---
+        let confettiParticles = [];
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            function fire() {
+                shootBallisticConfetti();
+                currentRound++;
+                if (currentRound < rounds) setTimeout(fire, 1500);
+            }
+            fire();
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                confettiParticles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), 
+                    vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 20 
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                confettiParticles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rotation += p.rs;
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+                if (active) requestAnimationFrame(animateConfetti);
+                else { ctx.clearRect(0, 0, canvas.width, canvas.height); confettiParticles = []; }
+            }
+            if(confettiParticles.length <= 120) animateConfetti();
+        }
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.tagName === 'INPUT' && activeEl.id.startsWith('input-')) {
+                    checkAnswer(parseInt(activeEl.id.split('-')[1]));
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+Displaying paintball.html.
