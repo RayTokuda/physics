@@ -1,0 +1,622 @@
+The following image can be moved on the page using keyboard controls (left, right, up, down)
+
+basilisk.html
+
+Page
+1
+/
+1
+100%
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Basilisk Lizard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f0fdf4; /* Light green tint */
+            color: #0f172a;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.25rem;
+            background: #ffffff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 1px solid #94a3b8;
+            color: #047857; /* Emerald */
+            font-weight: bold;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .media-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden relative z-20" id="main-card">
+        <!-- Header -->
+        <div class="bg-emerald-700 text-white p-6 relative overflow-hidden flex flex-col md:flex-row justify-between items-start gap-4">
+            <div>
+                <div class="absolute -right-10 -top-10 opacity-10 transform rotate-12 text-9xl">🦎</div>
+                <h1 class="text-3xl font-bold relative z-10">Physics Coach: The Jesus Lizard</h1>
+                <p class="mt-2 opacity-90 relative z-10 text-lg">Analyze Impulse & Momentum as the Basilisk Lizard runs across water.</p>
+            </div>
+            
+            <!-- ✨ New Feature: Persona Selector -->
+            <div class="relative z-10 bg-emerald-800/50 p-3 rounded-lg border border-emerald-600 shadow-sm w-full md:w-auto">
+                <label for="coach-persona" class="block text-sm font-medium text-emerald-100 mb-1">✨ Tutor Persona</label>
+                <select id="coach-persona" class="bg-emerald-900 text-white border border-emerald-600 text-sm rounded-md focus:ring-emerald-400 focus:border-emerald-400 block w-full p-2 cursor-pointer font-semibold outline-none">
+                    <option value="encouraging expert high school physics tutor">Standard Tutor</option>
+                    <option value="Albert Einstein">Albert Einstein</option>
+                    <option value="laid-back surfer dude">Surfer Dude</option>
+                    <option value="intense military drill sergeant">Drill Sergeant</option>
+                    <option value="sarcastic AI robot (like GLaDOS)">Sarcastic Robot</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Problem Statement & Visuals -->
+        <div class="p-6 border-b border-gray-200 bg-slate-50">
+            <div class="flex flex-col md:flex-row gap-6 justify-center mb-6 relative">
+                
+                <!-- Image -->
+                <div class="media-container w-full md:w-1/2 flex flex-col justify-center items-center">
+                    <img src="https://d3mvlb3hz2g78.cloudfront.net/wp-content/uploads/2017/10/thumb_720_450_Basilisk_Lizard1_2.jpg" alt="Basilisk Lizard Running" class="rounded shadow-sm w-full h-auto object-cover">
+                    <p class="text-xs text-slate-500 mt-2 italic">The Basilisk Lizard in action</p>
+                </div>
+
+                <!-- Video (Fixed with Thumbnail Link due to Error 153) -->
+                <div class="media-container w-full md:w-1/2 flex flex-col justify-center items-center">
+                    <a href="https://www.youtube.com/watch?v=JF-UMgdkph4" target="_blank" class="w-full relative group block overflow-hidden rounded shadow-sm" style="padding-top: 56.25%;">
+                        <!-- Automatically grabs the YouTube thumbnail -->
+                        <img src="https://img.youtube.com/vi/JF-UMgdkph4/hqdefault.jpg" alt="Video Thumbnail" class="absolute top-0 left-0 w-full h-full object-cover transition transform group-hover:scale-105">
+                        
+                        <!-- Play Button Overlay -->
+                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center transition group-hover:bg-opacity-50">
+                            <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg transition transform group-hover:scale-110">
+                                <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                    <p class="text-xs text-slate-500 mt-2 italic">Opens in a new tab <a href="https://www.youtube.com/watch?v=JF-UMgdkph4" target="_blank" class="text-emerald-600 hover:underline">(Watch on YouTube)</a></p>
+                </div>
+
+            </div>
+
+            <div class="text-gray-700 leading-relaxed text-lg max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="mb-4">
+                    Basilisk lizards can run across the top of a water surface. With each step, a lizard first <strong>slaps</strong> its foot against the water and then <strong>pushes</strong> it down into the water rapidly enough to form an air cavity around the top of the foot. 
+                </p>
+                <p class="mb-4">
+                    To avoid having to pull the foot back up against water drag, the lizard withdraws the foot before water can flow into the air cavity. During this full action of slap, downward push, and withdrawal, the <strong>average upward impulse</strong> on the lizard must match the <strong>downward impulse due to gravity</strong> if the lizard is not to sink.
+                </p>
+                <div class="text-center mb-4">
+                    <div class="equation">FΔt = mΔv</div>
+                    <div class="equation ml-2">w = mg</div>
+                </div>
+                
+                <!-- ✨ New Feature: Simplify Concept -->
+                <div class="border-t border-slate-200 pt-4 mt-4 flex flex-col items-center">
+                    <button id="simplify-btn" onclick="simplifyProblem()" class="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-5 py-2 rounded-full text-sm font-semibold transition flex items-center gap-2 shadow-sm">
+                        ✨ Explain this to me like I'm 5
+                    </button>
+                    <div id="simplify-response" class="w-full mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-slate-800 hidden text-base leading-relaxed text-left"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 space-y-8 bg-white" id="questions-container">
+            
+            <!-- Q1 -->
+            <div id="q1-box" class="space-y-3 fade-in">
+                <h3 class="font-bold text-lg text-emerald-800 border-b border-emerald-100 pb-2">Part 1: Impulse of the Slap</h3>
+                <p class="text-gray-700 font-medium">1) Suppose that the mass of each foot is <strong class="text-emerald-700"><span id="var-m-foot"></span> kg</strong>, and the change in velocity (Δv) of a foot as it slaps the water is <strong class="text-emerald-700"><span id="var-v-slap"></span> m/s</strong>.</p>
+                <p class="text-gray-700">What is the magnitude of the impulse on the lizard during the slap? <em>(Assume this impulse is directly upward)</em></p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q1-input-area">
+                    <input type="number" id="q1-input" step="0.0001" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" placeholder="Impulse (N·s)">
+                    <button onclick="checkAnswer(1)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q1-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q1-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q2 -->
+            <div id="q2-box" class="space-y-3 hidden pt-4 fade-in">
+                <h3 class="font-bold text-lg text-emerald-800 border-b border-emerald-100 pb-2">Part 2: Downward Impulse from Gravity</h3>
+                <p class="text-gray-700 font-medium">2) The total mass of the basilisk lizard is <strong class="text-emerald-700"><span id="var-m-lizard"></span> kg</strong> and the time for a single step is <strong class="text-emerald-700"><span id="var-t-step"></span> s</strong>. Use <span class="font-mono bg-slate-100 px-1 rounded">g = 9.8 m/s²</span>.</p>
+                <p class="text-gray-700">During the duration of a single step, what is the downward impulse on the lizard due to the gravitational force?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q2-input-area">
+                    <input type="number" id="q2-input" step="0.0001" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" placeholder="Impulse (N·s)">
+                    <button onclick="checkAnswer(2)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q2-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q2-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q3 -->
+            <div id="q3-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-emerald-800 border-b border-emerald-100 pb-2">Part 3: Impulse of the Push</h3>
+                <p class="text-gray-700 font-medium">3) The total upward impulse must counteract the downward impulse of the lizard's weight to keep it from sinking. The upward impulse is made up of the <strong>slap</strong> (Part 1) and the <strong>push</strong>.</p>
+                <p class="text-gray-700">What must be the exact impulse of the <strong>push</strong>?</p>
+                
+                <div class="flex flex-wrap items-center gap-3 mt-3" id="q3-input-area">
+                    <input type="number" id="q3-input" step="0.0001" class="border-2 border-slate-300 rounded-lg px-4 py-2 w-48 text-lg focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" placeholder="Impulse (N·s)">
+                    <button onclick="checkAnswer(3)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md">Check</button>
+                </div>
+                <div id="q3-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q3-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+            <!-- Q4 -->
+            <div id="q4-box" class="space-y-3 hidden pt-6 border-t border-gray-200 fade-in">
+                <h3 class="font-bold text-lg text-emerald-800 border-b border-emerald-100 pb-2">Part 4: Conclusion</h3>
+                <p class="text-gray-700 font-medium">4) Based on your calculations, which action provides the primary support for the lizard?</p>
+                
+                <div class="flex flex-col gap-3 mt-4" id="q4-input-area">
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q4-radio" value="The slap" class="w-5 h-5 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-lg">The slap provides the primary support.</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q4-radio" value="The push" class="w-5 h-5 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-lg">The push provides the primary support.</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border-2 border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                        <input type="radio" name="q4-radio" value="Equal" class="w-5 h-5 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-lg">They are approximately equal in their support.</span>
+                    </label>
+                    
+                    <button onclick="checkAnswer(4)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md w-48 mt-2">Submit Final Answer</button>
+                </div>
+                <div id="q4-feedback" class="text-base rounded-lg p-3 hidden transition-all mt-2 border"></div>
+                <div id="q4-ai-response" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+            </div>
+
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-50 p-10 text-center fade-in border-t border-slate-200">
+            <div class="inline-block bg-white p-8 rounded-2xl shadow-lg border border-slate-100 max-w-xl w-full">
+                
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Lesson Complete!</h2>
+                
+                <div class="my-8">
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-7xl font-black text-emerald-600 drop-shadow-sm" id="final-score">10.0</span>
+                        <span class="text-3xl text-gray-400 mb-2 font-light">/ 10</span>
+                    </div>
+                    
+                    <div id="extra-credit-message" class="hidden text-green-600 font-extrabold text-2xl mt-4 animate-bounce drop-shadow-sm">
+                        🌟 +5 EXTRA CREDIT FOR A PERFECT RUN! 🌟
+                    </div>
+
+                    <!-- Unique Congratulatory Message -->
+                    <p id="unique-message" class="text-xl font-bold text-emerald-600 mt-4 italic leading-relaxed"></p>
+                    
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mt-6 font-semibold">physics coach: basilisk lizard</p>
+                </div>
+                
+                <p id="retry-message" class="text-slate-500 font-medium mb-6 hidden bg-slate-100 p-3 rounded-lg"></p>
+                
+                <div class="flex justify-center flex-wrap gap-4 mt-4">
+                    <button onclick="location.reload()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg">
+                        Play Again (New Numbers)
+                    </button>
+                    <button id="analogy-btn" onclick="generateAnalogy()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg flex items-center gap-2">
+                        ✨ Generate Fun Fact
+                    </button>
+                </div>
+                <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
+                
+                <!-- ✨ New Feature: What-If Machine -->
+                <div class="mt-8 p-6 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl shadow-sm text-left relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-10 text-8xl">🦖</div>
+                    <h3 class="text-xl font-bold text-indigo-900 mb-2 flex items-center gap-2 relative z-10">
+                        ✨ The Physics "What-If" Machine
+                    </h3>
+                    <p class="text-indigo-700 text-sm mb-4 relative z-10">What if another animal tried to run on a different liquid? Let the AI calculate the hilarious physics!</p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-3 relative z-10">
+                        <input type="text" id="wi-animal" placeholder="e.g. A T-Rex, A Chihuahua" class="flex-1 border-2 border-indigo-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                        <span class="text-indigo-900 font-bold self-center">on</span>
+                        <input type="text" id="wi-liquid" placeholder="e.g. Honey, Lava, Jell-O" class="flex-1 border-2 border-indigo-200 rounded-lg px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                        <button onclick="runWhatIf()" id="whatif-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold transition shadow-md whitespace-nowrap">
+                            ✨ Simulate
+                        </button>
+                    </div>
+                    <div id="whatif-response" class="mt-4 p-4 bg-white border border-indigo-100 rounded-lg text-slate-700 hidden text-base leading-relaxed shadow-sm relative z-10"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent');
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const responseText = await response.text();
+                    if (!responseText) throw new Error("Empty response");
+                    
+                    const data = JSON.parse(responseText);
+                    return isPreview ? (data.candidates?.[0]?.content?.parts?.[0]?.text || null) : (data.text || null);
+                } catch (error) {
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline:", error);
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+        }
+
+        // --- State Variables ---
+        let m_foot, v_slap, m_lizard, t_step;
+        const g = 9.8;
+        let exactAnswers = {};
+        let totalMistakes = 0;
+        let hintsShown = {1:0, 2:0, 3:0, 4:0};
+
+        const adjs1 = ["Incredible", "Amazing", "Spectacular", "Fantastic", "Marvelous", "Outstanding"];
+        const nouns2 = ["job", "work", "effort", "performance", "analysis", "deduction"];
+        const phrases3 = ["mastering momentum!", "analyzing the lizard sprint!", "understanding impulse mechanics!", "defying gravity with physics!"];
+
+        function getUniqueMessage() {
+            return `${adjs1[Math.floor(Math.random() * adjs1.length)]} ${nouns2[Math.floor(Math.random() * nouns2.length)]} ${phrases3[Math.floor(Math.random() * phrases3.length)]}`;
+        }
+
+        // --- Initialization ---
+        function init() {
+            m_foot = parseFloat((Math.random() * 0.003 + 0.002).toFixed(4)); 
+            v_slap = parseFloat((Math.random() * 1.0 + 1.0).toFixed(2));     
+            m_lizard = parseFloat((Math.random() * 0.06 + 0.05).toFixed(3)); 
+            t_step = parseFloat((Math.random() * 0.4 + 0.4).toFixed(3));     
+
+            let impulse_slap = m_foot * v_slap;
+            let impulse_grav = m_lizard * g * t_step;
+            let impulse_push = impulse_grav - impulse_slap;
+
+            exactAnswers[1] = impulse_slap;
+            exactAnswers[2] = impulse_grav;
+            exactAnswers[3] = impulse_push;
+            exactAnswers[4] = impulse_push > impulse_slap ? "The push" : "The slap"; 
+
+            document.getElementById('var-m-foot').innerText = m_foot.toFixed(4);
+            document.getElementById('var-v-slap').innerText = v_slap.toFixed(2);
+            document.getElementById('var-m-lizard').innerText = m_lizard.toFixed(3);
+            document.getElementById('var-t-step').innerText = t_step.toFixed(3);
+        }
+
+        // --- Game Logic ---
+        
+        function getHint(q, mistakeCount, userVal) {
+            if (q === 1) return `💡 <strong>Hint:</strong> Use the impulse-momentum theorem ($F\\Delta t = m\\Delta v$). The impulse equals the mass of the foot (${m_foot} kg) multiplied by the change in velocity (${v_slap} m/s).`;
+            if (q === 2) return `💡 <strong>Hint:</strong> Impulse is Force $\\times$ Time. The downward force is the lizard's weight ($W = mg$). Multiply the mass (${m_lizard}), gravity (9.8), and time (${t_step}).`;
+            if (q === 3) return "💡 <strong>Hint:</strong> To not sink, Total Upward Impulse = Downward Impulse. The upward impulse is the Slap PLUS the Push. So, Push = Gravity Impulse - Slap Impulse.";
+            if (q === 4) return "💡 <strong>Hint:</strong> Compare your answer for Part 1 (Slap Impulse) with your answer for Part 3 (Push Impulse). Which number is significantly larger?";
+            return "";
+        }
+
+        function showFeedback(q, msg, type) {
+            const fb = document.getElementById(`q${q}-feedback`);
+            fb.className = `text-sm rounded-lg p-3 mt-3 fade-in block font-medium ${
+                type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
+                'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`;
+            fb.innerHTML = msg;
+        }
+
+        function checkAnswer(q) {
+            let isCorrect = false;
+            let userVal = "";
+            let exact = exactAnswers[q];
+
+            if (q === 4) {
+                const selected = document.querySelector(`input[name="q4-radio"]:checked`);
+                if (!selected) { showFeedback(q, "⚠️ Please select an option.", "error"); return; }
+                userVal = selected.value;
+                isCorrect = (userVal === exact);
+            } else {
+                const inputEl = document.getElementById(`q${q}-input`);
+                userVal = parseFloat(inputEl.value);
+                if (isNaN(userVal)) { showFeedback(q, "⚠️ Please enter a valid number.", "error"); return; }
+                
+                const margin = Math.max(Math.abs(exact * 0.015), 0.0001); 
+                isCorrect = Math.abs(userVal - exact) <= margin;
+            }
+
+            if (isCorrect) {
+                let successMsg = `✅ Correct!`;
+                if (typeof exact === 'number') {
+                    successMsg += ` The exact value is ${exact.toFixed(4)}.`;
+                }
+                showFeedback(q, successMsg, "success");
+                
+                if (q === 4) { document.querySelectorAll(`input[name="q4-radio"]`).forEach(el => el.disabled = true); }
+                else { document.getElementById(`q${q}-input`).disabled = true; }
+                
+                document.querySelector(`#q${q}-input-area button`).style.display = 'none';
+
+                if (q < 4) {
+                    const nextBox = document.getElementById(`q${q+1}-box`);
+                    nextBox.classList.remove('hidden');
+                    setTimeout(() => {
+                        nextBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                } else {
+                    finishGame();
+                }
+
+            } else {
+                totalMistakes++;
+                hintsShown[q]++;
+                
+                let feedbackHTML = `❌ Not quite right.`;
+                let hintTxt = getHint(q, hintsShown[q], userVal);
+                
+                let aiButtonHTML = `<button onclick="askAITutor(${q}, '${userVal}')" id="btn-ai-${q}" class="mt-3 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-4 py-1.5 rounded-md text-sm font-bold transition shadow-sm flex items-center gap-2">✨ Ask AI Tutor for a Custom Hint</button>`;
+                
+                showFeedback(q, `${feedbackHTML}<br><br><span class="text-slate-600">${hintTxt}</span>${aiButtonHTML}`, "error");
+            }
+        }
+
+        function finishGame() {
+            setTimeout(() => {
+                document.getElementById('questions-container').classList.add('hidden');
+                document.getElementById('win-screen').classList.remove('hidden');
+                document.getElementById('win-screen').scrollIntoView({ behavior: 'smooth' });
+                
+                let rawScore = 10 - (totalMistakes * 1.5);
+                let finalScore = Math.max(0, rawScore);
+                
+                if (totalMistakes === 0) {
+                    finalScore += 5;
+                    document.getElementById('extra-credit-message').classList.remove('hidden');
+                }
+                
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+                document.getElementById('unique-message').innerText = getUniqueMessage();
+
+                if (finalScore < 7) {
+                    const retryEl = document.getElementById('retry-message');
+                    retryEl.classList.remove('hidden');
+                    retryEl.innerText = "Physics takes practice! We invite you to play again to improve your score.";
+                }
+
+                if (totalMistakes === 0) shootConfettiSequence(5);
+                else if (finalScore >= 9) shootConfettiSequence(3);
+                else if (finalScore >= 8) shootConfettiSequence(2);
+            }, 500);
+        }
+
+        // --- Confetti ---
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            function fire() {
+                shootBallisticConfetti();
+                currentRound++;
+                if (currentRound < rounds) setTimeout(fire, 1500);
+            }
+            fire();
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                particles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), 
+                    vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 20 
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rotation += p.rs;
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+                if (active) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        // --- AI Features ---
+        async function askAITutor(q, userVal) {
+            const btn = document.getElementById(`btn-ai-${q}`);
+            const aiResponseDiv = document.getElementById(`q${q}-ai-response`);
+            const selectedPersona = document.getElementById('coach-persona').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Thinking...";
+            aiResponseDiv.classList.remove('hidden');
+            aiResponseDiv.innerHTML = `<span class="animate-pulse">Analyzing your answer...</span>`;
+
+            let exactAns = exactAnswers[q];
+            let questionContext = "";
+            
+            if (q===1) questionContext = `Find upward impulse of slap. Foot mass = ${m_foot} kg, Δv = ${v_slap} m/s.`;
+            if (q===2) questionContext = `Find downward impulse of gravity. Lizard mass = ${m_lizard} kg, g = 9.8, time = ${t_step} s.`;
+            if (q===3) questionContext = `Find impulse of push. Upward must equal downward. Slap = ${exactAnswers[1]}, Gravity = ${exactAnswers[2]}.`;
+            if (q===4) questionContext = `Which provides primary support, slap or push? Slap = ${exactAnswers[1]}, Push = ${exactAnswers[3]}. Student picked ${userVal}.`;
+
+            const prompt = `A physics student is solving: "${questionContext}"
+            Correct Answer: ${exactAns}
+            Student's Incorrect Answer: ${userVal}
+            
+            Provide a short, 2-3 sentence friendly hint to help them understand their mistake. Do NOT give them the final exact answer. Ask a guiding question to point them in the right direction.`;
+
+            const systemInstruction = `You are a ${selectedPersona} helping a student with the Impulse-Momentum Theorem. Adopt your persona fully in your vocabulary and speech style while remaining a helpful physics coach.`;
+
+            const reply = await callGemini(prompt, systemInstruction);
+            
+            if (reply) {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-red-600">Sorry, the AI tutor is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Ask AI Tutor again";
+            btn.disabled = false;
+        }
+
+        async function generateAnalogy() {
+            const btn = document.getElementById('analogy-btn');
+            const responseDiv = document.getElementById('analogy-response');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Generating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600">Consulting the biology department...</span>`;
+
+            const prompt = `A physics student just finished calculating the impulse required for a Basilisk Lizard to run on water. They found out that the "push" phase provides massively more support than the initial "slap" phase.
+            
+            Write a fun, encouraging 2-3 sentence paragraph giving an interesting nature fact or analogy about how animals use physics (or surface tension/impulse) to survive. Keep it highly entertaining and praise them for completing the physics module!`;
+
+            const reply = await callGemini(prompt);
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ AI Nature Fact:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                responseDiv.innerHTML = `<strong>✨ AI Nature Fact:</strong><br><span class="mt-2 block text-red-600">Sorry, the AI is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Generate Another Fact";
+            btn.disabled = false;
+        }
+
+        // ✨ New Feature: Explain Like I'm 5
+        async function simplifyProblem() {
+            const btn = document.getElementById('simplify-btn');
+            const responseDiv = document.getElementById('simplify-response');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Translating physics into plain English...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-emerald-600">Thinking...</span>`;
+
+            const prompt = `Explain the physical concept of how a Basilisk lizard runs on water using impulse and momentum. 
+            Explain it as if I am 5 years old. Use a fun, simple analogy. Keep it under 4 sentences.`;
+
+            const reply = await callGemini(prompt, "You are an expert at simplifying complex physics concepts for young children.");
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ Simplified by AI:</strong><br><span class="mt-2 block">${formatMarkdown(reply).replace(/\n/g, '<br>')}</span>`;
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600">Sorry, the AI couldn't simplify right now.</span>`;
+            }
+            btn.innerHTML = "✨ Explain it like I'm 5";
+            btn.disabled = false;
+        }
+
+        // ✨ New Feature: Physics What-If Machine
+        async function runWhatIf() {
+            const animal = document.getElementById('wi-animal').value.trim() || 'A regular lizard';
+            const liquid = document.getElementById('wi-liquid').value.trim() || 'water';
+            const btn = document.getElementById('whatif-btn');
+            const responseDiv = document.getElementById('whatif-response');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Simulating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-indigo-600">Calculating hypothetical impulses...</span>`;
+
+            const prompt = `Using the principles of physics (impulse, momentum, fluid dynamics, surface tension), hypothesize what would happen if ${animal} tried to run across a pool of ${liquid} using the same "slap" and "push" method as the basilisk lizard.
+            
+            Write a highly entertaining, slightly humorous 3-4 sentence paragraph describing the outcome. Mention whether the "slap" or "push" phase would actually work given the animal's mass and the fluid's viscosity/density.`;
+
+            const reply = await callGemini(prompt, "You are a witty, scientifically accurate physics narrator (similar to Randall Munroe's 'What If?'). Ground your humor in real physics.");
+            
+            if (reply) {
+                responseDiv.innerHTML = formatMarkdown(reply).replace(/\n/g, '<br>');
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600">The simulation crashed! Try again later.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Simulate Again";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
