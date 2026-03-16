@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: Crash Cushions & Impulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering equations -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .equation {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 1.5rem;
+            background: #ffffff;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 0.5rem;
+            border: 2px solid #cbd5e1;
+            color: #ea580c; 
+            font-weight: bold;
+            letter-spacing: 0.1em;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9999;
+        }
+        .correct-bg { background-color: #ecfdf5; border-color: #10b981; }
+        .wrong-bg { background-color: #fef2f2; border-color: #ef4444; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden relative z-20 border border-slate-200" id="main-card">
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-5 -top-10 opacity-10 transform rotate-12 text-9xl">🚗</div>
+            <h1 class="text-3xl font-bold relative z-10 text-orange-400">Physics Coach: Crash Cushions & Impulse</h1>
+            <p class="mt-2 text-slate-300 relative z-10 text-lg">Analyze how increasing collision time saves lives on the highway.</p>
+        </div>
+
+        <!-- Problem Statement & Visuals -->
+        <div class="p-6 border-b border-gray-200 bg-slate-50">
+            <div class="flex flex-col items-center mb-8">
+                
+                <div class="text-center mb-8">
+                    <h2 class="text-xl font-bold text-slate-700 mb-2">The Impulse-Momentum Theorem</h2>
+                    <div class="equation">
+                        $F \cdot \Delta t = m \cdot \Delta v$
+                    </div>
+                    <div class="mt-3">
+                        <button onclick="explainEquation()" id="explain-eq-btn" class="text-sm text-purple-600 hover:text-purple-800 font-bold transition flex items-center justify-center gap-1 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-full border border-purple-200 shadow-sm mx-auto">
+                            ✨ Explain this simply
+                        </button>
+                    </div>
+                    <div id="equation-explanation" class="hidden w-full max-w-2xl mt-4 mx-auto p-5 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-left leading-relaxed shadow-inner text-base"></div>
+                </div>
+
+                <!-- Visuals: YouTube Link + Canvas -->
+                <div class="w-full flex flex-col lg:flex-row gap-6 items-stretch justify-center">
+                    
+                    <!-- YouTube Video Link (Thumbnail + Play Icon) -->
+                    <div class="flex-1 border-2 border-slate-200 rounded-xl overflow-hidden bg-black shadow-inner relative aspect-video lg:aspect-auto">
+                        <a href="https://www.youtube.com/watch?v=p3n3FJBSysY&t=65s" target="_blank" rel="noopener noreferrer" class="block w-full h-full relative group cursor-pointer">
+                            <div class="absolute top-2 left-2 text-xs font-bold text-white bg-red-600/90 px-2 py-1 rounded shadow-md z-10">REAL WORLD</div>
+                            <!-- YouTube High Quality Thumbnail -->
+                            <img src="https://img.youtube.com/vi/p3n3FJBSysY/hqdefault.jpg" alt="Crash Cushion Testing" class="w-full h-full object-cover transition duration-300 group-hover:opacity-70 opacity-90">
+                            
+                            <!-- Play Button Overlay -->
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="bg-black/70 rounded-full p-4 group-hover:bg-red-600 transition duration-300 shadow-xl group-hover:scale-110 transform">
+                                    <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded font-medium z-10 group-hover:bg-red-600 transition">
+                                Open in YouTube ↗
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Live Animation Canvas -->
+                    <div class="flex-1 border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner relative flex items-center justify-center min-h-[250px] lg:min-h-[300px]">
+                        <div class="absolute top-2 left-2 text-xs font-bold text-slate-600 bg-white/90 border border-slate-200 px-2 py-1 rounded shadow-sm z-10">PHYSICS MODEL</div>
+                        <canvas id="illustrationCanvas" width="768" height="300" class="w-full h-auto block"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Problem Scenario Variables -->
+            <div class="text-slate-700 leading-relaxed text-lg max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="mb-4">
+                    A car with a mass of <strong class="text-orange-600"><span id="var-mass">--</span> kg</strong> is traveling down the highway at <strong class="text-orange-600"><span id="var-vel">--</span> m/s</strong> (approx. <span id="var-mph">--</span> mph) when the driver loses control.
+                </p>
+                <ul class="list-disc pl-6 mb-4 space-y-2">
+                    <li><strong>Scenario A:</strong> The car hits a solid cement barrier and comes to a complete stop in just <strong class="text-red-600"><span id="var-t-cem">--</span> seconds</strong>.</li>
+                    <li><strong>Scenario B:</strong> The car hits an energy-absorbing sand crash cushion and comes to a complete stop in <strong class="text-green-600"><span id="var-t-cush">--</span> seconds</strong>.</li>
+                </ul>
+                <p class="text-sm italic text-slate-500">
+                    * In both scenarios, the change in velocity ($\Delta v$) is exactly the same because the car goes from initial speed to zero. We are calculating the magnitude (absolute value) of the force.
+                </p>
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div class="p-6 md:p-8 space-y-8 bg-white" id="questions-container">
+            <h3 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">Analysis Questions</h3>
+            <div id="q-list" class="space-y-6">
+                <!-- Questions injected via JS -->
+            </div>
+            
+            <!-- ✨ Dynamic Gemini Conclusion Grading -->
+            <div id="conclusion-block" class="hidden mt-8 bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 rounded-xl p-6 shadow-sm fade-in">
+                <h4 class="text-xl font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                    <span>✨ Final AI Challenge: Apply Your Knowledge</span>
+                </h4>
+                <p id="conclusion-prompt-text" class="text-slate-800 font-medium mb-4 leading-relaxed bg-white/60 p-4 rounded-lg border border-indigo-100">
+                    <!-- Dynamic prompt injected here -->
+                </p>
+                <textarea id="conclusion-input" rows="5" placeholder="Type your detailed explanation here..." class="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-slate-700 mb-3"></textarea>
+                <button id="submit-conclusion-btn" onclick="gradeConclusion()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold transition shadow-sm w-full md:w-auto">
+                    ✨ Submit to AI for Final Grade
+                </button>
+                <div id="conclusion-feedback" class="mt-4 hidden p-4 rounded-lg text-base"></div>
+            </div>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden bg-slate-50 p-10 text-center fade-in border-t border-slate-200">
+            <div class="inline-block bg-white p-8 rounded-2xl shadow-lg border border-slate-100 max-w-xl w-full">
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-2">Lesson Complete! 🏁</h2>
+                
+                <div class="my-8">
+                    <div class="flex items-end justify-center gap-2">
+                        <span class="text-7xl font-black text-orange-600 drop-shadow-sm" id="final-score">10.0</span>
+                        <span class="text-3xl text-gray-400 mb-2 font-light">/ 10</span>
+                    </div>
+                    
+                    <div id="extra-credit-message" class="hidden text-green-600 font-extrabold text-2xl mt-4 animate-bounce drop-shadow-sm">
+                        🌟 +5 EXTRA CREDIT FOR A PERFECT RUN! 🌟
+                    </div>
+
+                    <p id="unique-message" class="text-xl font-bold text-slate-700 mt-4 italic leading-relaxed"></p>
+                </div>
+                
+                <p id="retry-message" class="text-slate-500 font-medium mb-6 hidden bg-slate-100 p-3 rounded-lg"></p>
+                
+                <div class="flex justify-center flex-wrap gap-4 mt-4">
+                    <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg">
+                        Play Again (New Scenario)
+                    </button>
+                    <button id="analogy-btn" onclick="generateAnalogy()" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full shadow-lg transition font-bold text-lg flex items-center gap-2">
+                        ✨ Generate AI Analogy
+                    </button>
+                </div>
+                <div id="analogy-response" class="mt-6 text-left p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 hidden text-base leading-relaxed"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AI API Configuration (Dual Environment) ---
+        async function callGemini(prompt, systemInstruction = "You are a fun, highly accurate physics coach.") {
+            const isPreview = window.location.protocol === 'blob:' || window.location.hostname.includes('usercontent') || window.location.hostname === 'localhost';
+            const delays = [1000, 2000, 4000, 8000];
+            
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    let response;
+                    if (isPreview) {
+                        const apiKey = ""; 
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                systemInstruction: { parts: [{ text: systemInstruction }] }
+                            })
+                        });
+                    } else {
+                        response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt, systemInstruction })
+                        });
+                    }
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const responseText = await response.text();
+                    if (!responseText) throw new Error("Empty response");
+                    
+                    const data = JSON.parse(responseText);
+                    return isPreview ? (data.candidates?.[0]?.content?.parts?.[0]?.text || null) : (data.text || null);
+                } catch (error) {
+                    if (attempt === delays.length) {
+                        console.error("AI Feature Offline:", error);
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                }
+            }
+            return null;
+        }
+
+        function formatMarkdown(text) {
+            if (!text) return "";
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
+        }
+
+        // --- Physics Game State & Variations ---
+        let mass_c, vel_i, t_cem, t_cush;
+        let exactAnswers = [];
+        let totalMistakes = 0;
+        let mistakesMap = {};
+        const totalQuestions = 4;
+        let conclusionPoints = 0;
+        let activeVariation = null;
+
+        const conclusionVariations = [
+            {
+                id: "crumple_zones",
+                text: "Based on the math you just did, modern cars are designed with 'crumple zones' so the front end completely crushes and folds up during a crash, rather than being built like a rigid, indestructible tank. Explain why a crumple zone is much safer for the passengers using the concepts of time and force.",
+                gradingLogic: "Student must explicitly mention that crumple zones INCREASE the time ($\\Delta t$) of the collision, which DECREASES the average force ($F$) exerted on the passengers, assuming the change in momentum ($\\Delta p$) is the same."
+            },
+            {
+                id: "airbags",
+                text: "Based on the math you just did, explain why an airbag prevents severe head injuries in a crash compared to your head hitting the rigid steering wheel. Use the concepts of impulse, collision time, and force in your explanation.",
+                gradingLogic: "Student must explain that airbags INCREASE the time ($\\Delta t$) it takes for the head to stop. Because Impulse ($F \\Delta t$) is constant for a given speed, a larger time results in a significantly smaller, safer average force ($F$) on the head."
+            },
+            {
+                id: "bending_knees",
+                text: "When parkour athletes jump off a high wall, they instinctively bend their knees and roll upon hitting the ground instead of keeping their legs stiff. Explain the physics behind this survival tactic using the relationship between collision time and impact force.",
+                gradingLogic: "Student must state that bending knees/rolling INCREASES the collision/stopping time ($\\Delta t$). By extending the time of the impact, the ground exerts a much smaller average force ($F$) on the athlete's bones, preventing fractures."
+            },
+            {
+                id: "water_balloon",
+                text: "If someone throws a water balloon at you, you instinctively pull your hands backward as you catch it to prevent it from popping. Explain the physics of why 'giving' with the catch keeps the balloon intact, using the variables from the impulse equation.",
+                gradingLogic: "Student needs to connect 'pulling hands backward' with INCREASING the time ($\\Delta t$) of the catch. A longer time to change the balloon's momentum means a smaller average force ($F$) is applied to the rubber, keeping it from breaking."
+            },
+            {
+                id: "dropping_phone",
+                text: "Dropping your phone on a thick fluffy carpet usually leaves it undamaged, whereas dropping it from the exact same height onto a concrete sidewalk shatters the screen. Since the change in momentum ($\\Delta p$) is identical in both drops, why does the screen only break on the concrete?",
+                gradingLogic: "Student must explain that the carpet compresses, which INCREASES the stopping time ($\\Delta t$) compared to the rigid concrete. The same change in momentum over a longer time results in a much smaller impact force ($F$) on the carpet."
+            }
+        ];
+
+        function init() {
+            activeVariation = conclusionVariations[Math.floor(Math.random() * conclusionVariations.length)];
+            document.getElementById('conclusion-prompt-text').innerHTML = activeVariation.text;
+
+            mass_c = [1200, 1500, 1800, 2000, 2200][Math.floor(Math.random() * 5)]; 
+            vel_i = [20, 25, 28, 30, 35][Math.floor(Math.random() * 5)]; 
+            t_cem = [0.05, 0.08, 0.10, 0.12][Math.floor(Math.random() * 4)]; 
+            t_cush = [1.2, 1.5, 1.8, 2.0][Math.floor(Math.random() * 4)]; 
+
+            document.getElementById('var-mass').innerText = mass_c;
+            document.getElementById('var-vel').innerText = vel_i;
+            document.getElementById('var-mph').innerText = Math.round(vel_i * 2.23694); 
+            document.getElementById('var-t-cem').innerText = t_cem;
+            document.getElementById('var-t-cush').innerText = t_cush;
+
+            let momentum = mass_c * vel_i;
+            let forceCem = momentum / t_cem;
+            let forceCush = momentum / t_cush;
+            let ratio = forceCem / forceCush;
+
+            const questionsData = [
+                { 
+                    label: `1. Calculate the initial magnitude of momentum ($p$) of the car right before the crash. <strong>(in kg·m/s)</strong>`, 
+                    val: momentum, 
+                    hint: `Momentum is mass times velocity ($p = m \cdot v$). Multiply the car's mass (${mass_c} kg) by its velocity (${vel_i} m/s).`
+                },
+                { 
+                    label: `2. <strong>Scenario A:</strong> Calculate the magnitude of the average impact force if the car hits the cement barrier and stops in ${t_cem} seconds. <strong>(in N)</strong>`, 
+                    val: forceCem, 
+                    hint: `Use the impulse theorem: $F = (m \cdot \\Delta v) / \\Delta t$. Take your momentum from Q1 (which is the total $\\Delta p$) and divide it by the cement stopping time (${t_cem} s).`
+                },
+                { 
+                    label: `3. <strong>Scenario B:</strong> Calculate the magnitude of the average impact force if the car hits the crash cushion and stops in ${t_cush} seconds. <strong>(in N)</strong>`, 
+                    val: forceCush,
+                    hint: `Do the exact same calculation as Q2, but use the much longer stopping time of the sand cushion (${t_cush} s). Notice how much smaller the answer is!`
+                },
+                { 
+                    label: `4. How many times greater is the force from the cement barrier compared to the crash cushion? <strong>(Multiplier)</strong>`, 
+                    val: ratio, 
+                    hint: `Divide the force on the cement barrier (Q2) by the force on the crash cushion (Q3). This shows you exactly how many times deadlier the cement wall is.`
+                }
+            ];
+
+            exactAnswers = [0]; 
+            questionsData.forEach(q => exactAnswers.push(q.val));
+
+            const qList = document.getElementById('q-list');
+            questionsData.forEach((q, idx) => {
+                const qNum = idx + 1;
+                const html = `
+                    <div id="q-block-${qNum}" class="bg-white border-2 border-slate-200 rounded-xl p-5 shadow-sm transition-all duration-300 ${qNum !== 1 ? 'opacity-40 pointer-events-none' : ''}">
+                        <label class="block text-lg font-medium text-slate-800 mb-3">${q.label}</label>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <input type="number" id="input-${qNum}" class="w-48 px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 text-lg text-slate-700" step="any">
+                            <button id="btn-${qNum}" onclick="checkAnswer(${qNum})" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-sm">Check</button>
+                            <span id="status-${qNum}" class="text-2xl hidden"></span>
+                        </div>
+                        <div id="feedback-${qNum}" class="mt-3 text-sm hidden font-medium px-4 py-3 rounded-lg border"></div>
+                        <div id="ai-response-${qNum}" class="text-sm rounded-lg p-4 mt-2 border border-purple-200 bg-purple-50 text-purple-900 hidden transition-all"></div>
+                    </div>
+                `;
+                qList.insertAdjacentHTML('beforeend', html);
+                mistakesMap[qNum] = 0;
+            });
+
+            if (window.MathJax) MathJax.typesetPromise().catch((err) => console.error(err));
+            
+            initSimulation();
+        }
+
+        // --- Continuous Stream Simulation ---
+        const canvas = document.getElementById('illustrationCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let simTime = 0;
+        let car1 = { x: 50, y: 50, v: 5, state: 'driving', startCrash: 0 };
+        let car2 = { x: 50, y: 200, v: 5, state: 'driving', startCrash: 0 };
+
+        function drawCar(x, y, color, stretch = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(stretch, 1); 
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(-20, -10, 40, 15);
+            ctx.fillRect(-10, -20, 20, 10);
+            
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath(); ctx.arc(-12, 5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(12, 5, 6, 0, Math.PI*2); ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function initSimulation() {
+            requestAnimationFrame(renderSimulation);
+        }
+
+        function renderSimulation() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            simTime++;
+
+            // Background & Roads
+            ctx.fillStyle = "#f1f5f9"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#94a3b8"; 
+            ctx.fillRect(0, 65, canvas.width, 2);
+            ctx.fillRect(0, 215, canvas.width, 2);
+
+            // Labels
+            ctx.fillStyle = "#334155";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText(`Scenario A: Cement Barrier (Δt = ${t_cem}s)`, 20, 25);
+            ctx.fillText(`Scenario B: Crash Cushion (Δt = ${t_cush}s)`, 20, 175);
+
+            const wallX = 650;
+            const cushStartX = 450;
+
+            // Draw Cement Barrier
+            ctx.fillStyle = "#475569";
+            ctx.fillRect(wallX, 30, 40, 60);
+
+            // Update Car 1 (Cement)
+            if (car1.state === 'driving') {
+                car1.x += car1.v;
+                if (car1.x >= wallX - 20) {
+                    car1.x = wallX - 20;
+                    car1.state = 'crashed';
+                    car1.startCrash = simTime;
+                }
+                drawCar(car1.x, car1.y, "#ef4444");
+            } else if (car1.state === 'crashed') {
+                drawCar(car1.x, car1.y, "#ef4444", 0.7); 
+                if (simTime - car1.startCrash < 30) {
+                    ctx.fillStyle = "#ea580c";
+                    ctx.font = "bold 24px sans-serif";
+                    ctx.fillText("BAM!", car1.x - 10, car1.y - 25);
+                }
+            }
+
+            // Draw Cushion Logic
+            let currentCushX = wallX;
+            if (car2.state === 'driving' || car2.state === 'resetting') {
+                currentCushX = cushStartX;
+            } else if (car2.state === 'crashing') {
+                let progress = (simTime - car2.startCrash) / 60; 
+                if (progress > 1) progress = 1;
+                currentCushX = cushStartX + (wallX - cushStartX) * progress;
+            } else if (car2.state === 'crashed') {
+                currentCushX = wallX;
+            }
+
+            // Draw the cushion
+            ctx.fillStyle = "#eab308";
+            ctx.fillRect(currentCushX, 180, wallX - currentCushX, 60);
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+            for (let i = currentCushX; i < wallX; i += 20) {
+                ctx.beginPath(); ctx.moveTo(i, 180); ctx.lineTo(i, 240); ctx.stroke();
+            }
+            ctx.fillStyle = "#475569";
+            ctx.fillRect(wallX, 180, 40, 60);
+
+            // Update Car 2 (Cushion)
+            if (car2.state === 'driving') {
+                car2.x += car2.v;
+                if (car2.x >= cushStartX - 20) {
+                    car2.state = 'crashing';
+                    car2.startCrash = simTime;
+                }
+                drawCar(car2.x, car2.y, "#3b82f6");
+            } else if (car2.state === 'crashing') {
+                let progress = (simTime - car2.startCrash) / 60;
+                if (progress >= 1) {
+                    car2.state = 'crashed';
+                    car2.x = wallX - 20;
+                } else {
+                    car2.x = currentCushX - 20;
+                }
+                drawCar(car2.x, car2.y, "#3b82f6", 1 - (progress * 0.1));
+            } else if (car2.state === 'crashed') {
+                drawCar(car2.x, car2.y, "#3b82f6", 0.9);
+            }
+
+            // Reset loop
+            if (simTime % 240 === 0) {
+                car1 = { x: 50, y: 50, v: 8, state: 'driving', startCrash: 0 };
+                car2 = { x: 50, y: 200, v: 8, state: 'driving', startCrash: 0 };
+            }
+
+            requestAnimationFrame(renderSimulation);
+        }
+
+        // --- Checking Logic ---
+        function checkAnswer(q) {
+            const inputEl = document.getElementById(`input-${q}`);
+            const btnEl = document.getElementById(`btn-${q}`);
+            const statusEl = document.getElementById(`status-${q}`);
+            const feedbackEl = document.getElementById(`feedback-${q}`);
+            const blockEl = document.getElementById(`q-block-${q}`);
+            
+            if (inputEl.value === "") return;
+            
+            const userVal = parseFloat(inputEl.value);
+            const exactAns = exactAnswers[q];
+            
+            const tolerance = Math.max(Math.abs(exactAns * 0.015), 0.01);
+            const isCorrect = Math.abs(userVal - exactAns) <= tolerance;
+
+            statusEl.classList.remove('hidden');
+            feedbackEl.classList.remove('hidden', 'correct-bg', 'wrong-bg', 'text-green-800', 'text-red-800');
+
+            if (isCorrect) {
+                statusEl.innerHTML = "✅";
+                inputEl.disabled = true;
+                btnEl.style.display = 'none';
+                inputEl.classList.add('bg-green-50', 'border-green-400');
+                blockEl.classList.add('border-green-400', 'bg-green-50/30');
+                feedbackEl.classList.add('correct-bg', 'text-green-800');
+                feedbackEl.innerHTML = `Correct! The exact value is ${exactAns.toLocaleString(undefined, {maximumFractionDigits: 1})}.`;
+                
+                if (q < totalQuestions) {
+                    const nextBlock = document.getElementById(`q-block-${q+1}`);
+                    nextBlock.classList.remove('opacity-40', 'pointer-events-none');
+                    nextBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById(`input-${q+1}`).focus();
+                } else {
+                    const concBlock = document.getElementById('conclusion-block');
+                    concBlock.classList.remove('hidden');
+                    concBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                mistakesMap[q]++;
+                totalMistakes++;
+                statusEl.innerHTML = "❌";
+                inputEl.classList.add('border-red-400');
+                feedbackEl.classList.add('wrong-bg', 'text-red-800');
+                
+                let hintTxt = "";
+                if (q === 1) hintTxt = `💡 <strong>Hint:</strong> Momentum ($p$) = mass × velocity. Multiply ${mass_c} by ${vel_i}.`;
+                if (q === 2) hintTxt = `💡 <strong>Hint:</strong> Force = Momentum / Time. Divide your answer from Q1 by the cement time (${t_cem}).`;
+                if (q === 3) hintTxt = `💡 <strong>Hint:</strong> Force = Momentum / Time. Divide your answer from Q1 by the cushion time (${t_cush}).`;
+                if (q === 4) hintTxt = `💡 <strong>Hint:</strong> You are finding a ratio. Divide the huge force from Q2 by the smaller force from Q3.`;
+
+                let aiBtnHTML = `<button onclick="askAITutor(${q}, ${userVal})" id="btn-ai-${q}" class="mt-3 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-1 shadow-sm">✨ Ask AI Tutor</button>`;
+                
+                feedbackEl.innerHTML = `Not quite. Try again!<br><br><span class="text-slate-700">${hintTxt}</span>${aiBtnHTML}`;
+                inputEl.classList.add('bg-red-50');
+                setTimeout(() => inputEl.classList.remove('bg-red-50'), 300);
+
+                if (window.MathJax) {
+                    MathJax.typesetPromise([feedbackEl]).catch((err) => console.error(err));
+                }
+            }
+        }
+
+        async function gradeConclusion() {
+            const input = document.getElementById('conclusion-input').value.trim();
+            if(!input) return;
+            
+            const btn = document.getElementById('submit-conclusion-btn');
+            const feedbackDiv = document.getElementById('conclusion-feedback');
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ AI Grading...";
+            
+            const prompt = `A physics student was given the following prompt:
+            "${activeVariation.text}"
+            
+            Student's Answer: "${input}"
+            
+            Evaluate their answer based on this strict grading logic:
+            ${activeVariation.gradingLogic}
+            
+            Score them from 0 to 2 points (integers only):
+            2 = Fully understands the relationship between time and force.
+            1 = Partially correct (e.g. mentions time but doesn't connect it to force/impulse).
+            0 = Incorrect or irrelevant.
+            
+            Return ONLY a JSON object in this exact format, with no markdown formatting:
+            {"points": 2, "feedback": "Your short, encouraging feedback here explaining why they got that score."}`;
+            
+            const systemInstruction = "You are an expert physics grader. Return ONLY pure JSON.";
+            
+            try {
+                let reply = await callGemini(prompt, systemInstruction);
+                reply = reply.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const result = JSON.parse(reply);
+                
+                conclusionPoints = result.points;
+                
+                feedbackDiv.classList.remove('hidden');
+                feedbackDiv.classList.add('bg-white', 'border', 'border-indigo-200', 'text-indigo-900');
+                
+                const continueBtnHTML = `
+                    <div class="mt-6 text-center">
+                        <button onclick="finishGame()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg transition transform hover:scale-105 animate-bounce inline-block">
+                            🎉 View Final Score 🎉
+                        </button>
+                    </div>
+                `;
+
+                feedbackDiv.innerHTML = `<strong>✨ AI Feedback:</strong> ${formatMarkdown(result.feedback)}<br><br><span class="text-indigo-600 font-bold">Conclusion Score: +${conclusionPoints} / 2 pts</span>` + continueBtnHTML;
+                
+                btn.style.display = 'none'; 
+                
+            } catch(e) {
+                console.error("AI grading failed", e);
+                feedbackDiv.classList.remove('hidden');
+                
+                const continueBtnHTML = `
+                    <div class="mt-6 text-center">
+                        <button onclick="finishGame()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg transition transform hover:scale-105 animate-bounce inline-block">
+                            🎉 View Final Score 🎉
+                        </button>
+                    </div>
+                `;
+                
+                feedbackDiv.innerHTML = `<span class="text-red-600">Grading failed due to network error. Giving full credit (+2)!</span>` + continueBtnHTML;
+                conclusionPoints = 2;
+                btn.style.display = 'none';
+            }
+        }
+
+        function finishGame() {
+            setTimeout(() => {
+                document.getElementById('questions-container').classList.add('hidden');
+                document.getElementById('win-screen').classList.remove('hidden');
+                document.getElementById('win-screen').scrollIntoView({ behavior: 'smooth' });
+                
+                let mathScore = 8 - (totalMistakes * 1.5);
+                mathScore = Math.max(0, mathScore);
+                let finalScore = mathScore + conclusionPoints;
+                
+                if (totalMistakes === 0 && conclusionPoints === 2) {
+                    finalScore += 5; 
+                    document.getElementById('extra-credit-message').classList.remove('hidden');
+                }
+                
+                document.getElementById('final-score').innerText = finalScore.toFixed(1);
+
+                let prefixes = [];
+                let suffixes = [];
+
+                if (finalScore >= 10) {
+                    prefixes = [
+                        "Absolutely flawless! ", "A masterpiece of physics! ", "Einstein would be proud! ", 
+                        "Mind-blowing precision! ", "You are an impulse master! "
+                    ];
+                    suffixes = [
+                        "You nailed every single concept.", "The universe makes sense because of you.", 
+                        "Nothing could stop your intellect.", "You've conquered the impulse-momentum theorem."
+                    ];
+                } else if (finalScore >= 8.5) {
+                    prefixes = [
+                        "Stellar work! ", "Amazing job! ", "Brilliant calculations! ", "Excellent understanding! "
+                    ];
+                    suffixes = [
+                        "Just a tiny error kept you from perfection.", "Your momentum is building beautifully.", 
+                        "You've got a great grasp of these concepts.", "Almost flawless!"
+                    ];
+                } else if (finalScore >= 7) {
+                    prefixes = [
+                        "Good job! ", "Solid effort! ", "Nice work! ", "You're on the right track! "
+                    ];
+                    suffixes = [
+                        "A few mistakes, but the concepts are clicking.", "Review the hints and you'll be perfect.", 
+                        "Impulse is tricky, but you're learning.", "Keep practicing to smooth out those rough edges."
+                    ];
+                } else {
+                    prefixes = [
+                        "Physics is tough! ", "Don't give up! ", "Keep your chin up! ", "Every expert started here. "
+                    ];
+                    suffixes = [
+                        "Try again to reach a score of 7 or higher!", "Give it another shot to improve your score!", 
+                        "Hit the Play Again button to master this!", "Try again, you can definitely beat this score!"
+                    ];
+                }
+
+                const randomMessage = prefixes[Math.floor(Math.random() * prefixes.length)] + suffixes[Math.floor(Math.random() * suffixes.length)];
+                document.getElementById('unique-message').innerText = randomMessage;
+
+                if (finalScore < 7) {
+                    const retryEl = document.getElementById('retry-message');
+                    retryEl.classList.remove('hidden');
+                    retryEl.innerText = "Don't give up! We invite you to play again to improve your score.";
+                }
+
+                if (totalMistakes === 0 && conclusionPoints === 2) shootConfettiSequence(5);
+                else if (finalScore >= 9) shootConfettiSequence(3);
+                else if (finalScore >= 8) shootConfettiSequence(2);
+            }, 500);
+        }
+
+        // --- AI Interactivity ---
+        async function explainEquation() {
+            const btn = document.getElementById('explain-eq-btn');
+            const responseDiv = document.getElementById('equation-explanation');
+            btn.disabled = true;
+            btn.innerHTML = "✨ Translating physics...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600 font-medium">Thinking...</span>`;
+
+            const prompt = `Explain the Impulse-Momentum Theorem $F \\cdot \\Delta t = m \\cdot \\Delta v$ in the context of car crashes and crash cushions. Explain why making $\\Delta t$ (collision time) bigger makes $F$ (force) smaller, assuming the change in momentum is constant. Keep it highly engaging, simple, and 1 paragraph. Use $ $ for math variables.`;
+
+            const reply = await callGemini(prompt);
+            if (reply) {
+                responseDiv.innerHTML = formatMarkdown(reply);
+                btn.style.display = 'none'; 
+                if (window.MathJax) MathJax.typesetPromise([responseDiv]).catch((err) => console.error(err));
+            } else {
+                responseDiv.innerHTML = `<span class="text-red-600 font-bold">Sorry, the AI is currently unavailable.</span>`;
+                btn.innerHTML = "✨ Try Again";
+                btn.disabled = false;
+            }
+        }
+
+        async function askAITutor(q, userVal) {
+            const btn = document.getElementById(`btn-ai-${q}`);
+            const aiResponseDiv = document.getElementById(`ai-response-${q}`);
+            
+            btn.disabled = true;
+            btn.innerHTML = "✨ Thinking...";
+            aiResponseDiv.classList.remove('hidden');
+            aiResponseDiv.innerHTML = `<span class="animate-pulse">Analyzing your math...</span>`;
+
+            let exactAns = exactAnswers[q];
+            let questionContext = "";
+            
+            if (q===1) questionContext = `Calculate initial momentum of a car. Mass = ${mass_c} kg, Velocity = ${vel_i} m/s.`;
+            if (q===2) questionContext = `Calculate average force hitting a cement wall. Momentum = ${exactAnswers[1]}, time = ${t_cem}s.`;
+            if (q===3) questionContext = `Calculate average force hitting a crash cushion. Momentum = ${exactAnswers[1]}, time = ${t_cush}s.`;
+            if (q===4) questionContext = `Find ratio of forces. Cement force = ${exactAnswers[2]}, Cushion force = ${exactAnswers[3]}.`;
+
+            const prompt = `A physics student is solving: "${questionContext}"
+            Correct Answer: ${exactAns}
+            Student's Incorrect Answer: ${userVal}
+            
+            Provide a short, 2-3 sentence friendly hint to help them understand their mistake. Do NOT give them the final exact answer. Ask a guiding question to point them in the right direction. Use $ $ for math variables.`;
+
+            const reply = await callGemini(prompt, "You are an encouraging, expert high school physics tutor.");
+            
+            if (reply) {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-slate-700">${formatMarkdown(reply)}</span>`;
+                if (window.MathJax) MathJax.typesetPromise([aiResponseDiv]).catch((err) => console.error(err));
+            } else {
+                aiResponseDiv.innerHTML = `<strong>✨ AI Tutor:</strong> <span class="mt-1 block text-red-600">Sorry, the AI tutor is currently unavailable.</span>`;
+            }
+            
+            btn.innerHTML = "✨ Ask AI Tutor again";
+            btn.disabled = false;
+        }
+
+        async function generateAnalogy() {
+            const btn = document.getElementById('analogy-btn');
+            const responseDiv = document.getElementById('analogy-response');
+            btn.disabled = true;
+            btn.innerHTML = "✨ Generating...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = `<span class="animate-pulse text-purple-600">Consulting the universe...</span>`;
+
+            const prompt = `A student just completed a physics problem proving that extending the time of a collision (like using a crash cushion instead of a cement barrier) drastically reduces the impact force. 
+            Write a fun, vivid, completely bizarre real-world analogy to explain why spreading a collision over a longer time hurts less. Keep it under 3 sentences and highly entertaining.`;
+
+            const reply = await callGemini(prompt);
+            
+            if (reply) {
+                responseDiv.innerHTML = `<strong>✨ AI Analogy:</strong><br><span class="mt-2 block text-slate-700">${formatMarkdown(reply)}</span>`;
+            } else {
+                responseDiv.innerHTML = `<strong>✨ AI Analogy:</strong><br><span class="mt-2 block text-red-600">Sorry, the AI is currently unavailable.</span>`;
+            }
+            btn.innerHTML = "✨ Generate Another Analogy";
+            btn.disabled = false;
+        }
+
+        let confettiParticles = [];
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            function fire() {
+                shootBallisticConfetti();
+                currentRound++;
+                if (currentRound < rounds) setTimeout(fire, 1500);
+            }
+            fire();
+        }
+
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                confettiParticles.push({
+                    x: isLeft ? 0 : canvas.width,
+                    y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), 
+                    vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6,
+                    color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360,
+                    rs: (Math.random() - 0.5) * 20 
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                confettiParticles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rotation += p.rs;
+                    if (p.y < canvas.height + 50) {
+                        active = true;
+                        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+                if (active) requestAnimationFrame(animateConfetti);
+                else { ctx.clearRect(0, 0, canvas.width, canvas.height); confettiParticles = []; }
+            }
+            if(confettiParticles.length <= 120) animateConfetti();
+        }
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.tagName === 'INPUT' && activeEl.id.startsWith('input-')) {
+                    checkAnswer(parseInt(activeEl.id.split('-')[1]));
+                }
+            }
+        });
+    </script>
+</body>
+</html>
