@@ -1,709 +1,619 @@
-import React, { useState, useEffect, useRef } from 'react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Physics Simulator: Momentum</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
 
-const apiKey = "";
-const isPreview = apiKey !== "" || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50 hidden"></canvas>
 
-const fetchWithRetry = async (url, options, retries = 5) => {
-  const delays = [1000, 2000, 4000, 8000, 16000];
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
-    } catch (e) {
-      if (i === retries - 1) throw e;
-      await new Promise(resolve => setTimeout(resolve, delays[i]));
-    }
-  }
-};
-
-const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-
-// --- MESSAGE GENERATOR ---
-const generateMessage = (score) => {
-  if (score === 6) {
-    const p = ["Absolutely", "Undeniably", "Truly", "Visually", "Scientifically", "Mathematically", "Cosmically", "Profoundly", "Astoundingly", "Breathtakingly"];
-    const a = ["flawless", "perfect", "immaculate", "unbeatable", "supreme", "masterful", "legendary", "stellar", "unparalleled", "brilliant", "magnificent", "glorious", "phenomenal", "transcendent", "sublime"];
-    const n = ["understanding of momentum!", "physics mastery!", "problem-solving skills!", "astrodynamics!", "Newtonian logic!", "number crunching!", "analytical prowess!", "scientific intuition!"];
-    return `${p[Math.floor(Math.random()*p.length)]} ${a[Math.floor(Math.random()*a.length)]} ${n[Math.floor(Math.random()*n.length)]}`;
-  } else if (score === 5) {
-    const p = ["Very", "Really", "Quite", "Extremely", "Highly", "Notably", "Impressively", "Solidly"];
-    const a = ["excellent", "great", "fantastic", "superb", "terrific", "wonderful", "admirable", "commendable", "praiseworthy", "splendid"];
-    const n = ["job!", "work!", "effort!", "performance!", "attempt!", "execution!", "computation!", "calculation!"];
-    return `${p[Math.floor(Math.random()*p.length)]} ${a[Math.floor(Math.random()*a.length)]} ${n[Math.floor(Math.random()*n.length)]}`;
-  } else {
-    const p = ["Good", "Nice", "Solid", "Valiant", "Brave", "Respectable", "Honorable", "Fair", "Decent", "Worthy"];
-    const n = ["effort", "attempt", "try", "go at it", "hustle", "work", "start", "foundation"];
-    const s = ["but please try again.", "but give it another shot.", "but you should try again.", "but let's try again for a higher score.", "but try again to get a perfect 6.", "but another attempt is needed.", "but review your equations and try again.", "but try again to improve your accuracy.", "but try again—you've got this!", "but try again to master it."];
-    return `${p[Math.floor(Math.random()*p.length)]} ${n[Math.floor(Math.random()*n.length)]}, ${s[Math.floor(Math.random()*s.length)]}`;
-  }
-};
-
-// --- PHYSICS ENGINE & VARIABLE GENERATION ---
-const generateVariables = () => {
-  // Generate random base variables similar to the PDF (60, 2, 30, 540, 1.7)
-  const ma = Math.floor(Math.random() * 21) + 50; // 50-70 kg
-  const me = Math.floor(Math.random() * 4) + 2; // 2-5 kg
-  const ve = Math.floor(Math.random() * 21) + 20; // 20-40 m/s
-  const ms = Math.floor(Math.random() * 401) + 400; // 400-800 kg
-  const vs2 = +(Math.random() * 2 + 0.5).toFixed(2); // 0.5 - 2.5 m/s
-  const m_station = Math.floor(Math.random() * 5001) + 5000; // 5000-10000 kg
-
-  // Pre-calculate exact answers (Right is positive)
-  const ansA_speed = Number(((me * ve) / ma).toFixed(3));
-  const ansA_dir = 'right';
-  
-  const ansB_vel = Number(((ma * ansA_speed) / (ma + ms)).toFixed(3));
-  
-  // For Part C: Initial momentum = (ma + ms) * ansB_vel
-  // Final momentum = ma * ansC_speed + ms * (-vs2)  (since spacecraft moves left)
-  const p_initial_C = (ma + ms) * ansB_vel;
-  const ansC_speed = Number(((p_initial_C + (ms * vs2)) / ma).toFixed(3));
-  const ansC_dir = 'right';
-
-  const ansD_v_sys = Number(((ma * ansC_speed) / (ma + m_station)).toFixed(4));
-
-  return {
-    ma, me, ve, ms, vs2, m_station,
-    ansA_speed, ansA_dir,
-    ansB_vel,
-    ansC_speed, ansC_dir,
-    ansD_v_sys
-  };
-};
-
-// --- CONFETTI COMPONENT ---
-const Confetti = () => {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const particles = [];
-    const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d', '#42b883', '#0078aa'];
-
-    for (let i = 0; i < 150; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height - canvas.height,
-        w: Math.random() * 10 + 5,
-        h: Math.random() * 10 + 5,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        vy: Math.random() * 3 + 2,
-        vx: Math.random() * 4 - 2,
-        rot: Math.random() * 360,
-        rotSpeed: Math.random() * 10 - 5
-      });
-    }
-
-    let animationId;
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p) => {
-        p.y += p.vy;
-        p.x += p.vx;
-        p.rot += p.rotSpeed;
-        
-        ctx.save();
-        ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
-        ctx.rotate((p.rot * Math.PI) / 180);
-        ctx.fillStyle = p.color;
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-        ctx.restore();
-
-        if (p.y > canvas.height) {
-          p.y = -20;
-          p.x = Math.random() * canvas.width;
-        }
-      });
-      animationId = requestAnimationFrame(render);
-    };
-    render();
-
-    return () => cancelAnimationFrame(animationId);
-  }, []);
-
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-50" />;
-};
-
-
-// --- MAIN APP COMPONENT ---
-export default function App() {
-  const [vars, setVars] = useState(null);
-  const [stage, setStage] = useState('A'); // A, B, C, D, WIN
-  const [inputs, setInputs] = useState({ speed: '', dir: 'left', vel: '', mass: '' });
-  const [feedback, setFeedback] = useState(null);
-  const [mistakes, setMistakes] = useState(0);
-  const [winMessage, setWinMessage] = useState("");
-  
-  // Animation State
-  const animStartRef = useRef(0);
-  const [animTime, setAnimTime] = useState(0);
-
-  // Gemini API State
-  const defaultTheme = {
-    person: "astronaut", smallObj: "fire extinguisher", vehicle: "spacecraft", largeObj: "space station",
-    emojiPerson: "👨‍🚀", emojiSmall: "🧯", emojiVehicle: "🛸", emojiLarge: "🛰️", verb: "throws"
-  };
-  const [theme, setTheme] = useState(defaultTheme);
-  const [isGeneratingTheme, setIsGeneratingTheme] = useState(false);
-  const [aiHint, setAiHint] = useState(null);
-  const [isFetchingHint, setIsFetchingHint] = useState(false);
-
-  // Initialize variables
-  useEffect(() => {
-    setVars(generateVariables());
-    animStartRef.current = Date.now();
-  }, []);
-
-  // Animation Loop - Refactored to use ref for guaranteed continuous loop
-  useEffect(() => {
-    let frame;
-    const tick = () => {
-      setAnimTime((Date.now() - animStartRef.current) / 1000);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  const replayAnimation = () => {
-    animStartRef.current = Date.now();
-    setAnimTime(0); // instantly snap back to the first frame
-  };
-
-  const calculateScore = (mistakeCount) => {
-    // 3 "free" mistakes. Points only deduct starting on the 4th mistake.
-    const penalizedMistakes = Math.max(0, mistakeCount - 3);
-    return Math.max(0, 6 - penalizedMistakes);
-  };
-
-  const generateNewTheme = async () => {
-    setIsGeneratingTheme(true);
-    try {
-      const prompt = `Generate a fun, highly creative theme for a physics momentum conservation problem.
-      Replace standard space items with thematic equivalents.
-      CRITICAL: The scenario MUST logically take place in a frictionless environment (like a frozen lake, zero-gravity, hovering magnetic field, or magical void) so that conservation of momentum works perfectly. Give the objects descriptors that imply they can move freely without friction (e.g., "hovering server tower", "sliding ice block", "floating castle").
-      Theme ideas: medieval on ice, zero-gravity cyberpunk, magical void, floating food, etc. (Pick one randomly).
-      Return ONLY valid JSON with keys: person, smallObj, vehicle, largeObj, emojiPerson, emojiSmall, emojiVehicle, emojiLarge, verb.`;
-
-      // Full payload for direct Gemini API calls
-      const fullPayload = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              person: { type: "STRING" }, smallObj: { type: "STRING" }, vehicle: { type: "STRING" },
-              largeObj: { type: "STRING" }, emojiPerson: { type: "STRING" }, emojiSmall: { type: "STRING" },
-              emojiVehicle: { type: "STRING" }, emojiLarge: { type: "STRING" }, verb: { type: "STRING" }
-            },
-            required: ["person", "smallObj", "vehicle", "largeObj", "emojiPerson", "emojiSmall", "emojiVehicle", "emojiLarge", "verb"]
-          }
-        }
-      };
-
-      const url = isPreview 
-        ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`
-        : '/api/gemini';
-
-      // Decide payload based on the endpoint we are hitting (Vercel expects { prompt: "..." })
-      const requestBody = isPreview 
-        ? JSON.stringify(fullPayload) 
-        : JSON.stringify({ prompt: prompt });
-
-      const data = await fetchWithRetry(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody
-      });
-
-      // Extract text based on the shape of the response (Vercel returns { text: "..." })
-      const text = isPreview 
-        ? data.candidates?.[0]?.content?.parts?.[0]?.text 
-        : data.text;
-
-      if (text) {
-        // Vercel won't enforce responseMimeType, so we clean any potential markdown formatting
-        const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        setTheme(JSON.parse(cleanText));
-        
-        setVars(generateVariables()); // Generate fresh numbers
-        setStage('A'); // Reset to start
-        setInputs({ speed: '', dir: 'left', vel: '', mass: '' });
-        setAiHint(null);
-        setFeedback({ type: 'success', msg: "New theme applied! The physics variables have been reset." });
-        setTimeout(() => setFeedback(null), 4000);
-        setMistakes(0);
-        animStartRef.current = Date.now();
-      }
-    } catch (error) {
-      console.error("Theme generation failed:", error);
-      setError("Failed to generate a new theme. Please try again later.");
-    } finally {
-      setIsGeneratingTheme(false);
-    }
-  };
-
-  const fetchAiHint = async () => {
-    setIsFetchingHint(true);
-    setAiHint(null);
-    try {
-      let stageDesc = "";
-      let correct = "";
-      let userVal = "";
-      if (stage === 'A') {
-        stageDesc = `They are calculating the initial recoil speed of a ${vars.ma}kg ${theme.person} throwing a ${vars.me}kg ${theme.smallObj} at ${vars.ve}m/s.`;
-        correct = `${vars.ansA_speed} m/s ${vars.ansA_dir}`;
-        userVal = `${inputs.speed} m/s ${inputs.dir}`;
-      } else if (stage === 'B') {
-        stageDesc = `They are calculating the inelastic collision velocity of the ${theme.person} (mass ${vars.ma}kg, speed ${vars.ansA_speed}m/s) grabbing onto a stationary ${vars.ms}kg ${theme.vehicle}.`;
-        correct = `${vars.ansB_vel} m/s`;
-        userVal = `${inputs.vel} m/s`;
-      } else if (stage === 'C') {
-        stageDesc = `They are calculating an explosion-like separation where the ${theme.person} pushes off the ${theme.vehicle}. Initial combined momentum is (${vars.ma}+${vars.ms})*${vars.ansB_vel}. Final velocity of the ${theme.vehicle} is -${vars.vs2}m/s (left). They need to find the final speed and direction of the ${theme.person}.`;
-        correct = `${vars.ansC_speed} m/s ${vars.ansC_dir}`;
-        userVal = `${inputs.speed} m/s ${inputs.dir}`;
-      } else if (stage === 'D') {
-        stageDesc = `They are finding the mass of a stationary ${theme.largeObj}. The ${theme.person} (mass ${vars.ma}kg) hits it at ${vars.ansC_speed}m/s, and they both move together at ${vars.ansD_v_sys}m/s.`;
-        correct = `${vars.m_station} kg`;
-        userVal = `${inputs.mass} kg`;
-      }
-
-      const prompt = `You are a friendly, encouraging physics tutor helping a student with conservation of momentum.
-Context: ${stageDesc}
-The student answered: ${userVal}
-The correct answer is: ${correct}
-
-Provide a short, 1 to 2 sentence Socratic hint that guides them towards the correct formula or points out a likely math/sign error (e.g. forgetting a negative sign for leftward velocity, or not combining masses).
-CRITICAL: Do NOT give them the exact correct number. Make the hint fun and mention the ${theme.person} or ${theme.vehicle}!`;
-
-      const fullPayload = {
-        contents: [{ parts: [{ text: prompt }] }],
-      };
-
-      const url = isPreview 
-        ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`
-        : '/api/gemini';
-
-      // Decide payload based on the endpoint
-      const requestBody = isPreview 
-        ? JSON.stringify(fullPayload) 
-        : JSON.stringify({ prompt: prompt });
-
-      const data = await fetchWithRetry(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody
-      });
-
-      // Extract text based on the shape of the response
-      const text = isPreview 
-        ? data.candidates?.[0]?.content?.parts?.[0]?.text 
-        : data.text;
-
-      if (text) {
-        setAiHint(text);
-      }
-    } catch (error) {
-      console.error("Hint generation failed:", error);
-      setAiHint("I'm having trouble connecting to my AI brain right now. Remember to check your conservation of momentum equations!");
-    } finally {
-      setIsFetchingHint(false);
-    }
-  };
-
-  if (!vars) return <div className="p-10 text-center font-bold text-slate-500">Initializing simulation...</div>;
-
-  const handleInputChange = (e) => {
-    setInputs({ ...inputs, [e.target.name]: e.target.value });
-  };
-
-  const checkAnswer = () => {
-    const tolerance = 0.05; // 5% error allowed to account for rounding intermediate steps
-
-    if (stage === 'A') {
-      const uSpeed = parseFloat(inputs.speed);
-      if (isNaN(uSpeed)) {
-        setMistakes(m => m + 1);
-        return setError("Please enter a valid number for speed.");
-      }
-      
-      if (inputs.dir !== vars.ansA_dir) {
-        setMistakes(m => m + 1);
-        return setError("Direction is incorrect. If the extinguisher is thrown left, conservation of momentum dictates the astronaut moves right.");
-      }
-      if (uSpeed < 0) {
-        setMistakes(m => m + 1);
-        return setError("Speed should be a positive magnitude. Note the question asks for speed, not velocity.");
-      }
-      
-      if (Math.abs(uSpeed - vars.ansA_speed) / vars.ansA_speed < tolerance) {
-        advance('B');
-      } else {
-        setMistakes(m => m + 1);
-        setError(`Incorrect speed. Hint: You are right, the astronaut's speed is simply the momentum of the fire extinguisher divided by the astronaut's mass! ((m_e * v_e) / m_a).`);
-      }
-
-    } else if (stage === 'B') {
-      const uVel = parseFloat(inputs.vel);
-      if (isNaN(uVel)) {
-        setMistakes(m => m + 1);
-        return setError("Please enter a valid number.");
-      }
-
-      if (Math.abs(uVel - vars.ansB_vel) / Math.abs(vars.ansB_vel || 1) < tolerance) {
-        advance('C');
-      } else {
-        setMistakes(m => m + 1);
-        setError("Incorrect. Hint: This is a perfectly inelastic collision. Divide the astronaut's momentum from Part A by their COMBINED mass.");
-      }
-
-    } else if (stage === 'C') {
-      const uSpeed = parseFloat(inputs.speed);
-      if (isNaN(uSpeed)) {
-        setMistakes(m => m + 1);
-        return setError("Please enter a valid number.");
-      }
-
-      if (inputs.dir !== vars.ansC_dir) {
-        setMistakes(m => m + 1);
-        return setError("Incorrect direction. The astronaut is pushing the craft left, so the astronaut must go right.");
-      }
-      
-      if (Math.abs(uSpeed - vars.ansC_speed) / vars.ansC_speed < tolerance) {
-        advance('D');
-      } else {
-        setMistakes(m => m + 1);
-        setError(`Incorrect. Hint: Initial momentum = (m_a + m_s) * v_partB. Set this equal to final momentum: (m_a * v_final) + (m_s * -${vars.vs2}). Don't forget the negative sign on the spacecraft!`);
-      }
-
-    } else if (stage === 'D') {
-      const uMass = parseFloat(inputs.mass);
-      if (isNaN(uMass)) {
-        setMistakes(m => m + 1);
-        return setError("Please enter a valid number.");
-      }
-
-      if (Math.abs(uMass - vars.m_station) / vars.m_station < tolerance) {
-        setFeedback({ type: 'success', msg: "Simulation Complete!" });
-        const finalScore = calculateScore(mistakes);
-        setWinMessage(generateMessage(finalScore));
-        setStage('WIN');
-      } else {
-        setMistakes(m => m + 1);
-        setError("Incorrect mass. Hint: (m_a * v_partC) + 0 = (m_a + M_station) * v_sys. Solve for M_station.");
-      }
-    }
-  };
-
-  const setError = (msg) => {
-    setFeedback({ type: 'error', msg });
-    setTimeout(() => setFeedback(null), 6000);
-  };
-
-  const advance = (nextStage) => {
-    setFeedback({ type: 'success', msg: "Correct! Advancing to the next stage." });
-    setTimeout(() => {
-      setStage(nextStage);
-      setFeedback(null);
-      setAiHint(null);
-      setInputs({ speed: '', dir: 'left', vel: '', mass: '' }); // reset inputs
-      
-      // Explicitly hard-reset the animation the exact moment the stage changes
-      animStartRef.current = Date.now();
-      setAnimTime(0);
-    }, 1200);
-  };
-
-  // --- RENDERING HELPERS ---
-
-  const renderAnimation = () => {
-    const t = animTime % 6; // 6-second infinite loop so the animation never vanishes while reading!
-    let astX = -100, extX = -100, shipX = -100, statX = -100;
+  <div class="max-w-4xl w-full bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col relative" id="app-container">
     
-    if (stage === 'A') {
-      astX = 50 + Math.min(t * 8, 25); // moves right
-      extX = 50 - Math.min(t * 25, 60); // starts touching astronaut at 50%, moves left fast
-    } 
-    else if (stage === 'B') {
-      const hitT = 2.0;
-      if (t < hitT) {
-        astX = -20 + t * 35; // astronaut flies in from off-screen left
-        shipX = 50; // ship stationary at center
-      } else {
-        astX = 50 + (t - hitT) * 4; // move right together slowly
-        shipX = 50 + (t - hitT) * 4;
-      }
-    }
-    else if (stage === 'C') {
-      const pushT = 2.5;
-      if (t < pushT) {
-        astX = 20 + t * 8; // move right together initially (momentum from B)
-        shipX = 20 + t * 8;
-      } else {
-        // push off! Ship goes left, Astronaut zooms right
-        astX = 20 + pushT * 8 + (t - pushT) * 35; 
-        shipX = 20 + pushT * 8 - (t - pushT) * 15; 
-      }
-    }
-    else if (stage === 'D') {
-      const hitT = 2.0;
-      statX = 70; // station stationary
-      if (t < hitT) {
-        astX = -20 + t * 45; // astronaut zooming in from left
-      } else {
-        astX = 70 + (t - hitT) * 1.5; // move right together very slowly
-        statX = 70 + (t - hitT) * 1.5;
-      }
-    }
-
-    return (
-      <div className="relative w-full h-56 bg-slate-900 rounded-t-xl overflow-hidden shadow-inner border-b-4 border-slate-700 group">
-        {/* Starfield */}
-        <div className="absolute inset-0 opacity-60" style={{ backgroundImage: 'radial-gradient(1.5px 1.5px at 20px 30px, #fff, rgba(0,0,0,0)), radial-gradient(1.5px 1.5px at 40px 70px, #eee, rgba(0,0,0,0)), radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0))', backgroundSize: '100px 100px' }} />
-        
-        {/* Entities (Removed transition-all to allow seamless instant looping) */}
-        <div className="absolute text-4xl" style={{ left: `${astX}%`, top: '40%', transform: 'translate(-50%, -50%)' }}>{theme.emojiPerson}</div>
-        
-        {stage === 'A' && (
-          <div className="absolute text-3xl" style={{ left: `${extX}%`, top: '45%', transform: 'translate(-50%, -50%)' }}>{theme.emojiSmall}</div>
-        )}
-
-        {(stage === 'B' || stage === 'C') && (
-          <div className="absolute text-5xl" style={{ left: `${shipX}%`, top: '40%', transform: 'translate(-50%, -50%) scaleX(-1)' }}>{theme.emojiVehicle}</div>
-        )}
-
-        {stage === 'D' && (
-          <div className="absolute text-6xl" style={{ left: `${statX}%`, top: '40%', transform: 'translate(-50%, -50%)' }}>{theme.emojiLarge}</div>
-        )}
-
-        {/* Replay Button Overlay */}
-        <button 
-          onClick={replayAnimation} 
-          className="absolute bottom-3 right-3 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-2 border border-white/30"
-        >
-          <span>↺</span> Replay Animation
+    <!-- Header -->
+    <div class="bg-indigo-700 text-white p-4 flex justify-between items-center z-10">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold tracking-tight">Physics Simulator: Momentum</h1>
+        <button id="btn-theme" class="bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50">
+          ✨ Magic Theme
         </button>
       </div>
-    );
-  };
+      <div class="flex gap-2" id="stage-indicators">
+        <div data-step="A" class="indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-white text-indigo-700 ring-4 ring-indigo-300">A</div>
+        <div data-step="B" class="indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-900 text-indigo-300">B</div>
+        <div data-step="C" class="indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-900 text-indigo-300">C</div>
+        <div data-step="D" class="indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-900 text-indigo-300">D</div>
+      </div>
+    </div>
 
-  return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
+    <!-- Animation Area -->
+    <div id="animation-area" class="relative w-full h-56 bg-slate-900 rounded-t-xl overflow-hidden shadow-inner border-b-4 border-slate-700 group">
+      <!-- Starfield -->
+      <div class="absolute inset-0 opacity-60" style="background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff, rgba(0,0,0,0)), radial-gradient(1.5px 1.5px at 40px 70px, #eee, rgba(0,0,0,0)), radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)); background-size: 100px 100px;"></div>
       
-      {/* Confetti only renders on absolute perfection (0 mistakes) */}
-      {stage === 'WIN' && mistakes === 0 && <Confetti />}
+      <!-- Entities -->
+      <div id="anim-person" class="absolute text-4xl" style="left: -100%; top: 40%; transform: translate(-50%, -50%);">👨‍🚀</div>
+      <div id="anim-small" class="absolute text-3xl" style="left: -100%; top: 45%; transform: translate(-50%, -50%);">🧯</div>
+      <div id="anim-vehicle" class="absolute text-5xl hidden" style="left: -100%; top: 40%; transform: translate(-50%, -50%) scaleX(-1);">🛸</div>
+      <div id="anim-large" class="absolute text-6xl hidden" style="left: -100%; top: 40%; transform: translate(-50%, -50%);">🛰️</div>
 
-      <div className="max-w-4xl w-full bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col relative">
+      <!-- Replay Button Overlay -->
+      <button id="btn-replay" class="absolute bottom-3 right-3 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-2 border border-white/30">
+        <span>↺</span> Replay Animation
+      </button>
+    </div>
+
+    <div class="flex flex-col md:flex-row border-t border-slate-200" id="main-content">
+      
+      <!-- Data / Previous Answers Panel -->
+      <div class="md:w-1/3 bg-slate-50 border-r border-slate-200 p-6 flex flex-col gap-4" id="data-panel">
+        <h3 class="text-sm uppercase tracking-wider font-bold text-slate-500 border-b pb-2 mb-2">Variables & Data</h3>
+        <div class="text-sm space-y-3" id="data-variables">
+          <!-- Variables populated by JS -->
+        </div>
+      </div>
+
+      <!-- Question Content Area -->
+      <div class="md:w-2/3 p-6 flex-grow flex flex-col justify-between min-h-[350px] relative">
         
-        {/* Header */}
-        <div className="bg-indigo-700 text-white p-4 flex justify-between items-center z-10">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold tracking-tight">Physics Simulator: Momentum</h1>
-            <button
-              onClick={generateNewTheme}
-              disabled={isGeneratingTheme}
-              className="bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              {isGeneratingTheme ? '✨ Generating...' : '✨ Magic Theme'}
-            </button>
-          </div>
-          <div className="flex gap-2">
-            {['A', 'B', 'C', 'D'].map(step => (
-              <div key={step} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${stage === step ? 'bg-white text-indigo-700 ring-4 ring-indigo-300' : stage > step || stage === 'WIN' ? 'bg-green-400 text-white' : 'bg-indigo-900 text-indigo-300'}`}>
-                {step}
-              </div>
-            ))}
-          </div>
+        <!-- Feedback Banner -->
+        <div id="feedback-banner" class="hidden absolute top-0 left-0 right-0 z-20 mx-6 mt-4 p-4 rounded-lg border flex items-center gap-3 shadow-lg">
+          <span id="feedback-icon" class="text-2xl"></span>
+          <p id="feedback-msg" class="font-medium"></p>
         </div>
 
-        {/* Animation Area */}
-        {stage !== 'WIN' && renderAnimation()}
-
-        <div className="flex flex-col md:flex-row border-t border-slate-200">
-          
-          {/* Data / Previous Answers Panel */}
-          <div className="md:w-1/3 bg-slate-50 border-r border-slate-200 p-6 flex flex-col gap-4">
-            <h3 className="text-sm uppercase tracking-wider font-bold text-slate-500 border-b pb-2 mb-2">Variables & Data</h3>
-            
-            <div className="text-sm space-y-3">
-              <div className="bg-white p-3 rounded shadow-sm border border-slate-200">
-                <span className="font-semibold text-indigo-700 block mb-1">Current Constants:</span>
-                • {capitalize(theme.person)} Mass: {vars.ma} kg<br/>
-                {stage === 'A' && <>• {capitalize(theme.smallObj)}: {vars.me} kg <br/>• Throw Velocity: -{vars.ve} m/s</>}
-                {(stage === 'B' || stage === 'C') && <>• {capitalize(theme.vehicle)} Mass: {vars.ms} kg</>}
-                {stage === 'C' && <>• {capitalize(theme.vehicle)} Final Vel: -{vars.vs2} m/s</>}
-                {stage === 'D' && <>• System Final Vel: {vars.ansD_v_sys} m/s</>}
+        <!-- Q & A Section -->
+        <div id="question-container" class="transition-opacity duration-300 pt-4">
+          <!-- Stage A -->
+          <div id="stage-A-content" class="stage-content hidden">
+            <p class="text-lg mb-6 leading-relaxed text-slate-700" id="desc-A"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm">
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2"><span class="theme-person-name"></span>'s Speed (m/s)</label>
+                <input type="number" id="input-speed-A" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="0.00" step="0.01" />
               </div>
-
-              {stage > 'A' && (
-                <div className="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in">
-                  <span className="font-semibold text-indigo-800 block mb-1">From Part A:</span>
-                  {capitalize(theme.person)} Velocity: <br/>
-                  <strong className="text-indigo-900">{vars.ansA_speed} m/s (Right)</strong>
-                </div>
-              )}
-              
-              {stage > 'B' && (
-                <div className="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in">
-                  <span className="font-semibold text-indigo-800 block mb-1">From Part B:</span>
-                  Combined Velocity:<br/>
-                  <strong className="text-indigo-900">{vars.ansB_vel} m/s (Right)</strong>
-                </div>
-              )}
-
-              {stage > 'C' && (
-                <div className="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in">
-                  <span className="font-semibold text-indigo-800 block mb-1">From Part C:</span>
-                  {capitalize(theme.person)} Final Vel:<br/>
-                  <strong className="text-indigo-900">{vars.ansC_speed} m/s (Right)</strong>
-                </div>
-              )}
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Direction of Velocity</label>
+                <select id="input-dir-A" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none bg-white transition-colors font-semibold">
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Question Content Area */}
-          <div className="md:w-2/3 p-6 flex-grow flex flex-col justify-between min-h-[350px] relative">
-            
-            {/* Feedback Banner */}
-            {feedback && (
-              <div className={`absolute top-0 left-0 right-0 z-20 mx-6 mt-4 p-4 rounded-lg border flex items-center gap-3 animate-pulse shadow-lg ${feedback.type === 'error' ? 'bg-red-50 border-red-300 text-red-800' : 'bg-green-50 border-green-300 text-green-800'}`}>
-                <span className="text-2xl">{feedback.type === 'error' ? '⚠️' : '✅'}</span>
-                <p className="font-medium">{feedback.msg}</p>
-              </div>
-            )}
-
-            {/* Q & A Section */}
-            <div className={`transition-opacity duration-300 pt-4 ${stage === 'WIN' ? 'hidden' : 'block'}`}>
-              
-              {stage === 'A' && (
-                <>
-                  <p className="text-lg mb-6 leading-relaxed text-slate-700">
-                    <strong>Part A.</strong> A <span className="font-bold text-indigo-600">{vars.ma}.0 kg</span> {theme.person} holding a {theme.smallObj} is initially stationary outside and to the left of their {theme.vehicle}. They {theme.verb} a <span className="font-bold text-indigo-600">{vars.me}.0 kg</span> {theme.smallObj} to the left at <span className="font-bold text-indigo-600">{vars.ve}.0 m/s</span>. What is the {theme.person}'s speed after the throw in m/s? Both the {theme.person} and the {theme.smallObj} start out with zero velocity.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">{capitalize(theme.person)}'s Speed (m/s)</label>
-                      <input type="number" name="speed" value={inputs.speed} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="0.00" step="0.01" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Direction of Velocity</label>
-                      <select name="dir" value={inputs.dir} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none bg-white transition-colors font-semibold">
-                        <option value="left">Left</option>
-                        <option value="right">Right</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {stage === 'B' && (
-                <>
-                  <p className="text-lg mb-6 leading-relaxed text-slate-700">
-                    <strong>Part B.</strong> The {theme.person}, traveling at the velocity you found in Part A, then grabs on to their initially stationary <span className="font-bold text-indigo-600">{vars.ms} kg</span> {theme.vehicle}. What is the final velocity of the {theme.person} and {theme.vehicle} after they grab on to it?
-                  </p>
-                  <div className="bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm max-w-sm">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Final Velocity (m/s)</label>
-                    <input type="number" name="vel" value={inputs.vel} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="Enter velocity..." step="0.001" />
-                  </div>
-                </>
-              )}
-
-              {stage === 'C' && (
-                <>
-                  <p className="text-lg mb-6 leading-relaxed text-slate-700">
-                    <strong>Part C.</strong> The {theme.vehicle} has been damaged. Since no external forces act, the {theme.person} and {theme.vehicle} are both moving together at the velocity found in Part B (moving Right). The {theme.person} pushes off the {theme.vehicle} with their legs so that afterwards the <span className="font-bold text-indigo-600">{vars.ms} kg</span> craft is moving <span className="font-bold text-indigo-600">{vars.vs2} m/s</span> to the <strong>left</strong>. What is the final speed of the <span className="font-bold text-indigo-600">{vars.ma} kg</span> {theme.person}?
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">{capitalize(theme.person)}'s Final Speed</label>
-                      <input type="number" name="speed" value={inputs.speed} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="0.00" step="0.01" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Direction</label>
-                      <select name="dir" value={inputs.dir} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none bg-white transition-colors font-semibold">
-                        <option value="left">Left</option>
-                        <option value="right">Right</option>
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {stage === 'D' && (
-                <>
-                  <p className="text-lg mb-6 leading-relaxed text-slate-700">
-                    <strong>Part D.</strong> The {theme.person} is traveling with the velocity from Part C when they hit and grab onto a stationary {theme.largeObj}. As a result the {theme.largeObj} and {theme.person} both move to the right at <span className="font-bold text-indigo-600">{vars.ansD_v_sys} m/s</span>. What is the mass of the {theme.largeObj}?
-                  </p>
-                  <div className="bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm max-w-sm">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Mass of {capitalize(theme.largeObj)} (kg)</label>
-                    <input type="number" name="mass" value={inputs.mass} onChange={handleInputChange} className="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="Enter mass..." step="1" />
-                  </div>
-                </>
-              )}
+          <!-- Stage B -->
+          <div id="stage-B-content" class="stage-content hidden">
+            <p class="text-lg mb-6 leading-relaxed text-slate-700" id="desc-B"></p>
+            <div class="bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm max-w-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Final Velocity (m/s)</label>
+              <input type="number" id="input-vel-B" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="Enter velocity..." step="0.001" />
             </div>
+          </div>
 
-            {/* Win Screen */}
-            {stage === 'WIN' && (
-              <div className="text-center py-10 animate-fade-in flex-grow flex flex-col justify-center">
-                <h2 className="text-4xl font-black text-indigo-700 mb-4 drop-shadow-sm">Simulation Complete!</h2>
-                <div className="text-3xl font-bold text-slate-800 mb-3">
-                  Score: <span className={calculateScore(mistakes) >= 5 ? "text-green-600" : "text-indigo-600"}>{calculateScore(mistakes)} / 6</span>
-                </div>
-                <p className={`text-xl mb-6 font-medium ${calculateScore(mistakes) < 5 ? 'text-indigo-600' : 'text-slate-600'}`}>
-                  {winMessage}
-                </p>
-                <div className="mt-4">
-                   <button onClick={() => window.location.reload()} className="px-8 py-4 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 font-bold transition-transform transform hover:scale-105 shadow-xl">
-                      Restart New Scenario
-                   </button>
-                </div>
-                <p className="text-sm mt-8 text-slate-300 tracking-widest uppercase">
-                  astronaut and fire extinguisher
-                </p>
+          <!-- Stage C -->
+          <div id="stage-C-content" class="stage-content hidden">
+            <p class="text-lg mb-6 leading-relaxed text-slate-700" id="desc-C"></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm">
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2"><span class="theme-person-name"></span>'s Final Speed</label>
+                <input type="number" id="input-speed-C" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="0.00" step="0.01" />
               </div>
-            )}
-            
-            {/* Submit Button */}
-            {stage !== 'WIN' && (
-              <div className="mt-8 border-t border-slate-100 pt-6">
-                
-                {aiHint && (
-                  <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-800 animate-fade-in flex gap-4 shadow-sm">
-                    <span className="text-2xl mt-1">✨</span>
-                    <div>
-                      <h4 className="font-bold mb-1">AI Tutor Says:</h4>
-                      <p>{aiHint}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3">
-                  <button onClick={fetchAiHint} disabled={isFetchingHint} className="px-6 py-3 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-bold transition-colors shadow-sm focus:ring-4 focus:ring-purple-200 flex items-center gap-2">
-                    {isFetchingHint ? '✨ Thinking...' : '✨ Ask AI Tutor'}
-                  </button>
-                  <button onClick={checkAnswer} className="px-8 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-bold transition-colors shadow-md focus:ring-4 focus:ring-indigo-200 text-lg">
-                    Submit Answer
-                  </button>
-                </div>
+              <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Direction</label>
+                <select id="input-dir-C" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none bg-white transition-colors font-semibold">
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
               </div>
-            )}
+            </div>
+          </div>
 
+          <!-- Stage D -->
+          <div id="stage-D-content" class="stage-content hidden">
+            <p class="text-lg mb-6 leading-relaxed text-slate-700" id="desc-D"></p>
+            <div class="bg-white p-5 rounded-lg border-2 border-slate-100 shadow-sm max-w-sm">
+              <label class="block text-sm font-bold text-slate-700 mb-2">Mass of <span class="theme-large-name"></span> (kg)</label>
+              <input type="number" id="input-mass-D" class="w-full p-3 border-2 border-slate-300 rounded-md focus:border-indigo-500 focus:ring-0 outline-none transition-colors font-mono text-lg" placeholder="Enter mass..." step="1" />
+            </div>
+          </div>
+        </div>
+        
+        <!-- Controls Area -->
+        <div class="mt-8 border-t border-slate-100 pt-6" id="controls-area">
+          <div id="ai-hint-container" class="hidden mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg text-purple-800 fade-in flex gap-4 shadow-sm">
+            <span class="text-2xl mt-1">✨</span>
+            <div>
+              <h4 class="font-bold mb-1">AI Tutor Says:</h4>
+              <p id="ai-hint-text"></p>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button id="btn-hint" class="px-6 py-3 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-bold transition-colors shadow-sm focus:ring-4 focus:ring-purple-200 flex items-center gap-2">
+              ✨ Ask AI Tutor
+            </button>
+            <button id="btn-submit" class="px-8 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-bold transition-colors shadow-md focus:ring-4 focus:ring-indigo-200 text-lg">
+              Submit Answer
+            </button>
           </div>
         </div>
 
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        .fade-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-      `}} />
     </div>
-  );
-}
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="hidden text-center py-10 flex-grow flex flex-col justify-center min-h-[400px]">
+      <h2 class="text-4xl font-black text-indigo-700 mb-4 drop-shadow-sm">Simulation Complete!</h2>
+      <div class="text-3xl font-bold text-slate-800 mb-3">
+        Score: <span id="final-score" class="text-indigo-600">0 / 6</span>
+      </div>
+      <p id="win-message" class="text-xl mb-6 font-medium text-slate-600"></p>
+      <div class="mt-4">
+         <button onclick="window.location.reload()" class="px-8 py-4 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 font-bold transition-transform transform hover:scale-105 shadow-xl">
+            Restart New Scenario
+         </button>
+      </div>
+      <p id="win-theme-desc" class="text-sm mt-8 text-slate-300 tracking-widest uppercase"></p>
+    </div>
+
+  </div>
+
+  <script>
+    // --- IMPORTANT CONFIGURATION ---
+    // Pointing directly to your Vercel API path
+    const VERCEL_ENDPOINT = '/api/gemini'; 
+    // -------------------------------
+
+    // Application State
+    let vars = null;
+    let stage = 'A'; // A, B, C, D, WIN
+    let mistakes = 0;
+    let animStartTime = Date.now();
+    let isGeneratingTheme = false;
+    let isFetchingHint = false;
+    let feedbackTimeout = null;
+
+    let theme = {
+      person: "astronaut", smallObj: "fire extinguisher", vehicle: "spacecraft", largeObj: "space station",
+      emojiPerson: "👨‍🚀", emojiSmall: "🧯", emojiVehicle: "🛸", emojiLarge: "🛰️", verb: "throws"
+    };
+
+    // Helper functions
+    const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    const generateVariables = () => {
+      const ma = Math.floor(Math.random() * 21) + 50; 
+      const me = Math.floor(Math.random() * 4) + 2; 
+      const ve = Math.floor(Math.random() * 21) + 20; 
+      const ms = Math.floor(Math.random() * 401) + 400; 
+      const vs2 = +(Math.random() * 2 + 0.5).toFixed(2); 
+      const m_station = Math.floor(Math.random() * 5001) + 5000; 
+
+      const ansA_speed = Number(((me * ve) / ma).toFixed(3));
+      const ansA_dir = 'right';
+      const ansB_vel = Number(((ma * ansA_speed) / (ma + ms)).toFixed(3));
+      
+      const p_initial_C = (ma + ms) * ansB_vel;
+      const ansC_speed = Number(((p_initial_C + (ms * vs2)) / ma).toFixed(3));
+      const ansC_dir = 'right';
+      const ansD_v_sys = Number(((ma * ansC_speed) / (ma + m_station)).toFixed(4));
+
+      return { ma, me, ve, ms, vs2, m_station, ansA_speed, ansA_dir, ansB_vel, ansC_speed, ansC_dir, ansD_v_sys };
+    };
+
+    const calculateScore = (mistakeCount) => {
+      const penalizedMistakes = Math.max(0, mistakeCount - 3);
+      return Math.max(0, 6 - penalizedMistakes);
+    };
+
+    const generateMessage = (score) => {
+      if (score === 6) {
+        return "Absolutely flawless understanding of momentum!";
+      } else if (score >= 4) {
+        return "Very excellent problem-solving skills!";
+      } else {
+        return "Solid effort, but please try again to improve your accuracy.";
+      }
+    };
+
+    // UI Updater Functions
+    const showFeedback = (type, msg) => {
+      const banner = document.getElementById('feedback-banner');
+      const icon = document.getElementById('feedback-icon');
+      const msgEl = document.getElementById('feedback-msg');
+      
+      banner.className = `absolute top-0 left-0 right-0 z-20 mx-6 mt-4 p-4 rounded-lg border flex items-center gap-3 shadow-lg ${type === 'error' ? 'bg-red-50 border-red-300 text-red-800' : 'bg-green-50 border-green-300 text-green-800'}`;
+      icon.innerText = type === 'error' ? '⚠️' : '✅';
+      msgEl.innerText = msg;
+      banner.classList.remove('hidden');
+
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 6000);
+    };
+
+    const updateStageIndicators = () => {
+      document.querySelectorAll('.indicator').forEach(el => {
+        const step = el.getAttribute('data-step');
+        if (stage === 'WIN' || step < stage) {
+          el.className = 'indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-green-400 text-white';
+        } else if (stage === step) {
+          el.className = 'indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-white text-indigo-700 ring-4 ring-indigo-300';
+        } else {
+          el.className = 'indicator w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-indigo-900 text-indigo-300';
+        }
+      });
+    };
+
+    const updateTextContent = () => {
+      // Update dynamic names in labels
+      document.querySelectorAll('.theme-person-name').forEach(el => el.innerText = capitalize(theme.person));
+      document.querySelectorAll('.theme-large-name').forEach(el => el.innerText = capitalize(theme.largeObj));
+
+      // Question Texts
+      document.getElementById('desc-A').innerHTML = `<strong>Part A.</strong> A <span class="font-bold text-indigo-600">${vars.ma}.0 kg</span> ${theme.person} holding a ${theme.smallObj} is initially stationary outside and to the left of their ${theme.vehicle}. They ${theme.verb} a <span class="font-bold text-indigo-600">${vars.me}.0 kg</span> ${theme.smallObj} to the left at <span class="font-bold text-indigo-600">${vars.ve}.0 m/s</span>. What is the ${theme.person}'s speed after the throw in m/s? Both the ${theme.person} and the ${theme.smallObj} start out with zero velocity.`;
+      
+      document.getElementById('desc-B').innerHTML = `<strong>Part B.</strong> The ${theme.person}, traveling at the velocity you found in Part A, then grabs on to their initially stationary <span class="font-bold text-indigo-600">${vars.ms} kg</span> ${theme.vehicle}. What is the final velocity of the ${theme.person} and ${theme.vehicle} after they grab on to it?`;
+      
+      document.getElementById('desc-C').innerHTML = `<strong>Part C.</strong> The ${theme.vehicle} has been damaged. Since no external forces act, the ${theme.person} and ${theme.vehicle} are both moving together at the velocity found in Part B (moving Right). The ${theme.person} pushes off the ${theme.vehicle} with their legs so that afterwards the <span class="font-bold text-indigo-600">${vars.ms} kg</span> craft is moving <span class="font-bold text-indigo-600">${vars.vs2} m/s</span> to the <strong>left</strong>. What is the final speed of the <span class="font-bold text-indigo-600">${vars.ma} kg</span> ${theme.person}?`;
+      
+      document.getElementById('desc-D').innerHTML = `<strong>Part D.</strong> The ${theme.person} is traveling with the velocity from Part C when they hit and grab onto a stationary ${theme.largeObj}. As a result the ${theme.largeObj} and ${theme.person} both move to the right at <span class="font-bold text-indigo-600">${vars.ansD_v_sys} m/s</span>. What is the mass of the ${theme.largeObj}?`;
+
+      // Variables Panel
+      let varsHTML = `
+        <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+          <span class="font-semibold text-indigo-700 block mb-1">Current Constants:</span>
+          • ${capitalize(theme.person)} Mass: ${vars.ma} kg<br/>
+          ${stage === 'A' ? `• ${capitalize(theme.smallObj)}: ${vars.me} kg <br/>• Throw Velocity: -${vars.ve} m/s` : ''}
+          ${stage === 'B' || stage === 'C' ? `• ${capitalize(theme.vehicle)} Mass: ${vars.ms} kg` : ''}
+          ${stage === 'C' ? `• ${capitalize(theme.vehicle)} Final Vel: -${vars.vs2} m/s` : ''}
+          ${stage === 'D' ? `• System Final Vel: ${vars.ansD_v_sys} m/s` : ''}
+        </div>
+      `;
+
+      if (stage > 'A') {
+        varsHTML += `
+          <div class="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in mt-3">
+            <span class="font-semibold text-indigo-800 block mb-1">From Part A:</span>
+            ${capitalize(theme.person)} Velocity: <br/>
+            <strong class="text-indigo-900">${vars.ansA_speed} m/s (Right)</strong>
+          </div>`;
+      }
+      if (stage > 'B') {
+        varsHTML += `
+          <div class="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in mt-3">
+            <span class="font-semibold text-indigo-800 block mb-1">From Part B:</span>
+            Combined Velocity:<br/>
+            <strong class="text-indigo-900">${vars.ansB_vel} m/s (Right)</strong>
+          </div>`;
+      }
+      if (stage > 'C') {
+        varsHTML += `
+          <div class="bg-indigo-50 p-3 rounded shadow-sm border border-indigo-200 fade-in mt-3">
+            <span class="font-semibold text-indigo-800 block mb-1">From Part C:</span>
+            ${capitalize(theme.person)} Final Vel:<br/>
+            <strong class="text-indigo-900">${vars.ansC_speed} m/s (Right)</strong>
+          </div>`;
+      }
+      document.getElementById('data-variables').innerHTML = varsHTML;
+
+      // Emojis setup
+      document.getElementById('anim-person').innerText = theme.emojiPerson;
+      document.getElementById('anim-small').innerText = theme.emojiSmall;
+      document.getElementById('anim-vehicle').innerText = theme.emojiVehicle;
+      document.getElementById('anim-large').innerText = theme.emojiLarge;
+    };
+
+    const updateUIState = () => {
+      if (stage === 'WIN') {
+        document.getElementById('animation-area').classList.add('hidden');
+        document.getElementById('main-content').classList.add('hidden');
+        document.getElementById('win-screen').classList.remove('hidden');
+        
+        const score = calculateScore(mistakes);
+        const scoreEl = document.getElementById('final-score');
+        scoreEl.innerText = `${score} / 6`;
+        scoreEl.className = score >= 5 ? "text-green-600" : "text-indigo-600";
+        document.getElementById('win-message').innerText = generateMessage(score);
+        document.getElementById('win-theme-desc').innerText = `${theme.person} and ${theme.smallObj}`;
+        
+        if (mistakes === 0) renderConfetti();
+        updateStageIndicators();
+        return;
+      }
+
+      document.querySelectorAll('.stage-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`stage-${stage}-content`).classList.remove('hidden');
+      
+      document.getElementById('anim-small').classList.toggle('hidden', stage !== 'A');
+      document.getElementById('anim-vehicle').classList.toggle('hidden', stage !== 'B' && stage !== 'C');
+      document.getElementById('anim-large').classList.toggle('hidden', stage !== 'D');
+
+      document.getElementById('ai-hint-container').classList.add('hidden');
+      document.getElementById('ai-hint-text').innerText = "";
+
+      // Clear Inputs
+      document.getElementById('input-speed-A').value = '';
+      document.getElementById('input-dir-A').value = 'left';
+      document.getElementById('input-vel-B').value = '';
+      document.getElementById('input-speed-C').value = '';
+      document.getElementById('input-dir-C').value = 'left';
+      document.getElementById('input-mass-D').value = '';
+
+      updateTextContent();
+      updateStageIndicators();
+      
+      // Reset animation
+      animStartTime = Date.now();
+    };
+
+    const advance = (nextStage) => {
+      showFeedback('success', "Correct! Advancing to the next stage.");
+      setTimeout(() => {
+        stage = nextStage;
+        updateUIState();
+        document.getElementById('feedback-banner').classList.add('hidden');
+      }, 1200);
+    };
+
+    // Main Actions
+    const checkAnswer = () => {
+      const tolerance = 0.05; 
+
+      if (stage === 'A') {
+        const uSpeed = parseFloat(document.getElementById('input-speed-A').value);
+        const uDir = document.getElementById('input-dir-A').value;
+        if (isNaN(uSpeed)) { mistakes++; return showFeedback('error', "Please enter a valid number for speed."); }
+        if (uDir !== vars.ansA_dir) { mistakes++; return showFeedback('error', "Direction is incorrect. By conservation of momentum they must move right."); }
+        if (uSpeed < 0) { mistakes++; return showFeedback('error', "Speed should be positive. Note the question asks for speed, not velocity."); }
+        
+        if (Math.abs(uSpeed - vars.ansA_speed) / vars.ansA_speed < tolerance) advance('B');
+        else { mistakes++; showFeedback('error', "Incorrect speed. Hint: momentum of object divided by your mass."); }
+      } 
+      else if (stage === 'B') {
+        const uVel = parseFloat(document.getElementById('input-vel-B').value);
+        if (isNaN(uVel)) { mistakes++; return showFeedback('error', "Please enter a valid number."); }
+        if (Math.abs(uVel - vars.ansB_vel) / Math.abs(vars.ansB_vel || 1) < tolerance) advance('C');
+        else { mistakes++; showFeedback('error', "Incorrect. Hint: Inelastic collision. Divide momentum from Part A by COMBINED mass."); }
+      } 
+      else if (stage === 'C') {
+        const uSpeed = parseFloat(document.getElementById('input-speed-C').value);
+        const uDir = document.getElementById('input-dir-C').value;
+        if (isNaN(uSpeed)) { mistakes++; return showFeedback('error', "Please enter a valid number."); }
+        if (uDir !== vars.ansC_dir) { mistakes++; return showFeedback('error', "Incorrect direction. If pushing craft left, you go right."); }
+        
+        if (Math.abs(uSpeed - vars.ansC_speed) / vars.ansC_speed < tolerance) advance('D');
+        else { mistakes++; showFeedback('error', `Incorrect. Initial momentum = Final momentum. Set p_initial = (m_a * v_final) + (m_s * -${vars.vs2}).`); }
+      } 
+      else if (stage === 'D') {
+        const uMass = parseFloat(document.getElementById('input-mass-D').value);
+        if (isNaN(uMass)) { mistakes++; return showFeedback('error', "Please enter a valid number."); }
+        if (Math.abs(uMass - vars.m_station) / vars.m_station < tolerance) {
+          showFeedback('success', "Simulation Complete!");
+          setTimeout(() => { stage = 'WIN'; updateUIState(); }, 1200);
+        } else { mistakes++; showFeedback('error', "Incorrect mass. Hint: (m_a * v_partC) + 0 = (m_a + M_station) * v_sys."); }
+      }
+    };
+
+    // --- Updated Function: Now talks to your Vercel Backend ---
+    const fetchAiHint = async () => {
+      if (isFetchingHint) return;
+      isFetchingHint = true;
+      const btn = document.getElementById('btn-hint');
+      btn.innerText = '✨ Thinking...';
+      
+      try {
+        let stageDesc = "", correct = "", userVal = "";
+        if (stage === 'A') {
+          stageDesc = `Calculating initial recoil speed of a ${vars.ma}kg ${theme.person} throwing a ${vars.me}kg ${theme.smallObj} at ${vars.ve}m/s.`;
+          correct = `${vars.ansA_speed} m/s ${vars.ansA_dir}`;
+          userVal = `${document.getElementById('input-speed-A').value} m/s ${document.getElementById('input-dir-A').value}`;
+        } else if (stage === 'B') {
+          stageDesc = `Calculating inelastic collision velocity of ${theme.person} (${vars.ma}kg, ${vars.ansA_speed}m/s) grabbing onto a stationary ${vars.ms}kg ${theme.vehicle}.`;
+          correct = `${vars.ansB_vel} m/s`;
+          userVal = `${document.getElementById('input-vel-B').value} m/s`;
+        } else if (stage === 'C') {
+          stageDesc = `Calculating explosion-like separation. Combined momentum is (${vars.ma}+${vars.ms})*${vars.ansB_vel}. Final velocity of ${theme.vehicle} is -${vars.vs2}m/s. Find final speed of ${theme.person}.`;
+          correct = `${vars.ansC_speed} m/s ${vars.ansC_dir}`;
+          userVal = `${document.getElementById('input-speed-C').value} m/s ${document.getElementById('input-dir-C').value}`;
+        } else if (stage === 'D') {
+          stageDesc = `Finding mass of stationary ${theme.largeObj}. ${theme.person} (${vars.ma}kg) hits it at ${vars.ansC_speed}m/s, moving together at ${vars.ansD_v_sys}m/s.`;
+          correct = `${vars.m_station} kg`;
+          userVal = `${document.getElementById('input-mass-D').value} kg`;
+        }
+
+        const promptText = `Context: ${stageDesc}\nThe student answered: ${userVal}\nThe correct answer is: ${correct}\nProvide a short, 1 to 2 sentence Socratic hint that guides them towards the correct formula or points out a likely math/sign error (e.g. forgetting a negative sign for leftward velocity, or not combining masses).\nCRITICAL: Do NOT give them the exact correct number. Make the hint fun and mention the ${theme.person} or ${theme.vehicle}!`;
+        
+        const systemText = "You are a friendly, encouraging physics tutor helping a student with conservation of momentum.";
+
+        // Sending POST request directly to your Vercel Proxy
+        const response = await fetch(VERCEL_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptText,
+            systemInstruction: systemText
+          })
+        });
+
+        if (!response.ok) throw new Error("Backend failed");
+        
+        const data = await response.json();
+        
+        if (data.text) {
+          document.getElementById('ai-hint-text').innerText = data.text;
+          document.getElementById('ai-hint-container').classList.remove('hidden');
+        }
+      } catch (error) {
+        console.error("Error fetching hint:", error);
+        document.getElementById('ai-hint-text').innerText = "I'm having trouble connecting to the backend right now. Check your momentum equations!";
+        document.getElementById('ai-hint-container').classList.remove('hidden');
+      } finally {
+        isFetchingHint = false;
+        btn.innerText = '✨ Ask AI Tutor';
+      }
+    };
+
+    // --- Updated Function: Now talks to your Vercel Backend ---
+    const generateNewTheme = async () => {
+      if (isGeneratingTheme) return;
+      isGeneratingTheme = true;
+      const btn = document.getElementById('btn-theme');
+      btn.innerText = '✨ Generating...';
+      btn.classList.add('opacity-50');
+
+      try {
+        const promptText = `Generate a fun, highly creative theme for a physics momentum conservation problem.
+        Replace standard space items with thematic equivalents.
+        CRITICAL: The scenario MUST logically take place in a frictionless environment (like a frozen lake, zero-gravity, hovering magnetic field, or magical void) so that conservation of momentum works perfectly. Give the objects descriptors that imply they can move freely without friction.
+        Theme ideas: medieval on ice, zero-gravity cyberpunk, magical void, floating food, etc. 
+        RETURN ONLY VALID JSON matching this exact structure:
+        {"person": "string", "smallObj": "string", "vehicle": "string", "largeObj": "string", "emojiPerson": "string", "emojiSmall": "string", "emojiVehicle": "string", "emojiLarge": "string", "verb": "string"}`;
+
+        const systemText = "You are an API that strictly returns valid JSON and nothing else. Do not use markdown backticks.";
+
+        // Sending POST request directly to your Vercel Proxy
+        const response = await fetch(VERCEL_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptText,
+            systemInstruction: systemText
+          })
+        });
+
+        if (!response.ok) throw new Error("Backend failed");
+
+        const data = await response.json();
+        
+        if (data.text) {
+          // Clean up the text just in case Gemini wrapped it in markdown code blocks
+          let cleanJsonString = data.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          theme = JSON.parse(cleanJsonString);
+          vars = generateVariables();
+          stage = 'A';
+          mistakes = 0;
+          updateUIState();
+          showFeedback('success', "New theme applied! Variables reset.");
+        }
+      } catch (error) {
+        console.error("Error generating theme:", error);
+        showFeedback('error', "Failed to generate a new theme. Please try again later.");
+      } finally {
+        isGeneratingTheme = false;
+        btn.innerText = '✨ Magic Theme';
+        btn.classList.remove('opacity-50');
+      }
+    };
+
+    // Animation Loop
+    const animate = () => {
+      if (stage !== 'WIN') {
+        const animTime = (Date.now() - animStartTime) / 1000;
+        const t = animTime % 6; 
+        let astX = -100, extX = -100, shipX = -100, statX = -100;
+        
+        if (stage === 'A') {
+          astX = 50 + Math.min(t * 8, 25); 
+          extX = 50 - Math.min(t * 25, 60); 
+        } 
+        else if (stage === 'B') {
+          const hitT = 2.0;
+          if (t < hitT) { astX = -20 + t * 35; shipX = 50; } 
+          else { astX = 50 + (t - hitT) * 4; shipX = 50 + (t - hitT) * 4; }
+        }
+        else if (stage === 'C') {
+          const pushT = 2.5;
+          if (t < pushT) { astX = 20 + t * 8; shipX = 20 + t * 8; } 
+          else { astX = 20 + pushT * 8 + (t - pushT) * 35; shipX = 20 + pushT * 8 - (t - pushT) * 15; }
+        }
+        else if (stage === 'D') {
+          const hitT = 2.0;
+          statX = 70; 
+          if (t < hitT) { astX = -20 + t * 45; } 
+          else { astX = 70 + (t - hitT) * 1.5; statX = 70 + (t - hitT) * 1.5; }
+        }
+
+        document.getElementById('anim-person').style.left = `${astX}%`;
+        document.getElementById('anim-small').style.left = `${extX}%`;
+        document.getElementById('anim-vehicle').style.left = `${shipX}%`;
+        document.getElementById('anim-large').style.left = `${statX}%`;
+      }
+      requestAnimationFrame(animate);
+    };
+
+    // Confetti Logic
+    const renderConfetti = () => {
+      const canvas = document.getElementById('confetti-canvas');
+      canvas.classList.remove('hidden');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d', '#42b883', '#0078aa'];
+
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          w: Math.random() * 10 + 5,
+          h: Math.random() * 10 + 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vy: Math.random() * 3 + 2,
+          vx: Math.random() * 4 - 2,
+          rot: Math.random() * 360,
+          rotSpeed: Math.random() * 10 - 5
+        });
+      }
+
+      const drawConfetti = () => {
+        if (stage !== 'WIN') return; // Stop if restarted
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach((p) => {
+          p.y += p.vy;
+          p.x += p.vx;
+          p.rot += p.rotSpeed;
+          ctx.save();
+          ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+          if (p.y > canvas.height) {
+            p.y = -20;
+            p.x = Math.random() * canvas.width;
+          }
+        });
+        requestAnimationFrame(drawConfetti);
+      };
+      drawConfetti();
+    };
+
+    // Initialization
+    window.onload = () => {
+      // Setup initial state and start logic
+      vars = generateVariables();
+      updateUIState();
+      animate(); // Start the infinite 6-second physics loop
+
+      // Event Listeners
+      document.getElementById('btn-submit').addEventListener('click', checkAnswer);
+      document.getElementById('btn-hint').addEventListener('click', fetchAiHint);
+      document.getElementById('btn-theme').addEventListener('click', generateNewTheme);
+      document.getElementById('btn-replay').addEventListener('click', () => { animStartTime = Date.now(); });
+    };
+
+  </script>
+</body>
+</html>
