@@ -361,8 +361,26 @@
 
         async function fetchGemini(prompt) {
             const systemInstruction = "You are a helpful physics tutor assistant. Be brief and engaging.";
+            const isJsonMode = prompt.includes("JSON object");
             
-            // Basic exponential backoff
+            // 1. Try Vercel Backend First
+            try {
+                const vercelRes = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, systemInstruction })
+                });
+                
+                // If it succeeds and returns JSON, use it!
+                if (vercelRes.ok && vercelRes.headers.get('content-type')?.includes('application/json')) {
+                    const data = await vercelRes.json();
+                    if (data.text) return data.text;
+                }
+            } catch (e) {
+                // Vercel endpoint not found or network error, fallback to Canvas mode silently
+            }
+            
+            // 2. Fallback to Canvas Direct API with exponential backoff
             const delays = [1000, 2000, 4000, 8000, 16000];
             for (let i = 0; i < 5; i++) {
                 try {
@@ -374,7 +392,7 @@
                     };
                     
                     // Force JSON response if we ask for a JSON object in the prompt
-                    if (prompt.includes("JSON object")) {
+                    if (isJsonMode) {
                         payload.generationConfig = { responseMimeType: "application/json" };
                     }
 
