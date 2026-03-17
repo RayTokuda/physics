@@ -190,24 +190,19 @@ export default function App() {
       Replace standard space items with thematic equivalents.
       CRITICAL: The scenario MUST logically take place in a frictionless environment (like a frozen lake, zero-gravity, hovering magnetic field, or magical void) so that conservation of momentum works perfectly. Give the objects descriptors that imply they can move freely without friction (e.g., "hovering server tower", "sliding ice block", "floating castle").
       Theme ideas: medieval on ice, zero-gravity cyberpunk, magical void, floating food, etc. (Pick one randomly).
-      Return ONLY valid JSON.`;
+      Return ONLY valid JSON with keys: person, smallObj, vehicle, largeObj, emojiPerson, emojiSmall, emojiVehicle, emojiLarge, verb.`;
 
-      const payload = {
+      // Full payload for direct Gemini API calls
+      const fullPayload = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
             properties: {
-              person: { type: "STRING", description: "The main character, e.g. ice wizard, zero-g hacker" },
-              smallObj: { type: "STRING", description: "A small object they throw, e.g. frost potion, glowing orb" },
-              vehicle: { type: "STRING", description: "A medium vehicle they ride, e.g. hovering broomstick, hover-board" },
-              largeObj: { type: "STRING", description: "A massive stationary object they crash into that can glide freely, e.g. floating castle, hovering server rack" },
-              emojiPerson: { type: "STRING", description: "1 emoji for the person" },
-              emojiSmall: { type: "STRING", description: "1 emoji for the small object" },
-              emojiVehicle: { type: "STRING", description: "1 emoji for the vehicle" },
-              emojiLarge: { type: "STRING", description: "1 emoji for the large object" },
-              verb: { type: "STRING", description: "Action verb for throwing, e.g. tosses, casts, hurls" }
+              person: { type: "STRING" }, smallObj: { type: "STRING" }, vehicle: { type: "STRING" },
+              largeObj: { type: "STRING" }, emojiPerson: { type: "STRING" }, emojiSmall: { type: "STRING" },
+              emojiVehicle: { type: "STRING" }, emojiLarge: { type: "STRING" }, verb: { type: "STRING" }
             },
             required: ["person", "smallObj", "vehicle", "largeObj", "emojiPerson", "emojiSmall", "emojiVehicle", "emojiLarge", "verb"]
           }
@@ -218,15 +213,27 @@ export default function App() {
         ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`
         : '/api/gemini';
 
+      // Decide payload based on the endpoint we are hitting (Vercel expects { prompt: "..." })
+      const requestBody = isPreview 
+        ? JSON.stringify(fullPayload) 
+        : JSON.stringify({ prompt: prompt });
+
       const data = await fetchWithRetry(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: requestBody
       });
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      // Extract text based on the shape of the response (Vercel returns { text: "..." })
+      const text = isPreview 
+        ? data.candidates?.[0]?.content?.parts?.[0]?.text 
+        : data.text;
+
       if (text) {
-        setTheme(JSON.parse(text));
+        // Vercel won't enforce responseMimeType, so we clean any potential markdown formatting
+        const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        setTheme(JSON.parse(cleanText));
+        
         setVars(generateVariables()); // Generate fresh numbers
         setStage('A'); // Reset to start
         setInputs({ speed: '', dir: 'left', vel: '', mass: '' });
@@ -277,7 +284,7 @@ The correct answer is: ${correct}
 Provide a short, 1 to 2 sentence Socratic hint that guides them towards the correct formula or points out a likely math/sign error (e.g. forgetting a negative sign for leftward velocity, or not combining masses).
 CRITICAL: Do NOT give them the exact correct number. Make the hint fun and mention the ${theme.person} or ${theme.vehicle}!`;
 
-      const payload = {
+      const fullPayload = {
         contents: [{ parts: [{ text: prompt }] }],
       };
 
@@ -285,13 +292,22 @@ CRITICAL: Do NOT give them the exact correct number. Make the hint fun and menti
         ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`
         : '/api/gemini';
 
+      // Decide payload based on the endpoint
+      const requestBody = isPreview 
+        ? JSON.stringify(fullPayload) 
+        : JSON.stringify({ prompt: prompt });
+
       const data = await fetchWithRetry(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: requestBody
       });
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      // Extract text based on the shape of the response
+      const text = isPreview 
+        ? data.candidates?.[0]?.content?.parts?.[0]?.text 
+        : data.text;
+
       if (text) {
         setAiHint(text);
       }
