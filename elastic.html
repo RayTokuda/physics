@@ -345,6 +345,9 @@
                     <button id="btn-solution" onclick="showSolution()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-lg font-bold shadow border border-slate-300 transition hidden">
                         Show Final Overlay
                     </button>
+                    <button id="btn-show-score" onclick="showScoreScreen()" class="w-full bg-green-100 hover:bg-green-200 text-green-700 py-2 rounded-lg font-bold shadow border border-green-300 transition hidden">
+                        Show Final Score
+                    </button>
                 </div>
 
                 <!-- Feedback Area -->
@@ -440,7 +443,8 @@
             p1i: 0, p1fx: 0, p2fx: 0, p1fy: 0, p2fy: 0, th2f: 0,
             dots: [], maxTime: 5,
             answeredCorrectly: Array(14).fill(false),
-            usedSolution: false
+            usedSolution: false,
+            hasFinalScore: false
         };
 
         const questionLabels = [
@@ -675,7 +679,7 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
         }
 
         function generateScenario() {
-            totalErrors = 0; pState.usedSolution = false;
+            totalErrors = 0; pState.usedSolution = false; pState.hasFinalScore = false;
             
             // Reset UI
             document.getElementById('ai-theme-banner').classList.add('hidden');
@@ -745,6 +749,7 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
             
             document.getElementById('feedback-area').classList.add('hidden');
             document.getElementById('btn-solution').classList.add('hidden');
+            document.getElementById('btn-show-score').classList.add('hidden');
             clearPhantom(); playSimulation();
         }
 
@@ -846,6 +851,7 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
                 pState.answeredCorrectly[q-1] = true;
 
                 if (pState.answeredCorrectly.every(x => x) && !pState.usedSolution) {
+                    pState.hasFinalScore = true;
                     const fbArea = document.getElementById('feedback-area');
                     fbArea.classList.remove('hidden');
                     fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed correct-bg text-green-800 text-center";
@@ -853,13 +859,20 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
                     if (totalErrors === 0) { finalScore += 5; extraCreditHtml = "<span class='text-sm text-fuchsia-600 font-bold ml-2'>(+5 Extra Credit!)</span>"; } 
                     else if (totalErrors > 5) { finalScore = Math.max(0, 15 - (totalErrors - 5)); }
                     
-                    fbArea.innerHTML = `<p class="font-bold text-lg mb-2">🎉 Masterful Deduction! 🎉</p>
-                                        <p>You successfully tracked the hidden mass using strictly the laws of Conservation of Momentum.</p>
-                                        <div class="mt-4 p-3 bg-white rounded shadow border border-green-200 inline-block">
-                                            <p class="text-2xl font-black text-blue-600">Final Score: ${finalScore} / 15 ${extraCreditHtml}</p>
-                                            <p class="text-sm text-slate-500 font-bold mt-1">Total Errors Made: ${totalErrors}</p>
+                    fbArea.innerHTML = `<div id="score-content">
+                                            <p class="font-bold text-lg mb-2">🎉 Masterful Deduction! 🎉</p>
+                                            <p>You successfully tracked the hidden mass using strictly the laws of Conservation of Momentum.</p>
+                                            <div class="mt-4 p-3 bg-white rounded shadow border border-green-200 inline-block">
+                                                <p class="text-2xl font-black text-blue-600">Final Score: ${finalScore} / 15 ${extraCreditHtml}</p>
+                                                <p class="text-sm text-slate-500 font-bold mt-1">Total Errors Made: ${totalErrors}</p>
+                                            </div>
+                                            <div id="ai-review-text" class="mt-2"><span class="ai-spinner inline-block">⏳</span> Generating AI Review...</div>
                                         </div>
-                                        <div id="ai-review-text" class="mt-2"><span class="ai-spinner inline-block">⏳</span> Generating AI Review...</div>`;
+                                        <div id="solution-content" class="hidden">
+                                            <p class="font-bold text-lg mb-2">Solution Revealed 👀</p>
+                                            <p>All fields have been populated with the exact theoretical values.</p>
+                                            <p class="text-sm font-semibold text-slate-500 mt-2">Generate a New Scenario to try again!</p>
+                                        </div>`;
                     
                     shootConfettiSequence(5);
                     getAIPerformanceReview(); // Trigger Gemini call
@@ -912,9 +925,30 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
             const fbArea = document.getElementById('feedback-area');
             fbArea.classList.remove('hidden');
             fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed bg-slate-100 border-slate-300 text-slate-800 text-center shadow-inner";
-            fbArea.innerHTML = `<p class="font-bold text-lg mb-2">Solution Revealed 👀</p><p>All fields have been populated with the exact theoretical values.</p><p class="text-sm font-semibold text-slate-500 mt-2">Generate a New Scenario to try again!</p>`;
+            
+            if (pState.hasFinalScore) {
+                document.getElementById('score-content').classList.add('hidden');
+                document.getElementById('solution-content').classList.remove('hidden');
+                document.getElementById('btn-show-score').classList.remove('hidden');
+            } else {
+                fbArea.innerHTML = `<p class="font-bold text-lg mb-2">Solution Revealed 👀</p><p>All fields have been populated with the exact theoretical values.</p><p class="text-sm font-semibold text-slate-500 mt-2">Generate a New Scenario to try again!</p>`;
+            }
             
             document.getElementById('btn-solution').classList.add('hidden');
+            setTimeout(() => { const fc = document.getElementById('questions-form'); fc.scrollTo({ top: fc.scrollHeight, behavior: 'smooth' }); }, 200);
+        }
+
+        function showScoreScreen() {
+            const fbArea = document.getElementById('feedback-area');
+            fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed correct-bg text-green-800 text-center";
+            
+            document.getElementById('score-content').classList.remove('hidden');
+            document.getElementById('solution-content').classList.add('hidden');
+            
+            document.getElementById('btn-show-score').classList.add('hidden');
+            document.getElementById('btn-solution').classList.remove('hidden');
+            document.getElementById('btn-solution').innerText = "Show Final Overlay";
+            
             setTimeout(() => { const fc = document.getElementById('questions-form'); fc.scrollTo({ top: fc.scrollHeight, behavior: 'smooth' }); }, 200);
         }
 
