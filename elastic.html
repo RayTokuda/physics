@@ -366,11 +366,8 @@
                               window.location.hostname.includes('csb.app') || 
                               window.location.hostname.includes('preview') || 
                               apiKey !== "";
-
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: "You are a helpful physics tutor assistant. Be brief and engaging." }] }
-            };
+            
+            const systemInstruction = "You are a helpful physics tutor assistant. Be brief and engaging.";
 
             // Basic exponential backoff
             const delays = [1000, 2000, 4000, 8000, 16000];
@@ -380,6 +377,10 @@
                     if (isPreview && apiKey) {
                         // Call Gemini API directly (Canvas Preview environment)
                         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        const payload = {
+                            contents: [{ parts: [{ text: prompt }] }],
+                            systemInstruction: { parts: [{ text: systemInstruction }] }
+                        };
                         response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -387,11 +388,14 @@
                         });
                     } else {
                         // Call Backend API Route (Deployed Vercel environment)
+                        // Sending both prompt AND systemInstruction to perfectly match your Vercel backend
                         response = await fetch('/api/gemini', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            // Assuming backend expects the plain prompt. Modify if backend expects the full payload.
-                            body: JSON.stringify({ prompt: prompt }) 
+                            body: JSON.stringify({ 
+                                prompt: prompt,
+                                systemInstruction: systemInstruction 
+                            }) 
                         });
                     }
 
@@ -401,8 +405,8 @@
                     if (isPreview && apiKey) {
                         return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
                     } else {
-                        // Handle standard Vercel backend response format (adjust depending on how your /api/gemini returns data)
-                        return data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                        // Handle standard Vercel backend response format from your custom API route
+                        return data.text || "No response generated.";
                     }
                 } catch (e) {
                     if (i === 4) return "Looks like the AI is taking a quick break. Please try again in a moment!";
