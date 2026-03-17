@@ -360,55 +360,43 @@
         const apiKey = ""; 
 
         async function fetchGemini(prompt) {
-            // Determine if we are running locally/in Canvas preview or in a deployed environment (e.g., Vercel)
-            const isPreview = window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1' || 
-                              window.location.hostname.includes('csb.app') || 
-                              window.location.hostname.includes('preview') || 
-                              apiKey !== "";
-            
             const systemInstruction = "You are a helpful physics tutor assistant. Be brief and engaging.";
-
+            
             // Basic exponential backoff
             const delays = [1000, 2000, 4000, 8000, 16000];
             for (let i = 0; i < 5; i++) {
                 try {
-                    let response;
-                    if (isPreview && apiKey) {
-                        // Call Gemini API directly (Canvas Preview environment)
-                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                        const payload = {
-                            contents: [{ parts: [{ text: prompt }] }],
-                            systemInstruction: { parts: [{ text: systemInstruction }] }
-                        };
-                        response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                    } else {
-                        // Call Backend API Route (Deployed Vercel environment)
-                        // Sending both prompt AND systemInstruction to perfectly match your Vercel backend
-                        response = await fetch('/api/gemini', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                prompt: prompt,
-                                systemInstruction: systemInstruction 
-                            }) 
-                        });
+                    // Call Gemini API directly (Canvas Preview environment intercepts this)
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemInstruction }] }
+                    };
+                    
+                    // Force JSON response if we ask for a JSON object in the prompt
+                    if (prompt.includes("JSON object")) {
+                        payload.generationConfig = { responseMimeType: "application/json" };
                     }
 
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
                     
-                    if (isPreview && apiKey) {
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
-                    } else {
-                        // Handle standard Vercel backend response format from your custom API route
-                        return data.text || "No response generated.";
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        console.error("Gemini API Error:", errText);
+                        throw new Error(`HTTP ${response.status}`);
                     }
+                    
+                    const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("Empty response");
+                    return text;
+
                 } catch (e) {
+                    console.warn(`API Attempt ${i + 1} failed:`, e);
                     if (i === 4) return "Looks like the AI is taking a quick break. Please try again in a moment!";
                     await new Promise(r => setTimeout(r, delays[i]));
                 }
@@ -601,12 +589,36 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="ai-spinner">⏳</span> Thinking...`;
             banner.classList.remove('hidden');
-            txt.innerHTML = `Generating a creative scenario...`;
+            txt.innerHTML = `Generating a new theme and creative scenario...`;
 
-            const prompt = `Create a fun, creative 1-sentence scenario for a 2D elastic collision. Object 1 is ${pState.m1}kg (moving initially) and Object 2 is ${pState.m2}kg (stationary). Make it engaging (e.g., sci-fi, food, animals on ice). Do NOT include the math or velocity, just describe the two objects and the impending crash. Return only the sentence.`;
+            const prompt = `Create a fun, creative 1-sentence scenario for a 2D elastic collision. Object 1 is ${pState.m1}kg (moving initially) and Object 2 is ${pState.m2}kg (stationary). Make it engaging (e.g., sci-fi, food, animals on ice). Do NOT include the math or velocity. 
+            Return a JSON object with these exact properties:
+            - scenario: The 1-sentence story.
+            - bgHex: A soft hex color for the page background.
+            - bannerHex: A vivid hex color for the AI banner background.
+            - bannerTextHex: A hex color for the text inside the banner.`;
             
-            const story = await fetchGemini(prompt);
-            txt.innerHTML = story;
+            const responseText = await fetchGemini(prompt);
+            
+            try {
+                // If it fails but doesn't throw (e.g., returns the break message), JSON parse will fail and go to catch
+                const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const theme = JSON.parse(jsonStr);
+                
+                txt.innerHTML = theme.scenario;
+                
+                // Apply the theme colors dynamically
+                document.body.style.backgroundColor = theme.bgHex;
+                document.body.style.transition = 'background-color 0.5s ease';
+                
+                banner.style.background = theme.bannerHex;
+                txt.style.color = theme.bannerTextHex;
+                txt.style.transition = 'color 0.5s ease';
+                
+            } catch (e) {
+                // Fallback if parsing fails or error message is returned
+                txt.innerHTML = responseText;
+            }
             
             btn.disabled = false;
             btn.innerHTML = `✨ AI Theme`;
@@ -634,6 +646,11 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
             zone.innerHTML = `<div class="bg-fuchsia-50 border border-fuchsia-200 p-2 rounded text-xs text-slate-700">
                 <span class="font-bold text-fuchsia-700">✨ AI Tutor:</span> ${hint}
             </div>`;
+            
+            // Tell MathJax to render any LaTeX in the new AI response
+            if (window.MathJax) {
+                MathJax.typesetPromise([zone]).catch((err) => console.error("MathJax error:", err));
+            }
             
             btn.innerHTML = `✨ Get another AI Hint`;
             btn.disabled = false;
@@ -763,7 +780,13 @@ Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math
             const placeholderId = "ai-review-text";
             const prompt = `The user just finished a 14-step physics problem on 2D elastic collisions. They made ${totalErrors} mistakes along the way. Write a short, fun, encouraging 2-sentence congratulatory message acting as a quirky, passionate physics professor.`;
             const review = await fetchGemini(prompt);
-            document.getElementById(placeholderId).innerHTML = `<div class="mt-4 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded text-slate-700 italic text-sm shadow-sm"><span class="font-bold text-fuchsia-700">✨ Prof. Gemini:</span> "${review}"</div>`;
+            const reviewEl = document.getElementById(placeholderId);
+            reviewEl.innerHTML = `<div class="mt-4 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded text-slate-700 italic text-sm shadow-sm"><span class="font-bold text-fuchsia-700">✨ Prof. Gemini:</span> "${review}"</div>`;
+            
+            // Render any LaTeX the professor decides to use
+            if (window.MathJax) {
+                MathJax.typesetPromise([reviewEl]).catch((err) => console.error("MathJax error:", err));
+            }
         }
 
         function checkSingle(q) {
