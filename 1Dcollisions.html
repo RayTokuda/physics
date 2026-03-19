@@ -364,26 +364,37 @@
             pState.m1 = randInt(1, 5); pState.m2 = randInt(1, 5);
             let v1i, v2i, e;
 
+            // Velocities adjusted to guarantee dots remain within the 25m visible canvas for 4 seconds
             switch(currentLevel) {
-                case 1: v1i = randInt(2, 6); v2i = 0; e = 1; break; // Hit Stationary
-                case 2: v1i = randInt(2, 5); v2i = randInt(-5, -2); e = 1; break; // Head-on
-                case 3: v1i = randInt(5, 8); v2i = randInt(1, 3); e = 1; break; // Rear-end
-                case 4: pState.m1 = randInt(1, 2); pState.m2 = randInt(5, 8); v1i = randInt(4, 8); v2i = randInt(-2, 0); e = 1; break; // Rebound
-                case 5: v1i = randInt(2, 6); v2i = randInt(-4, 0); e = 0; break; // Inelastic
+                case 1: v1i = randInt(3, 5); v2i = 0; e = 1; break; // Hit Stationary
+                case 2: v1i = randInt(2, 4); v2i = randInt(-4, -2); e = 1; break; // Head-on
+                case 3: v1i = randInt(4, 5); v2i = randInt(1, 2); e = 1; break; // Rear-end
+                case 4: pState.m1 = randInt(1, 2); pState.m2 = randInt(5, 8); v1i = randInt(4, 6); v2i = randInt(-2, 0); e = 1; break; // Rebound
+                case 5: v1i = randInt(3, 5); v2i = randInt(-3, 0); e = 0; break; // Inelastic
             }
 
             pState.v1i = v1i; pState.v2i = v2i; pState.e = e;
 
-            let minXCol = 2 * v1i + 1;
-            let maxXCol = 24 + 2 * v2i;
-            let xCol = (minXCol <= maxXCol) ? Math.floor((minXCol + maxXCol) / 2) : 12;
+            // Calculate final velocities BEFORE positioning, so we can guarantee visibility 
+            pState.v1f = (pState.m1 * v1i + pState.m2 * v2i + pState.m2 * e * (v2i - v1i)) / (pState.m1 + pState.m2);
+            pState.v2f = (pState.m1 * v1i + pState.m2 * v2i + pState.m1 * e * (v1i - v2i)) / (pState.m1 + pState.m2);
+
+            // Compute smart safe bounds to ensure dots stay on screen (Canvas is ~25 meters wide)
+            // Ensures t=0 starting dots are on screen (>2)
+            let minXCol = 2 * v1i + 2; 
+            
+            // Ensures m2's starting dot is on screen (if coming from right)
+            let maxXCol = 24 + 2 * Math.min(0, v2i); 
+            
+            // Ensures m1's post-collision dots (up to t=4) stay on screen (<24)
+            let maxPostXCol = 24 - 2 * Math.max(0, pState.v1f); 
+            
+            let safeMaxX = Math.min(maxXCol, maxPostXCol);
+            let xCol = (minXCol <= safeMaxX) ? Math.floor((minXCol + safeMaxX) / 2) : Math.floor(minXCol);
 
             pState.tCollide = 2.0; pState.dt = 1.0; pState.maxTime = 5;
             pState.x1_start = xCol - v1i * pState.tCollide;
             pState.x2_start = xCol - v2i * pState.tCollide;
-
-            pState.v1f = (pState.m1 * v1i + pState.m2 * v2i + pState.m2 * e * (v2i - v1i)) / (pState.m1 + pState.m2);
-            pState.v2f = (pState.m1 * v1i + pState.m2 * v2i + pState.m1 * e * (v1i - v2i)) / (pState.m1 + pState.m2);
 
             pState.p1i = pState.m1 * v1i; pState.p2i = pState.m2 * v2i; pState.P_i = pState.p1i + pState.p2i;
             pState.p1f = pState.m1 * pState.v1f; pState.p2f = pState.m2 * pState.v2f; pState.P_f = pState.p1f + pState.p2f;
