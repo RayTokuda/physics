@@ -53,7 +53,7 @@
             <div class="bg-slate-800 text-white p-4 shrink-0 flex justify-between items-center flex-wrap gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-blue-400">1D Momentum Prediction Quiz</h1>
-                    <p class="text-sm text-slate-300">Measure visible dots ($\Delta t = 1.0s$), then <span class="text-fuchsia-300 font-bold">predict</span> the hidden final velocity.</p>
+                    <p class="text-sm text-slate-300">Measure visible dots ($\Delta t = 1.0s$), then <span class="text-fuchsia-300 font-bold">predict</span> the rest.</p>
                 </div>
                 <div class="flex gap-3 items-center">
                     <div id="level-indicator" class="bg-blue-600 border border-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-md text-sm tracking-wide">
@@ -71,10 +71,17 @@
                 <p id="ai-theme-text" class="italic font-medium leading-relaxed mt-0.5">Generating a creative scenario...</p>
             </div>
 
+            <!-- Equation Banner -->
+            <div class="bg-indigo-50 border-b border-indigo-200 p-2.5 text-center text-sm shadow-inner shrink-0 flex items-center justify-center flex-wrap gap-2">
+                <span class="font-bold text-indigo-800">Conservation of Momentum:</span> 
+                <span class="text-indigo-900 bg-white px-3 py-1 rounded border border-indigo-200 font-medium shadow-sm">
+                    $m_1 v_{1i} + m_2 v_{2i} = m_1 v_{1f} + m_2 v_{2f}$
+                </span>
+            </div>
+
             <!-- Canvas Container -->
             <div id="sim-container" class="relative bg-slate-50 flex-1 overflow-hidden flex items-center justify-center">
                 <div id="sim-wrapper" class="relative shrink-0 min-w-[800px] min-h-[320px] w-[800px] h-[320px]" style="transform-origin: center center;">
-                    <!-- Canvas for rendering grid, dots, and balls -->
                     <canvas id="simCanvas" width="800" height="320" class="absolute top-0 left-0 w-full h-full bg-[#f8fafc] shadow-sm cursor-crosshair"></canvas>
                     <div id="phantom-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-40"></div>
                 </div>
@@ -97,127 +104,40 @@
             <div class="bg-slate-100 p-4 border-b border-slate-200 shrink-0 flex justify-between items-center">
                 <div>
                     <h2 id="scenario-title" class="text-xl font-bold text-slate-800">Scenario 1 Analysis</h2>
-                    <p class="text-xs text-slate-500 mt-1">Hover over dots to measure. $m_2$'s final dots are hidden!</p>
+                    <p id="scenario-desc" class="text-xs text-slate-500 mt-1">Hover over dots to measure. $m_2$'s final dots are hidden!</p>
                 </div>
             </div>
             
             <div class="p-4 overflow-y-auto scroller flex-1 space-y-3" id="questions-form">
                 
-                <!-- Dynamic Question Blocks -->
-                <div class="q-block" id="block-1">
-                    <label class="font-bold text-slate-700 text-sm">1. Initial Velocity of $m_1$ ($v_{1i}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-1" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(1)" onkeydown="if(event.key==='Enter') checkSingle(1)">
-                        <span class="text-xs text-slate-500 w-10">m/s</span>
-                        <button id="btn-check-1" onclick="checkSingle(1)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-1" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-1" class="hidden mt-2"><div id="feedback-1" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-1" class="mt-2"></div></div>
+                <div id="predict-header-5" class="hidden mt-2 mb-1">
+                    <h3 class="font-black text-fuchsia-600 uppercase tracking-widest text-xs border-b border-fuchsia-200 pb-1">Deduction & Prediction (Stuck Together)</h3>
                 </div>
 
-                <div class="q-block" id="block-2">
-                    <label class="font-bold text-slate-700 text-sm">2. Initial Velocity of $m_2$ ($v_{2i}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-2" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(2)" onkeydown="if(event.key==='Enter') checkSingle(2)">
-                        <span class="text-xs text-slate-500 w-10">m/s</span>
-                        <button id="btn-check-2" onclick="checkSingle(2)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-2" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-2" class="hidden mt-2"><div id="feedback-2" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-2" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block" id="block-3">
-                    <label class="font-bold text-slate-700 text-sm">3. Initial Momentum of $m_1$ ($p_{1i}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-3" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(3)" onkeydown="if(event.key==='Enter') checkSingle(3)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-3" onclick="checkSingle(3)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-3" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-3" class="hidden mt-2"><div id="feedback-3" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-3" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block" id="block-4">
-                    <label class="font-bold text-slate-700 text-sm">4. Initial Momentum of $m_2$ ($p_{2i}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-4" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(4)" onkeydown="if(event.key==='Enter') checkSingle(4)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-4" onclick="checkSingle(4)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-4" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-4" class="hidden mt-2"><div id="feedback-4" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-4" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block" id="block-5">
-                    <label class="font-bold text-slate-700 text-sm">5. Total Initial Momentum ($P_i$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-5" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(5)" onkeydown="if(event.key==='Enter') checkSingle(5)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-5" onclick="checkSingle(5)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-5" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-5" class="hidden mt-2"><div id="feedback-5" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-5" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block" id="block-6">
-                    <label class="font-bold text-slate-700 text-sm">6. Final Velocity of $m_1$ ($v_{1f}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-6" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(6)" onkeydown="if(event.key==='Enter') checkSingle(6)">
-                        <span class="text-xs text-slate-500 w-10">m/s</span>
-                        <button id="btn-check-6" onclick="checkSingle(6)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-6" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-6" class="hidden mt-2"><div id="feedback-6" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-6" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block" id="block-7">
-                    <label class="font-bold text-slate-700 text-sm">7. Final Momentum of $m_1$ ($p_{1f}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-7" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(7)" onkeydown="if(event.key==='Enter') checkSingle(7)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-7" onclick="checkSingle(7)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-7" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-7" class="hidden mt-2"><div id="feedback-7" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-7" class="mt-2"></div></div>
-                </div>
-
-                <!-- PREDICTION SECTION -->
-                <div class="mt-4 mb-2">
-                    <h3 class="font-black text-fuchsia-600 uppercase tracking-widest text-xs border-b border-fuchsia-200 pb-1">Deduction & Prediction</h3>
-                </div>
-
-                <div class="q-block border-fuchsia-200" id="block-8">
-                    <label class="font-bold text-slate-700 text-sm">8. Predicted Total Final Momentum ($P_f$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-8" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-fuchsia-400 outline-none" step="0.1" oninput="clearStatus(8)" onkeydown="if(event.key==='Enter') checkSingle(8)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-8" onclick="checkSingle(8)" class="bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-8" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-8" class="hidden mt-2"><div id="feedback-8" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-8" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block border-fuchsia-200" id="block-9">
-                    <label class="font-bold text-slate-700 text-sm">9. Predicted Final Momentum of $m_2$ ($p_{2f}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-9" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-fuchsia-400 outline-none" step="0.1" oninput="clearStatus(9)" onkeydown="if(event.key==='Enter') checkSingle(9)">
-                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
-                        <button id="btn-check-9" onclick="checkSingle(9)" class="bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-9" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-9" class="hidden mt-2"><div id="feedback-9" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-9" class="mt-2"></div></div>
-                </div>
-
-                <div class="q-block border-fuchsia-200" id="block-10">
-                    <label class="font-bold text-slate-700 text-sm">10. Predicted Final Velocity of $m_2$ ($v_{2f}$)</label>
-                    <div class="flex items-center gap-2 mt-1">
-                        <input type="number" id="ans-10" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-fuchsia-400 outline-none" step="0.1" oninput="clearStatus(10)" onkeydown="if(event.key==='Enter') checkSingle(10)">
-                        <span class="text-xs text-slate-500 w-10">m/s</span>
-                        <button id="btn-check-10" onclick="checkSingle(10)" class="bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
-                        <span id="status-10" class="font-bold text-lg ml-1"></span>
-                    </div>
-                    <div id="feedback-container-10" class="hidden mt-2"><div id="feedback-10" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div><div id="ai-hint-zone-10" class="mt-2"></div></div>
-                </div>
+                <!-- Dynamic Question Blocks 1 to 10 generated identically, labeled via JS -->
+                <script>
+                    for(let i=1; i<=10; i++) {
+                        document.write(`
+                        <div class="q-block" id="block-${i}">
+                            <label id="label-${i}" class="font-bold text-slate-700 text-sm">Question ${i}</label>
+                            <div class="flex items-center gap-2 mt-1">
+                                <input type="number" id="ans-${i}" class="w-24 px-2 py-1 border rounded focus:ring-2 outline-none" step="0.1" oninput="clearStatus(${i})" onkeydown="if(event.key==='Enter') checkSingle(${i})">
+                                <span id="unit-${i}" class="text-xs text-slate-500 w-10">units</span>
+                                <button id="btn-check-${i}" onclick="checkSingle(${i})" class="px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                                <span id="status-${i}" class="font-bold text-lg ml-1"></span>
+                            </div>
+                            <div id="feedback-container-${i}" class="hidden mt-2"><div id="feedback-${i}" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200 leading-relaxed"></div><div id="ai-hint-zone-${i}" class="mt-2"></div></div>
+                        </div>
+                        `);
+                        if (i === 7) {
+                            document.write(`
+                            <div id="predict-header-standard" class="hidden mt-4 mb-2">
+                                <h3 class="font-black text-fuchsia-600 uppercase tracking-widest text-xs border-b border-fuchsia-200 pb-1">Deduction & Prediction</h3>
+                            </div>
+                            `);
+                        }
+                    }
+                </script>
 
                 <!-- Actions -->
                 <div class="pt-4 border-t border-slate-200 flex flex-col gap-3">
@@ -233,7 +153,7 @@
                 </div>
 
                 <!-- Feedback Area -->
-                <div id="feedback-area" class="mt-4 hidden p-4 rounded-xl border text-sm leading-relaxed mb-4"></div>
+                <div id="feedback-area" class="mt-4 hidden p-4 rounded-xl border leading-relaxed mb-4"></div>
                 
             </div>
         </div>
@@ -253,8 +173,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt, systemInstruction })
                 });
-                
-                if (vercelRes.ok && vercelRes.headers.get('content-type')?.includes('application/json')) {
+                if (vercelRes.ok) {
                     const data = await vercelRes.json();
                     if (data.text) return data.text;
                 }
@@ -273,19 +192,13 @@
                     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const data = await response.json();
-                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!text) throw new Error("Empty response");
-                    return text;
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
                 } catch (e) {
                     if (i === 4) return "Looks like the AI is taking a quick break. Please try again in a moment!";
                     await new Promise(r => setTimeout(r, delays[i]));
                 }
             }
         }
-
-        // --- Congratulatory Messages ---
-        const intros = ["Brilliant!", "Outstanding!", "Exceptional work!", "Spot on!", "Phenomenal!", "Great job!", "Nailed it!", "Fantastic!", "Superb!", "Masterful!"];
-        const outtros = ["You're a momentum master.", "Physics is your superpower.", "Isaac Newton would be proud.", "You crushed those calculations.", "Your kinetic energy is off the charts.", "Keep up the amazing work."];
 
         // --- Constants & Globals ---
         const SCALE = 32; // 32 pixels = 1 meter
@@ -294,7 +207,6 @@
         let isPlaying = false;
         let animFrame;
         
-        // Quiz State
         let currentLevel = 1;
         const maxLevels = 5;
         let globalErrors = 0;
@@ -308,30 +220,59 @@
             p1i: 0, p2i: 0, P_i: 0, p1f: 0, p2f: 0, P_f: 0,
             x1_start: 0, x2_start: 0, tCollide: 2.0, maxTime: 5,
             dots: [], answeredCorrectly: Array(10).fill(false),
-            usedSolution: false, hasFinalScore: false, showHiddenDots: false
+            showHiddenDots: false
         };
 
         const scenarioNames = [
             "Hit Stationary Particle", "Head-on Collision", "Rear-end Collision", "Rebound Collision", "Completely Inelastic"
         ];
 
-        const questionLabels = [
-            "Initial Velocity of m1", "Initial Velocity of m2", "Initial Momentum of m1", "Initial Momentum of m2",
-            "Total Initial Momentum", "Final Velocity of m1", "Final Momentum of m1", 
-            "Predicted Total Final Momentum", "Predicted Final Momentum of m2", "Predicted Final Velocity of m2"
+        // Question Configurations
+        const qStandard = [
+            { label: "1. Initial Velocity of $m_1$ ($v_{1i}$)", unit: "m/s", exactFn: () => pState.v1i },
+            { label: "2. Initial Velocity of $m_2$ ($v_{2i}$)", unit: "m/s", exactFn: () => pState.v2i },
+            { label: "3. Initial Momentum of $m_1$ ($p_{1i}$)", unit: "kg·m/s", exactFn: () => pState.p1i },
+            { label: "4. Initial Momentum of $m_2$ ($p_{2i}$)", unit: "kg·m/s", exactFn: () => pState.p2i },
+            { label: "5. Total Initial Momentum ($P_i$)", unit: "kg·m/s", exactFn: () => pState.P_i },
+            { label: "6. Final Velocity of $m_1$ ($v_{1f}$)", unit: "m/s", exactFn: () => pState.v1f },
+            { label: "7. Final Momentum of $m_1$ ($p_{1f}$)", unit: "kg·m/s", exactFn: () => pState.p1f },
+            { label: "8. Predicted Total Final Momentum ($P_f$)", unit: "kg·m/s", exactFn: () => pState.P_f },
+            { label: "9. Predicted Final Momentum of $m_2$ ($p_{2f}$)", unit: "kg·m/s", exactFn: () => pState.p2f },
+            { label: "10. Predicted Final Velocity of $m_2$ ($v_{2f}$)", unit: "m/s", exactFn: () => pState.v2f }
         ];
-        
-        const hints = [
-            "Measure distance between red dots before collision.", 
-            "Measure distance between blue dots before collision. Watch the sign!",
-            "Multiply m1 by v1i.", 
-            "Multiply m2 by v2i.",
-            "Add p1i and p2i together.",
-            "Measure distance between red dots after collision. Watch the sign!",
-            "Multiply m1 by v1f.",
-            "Conservation of momentum! Total Initial = Total Final.",
+
+        const qInelastic = [
+            { label: "1. Initial Velocity of $m_1$ ($v_{1i}$)", unit: "m/s", exactFn: () => pState.v1i },
+            { label: "2. Initial Velocity of $m_2$ ($v_{2i}$)", unit: "m/s", exactFn: () => pState.v2i },
+            { label: "3. Initial Momentum of $m_1$ ($p_{1i}$)", unit: "kg·m/s", exactFn: () => pState.p1i },
+            { label: "4. Initial Momentum of $m_2$ ($p_{2i}$)", unit: "kg·m/s", exactFn: () => pState.p2i },
+            { label: "5. Total Initial Momentum ($P_i$)", unit: "kg·m/s", exactFn: () => pState.P_i },
+            { label: "6. Predicted Total Final Momentum ($P_f$)", unit: "kg·m/s", exactFn: () => pState.P_f },
+            { label: "7. Total Combined Mass ($m_{total}$)", unit: "kg", exactFn: () => pState.m1 + pState.m2 },
+            { label: "8. Predicted Final Velocity ($v_f$)", unit: "m/s", exactFn: () => pState.v2f },
+            { label: "9. Predicted Final Momentum of $m_1$ ($p_{1f}$)", unit: "kg·m/s", exactFn: () => pState.m1 * pState.v2f },
+            { label: "10. Predicted Final Momentum of $m_2$ ($p_{2f}$)", unit: "kg·m/s", exactFn: () => pState.m2 * pState.v2f }
+        ];
+
+        const hintStandard = [
+            "Measure distance between red dots before collision. Wait 1 second = 1 dot gap.", 
+            "Measure distance between blue dots before collision.",
+            "Multiply m1 by v1i.", "Multiply m2 by v2i.", "Add p1i and p2i together.",
+            "Measure distance between red dots after collision.",
+            "Multiply m1 by v1f.", "Conservation of momentum! Total Initial = Total Final.",
             "If you know Total Final, and p1f, what must p2f be to balance?",
             "Divide p2f by m2 to find the final velocity."
+        ];
+
+        const hintInelastic = [
+            "Measure distance between red dots before collision.", 
+            "Measure distance between blue dots before collision.",
+            "Multiply m1 by v1i.", "Multiply m2 by v2i.", "Add p1i and p2i together.",
+            "Conservation of momentum! Total Initial = Total Final.",
+            "Add the masses of the two objects together.",
+            "Divide Total Final Momentum by the Total Combined Mass.",
+            "Multiply m1 by the final velocity you just found.",
+            "Multiply m2 by the final velocity you just found."
         ];
 
         function cy(y) { return y * SCALE; }
@@ -342,29 +283,24 @@
             const container = document.getElementById('sim-container');
             const wrapper = document.getElementById('sim-wrapper');
             if (!container || !wrapper) return;
-            const scaleX = container.clientWidth / 800;
-            const scaleY = container.clientHeight / 320;
-            currentScale = Math.min(scaleX, scaleY, 0.95);
+            currentScale = Math.min(container.clientWidth / 800, container.clientHeight / 320, 0.95);
             wrapper.style.transform = `scale(${currentScale})`;
         }
 
         function init() {
             handleResize(); window.addEventListener('resize', handleResize); 
             
-            // Hover Tooltip Logic
             const simCanvas = document.getElementById('simCanvas');
             simCanvas.addEventListener('pointermove', (e) => {
                 const rect = simCanvas.getBoundingClientRect();
-                const mx = ((e.clientX - rect.left) / currentScale) / SCALE; // mouse X in meters
-                const my = ((e.clientY - rect.top) / currentScale) / SCALE;  // mouse Y in meters
+                const mx = ((e.clientX - rect.left) / currentScale) / SCALE;
+                const my = ((e.clientY - rect.top) / currentScale) / SCALE;  
                 
                 hoverDot = null;
                 for (let d of pState.dots) {
                     if (simTime < d.t) continue;
                     if (d.hidden && !pState.showHiddenDots) continue; 
-                    const dx = d.x - mx;
-                    const dy = d.y - my;
-                    if (dx*dx + dy*dy < 0.15) { hoverDot = d; break; }
+                    if (Math.pow(d.x - mx, 2) + Math.pow(d.y - my, 2) < 0.15) { hoverDot = d; break; }
                 }
             });
 
@@ -372,14 +308,11 @@
         }
 
         function startQuiz() {
-            currentLevel = 1;
-            globalErrors = 0;
+            currentLevel = 1; globalErrors = 0;
             document.getElementById('feedback-area').classList.add('hidden');
-            document.getElementById('feedback-area').innerHTML = '';
             generateScenario();
         }
 
-        // --- AI Features ---
         async function generateAITheme() {
             const btn = document.getElementById('btn-ai-theme');
             const banner = document.getElementById('ai-theme-banner');
@@ -388,8 +321,7 @@
             btn.disabled = true; btn.innerHTML = `<span class="ai-spinner">⏳</span> Thinking...`;
             banner.classList.remove('hidden'); txt.innerHTML = `Generating a new theme...`;
 
-            const prompt = `Create a fun, creative 1-sentence scenario for a 1D physics collision. Object 1 is ${pState.m1}kg and Object 2 is ${pState.m2}kg. Make it engaging (e.g., sci-fi, food, animals on a track). Do NOT include the math. 
-            Return a JSON object: { "scenario": "string", "bgHex": "soft hex color", "bannerHex": "vivid hex color", "bannerTextHex": "hex color for text" }`;
+            const prompt = `Create a fun, creative 1-sentence scenario for a 1D physics collision. Object 1 is ${pState.m1}kg and Object 2 is ${pState.m2}kg. Make it engaging (sci-fi, food, animals on track). Do NOT include math. Return JSON: { "scenario": "string", "bgHex": "soft hex color", "bannerHex": "vivid hex color", "bannerTextHex": "hex color for text" }`;
             
             const responseText = await fetchGemini(prompt);
             try {
@@ -407,15 +339,10 @@
         async function getAIHint(qNum, userVal, exact, hintText) {
             const btn = document.getElementById(`btn-ai-hint-${qNum}`);
             const zone = document.getElementById(`ai-hint-zone-${qNum}`);
-            
             btn.disabled = true; btn.innerHTML = `<span class="ai-spinner">⏳</span> Consulting AI...`; zone.innerHTML = '';
             
-            const prompt = `The user is solving a 1D physics collision problem. 
-Question: "${questionLabels[qNum-1]}". 
-The true answer is ${exact.toFixed(3)}. The user guessed ${userVal}. 
-Context: m1=${pState.m1}kg, m2=${pState.m2}kg. 
-Standard hint was: "${hintText}". 
-Give an encouraging 1-2 sentence hint. Point out their specific math mistake if obvious based on their guess (e.g., wrong sign, forgot mass). Do NOT reveal the exact answer.`;
+            const currentQ = currentLevel === 5 ? qInelastic : qStandard;
+            const prompt = `User is solving a 1D collision. Question: "${currentQ[qNum-1].label}". True answer is ${exact.toFixed(3)}. User guessed ${userVal}. Context: m1=${pState.m1}kg, m2=${pState.m2}kg. Standard hint was: "${hintText}". Give an encouraging 1-2 sentence hint. Point out their specific math mistake if obvious. Do NOT reveal the exact answer.`;
 
             const hint = await fetchGemini(prompt);
             zone.innerHTML = `<div class="bg-fuchsia-50 border border-fuchsia-200 p-2 rounded text-xs text-slate-700 mt-2"><span class="font-bold text-fuchsia-700">✨ AI Tutor:</span> ${hint}</div>`;
@@ -423,39 +350,26 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
             
             btn.innerHTML = `✨ Get another AI Hint`; btn.disabled = false;
         }
-        
-        async function getAIPerformanceReview() {
-            const placeholderId = "ai-review-text";
-            const prompt = `The user just finished a 5-scenario physics quiz predicting 1D collisions using conservation of momentum. They answered 50 total questions and made ${globalErrors} total mistakes. Write a short, fun, encouraging 2-sentence congratulatory message acting as a quirky, passionate physics professor grading their final exam.`;
-            const review = await fetchGemini(prompt);
-            const reviewEl = document.getElementById(placeholderId);
-            if (reviewEl) {
-                reviewEl.innerHTML = `<div class="mt-4 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded text-slate-700 italic text-sm shadow-sm"><span class="font-bold text-fuchsia-700">✨ Prof. Gemini:</span> "${review}"</div>`;
-            }
-        }
 
-        // --- Core Application Logic ---
         function generateScenario() {
-            pState.usedSolution = false; pState.hasFinalScore = false; pState.showHiddenDots = false;
-            
+            pState.showHiddenDots = false;
             document.getElementById('ai-theme-banner').classList.add('hidden');
-            document.body.style.backgroundColor = '#f8fafc'; // Reset background
+            document.body.style.backgroundColor = '#f8fafc';
             
             document.getElementById('level-indicator').innerText = `Scenario ${currentLevel} / ${maxLevels}`;
             document.getElementById('scenario-title').innerText = `Scenario ${currentLevel}: ${scenarioNames[currentLevel - 1]}`;
             
             stopConfetti();
             
-            const type = currentLevel;
             pState.m1 = randInt(1, 5); pState.m2 = randInt(1, 5);
             let v1i, v2i, e;
 
-            switch(type) {
-                case 1: v1i = randInt(2, 6); v2i = 0; e = 1; break; // Hit Stationary Particle
-                case 2: v1i = randInt(2, 5); v2i = randInt(-5, -2); e = 1; break; // Head-on Collision
-                case 3: v1i = randInt(5, 8); v2i = randInt(1, 3); e = 1; break; // Rear-end Collision
-                case 4: pState.m1 = randInt(1, 2); pState.m2 = randInt(5, 8); v1i = randInt(4, 8); v2i = randInt(-2, 0); e = 1; break; // Rebound Collision
-                case 5: v1i = randInt(2, 6); v2i = randInt(-4, 0); e = 0; break; // Completely Inelastic
+            switch(currentLevel) {
+                case 1: v1i = randInt(2, 6); v2i = 0; e = 1; break; // Hit Stationary
+                case 2: v1i = randInt(2, 5); v2i = randInt(-5, -2); e = 1; break; // Head-on
+                case 3: v1i = randInt(5, 8); v2i = randInt(1, 3); e = 1; break; // Rear-end
+                case 4: pState.m1 = randInt(1, 2); pState.m2 = randInt(5, 8); v1i = randInt(4, 8); v2i = randInt(-2, 0); e = 1; break; // Rebound
+                case 5: v1i = randInt(2, 6); v2i = randInt(-4, 0); e = 0; break; // Inelastic
             }
 
             pState.v1i = v1i; pState.v2i = v2i; pState.e = e;
@@ -476,42 +390,61 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
 
             pState.dots = [];
             
-            // Rebound Offset Logic
-            let y1_post = 4.3; 
-            if (v1i * pState.v1f < 0) y1_post = 4.7; 
-            
-            let y2_post = 5.3;
-            if (v2i * pState.v2f < 0) y2_post = 5.7;
+            let y1_post = (v1i * pState.v1f < 0) ? 4.7 : 4.3; 
+            let y2_post = (v2i * pState.v2f < 0) ? 5.7 : 5.3;
 
             for (let t = 0; t <= pState.maxTime; t += pState.dt) {
                 if (t <= pState.tCollide) {
                     pState.dots.push({ obj: 'm1', x: pState.x1_start + v1i * t, y: 4.3, t: t, hidden: false });
                     pState.dots.push({ obj: 'm2', x: pState.x2_start + v2i * t, y: 5.3, t: t, hidden: false });
                 } else {
-                    pState.dots.push({ obj: 'm1', x: pState.x1_start + v1i * pState.tCollide + pState.v1f * (t - pState.tCollide), y: y1_post, t: t, hidden: false });
-                    pState.dots.push({ obj: 'm2', x: pState.x2_start + v2i * pState.tCollide + pState.v2f * (t - pState.tCollide), y: y2_post, t: t, hidden: true });
+                    if (currentLevel !== 5) { // Inelastic: zero dots after collision
+                        pState.dots.push({ obj: 'm1', x: pState.x1_start + v1i * pState.tCollide + pState.v1f * (t - pState.tCollide), y: y1_post, t: t, hidden: false });
+                        pState.dots.push({ obj: 'm2', x: pState.x2_start + v2i * pState.tCollide + pState.v2f * (t - pState.tCollide), y: y2_post, t: t, hidden: true });
+                    }
                 }
             }
 
             document.getElementById('val-m1').innerText = pState.m1; document.getElementById('val-m2').innerText = pState.m2;
 
+            // Prepare DOM Headers & Descriptions based on Level
+            const isInelastic = currentLevel === 5;
+            document.getElementById('scenario-desc').innerHTML = isInelastic ? 
+                "Hover over dots to measure. <b class='text-fuchsia-600'>Masses STICK TOGETHER</b> after collision! Predict the final state." : 
+                "Hover over dots to measure. $m_2$'s final dots are hidden!";
+            
+            document.getElementById('predict-header-5').style.display = isInelastic ? 'block' : 'none';
+            document.getElementById('predict-header-standard').style.display = isInelastic ? 'none' : 'block';
+
+            const qList = isInelastic ? qInelastic : qStandard;
+
             for(let i=1; i<=10; i++) {
+                document.getElementById(`label-${i}`).innerHTML = qList[i-1].label;
+                document.getElementById(`unit-${i}`).innerHTML = qList[i-1].unit;
+                
                 let el = document.getElementById(`ans-${i}`);
-                el.value = ''; el.disabled = false; el.className = `w-24 px-2 py-1 border rounded outline-none focus:ring-2 ${i >= 8 ? 'focus:ring-fuchsia-400' : 'focus:ring-blue-400'}`;
+                el.value = ''; el.disabled = false; 
+                let isPrediction = (isInelastic && i >= 6) || (!isInelastic && i >= 8);
+                
+                el.className = `w-24 px-2 py-1 border rounded outline-none focus:ring-2 ${isPrediction ? 'focus:ring-fuchsia-400 border-fuchsia-200' : 'focus:ring-blue-400 border-slate-300'}`;
+                
                 let btn = document.getElementById(`btn-check-${i}`);
                 btn.disabled = false; btn.innerText = "Check";
-                btn.className = i >= 8 ? "bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-3 py-1 rounded font-semibold text-sm transition" : "bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition";
+                btn.className = isPrediction ? "bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-3 py-1 rounded font-semibold text-sm transition" : "bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition";
+                
                 document.getElementById(`status-${i}`).innerText = '';
                 document.getElementById(`feedback-container-${i}`).classList.add('hidden');
                 document.getElementById(`ai-hint-zone-${i}`).innerHTML = '';
             }
+
             pState.answeredCorrectly.fill(false);
             
             document.getElementById('btn-solution').classList.add('hidden');
             document.getElementById('btn-next-scenario').classList.add('hidden');
             document.getElementById('btn-show-score').classList.add('hidden');
             
-            document.getElementById('phantom-layer').innerHTML = ''; 
+            MathJax.typesetPromise([document.getElementById('questions-form'), document.getElementById('scenario-desc')]).catch(e => console.error(e));
+            
             playSimulation();
         }
 
@@ -528,10 +461,10 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
             ctx.clearRect(0, 0, 800, 320); 
             ctx.save(); ctx.translate(0.5, 0.5); 
             
-            if (!pState.showHiddenDots) {
+            if (!pState.showHiddenDots && currentLevel !== 5) {
                 ctx.fillStyle = '#64748b'; ctx.font = 'italic 12px sans-serif'; ctx.textAlign = 'left';
-                ctx.fillText("⚠️ m2 post-collision dots hidden for momentum prediction test.", 10, 20);
-            } else {
+                ctx.fillText("⚠️ m2 post-collision dots hidden for prediction test.", 10, 20);
+            } else if (pState.showHiddenDots && currentLevel !== 5) {
                 ctx.fillStyle = '#10b981'; ctx.font = 'italic 12px sans-serif'; ctx.textAlign = 'left';
                 ctx.fillText("✅ Prediction Verified! Hidden dots revealed.", 10, 20);
             }
@@ -564,7 +497,7 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
                 }
             });
 
-            // Calculate exact position
+            // Calculate ball position
             let x1, x2;
             if (simTime < pState.tCollide) {
                 x1 = pState.x1_start + pState.v1i * simTime;
@@ -574,6 +507,10 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
                 x1 = (pState.x1_start + pState.v1i * pState.tCollide) + pState.v1f * dt_post;
                 x2 = (pState.x2_start + pState.v2i * pState.tCollide) + pState.v2f * dt_post;
             }
+
+            // Inelastic combination visual offset
+            let dx1 = 0, dx2 = 0;
+            if (currentLevel === 5 && simTime >= pState.tCollide) { dx1 = -0.3; dx2 = 0.3; }
 
             // Hover Box
             if (hoverDot && simTime >= hoverDot.t) {
@@ -589,11 +526,11 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
             }
 
             // Balls
-            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(cx(x1), cy(5), 14, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#b91c1c'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = 'white'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m1', cx(x1), cy(5));
+            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(cx(x1 + dx1), cy(5), 14, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#b91c1c'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m1', cx(x1 + dx1), cy(5));
 
-            ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(cx(x2), cy(5), 14, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = 'white'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m2', cx(x2), cy(5));
+            ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(cx(x2 + dx2), cy(5), 14, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m2', cx(x2 + dx2), cy(5));
 
             simTime += 1 / FPS; 
             if (simTime <= pState.maxTime) animFrame = requestAnimationFrame(renderLoop); else isPlaying = false;
@@ -612,12 +549,16 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
             const val = parseFloat(inputEl.value);
             if (isNaN(val)) return;
 
-            const exactVals = [pState.v1i, pState.v2i, pState.p1i, pState.p2i, pState.P_i, pState.v1f, pState.p1f, pState.P_f, pState.p2f, pState.v2f];
-            const exact = exactVals[qNum-1];
+            const qList = currentLevel === 5 ? qInelastic : qStandard;
+            const exact = qList[qNum-1].exactFn();
             
-            // Allow ~0.2 absolute error 
+            // Success (margin of error 0.21 handles standard measuring fuzz)
             if (Math.abs(val - exact) <= 0.21) {
                 pState.answeredCorrectly[qNum-1] = true;
+                
+                // CRITICAL: Overwrite with exact value to stop error propagation!
+                inputEl.value = (Number.isInteger(exact) || exact % 1 === 0) ? exact : parseFloat(exact.toFixed(2));
+                
                 inputEl.disabled = true;
                 inputEl.className = `w-24 px-2 py-1 border rounded bg-green-50 border-green-500 text-green-800 font-bold outline-none`;
                 document.getElementById(`status-${qNum}`).innerText = '✅';
@@ -629,18 +570,15 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
                 btn.innerText = "Correct";
 
                 if (qNum === 10) {
-                    document.getElementById('btn-solution').classList.remove('hidden');
-                    // Scroll to bottom to see buttons
-                    setTimeout(() => {
-                        const qForm = document.getElementById('questions-form');
-                        qForm.scrollTop = qForm.scrollHeight;
-                    }, 100);
+                    if (currentLevel !== 5) document.getElementById('btn-solution').classList.remove('hidden');
+                    else document.getElementById(currentLevel < maxLevels ? 'btn-next-scenario' : 'btn-show-score').classList.remove('hidden');
+                    setTimeout(() => { const qForm = document.getElementById('questions-form'); qForm.scrollTop = qForm.scrollHeight; }, 100);
                 } else {
                     const nextEl = document.getElementById(`ans-${qNum+1}`);
                     if(nextEl) nextEl.focus();
                 }
             } else {
-                globalErrors++; // Track global errors for the whole quiz
+                globalErrors++; // Track global errors
                 inputEl.classList.add('bg-red-100', 'border-red-500');
                 document.getElementById(`status-${qNum}`).innerText = '❌';
                 
@@ -648,77 +586,118 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
                 const fbText = document.getElementById(`feedback-${qNum}`);
                 fbContainer.classList.remove('hidden');
                 
-                let hintHtml = `<span class="font-bold text-red-800">Incorrect.</span> ${hints[qNum-1]}`;
+                let hintHtml = `<span class="font-bold text-red-800">Incorrect.</span> `;
+                let hasSpecificError = false;
+
+                // Error Type 1: Sign Error
+                if (Math.abs(val + exact) <= 0.21 && exact !== 0) {
+                    hintHtml += `<br><span class="font-bold text-orange-600">Sign Error!</span> Remember, velocities and momentums to the <b>left are negative</b>.`;
+                    hasSpecificError = true;
+                }
+
+                // Error Type 2: Wrong Mass or Velocity
+                const checkWrongParams = (mCorrect, vCorrect, mWrong, vWrong) => {
+                    if (Math.abs(val - (mWrong * vCorrect)) <= 0.21) {
+                        hintHtml += `<br><span class="font-bold text-orange-600">Wrong Mass!</span> It looks like you calculated momentum using the other object's mass.`;
+                        hasSpecificError = true;
+                    } else if (Math.abs(val - (mCorrect * vWrong)) <= 0.21) {
+                        hintHtml += `<br><span class="font-bold text-orange-600">Wrong Velocity!</span> It looks like you calculated momentum using the other object's velocity.`;
+                        hasSpecificError = true;
+                    }
+                };
+
+                if (!hasSpecificError) {
+                    if (currentLevel !== 5) {
+                        if (qNum === 3) checkWrongParams(pState.m1, pState.v1i, pState.m2, pState.v2i);
+                        if (qNum === 4) checkWrongParams(pState.m2, pState.v2i, pState.m1, pState.v1i);
+                        if (qNum === 7) checkWrongParams(pState.m1, pState.v1f, pState.m2, pState.v2f);
+                        if (qNum === 9) checkWrongParams(pState.m2, pState.v2f, pState.m1, pState.v1f);
+                    } else {
+                        if (qNum === 3) checkWrongParams(pState.m1, pState.v1i, pState.m2, pState.v2i);
+                        if (qNum === 4) checkWrongParams(pState.m2, pState.v2i, pState.m1, pState.v1i);
+                        if (qNum === 9) checkWrongParams(pState.m1, pState.v2f, pState.m2, pState.v2f); // v2f is final vel for both here
+                        if (qNum === 10) checkWrongParams(pState.m2, pState.v2f, pState.m1, pState.v2f);
+                    }
+                }
+
+                // Default Hint Fallback
+                const baseHints = currentLevel === 5 ? hintInelastic : hintStandard;
+                if (!hasSpecificError) hintHtml += baseHints[qNum-1];
+                
                 fbText.innerHTML = hintHtml;
                 
                 const hintZone = document.getElementById(`ai-hint-zone-${qNum}`);
                 if (!hintZone.innerHTML.includes('btn-ai-hint')) {
-                    hintZone.innerHTML = `<button id="btn-ai-hint-${qNum}" onclick="getAIHint(${qNum}, ${val}, ${exact}, '${hints[qNum-1].replace(/'/g, "\\'")}')" class="text-xs bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-2 py-1 rounded shadow-sm font-semibold transition border border-fuchsia-300">✨ Ask AI Tutor</button>`;
+                    hintZone.innerHTML = `<button id="btn-ai-hint-${qNum}" onclick="getAIHint(${qNum}, ${val}, ${exact}, '${baseHints[qNum-1].replace(/'/g, "\\'")}')" class="text-xs bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-2 py-1 rounded shadow-sm font-semibold transition border border-fuchsia-300">✨ Ask AI Tutor</button>`;
                 }
             }
         }
 
         function showSolution() {
             pState.showHiddenDots = true;
-            pState.usedSolution = true;
             document.getElementById('btn-solution').classList.add('hidden');
+            document.getElementById(currentLevel < maxLevels ? 'btn-next-scenario' : 'btn-show-score').classList.remove('hidden');
             
-            if (currentLevel < maxLevels) {
-                document.getElementById('btn-next-scenario').classList.remove('hidden');
-            } else {
-                document.getElementById('btn-show-score').classList.remove('hidden');
-            }
-            
-            // Force redraw immediately to show dots
             if (!isPlaying) {
-                simTime = pState.maxTime; 
-                isPlaying = true;
+                simTime = pState.maxTime; isPlaying = true;
                 requestAnimationFrame(() => { renderLoop(); isPlaying = false; });
             }
         }
 
         function nextScenario() {
-            currentLevel++;
-            generateScenario();
-            // Scroll questions back to top
+            currentLevel++; generateScenario();
             document.getElementById('questions-form').scrollTop = 0;
         }
 
         function showScoreScreen() {
             document.getElementById('btn-show-score').classList.add('hidden');
-            pState.hasFinalScore = true;
-            
             const area = document.getElementById('feedback-area');
             area.classList.remove('hidden');
             
-            // Score calculation based on 50 questions (10 questions * 5 scenarios)
-            // Minus 2 points for every error made anywhere in the quiz
-            let score = Math.max(0, 100 - (globalErrors * 2));
-            let title = intros[Math.floor(Math.random() * intros.length)];
-            let outtro = outtros[Math.floor(Math.random() * outtros.length)];
+            // Advanced Scoring Rules
+            let baseScore = 50;
+            let corrections = globalErrors;
             
-            let colorClass = score >= 80 ? 'text-green-700 bg-green-50 border-green-200' : (score >= 60 ? 'text-yellow-700 bg-yellow-50 border-yellow-200' : 'text-slate-700 bg-slate-50 border-slate-200');
+            // 10 EC for perfect run, down to 0 EC for 10+ corrections
+            let extraCredit = Math.max(0, 10 - corrections);
+            
+            // Penalties start only AFTER 15 corrections
+            let penalty = Math.max(0, corrections - 15);
+            
+            let finalScore = baseScore - penalty + extraCredit;
+            
+            // Unique Code Gen (6 alphanumerics & symbols)
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+            let verifyCode = "";
+            for (let i = 0; i < 6; i++) verifyCode += chars.charAt(Math.floor(Math.random() * chars.length));
+
+            let colorClass = finalScore >= 50 ? 'text-green-800 bg-green-50 border-green-200' : (finalScore >= 35 ? 'text-yellow-800 bg-yellow-50 border-yellow-200' : 'text-slate-800 bg-slate-50 border-slate-200');
 
             let html = `
-                <div class="${colorClass} p-4 rounded-lg border text-center">
-                    <h3 class="text-xl font-black mb-2">${title} Quiz Complete!</h3>
-                    <p class="text-3xl font-bold mb-2">${score}%</p>
-                    <p class="text-sm mb-4">You successfully completed 5 scenarios (50 total questions).<br> You made ${globalErrors} incorrect attempt(s) along the way.</p>
-                    <p class="font-medium italic">${outtro}</p>
-                    <div id="ai-review-text" class="mt-2"></div>
-                    <button onclick="startQuiz()" class="mt-4 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded font-bold shadow transition">Play Again</button>
+                <div class="${colorClass} p-5 rounded-lg border text-center relative overflow-hidden">
+                    <h3 class="text-2xl font-black mb-3">Quiz Complete!</h3>
+                    
+                    <p class="text-5xl font-black mb-1">${finalScore} <span class="text-2xl text-opacity-60">/ 50</span></p>
+                    
+                    <div class="mt-4 bg-white bg-opacity-50 p-3 rounded text-left text-sm font-medium space-y-1 inline-block">
+                        <p>Questions Answered: 50</p>
+                        <p>Corrections Made: ${corrections}</p>
+                        ${extraCredit > 0 ? `<p class="text-green-600 font-bold">+${extraCredit} Extra Credit (Accuracy Bonus)</p>` : ''}
+                        ${penalty > 0 ? `<p class="text-red-600 font-bold">-${penalty} Penalty (>15 Corrections)</p>` : ''}
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-300 border-opacity-50">
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">1d elastic & inelastic collisions quiz</p>
+                        <p class="text-xs font-mono text-slate-600 mt-1 bg-slate-200 bg-opacity-50 inline-block px-2 py-1 rounded">Verify Code: ${verifyCode}</p>
+                    </div>
+
+                    <button onclick="startQuiz()" class="mt-5 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-lg font-bold shadow transition w-full">Restart Assessment</button>
                 </div>
             `;
             area.innerHTML = html;
             
-            // Scroll to bottom to see score
-            setTimeout(() => {
-                const qForm = document.getElementById('questions-form');
-                qForm.scrollTop = qForm.scrollHeight;
-            }, 50);
-
-            if (score >= 80) triggerConfetti();
-            getAIPerformanceReview();
+            setTimeout(() => { const qForm = document.getElementById('questions-form'); qForm.scrollTop = qForm.scrollHeight; }, 50);
+            if (finalScore >= 45) triggerConfetti();
         }
 
         // --- Confetti System ---
@@ -727,8 +706,7 @@ Give an encouraging 1-2 sentence hint. Point out their specific math mistake if 
         function triggerConfetti() {
             const canvas = document.getElementById('confetti-canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             
             for (let i = 0; i < 100; i++) {
                 const isLeft = i % 2 === 0;
