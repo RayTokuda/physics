@@ -462,25 +462,36 @@
             ctx.save(); ctx.translate(0.5, 0.5); 
             
             if (!pState.showHiddenDots && currentLevel !== 5) {
-                ctx.fillStyle = '#64748b'; ctx.font = 'italic 12px sans-serif'; ctx.textAlign = 'left';
+                ctx.fillStyle = '#475569'; ctx.font = 'italic 12px sans-serif'; ctx.textAlign = 'left';
                 ctx.fillText("⚠️ m2 post-collision dots hidden for prediction test.", 10, 20);
             } else if (pState.showHiddenDots && currentLevel !== 5) {
                 ctx.fillStyle = '#10b981'; ctx.font = 'italic 12px sans-serif'; ctx.textAlign = 'left';
                 ctx.fillText("✅ Prediction Verified! Hidden dots revealed.", 10, 20);
             }
 
-            // Grid
+            // Grid (Vertical)
             for (let x = 0; x <= 25; x++) {
-                ctx.strokeStyle = x % 5 === 0 ? '#cbd5e1' : '#f1f5f9';
+                ctx.strokeStyle = x % 5 === 0 ? '#94a3b8' : '#cbd5e1';
                 ctx.lineWidth = x % 5 === 0 ? 2 : 1;
                 ctx.beginPath(); ctx.moveTo(cx(x), 0); ctx.lineTo(cx(x), 320); ctx.stroke();
-                if (x % 5 === 0) { ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(x + 'm', cx(x) + 4, 310); }
+                if (x % 5 === 0) { 
+                    ctx.fillStyle = '#334155'; 
+                    ctx.font = 'bold 12px sans-serif'; 
+                    ctx.fillText(x + 'm', cx(x) + 4, 310); 
+                }
+            }
+
+            // Grid (Horizontal)
+            for (let y = 0; y <= 10; y++) {
+                ctx.strokeStyle = y % 5 === 0 ? '#94a3b8' : '#cbd5e1';
+                ctx.lineWidth = y % 5 === 0 ? 2 : 1;
+                ctx.beginPath(); ctx.moveTo(0, cy(y)); ctx.lineTo(800, cy(y)); ctx.stroke();
             }
             
             // Tracks
-            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 14;
+            ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 14;
             ctx.beginPath(); ctx.moveTo(0, cy(5)); ctx.lineTo(800, cy(5)); ctx.stroke();
-            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+            ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(0, cy(5)); ctx.lineTo(800, cy(5)); ctx.stroke();
             ctx.restore();
 
@@ -488,7 +499,7 @@
             pState.dots.forEach(d => { 
                 if (simTime >= d.t) { 
                     if (d.hidden && !pState.showHiddenDots) return; 
-                    ctx.fillStyle = d.obj === 'm1' ? '#fca5a5' : '#93c5fd'; 
+                    ctx.fillStyle = d.obj === 'm1' ? '#ef4444' : '#3b82f6'; // Darker Dots
                     if (d.hidden && pState.showHiddenDots) {
                         ctx.shadowBlur = 4; ctx.shadowColor = '#3b82f6';
                     } else { ctx.shadowBlur = 0; }
