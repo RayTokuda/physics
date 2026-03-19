@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Coach: 2D Elastic Collision 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering equations -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+            touch-action: none;
+        }
+        
+        .draggable-tool {
+            position: absolute;
+            transform-origin: center center;
+            will-change: transform;
+            z-index: 50;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        #protractor { width: 300px; height: 150px; background: transparent; cursor: move; border-radius: 150px 150px 0 0; position: relative; }
+        .rotate-handle { position: absolute; width: 24px; height: 24px; background-color: #3b82f6; border: 2px solid white; border-radius: 50%; cursor: grab; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 60; }
+        .rotate-handle:active { cursor: grabbing; }
+
+        .correct-bg { background-color: #ecfdf5; border-color: #10b981; }
+        .wrong-bg { background-color: #fef2f2; border-color: #ef4444; }
+
+        #confetti-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; }
+        
+        .scroller::-webkit-scrollbar { width: 6px; }
+        .scroller::-webkit-scrollbar-track { background: transparent; }
+        .scroller::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        .q-block { background-color: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s ease;}
+        
+        /* AI styling */
+        .ai-gradient { background: linear-gradient(to right, #fdf4ff, #eff6ff); }
+        .ai-text { background: -webkit-linear-gradient(45deg, #c026d3, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .ai-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6" onload="init()">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 h-[calc(100vh-3rem)]">
+        
+        <!-- Left Column: Simulation -->
+        <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative">
+            
+            <div class="bg-slate-800 text-white p-4 shrink-0 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-blue-400">2D Elastic Collision</h1>
+                    <p class="text-sm text-slate-300">Angles below horizontal are negative.</p>
+                </div>
+                <button id="btn-ai-theme" onclick="generateAITheme()" class="bg-gradient-to-r from-fuchsia-600 to-blue-600 hover:from-fuchsia-500 hover:to-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center gap-2">
+                    ✨ AI Theme
+                </button>
+            </div>
+
+            <!-- AI Theme Banner -->
+            <div id="ai-theme-banner" class="hidden ai-gradient border-b border-fuchsia-200 p-3 shrink-0 flex items-start gap-3 text-sm text-slate-700 shadow-inner">
+                <span class="text-xl">✨</span>
+                <p id="ai-theme-text" class="italic font-medium leading-relaxed mt-0.5">Generating a creative scenario...</p>
+            </div>
+
+            <!-- Canvas & Tools Container -->
+            <div id="sim-container" class="relative bg-slate-50 flex-1 overflow-hidden flex items-center justify-center">
+                <div id="sim-wrapper" class="relative shrink-0 min-w-[800px] min-h-[500px] w-[800px] h-[500px]" style="transform-origin: center center;">
+                    <canvas id="simCanvas" width="800" height="500" class="absolute top-0 left-0 w-full h-full bg-[#f8fafc] shadow-sm"></canvas>
+                    
+                    <!-- Line Measuring Tool -->
+                    <div id="line-tool" class="draggable-tool flex items-center" style="left: 0; top: 0; width: 200px; height: 30px; margin-top: -15px; transform-origin: left center;" data-tx="50" data-ty="50" data-length="200" data-angle="0">
+                        <div id="line-readout" class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white font-mono text-xs px-2 py-1 rounded shadow pointer-events-none whitespace-nowrap z-30">5.00 m | 0.0&deg;</div>
+                        <div id="line-body" class="absolute left-0 right-0 h-full cursor-move z-10" title="Drag to move line"></div>
+                        <div class="absolute left-0 right-0 h-[3px] bg-indigo-600 shadow-sm z-0"></div>
+                        <div id="line-handle-start" class="absolute -left-2 w-4 h-4 bg-indigo-700 rounded border-2 border-white shadow cursor-move z-20"></div>
+                        <div id="line-handle-end" class="absolute -right-2 w-4 h-4 bg-indigo-700 rounded-full border-2 border-white shadow cursor-crosshair z-20" title="Drag to change length & angle"></div>
+                        <div id="line-handle-rotate" class="rotate-handle" style="right: -36px; z-index: 20; background-color: #f97316; border-color: white;" title="Drag to rotate without resizing">↻</div>
+                    </div>
+
+                    <!-- On-Screen Protractor -->
+                    <div id="protractor" class="draggable-tool" style="left: 0; top: 0;" data-tx="50" data-ty="150" data-angle="0">
+                        <button id="btn-flip-protractor" class="absolute top-10 left-1/2 -translate-x-1/2 bg-white/95 hover:bg-white text-blue-600 border border-blue-400 px-3 py-1 rounded-full text-[10px] font-bold shadow-md z-50 transition cursor-pointer" title="Flip Protractor">FLIP ↔</button>
+                        <svg id="protractor-svg" width="300" height="150" viewBox="-150 -150 300 150" class="absolute bottom-0 drop-shadow-md"></svg>
+                        <div id="protractor-handle" class="rotate-handle" style="left: 138px; top: -12px;">↻</div>
+                    </div>
+
+                    <div id="phantom-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-40"></div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-100 border-t border-slate-200 shrink-0 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex gap-4 text-sm font-semibold text-slate-700 bg-white px-4 py-2 rounded-lg border border-slate-300 shadow-sm">
+                    <div>🔴 $m_1$ = <span id="val-m1" class="text-red-600 font-bold">--</span> kg</div>
+                    <div>🔵 $m_2$ = <span id="val-m2" class="text-blue-600 font-bold">--</span> kg</div>
+                    <div>⏱️ $\Delta t$ = <span id="val-dt" class="text-purple-600 font-bold">--</span> s</div>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button onclick="playSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow transition flex items-center gap-2">▶️ Play</button>
+                    <button onclick="resetTools()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 px-4 py-2 rounded-lg font-bold shadow transition">Reset Tools</button>
+                    <button onclick="generateScenario()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold shadow transition">New Scenario</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Questions & Feedback -->
+        <div class="w-full lg:w-[450px] flex flex-col bg-slate-50 rounded-2xl shadow-xl border border-slate-200 overflow-hidden h-full">
+            <div class="bg-slate-100 p-4 border-b border-slate-200 shrink-0 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Conservation Analysis</h2>
+                    <p class="text-xs text-slate-500 mt-1">Determine $m_2$'s final state using momentum components.</p>
+                </div>
+            </div>
+            
+            <div class="p-4 overflow-y-auto scroller flex-1 space-y-3" id="questions-form">
+                
+                <!-- Dynamic Question Blocks -->
+                <!-- Q1 -->
+                <div class="q-block" id="block-1">
+                    <label class="font-bold text-slate-700 text-sm">1. Initial Velocity of $m_1$ ($v_{1i}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-1" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(1)" onkeydown="if(event.key==='Enter') checkSingle(1)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-1" onclick="checkSingle(1)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-1" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-1" class="hidden mt-2">
+                        <div id="feedback-1" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-1" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q2 -->
+                <div class="q-block" id="block-2">
+                    <label class="font-bold text-slate-700 text-sm">2. Final Velocity of $m_1$ ($v_{1f}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-2" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(2)" onkeydown="if(event.key==='Enter') checkSingle(2)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-2" onclick="checkSingle(2)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-2" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-2" class="hidden mt-2">
+                        <div id="feedback-2" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-2" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q3 -->
+                <div class="q-block" id="block-3">
+                    <label class="font-bold text-slate-700 text-sm">3. Angle of $m_1$ Final Velocity ($\theta_{1f}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-3" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(3)" onkeydown="if(event.key==='Enter') checkSingle(3)">
+                        <span class="text-xs text-slate-500 w-10">deg</span>
+                        <button id="btn-check-3" onclick="checkSingle(3)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-3" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-3" class="hidden mt-2">
+                        <div id="feedback-3" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-3" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q4 -->
+                <div class="q-block" id="block-4">
+                    <label class="font-bold text-slate-700 text-sm">4. Initial Momentum of $m_1$ ($p_{1i}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-4" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(4)" onkeydown="if(event.key==='Enter') checkSingle(4)">
+                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
+                        <button id="btn-check-4" onclick="checkSingle(4)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-4" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-4" class="hidden mt-2">
+                        <div id="feedback-4" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-4" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q5 -->
+                <div class="q-block" id="block-5">
+                    <label class="font-bold text-slate-700 text-sm">5. Final Horiz. Velocity of $m_1$ ($v_{1fx}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-5" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(5)" onkeydown="if(event.key==='Enter') checkSingle(5)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-5" onclick="checkSingle(5)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-5" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-5" class="hidden mt-2">
+                        <div id="feedback-5" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-5" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q6 -->
+                <div class="q-block" id="block-6">
+                    <label class="font-bold text-slate-700 text-sm">6. Final Horiz. Momentum of $m_1$ ($p_{1fx}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-6" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(6)" onkeydown="if(event.key==='Enter') checkSingle(6)">
+                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
+                        <button id="btn-check-6" onclick="checkSingle(6)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-6" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-6" class="hidden mt-2">
+                        <div id="feedback-6" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-6" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q7 -->
+                <div class="q-block" id="block-7">
+                    <label class="font-bold text-slate-700 text-sm">7. Final Horiz. Momentum of $m_2$ ($p_{2fx}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-7" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(7)" onkeydown="if(event.key==='Enter') checkSingle(7)">
+                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
+                        <button id="btn-check-7" onclick="checkSingle(7)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-7" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-7" class="hidden mt-2">
+                        <div id="feedback-7" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-7" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q8 -->
+                <div class="q-block" id="block-8">
+                    <label class="font-bold text-slate-700 text-sm">8. Final Vertical Velocity of $m_1$ ($v_{1fy}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-8" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(8)" onkeydown="if(event.key==='Enter') checkSingle(8)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-8" onclick="checkSingle(8)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-8" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-8" class="hidden mt-2">
+                        <div id="feedback-8" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-8" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q9 -->
+                <div class="q-block" id="block-9">
+                    <label class="font-bold text-slate-700 text-sm">9. Final Vertical Momentum of $m_1$ ($p_{1fy}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-9" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(9)" onkeydown="if(event.key==='Enter') checkSingle(9)">
+                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
+                        <button id="btn-check-9" onclick="checkSingle(9)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-9" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-9" class="hidden mt-2">
+                        <div id="feedback-9" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-9" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q10 -->
+                <div class="q-block" id="block-10">
+                    <label class="font-bold text-slate-700 text-sm">10. Final Vertical Momentum of $m_2$ ($p_{2fy}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-10" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(10)" onkeydown="if(event.key==='Enter') checkSingle(10)">
+                        <span class="text-xs text-slate-500 w-10">kg·m/s</span>
+                        <button id="btn-check-10" onclick="checkSingle(10)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-10" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-10" class="hidden mt-2">
+                        <div id="feedback-10" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-10" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q11 -->
+                <div class="q-block" id="block-11">
+                    <label class="font-bold text-slate-700 text-sm">11. Final Horiz. Velocity of $m_2$ ($v_{2fx}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-11" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(11)" onkeydown="if(event.key==='Enter') checkSingle(11)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-11" onclick="checkSingle(11)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-11" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-11" class="hidden mt-2">
+                        <div id="feedback-11" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-11" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q12 -->
+                <div class="q-block" id="block-12">
+                    <label class="font-bold text-slate-700 text-sm">12. Final Vertical Velocity of $m_2$ ($v_{2fy}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-12" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(12)" onkeydown="if(event.key==='Enter') checkSingle(12)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-12" onclick="checkSingle(12)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-12" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-12" class="hidden mt-2">
+                        <div id="feedback-12" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-12" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q13 -->
+                <div class="q-block" id="block-13">
+                    <label class="font-bold text-slate-700 text-sm">13. Angle of $m_2$ Velocity ($\theta_{2f}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-13" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(13)" onkeydown="if(event.key==='Enter') checkSingle(13)">
+                        <span class="text-xs text-slate-500 w-10">deg</span>
+                        <button id="btn-check-13" onclick="checkSingle(13)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-13" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-13" class="hidden mt-2">
+                        <div id="feedback-13" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-13" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Q14 -->
+                <div class="q-block" id="block-14">
+                    <label class="font-bold text-slate-700 text-sm">14. Final Speed of $m_2$ ($v_{2f}$)</label>
+                    <div class="flex items-center gap-2 mt-1">
+                        <input type="number" id="ans-14" class="w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none" step="0.1" oninput="clearStatus(14)" onkeydown="if(event.key==='Enter') checkSingle(14)">
+                        <span class="text-xs text-slate-500 w-10">m/s</span>
+                        <button id="btn-check-14" onclick="checkSingle(14)" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition">Check</button>
+                        <span id="status-14" class="font-bold text-lg ml-1"></span>
+                    </div>
+                    <div id="feedback-container-14" class="hidden mt-2">
+                        <div id="feedback-14" class="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200"></div>
+                        <div id="ai-hint-zone-14" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="pt-4 border-t border-slate-200 flex flex-col gap-3">
+                    <button id="btn-solution" onclick="showSolution()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-lg font-bold shadow border border-slate-300 transition hidden">
+                        Show Final Overlay
+                    </button>
+                    <button id="btn-show-score" onclick="showScoreScreen()" class="w-full bg-green-100 hover:bg-green-200 text-green-700 py-2 rounded-lg font-bold shadow border border-green-300 transition hidden">
+                        Show Final Score
+                    </button>
+                </div>
+
+                <!-- Feedback Area -->
+                <div id="feedback-area" class="mt-4 hidden p-4 rounded-xl border text-sm leading-relaxed"></div>
+                
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Gemini API Setup (Dual Environment) ---
+        // The execution environment provides the key at runtime when previewing in Canvas.
+        const apiKey = ""; 
+
+        async function fetchGemini(prompt) {
+            const systemInstruction = "You are a helpful physics tutor assistant. Be brief and engaging.";
+            const isJsonMode = prompt.includes("JSON object");
+            
+            // 1. Try Vercel Backend First
+            try {
+                const vercelRes = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, systemInstruction })
+                });
+                
+                // If it succeeds and returns JSON, use it!
+                if (vercelRes.ok && vercelRes.headers.get('content-type')?.includes('application/json')) {
+                    const data = await vercelRes.json();
+                    if (data.text) return data.text;
+                }
+            } catch (e) {
+                // Vercel endpoint not found or network error, fallback to Canvas mode silently
+            }
+            
+            // 2. Fallback to Canvas Direct API with exponential backoff
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < 5; i++) {
+                try {
+                    // Call Gemini API directly (Canvas Preview environment intercepts this)
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemInstruction }] }
+                    };
+                    
+                    // Force JSON response if we ask for a JSON object in the prompt
+                    if (isJsonMode) {
+                        payload.generationConfig = { responseMimeType: "application/json" };
+                    }
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        console.error("Gemini API Error:", errText);
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("Empty response");
+                    return text;
+
+                } catch (e) {
+                    console.warn(`API Attempt ${i + 1} failed:`, e);
+                    if (i === 4) return "Looks like the AI is taking a quick break. Please try again in a moment!";
+                    await new Promise(r => setTimeout(r, delays[i]));
+                }
+            }
+        }
+
+        // --- Constants & Globals ---
+        const SCALE = 40; 
+        const FPS = 60;
+        let simTime = 0;
+        let isPlaying = false;
+        let animFrame;
+        
+        let totalErrors = 0;
+        let currentScale = 1;
+        let isProtractorFlipped = false;
+
+        let pState = {
+            m1: 0, m2: 0, dt: 0, v1i: 0,
+            phi: 0, dy: 0, tCollide: 0,
+            x1_start: 2, y1_start: 8, x2_start: 10, y2_start: 0,
+            v1f: 0, th1f: 0, v1fx: 0, v1fy: 0, v2fx: 0, v2fy: 0, v2f: 0,
+            p1i: 0, p1fx: 0, p2fx: 0, p1fy: 0, p2fy: 0, th2f: 0,
+            dots: [], maxTime: 5,
+            answeredCorrectly: Array(14).fill(false),
+            usedSolution: false,
+            hasFinalScore: false
+        };
+
+        const questionLabels = [
+            "Initial Velocity of m1", "Final Velocity of m1", "Angle of m1 Final Velocity", "Initial Momentum of m1",
+            "Final Horiz. Velocity of m1", "Final Horiz. Momentum of m1", "Final Horiz. Momentum of m2",
+            "Final Vertical Velocity of m1", "Final Vertical Momentum of m1", "Final Vertical Momentum of m2",
+            "Final Horiz. Velocity of m2", "Final Vertical Velocity of m2", "Angle of m2 Velocity", "Final Speed of m2"
+        ];
+
+        let activeTool = null;
+
+        function cy(y) { return 500 - (y * SCALE); }
+        function cx(x) { return x * SCALE; }
+        function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function handleResize() {
+            const container = document.getElementById('sim-container');
+            const wrapper = document.getElementById('sim-wrapper');
+            if (!container || !wrapper) return;
+            const scaleX = container.clientWidth / 800;
+            const scaleY = container.clientHeight / 500;
+            currentScale = Math.min(scaleX, scaleY, 0.95);
+            wrapper.style.transform = `scale(${currentScale})`;
+        }
+
+        function updateReadouts() {
+            const l = document.getElementById('line-tool');
+            if (l) {
+                let distMeters = parseFloat(l.dataset.length) / SCALE;
+                let lAngle = -parseFloat(l.dataset.angle);
+                lAngle = ((lAngle + 180) % 360 + 360) % 360 - 180;
+                document.getElementById('line-readout').innerHTML = `${distMeters.toFixed(2)} m | ${lAngle.toFixed(1)}&deg;`;
+            }
+        }
+
+        function renderProtractor() {
+            const svg = document.getElementById('protractor-svg');
+            svg.innerHTML = `
+                <path d="M -150 0 A 150 150 0 0 1 150 0 Z" fill="rgba(255, 255, 255, 0.7)" stroke="#3b82f6" stroke-width="2"/>
+                <line x1="0" y1="0" x2="0" y2="-10" stroke="#ef4444" stroke-width="2" />
+            `;
+            for (let deg = 0; deg <= 180; deg += 10) {
+                const rad = deg * Math.PI / 180;
+                const isMajor = deg % 30 === 0;
+                const rOuter = 150, rInner = isMajor ? 130 : 140;
+                
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", -rInner * Math.cos(rad)); line.setAttribute("y1", -rInner * Math.sin(rad));
+                line.setAttribute("x2", -rOuter * Math.cos(rad)); line.setAttribute("y2", -rOuter * Math.sin(rad));
+                line.setAttribute("stroke", "#3b82f6"); line.setAttribute("stroke-width", isMajor ? "2" : "1");
+                svg.appendChild(line);
+
+                if (isMajor && deg !== 0 && deg !== 180) {
+                    const tx = -115 * Math.cos(rad), ty = -115 * Math.sin(rad);
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", tx); text.setAttribute("y", ty + 4);
+                    text.setAttribute("text-anchor", "middle"); text.setAttribute("font-size", "12");
+                    text.setAttribute("fill", "#1e40af"); text.setAttribute("font-weight", "bold");
+                    text.textContent = (isProtractorFlipped ? 180 - deg : deg).toString();
+                    text.setAttribute("transform", `rotate(${deg - 90}, ${tx}, ${ty})`);
+                    svg.appendChild(text);
+                }
+            }
+            const addEdgeText = (val, isLeft) => {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", isLeft ? -135 : 135); text.setAttribute("y", -10);
+                text.setAttribute("text-anchor", "middle"); text.setAttribute("font-size", "12");
+                text.setAttribute("fill", "#1e40af"); text.setAttribute("font-weight", "bold");
+                text.textContent = val.toString(); svg.appendChild(text);
+            };
+            addEdgeText(isProtractorFlipped ? 180 : 0, true);
+            addEdgeText(isProtractorFlipped ? 0 : 180, false);
+        }
+
+        function init() {
+            handleResize(); window.addEventListener('resize', handleResize); renderProtractor();
+            document.getElementById('btn-flip-protractor').addEventListener('pointerdown', (e) => {
+                e.preventDefault(); e.stopPropagation(); isProtractorFlipped = !isProtractorFlipped; renderProtractor();
+            });
+            setupLineTool(); setupTool('protractor', 'protractor-handle');
+            resetTools(); generateScenario();
+        }
+
+        function setupLineTool() {
+            const lineTool = document.getElementById('line-tool');
+            function startDrag(e, type) {
+                e.preventDefault(); e.stopPropagation();
+                const rect = document.getElementById('sim-wrapper').getBoundingClientRect();
+                const cx = rect.left + parseFloat(lineTool.dataset.tx) * currentScale;
+                const cy = rect.top + parseFloat(lineTool.dataset.ty) * currentScale;
+                activeTool = {
+                    el: lineTool, type: type, startX: e.clientX, startY: e.clientY,
+                    initTx: parseFloat(lineTool.dataset.tx), initTy: parseFloat(lineTool.dataset.ty),
+                    cx: cx, cy: cy, startAngle: parseFloat(lineTool.dataset.angle),
+                    startMouseAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI
+                };
+                document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp);
+            }
+            document.getElementById('line-body').addEventListener('pointerdown', e => startDrag(e, 'move-line'));
+            document.getElementById('line-handle-start').addEventListener('pointerdown', e => startDrag(e, 'move-line'));
+            document.getElementById('line-handle-end').addEventListener('pointerdown', e => startDrag(e, 'resize-line'));
+            document.getElementById('line-handle-rotate').addEventListener('pointerdown', e => startDrag(e, 'rotate-line'));
+        }
+
+        function setupTool(toolId, handleId) {
+            const tool = document.getElementById(toolId), handle = document.getElementById(handleId);
+            updateToolTransform(tool);
+            tool.addEventListener('pointerdown', (e) => {
+                if (e.target === handle || e.target.closest('#btn-flip-protractor')) return;
+                e.preventDefault();
+                activeTool = { el: tool, type: 'move', startX: e.clientX, startY: e.clientY, initTx: parseFloat(tool.dataset.tx), initTy: parseFloat(tool.dataset.ty) };
+                document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp);
+            });
+            handle.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const rect = document.getElementById('sim-wrapper').getBoundingClientRect();
+                const cx = rect.left + (parseFloat(tool.dataset.tx) + tool.offsetWidth / 2) * currentScale;
+                const cy = rect.top + (parseFloat(tool.dataset.ty) + tool.offsetHeight) * currentScale;
+                activeTool = { el: tool, type: 'rotate', cx: cx, cy: cy, startAngle: parseFloat(tool.dataset.angle), startMouseAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI };
+                document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp);
+            });
+        }
+
+        function onPointerMove(e) {
+            if (!activeTool) return;
+            e.preventDefault();
+            if (activeTool.type === 'move' || activeTool.type === 'move-line') {
+                activeTool.el.dataset.tx = activeTool.initTx + (e.clientX - activeTool.startX) / currentScale;
+                activeTool.el.dataset.ty = activeTool.initTy + (e.clientY - activeTool.startY) / currentScale;
+            } else if (activeTool.type === 'rotate' || activeTool.type === 'rotate-line') {
+                const ma = Math.atan2(e.clientY - activeTool.cy, e.clientX - activeTool.cx) * 180 / Math.PI;
+                activeTool.el.dataset.angle = activeTool.startAngle + (ma - activeTool.startMouseAngle);
+            } else if (activeTool.type === 'resize-line') {
+                const dx = (e.clientX - activeTool.cx) / currentScale, dy = (e.clientY - activeTool.cy) / currentScale;
+                activeTool.el.dataset.length = Math.max(10, Math.sqrt(dx*dx + dy*dy));
+                activeTool.el.dataset.angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            }
+            if (activeTool.el.id === 'line-tool') {
+                activeTool.el.style.transform = `translate(${activeTool.el.dataset.tx}px, ${activeTool.el.dataset.ty}px) rotate(${activeTool.el.dataset.angle}deg)`;
+                activeTool.el.style.width = `${activeTool.el.dataset.length}px`;
+            } else updateToolTransform(activeTool.el);
+            updateReadouts();
+        }
+
+        function onPointerUp() { activeTool = null; document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); }
+        function updateToolTransform(el) { el.style.transformOrigin = el.id === 'protractor' ? 'bottom center' : 'center center'; el.style.transform = `translate(${el.dataset.tx}px, ${el.dataset.ty}px) rotate(${el.dataset.angle}deg)`; }
+
+        function resetTools() {
+            const l = document.getElementById('line-tool');
+            l.dataset.tx = 50; l.dataset.ty = 50; l.dataset.length = 200; l.dataset.angle = 0;
+            l.style.width = '200px'; l.style.transform = `translate(50px, 50px) rotate(0deg)`;
+            const p = document.getElementById('protractor');
+            p.dataset.tx = 50; p.dataset.ty = 250; p.dataset.angle = 0;
+            isProtractorFlipped = false; renderProtractor(); updateToolTransform(p);
+            updateReadouts(); clearPhantom();
+        }
+
+        // --- AI Feature 1: Theme Generation ---
+        async function generateAITheme() {
+            const btn = document.getElementById('btn-ai-theme');
+            const banner = document.getElementById('ai-theme-banner');
+            const txt = document.getElementById('ai-theme-text');
+            
+            btn.disabled = true;
+            btn.innerHTML = `<span class="ai-spinner">⏳</span> Thinking...`;
+            banner.classList.remove('hidden');
+            txt.innerHTML = `Generating a new theme and creative scenario...`;
+
+            const prompt = `Create a fun, creative 1-sentence scenario for a 2D elastic collision. Object 1 is ${pState.m1}kg (moving initially) and Object 2 is ${pState.m2}kg (stationary). Make it engaging (e.g., sci-fi, food, animals on ice). Do NOT include the math or velocity. 
+            Return a JSON object with these exact properties:
+            - scenario: The 1-sentence story.
+            - bgHex: A soft hex color for the page background.
+            - bannerHex: A vivid hex color for the AI banner background.
+            - bannerTextHex: A hex color for the text inside the banner.`;
+            
+            const responseText = await fetchGemini(prompt);
+            
+            try {
+                // If it fails but doesn't throw (e.g., returns the break message), JSON parse will fail and go to catch
+                const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const theme = JSON.parse(jsonStr);
+                
+                txt.innerHTML = theme.scenario;
+                
+                // Apply the theme colors dynamically
+                document.body.style.backgroundColor = theme.bgHex;
+                document.body.style.transition = 'background-color 0.5s ease';
+                
+                banner.style.background = theme.bannerHex;
+                txt.style.color = theme.bannerTextHex;
+                txt.style.transition = 'color 0.5s ease';
+                
+            } catch (e) {
+                // Fallback if parsing fails or error message is returned
+                txt.innerHTML = responseText;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = `✨ AI Theme`;
+        }
+
+        // --- AI Feature 2: Personalized Tutor Hints ---
+        async function getAIHint(qNum, userVal, exact, hintText) {
+            const btn = document.getElementById(`btn-ai-hint-${qNum}`);
+            const zone = document.getElementById(`ai-hint-zone-${qNum}`);
+            
+            btn.disabled = true;
+            btn.innerHTML = `<span class="ai-spinner">⏳</span> Consulting AI...`;
+            zone.innerHTML = '';
+            
+            const prompt = `The user is solving a 2D physics collision problem. 
+Question: "${questionLabels[qNum-1]}". 
+The true answer is ${exact.toFixed(3)}. 
+The user guessed ${userVal}. 
+Context: m1=${pState.m1}kg, m2=${pState.m2}kg. Initial v1=${pState.v1i}m/s. 
+Standard hint was: "${hintText}". 
+Give a friendly, encouraging 1 to 2 sentence hint. Point out their specific math mistake if obvious based on their guess compared to the true answer (e.g., wrong sign, forgot to multiply by mass, used sin instead of cos, or just a calculation error). Do NOT reveal the exact numerical answer.`;
+
+            const hint = await fetchGemini(prompt);
+            
+            zone.innerHTML = `<div class="bg-fuchsia-50 border border-fuchsia-200 p-2 rounded text-xs text-slate-700">
+                <span class="font-bold text-fuchsia-700">✨ AI Tutor:</span> ${hint}
+            </div>`;
+            
+            // Tell MathJax to render any LaTeX in the new AI response
+            if (window.MathJax) {
+                MathJax.typesetPromise([zone]).catch((err) => console.error("MathJax error:", err));
+            }
+            
+            btn.innerHTML = `✨ Get another AI Hint`;
+            btn.disabled = false;
+        }
+
+        function generateScenario() {
+            totalErrors = 0; pState.usedSolution = false; pState.hasFinalScore = false;
+            
+            // Reset UI
+            document.getElementById('ai-theme-banner').classList.add('hidden');
+            
+            confettiParticles = []; isConfettiRunning = false;
+            const cCanvas = document.getElementById('confetti-canvas');
+            if(cCanvas) cCanvas.getContext('2d').clearRect(0, 0, cCanvas.width, cCanvas.height);
+            
+            pState.m1 = randInt(1, 5); pState.m2 = randInt(1, 5);
+            pState.v1i = randInt(3, 6); pState.dt = [0.2, 0.5, 1.0][randInt(0, 2)];
+            pState.dy = (Math.random() * 1.6 - 0.8); if (Math.abs(pState.dy) < 0.2) pState.dy = pState.dy < 0 ? -0.3 : 0.3;
+            pState.y1_start = 8; pState.y2_start = pState.y1_start - pState.dy; 
+
+            const dy_c = pState.y2_start - pState.y1_start;
+            const dx_c = Math.sqrt((2 * 0.5) ** 2 - dy_c ** 2);
+            const theta_n = Math.atan2(dy_c, dx_c); 
+            
+            const v1n_i = pState.v1i * Math.cos(theta_n); const v1t_i = -pState.v1i * Math.sin(theta_n);
+            const v1n_f = ((pState.m1 - pState.m2) / (pState.m1 + pState.m2)) * v1n_i;
+            const v2n_f = ((2 * pState.m1) / (pState.m1 + pState.m2)) * v1n_i;
+            
+            pState.v1fx = v1n_f * Math.cos(theta_n) - v1t_i * Math.sin(theta_n);
+            pState.v1fy = v1n_f * Math.sin(theta_n) + v1t_i * Math.cos(theta_n);
+            pState.v2fx = v2n_f * Math.cos(theta_n) - 0 * Math.sin(theta_n);
+            pState.v2fy = v2n_f * Math.sin(theta_n) + 0 * Math.cos(theta_n);
+            
+            pState.v1f = Math.hypot(pState.v1fx, pState.v1fy); pState.th1f = Math.atan2(pState.v1fy, pState.v1fx) * 180 / Math.PI;
+            pState.p1i = pState.m1 * pState.v1i; pState.p1fx = pState.m1 * pState.v1fx; pState.p2fx = pState.m2 * pState.v2fx;
+            pState.p1fy = pState.m1 * pState.v1fy; pState.p2fy = pState.m2 * pState.v2fy;
+            pState.th2f = Math.atan2(pState.v2fy, pState.v2fx) * 180 / Math.PI; pState.v2f = Math.hypot(pState.v2fx, pState.v2fy);
+
+            const tCollide_raw = (10 - pState.x1_start - dx_c) / pState.v1i;
+            pState.tCollide = Math.ceil(tCollide_raw / pState.dt) * pState.dt;
+            pState.x2_start = pState.tCollide * pState.v1i + pState.x1_start + dx_c;
+            const x1_collide = pState.x1_start + pState.v1i * pState.tCollide;
+            
+            function getTimeToExit(x, y, vx, vy) {
+                if (Math.abs(vx) < 0.01 && Math.abs(vy) < 0.01) return 0;
+                let tx = Infinity, ty = Infinity;
+                if (vx > 0) tx = (21 - x) / vx; else if (vx < 0) tx = (-1 - x) / vx;
+                if (vy > 0) ty = (13.5 - y) / vy; else if (vy < 0) ty = (-1 - y) / vy;
+                return Math.min(tx, ty);
+            }
+            pState.maxTime = Math.min(pState.tCollide + Math.max(getTimeToExit(x1_collide, pState.y1_start, pState.v1fx, pState.v1fy), getTimeToExit(pState.x2_start, pState.y2_start, pState.v2fx, pState.v2fy)), 35);
+            
+            pState.dots = [];
+            for (let i = 0; i <= Math.ceil(pState.maxTime / pState.dt); i++) {
+                const t = i * pState.dt;
+                if (t < pState.tCollide - 0.0001) pState.dots.push({ x: pState.x1_start + pState.v1i * t, y: pState.y1_start, t: t });
+                else pState.dots.push({ x: x1_collide + pState.v1fx * (t - pState.tCollide), y: pState.y1_start + pState.v1fy * (t - pState.tCollide), t: t });
+            }
+
+            document.getElementById('val-m1').innerText = pState.m1;
+            document.getElementById('val-m2').innerText = pState.m2;
+            document.getElementById('val-dt').innerText = pState.dt.toFixed(1);
+
+            for(let i=1; i<=14; i++) {
+                let el = document.getElementById(`ans-${i}`);
+                el.value = ''; el.disabled = false; el.className = "w-24 px-2 py-1 border rounded focus:ring-2 focus:ring-blue-400 outline-none";
+                let btn = document.getElementById(`btn-check-${i}`);
+                btn.disabled = false; btn.className = "bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded font-semibold text-sm transition"; btn.innerText = "Check";
+                document.getElementById(`status-${i}`).innerText = '';
+                document.getElementById(`feedback-container-${i}`).classList.add('hidden');
+                document.getElementById(`ai-hint-zone-${i}`).innerHTML = '';
+            }
+            pState.answeredCorrectly.fill(false);
+            
+            document.getElementById('feedback-area').classList.add('hidden');
+            document.getElementById('btn-solution').classList.add('hidden');
+            document.getElementById('btn-show-score').classList.add('hidden');
+            clearPhantom(); playSimulation();
+        }
+
+        function playSimulation() {
+            if (isPlaying) return;
+            simTime = 0; isPlaying = true; clearPhantom();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function renderLoop() {
+            const ctx = document.getElementById('simCanvas').getContext('2d');
+            ctx.clearRect(0, 0, 800, 500); ctx.save(); ctx.translate(0.5, 0.5); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+            for(let x=0; x<=20; x++) { ctx.beginPath(); ctx.moveTo(cx(x), 0); ctx.lineTo(cx(x), 500); ctx.stroke(); }
+            for(let y=0; y<=13; y++) { ctx.beginPath(); ctx.moveTo(0, cy(y)); ctx.lineTo(800, cy(y)); ctx.stroke(); }
+            ctx.restore();
+
+            ctx.fillStyle = '#ef4444'; 
+            pState.dots.forEach(d => { if (simTime >= d.t) { ctx.beginPath(); ctx.arc(cx(d.x), cy(d.y), 4, 0, Math.PI*2); ctx.fill(); }});
+
+            let x1, y1, x2, y2;
+            if (simTime < pState.tCollide) {
+                x1 = pState.x1_start + pState.v1i * simTime; y1 = pState.y1_start;
+                x2 = pState.x2_start; y2 = pState.y2_start;
+            } else {
+                const dt_post = simTime - pState.tCollide;
+                x1 = (pState.x1_start + pState.v1i * pState.tCollide) + pState.v1fx * dt_post;
+                y1 = pState.y1_start + pState.v1fy * dt_post;
+                x2 = pState.x2_start + pState.v2fx * dt_post; y2 = pState.y2_start + pState.v2fy * dt_post;
+            }
+
+            ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(cx(x2), cy(y2), 20, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m2', cx(x2), cy(y2));
+
+            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(cx(x1), cy(y1), 20, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#b91c1c'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('m1', cx(x1), cy(y1));
+
+            simTime += 1 / FPS; 
+            if (simTime <= pState.maxTime) animFrame = requestAnimationFrame(renderLoop); else isPlaying = false;
+        }
+
+        function clearStatus(q) {
+            if (pState.answeredCorrectly[q-1]) return;
+            document.getElementById(`ans-${q}`).classList.remove('bg-red-100', 'border-red-500');
+            document.getElementById(`status-${q}`).innerText = '';
+            document.getElementById(`feedback-container-${q}`).classList.add('hidden');
+        }
+
+        // --- AI Feature 3: Performance Review ---
+        async function getAIPerformanceReview() {
+            const fbArea = document.getElementById('feedback-area');
+            const placeholderId = "ai-review-text";
+            const prompt = `The user just finished a 14-step physics problem on 2D elastic collisions. They made ${totalErrors} mistakes along the way. Write a short, fun, encouraging 2-sentence congratulatory message acting as a quirky, passionate physics professor.`;
+            const review = await fetchGemini(prompt);
+            const reviewEl = document.getElementById(placeholderId);
+            reviewEl.innerHTML = `<div class="mt-4 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded text-slate-700 italic text-sm shadow-sm"><span class="font-bold text-fuchsia-700">✨ Prof. Gemini:</span> "${review}"</div>`;
+            
+            // Render any LaTeX the professor decides to use
+            if (window.MathJax) {
+                MathJax.typesetPromise([reviewEl]).catch((err) => console.error("MathJax error:", err));
+            }
+        }
+
+        function checkSingle(q) {
+            if (pState.answeredCorrectly[q-1]) return; 
+
+            const el = document.getElementById(`ans-${q}`);
+            const stat = document.getElementById(`status-${q}`);
+            const fbc = document.getElementById(`feedback-container-${q}`);
+            const fb = document.getElementById(`feedback-${q}`);
+            const btn = document.getElementById(`btn-check-${q}`);
+            const val = parseFloat(el.value);
+
+            let exact, tol, hint;
+            switch(q) {
+                case 1: exact = pState.v1i; tol = 0.5; hint = `Measure distance between dots before collision with the line tool, divide by $\\Delta t$.`; break;
+                case 2: exact = pState.v1f; tol = 0.5; hint = `Measure distance between dots after collision, divide by $\\Delta t$.`; break;
+                // --- Updated Hint for Q3 ---
+                case 3: exact = pState.th1f; tol = 3.0; hint = `Use the line drawing tool to measure the angle of $m_1$ after the impact from the +x direction. Angles below horizontal are negative.`; break;
+                case 4: exact = pState.p1i; tol = 1.0; hint = `Multiply $m_1$ (${pState.m1} kg) by its initial velocity.`; break;
+                case 5: exact = pState.v1fx; tol = 0.5; hint = `Multiply $v_{1f}$ by $\\cos(\\theta_{1f})$. Watch signs!`; break;
+                case 6: exact = pState.p1fx; tol = 1.0; hint = `Multiply $m_1$ (${pState.m1} kg) by $v_{1fx}$.`; break;
+                case 7: exact = pState.p2fx; tol = 1.0; hint = `Momentum is conserved: $p_{1i} = p_{1fx} + p_{2fx}$. Solve for $p_{2fx}$.`; break;
+                case 8: exact = pState.v1fy; tol = 0.5; hint = `Multiply $v_{1f}$ by $\\sin(\\theta_{1f})$. Down is negative!`; break;
+                case 9: exact = pState.p1fy; tol = 1.0; hint = `Multiply $m_1$ (${pState.m1} kg) by $v_{1fy}$.`; break;
+                case 10: exact = pState.p2fy; tol = 1.0; hint = `Initial $y$-momentum was zero: $p_{1fy} + p_{2fy} = 0$.`; break;
+                case 11: exact = pState.v2fx; tol = 0.5; hint = `Divide $p_{2fx}$ by $m_2$ (${pState.m2} kg) to find horizontal velocity.`; break;
+                case 12: exact = pState.v2fy; tol = 0.5; hint = `Divide $p_{2fy}$ by $m_2$ (${pState.m2} kg) to find vertical velocity.`; break;
+                case 13: exact = pState.th2f; tol = 3.0; hint = `Use inverse tangent: $\\tan^{-1}(v_{2fy} / v_{2fx})$.`; break;
+                case 14: exact = pState.v2f; tol = 0.5; hint = `Use Pythagorean theorem: $\\sqrt{v_{2fx}^2 + v_{2fy}^2}$.`; break;
+            }
+
+            let diff = Math.abs(val - exact);
+            if (q === 3 || q === 13) { diff = Math.abs((val - exact) % 360); if (diff > 180) diff = 360 - diff; }
+
+            if (!isNaN(val) && diff <= tol) {
+                el.classList.add('bg-green-100', 'border-green-500'); el.classList.remove('bg-red-100', 'border-red-500');
+                el.disabled = true; btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed');
+                stat.innerText = '✅'; fbc.classList.add('hidden');
+                pState.answeredCorrectly[q-1] = true;
+
+                if (pState.answeredCorrectly.every(x => x) && !pState.usedSolution) {
+                    pState.hasFinalScore = true;
+                    const fbArea = document.getElementById('feedback-area');
+                    fbArea.classList.remove('hidden');
+                    fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed correct-bg text-green-800 text-center";
+                    let finalScore = 15; let extraCreditHtml = "";
+                    if (totalErrors === 0) { finalScore += 5; extraCreditHtml = "<span class='text-sm text-fuchsia-600 font-bold ml-2'>(+5 Extra Credit!)</span>"; } 
+                    else if (totalErrors > 5) { finalScore = Math.max(0, 15 - (totalErrors - 5)); }
+                    
+                    fbArea.innerHTML = `<div id="score-content">
+                                            <p class="font-bold text-lg mb-2">🎉 Masterful Deduction! 🎉</p>
+                                            <p>You successfully tracked the hidden mass (again) using strictly the laws of Conservation of Momentum.</p>
+                                            <div class="mt-4 p-3 bg-white rounded shadow border border-green-200 inline-block">
+                                                <p class="text-2xl font-black text-blue-600">Final Score: ${finalScore} / 15 ${extraCreditHtml}</p>
+                                                <p class="text-sm text-slate-500 font-bold mt-1">Total Errors Made: ${totalErrors}</p>
+                                            </div>
+                                            <div id="ai-review-text" class="mt-2"><span class="ai-spinner inline-block">⏳</span> Generating AI Review...</div>
+                                        </div>
+                                        <div id="solution-content" class="hidden">
+                                            <p class="font-bold text-lg mb-2">Solution Revealed 👀</p>
+                                            <p>All fields have been populated with the exact theoretical values.</p>
+                                            <p class="text-sm font-semibold text-slate-500 mt-2">Generate a New Scenario to try again!</p>
+                                        </div>`;
+                    
+                    shootConfettiSequence(5);
+                    getAIPerformanceReview(); // Trigger Gemini call
+                    
+                    document.getElementById('btn-solution').classList.remove('hidden');
+                    document.getElementById('btn-solution').innerText = "Show Final Overlay";
+                    setTimeout(() => { const fc = document.getElementById('questions-form'); fc.scrollTo({ top: fc.scrollHeight, behavior: 'smooth' }); }, 200);
+                }
+            } else {
+                totalErrors++; el.classList.add('bg-red-100', 'border-red-500'); stat.innerText = '❌';
+                
+                // Construct standard feedback + AI Hint Button
+                let fbHtml = '';
+                if (isNaN(val)) fbHtml = `Please enter a value.`;
+                else {
+                    fbHtml = `<div>${hint}</div>`;
+                    fbHtml += `<button id="btn-ai-hint-${q}" onclick="getAIHint(${q}, ${val}, ${exact}, '${hint.replace(/'/g, "\\'")}')" class="mt-2 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-fuchsia-100 hover:bg-fuchsia-200 text-fuchsia-700 px-2 py-1 rounded border border-fuchsia-300 transition">✨ Ask AI for a Hint</button>`;
+                }
+                fb.innerHTML = fbHtml;
+                fbc.classList.remove('hidden');
+                if (window.MathJax) MathJax.typesetPromise([fb]);
+                
+                if (totalErrors >= 3) document.getElementById('btn-solution').classList.remove('hidden');
+            }
+        }
+
+        function clearPhantom() { document.getElementById('phantom-layer').innerHTML = ''; }
+
+        function showSolution() {
+            pState.usedSolution = true;
+            const exacts = [pState.v1i, pState.v1f, pState.th1f, pState.p1i, pState.v1fx, pState.p1fx, pState.p2fx, pState.v1fy, pState.p1fy, pState.p2fy, pState.v2fx, pState.v2fy, pState.th2f, pState.v2f];
+            for(let i=1; i<=14; i++) {
+                let el = document.getElementById(`ans-${i}`), btn = document.getElementById(`btn-check-${i}`), stat = document.getElementById(`status-${i}`);
+                el.value = exacts[i-1].toFixed(2); el.disabled = true;
+                el.classList.add('bg-slate-100', 'border-slate-300', 'text-slate-600'); el.classList.remove('bg-red-100', 'border-red-500', 'bg-green-100', 'border-green-500');
+                btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); btn.innerText = 'Revealed';
+                stat.innerText = '👀'; document.getElementById(`feedback-container-${i}`).classList.add('hidden');
+                pState.answeredCorrectly[i-1] = true;
+            }
+
+            simTime = pState.maxTime; renderLoop();
+            
+            let visAngle2 = -pState.th2f; 
+            document.getElementById('phantom-layer').innerHTML = `
+                <div class="absolute w-[200px] h-0 border-t-4 border-blue-500 border-dashed" style="left: ${cx(pState.x2_start)}px; top: ${cy(pState.y2_start)}px; transform-origin: left center; transform: rotate(${visAngle2}deg);"></div>
+                <div class="absolute bg-white px-2 py-1 border border-blue-500 text-blue-700 font-bold rounded shadow-lg text-xs" style="left: ${cx(pState.x2_start) + 120 * Math.cos(visAngle2*Math.PI/180)}px; top: ${cy(pState.y2_start) + 120 * Math.sin(visAngle2*Math.PI/180)}px;">
+                     v2f = ${Math.hypot(pState.v2fx, pState.v2fy).toFixed(1)} m/s @ ${pState.th2f.toFixed(1)}&deg;<br> p2 = [${pState.p2fx.toFixed(1)}, ${pState.p2fy.toFixed(1)}]
+                </div>`;
+
+            const fbArea = document.getElementById('feedback-area');
+            fbArea.classList.remove('hidden');
+            fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed bg-slate-100 border-slate-300 text-slate-800 text-center shadow-inner";
+            
+            if (pState.hasFinalScore) {
+                document.getElementById('score-content').classList.add('hidden');
+                document.getElementById('solution-content').classList.remove('hidden');
+                document.getElementById('btn-show-score').classList.remove('hidden');
+            } else {
+                fbArea.innerHTML = `<p class="font-bold text-lg mb-2">Solution Revealed 👀</p><p>All fields have been populated with the exact theoretical values.</p><p class="text-sm font-semibold text-slate-500 mt-2">Generate a New Scenario to try again!</p>`;
+            }
+            
+            document.getElementById('btn-solution').classList.add('hidden');
+            setTimeout(() => { const fc = document.getElementById('questions-form'); fc.scrollTo({ top: fc.scrollHeight, behavior: 'smooth' }); }, 200);
+        }
+
+        function showScoreScreen() {
+            const fbArea = document.getElementById('feedback-area');
+            fbArea.className = "mt-4 p-4 rounded-xl border text-sm leading-relaxed correct-bg text-green-800 text-center";
+            
+            document.getElementById('score-content').classList.remove('hidden');
+            document.getElementById('solution-content').classList.add('hidden');
+            
+            document.getElementById('btn-show-score').classList.add('hidden');
+            document.getElementById('btn-solution').classList.remove('hidden');
+            document.getElementById('btn-solution').innerText = "Show Final Overlay";
+            
+            setTimeout(() => { const fc = document.getElementById('questions-form'); fc.scrollTo({ top: fc.scrollHeight, behavior: 'smooth' }); }, 200);
+        }
+
+        // --- Confetti ---
+        let confettiParticles = []; let isConfettiRunning = false;
+        function shootConfettiSequence(rounds) {
+            let currentRound = 0;
+            function fire() { shootBallisticConfetti(); currentRound++; if (currentRound < rounds) setTimeout(fire, 1500); }
+            fire();
+        }
+        function shootBallisticConfetti() {
+            const canvas = document.getElementById('confetti-canvas'), ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            for (let i = 0; i < 120; i++) {
+                const isLeft = Math.random() < 0.5;
+                confettiParticles.push({
+                    x: isLeft ? 0 : canvas.width, y: canvas.height,
+                    vx: isLeft ? (Math.random() * 18 + 8) : -(Math.random() * 18 + 8), vy: -(Math.random() * 20 + 15), 
+                    size: Math.random() * 8 + 6, color: `hsl(${Math.random() * 360}, 90%, 50%)`,
+                    rotation: Math.random() * 360, rs: (Math.random() - 0.5) * 20 
+                });
+            }
+            if (!isConfettiRunning) {
+                isConfettiRunning = true;
+                function animateConfetti() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); let active = false;
+                    confettiParticles.forEach(p => {
+                        p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rotation += p.rs;
+                        if (p.y < canvas.height + 50) {
+                            active = true; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                            ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
+                        }
+                    });
+                    if (active && confettiParticles.length > 0) requestAnimationFrame(animateConfetti);
+                    else { ctx.clearRect(0, 0, canvas.width, canvas.height); confettiParticles = []; isConfettiRunning = false; }
+                }
+                animateConfetti();
+            }
+        }
+    </script>
+</body>
+</html>
