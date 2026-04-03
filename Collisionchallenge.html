@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Physics: Elastic Collision Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; touch-action: none; font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+        #gameCanvas { display: block; background: #ffffff; cursor: crosshair; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pointer-auto { pointer-events: auto; }
+        .hidden { display: none !important; }
+        #measuring-tool {
+            position: absolute;
+            transform-origin: 0 0;
+            pointer-events: auto;
+            z-index: 50;
+        }
+        .grab-area {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 50%;
+            transform: translate(-24px, -24px);
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .grab-area:hover { background: rgba(59, 130, 246, 0.15); }
+        .crosshair-icon {
+            width: 10px;
+            height: 10px;
+            border: 1px solid #2563eb;
+            position: relative;
+        }
+        .crosshair-icon::before { content:''; position: absolute; top: 50%; left: -5px; right: -5px; height: 1px; background: #2563eb; }
+        .crosshair-icon::after { content:''; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 1px; background: #2563eb; }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226, 232, 240, 1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            color: #0f172a;
+        }
+        
+        .tool-glass {
+            background: transparent;
+            color: #0f172a;
+            text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 0px 2px 0 #fff, 0px -2px 0 #fff, -2px 0px 0 #fff, 2px 0px 0 #fff;
+            font-weight: 900;
+            font-size: 14px;
+        }
+
+        .drag-handle {
+            cursor: move;
+            width: 100%;
+            height: 20px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        .drag-handle::before {
+            content: "|||";
+            color: #94a3b8;
+            font-size: 10px;
+            letter-spacing: 2px;
+            transform: rotate(90deg);
+        }
+        .tool-btn {
+            transition: all 0.2s;
+        }
+        .tool-btn.active {
+            background: #2563eb;
+            color: white !important;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Tool Palette -->
+    <div id="tool-palette" class="glass p-2 rounded-xl flex flex-col gap-2 absolute left-6 top-1/2 -translate-y-1/2 z-50 pointer-events-auto hidden">
+        <button class="tool-btn active p-3 rounded hover:bg-slate-200 text-slate-700 font-bold flex justify-center items-center" data-tool="measure" title="Measuring Tape">📏</button>
+        <button class="tool-btn p-3 rounded hover:bg-slate-200 text-slate-700 font-bold flex justify-center items-center" data-tool="select" title="Select / Move Vectors">👆</button>
+        <button class="tool-btn p-3 rounded hover:bg-slate-200 text-blue-600 font-black flex justify-center items-center text-xl" data-tool="draw_blue" title="Draw M1 (Blue) Vector">↗</button>
+        <button class="tool-btn p-3 rounded hover:bg-slate-200 text-red-600 font-black flex justify-center items-center text-xl" data-tool="draw_red" title="Draw M2 (Red) Vector">↗</button>
+        <button class="tool-btn p-3 rounded hover:bg-slate-200 text-green-600 font-black flex justify-center items-center text-xl" data-tool="draw_green" title="Draw Total (Green) Vector">↗</button>
+        <div class="text-[10px] text-slate-500 text-center leading-tight mt-1">Del to<br>Erase</div>
+    </div>
+
+    <!-- UI Overlay -->
+    <div class="ui-layer flex flex-col p-6">
+        <!-- Top Bar -->
+        <div class="flex justify-between items-start pointer-events-none relative w-full">
+            <div class="glass p-4 rounded-xl pointer-events-auto">
+                <h1 id="exercise-title" class="text-2xl font-bold text-blue-700 mb-1">Elastic Collision Lab</h1>
+                <p id="mass-readout" class="text-md font-semibold text-slate-700">M1: -- kg | M2: -- kg</p>
+                <p id="trial-count" class="text-sm font-medium text-slate-500 mt-1">Trials Completed: 0 / ?</p>
+            </div>
+            
+            <!-- Draggable Instruction Box -->
+            <div id="instruction-container" class="absolute right-0 top-0 z-40 pointer-events-none">
+                <div id="instruction-box" class="glass p-4 rounded-xl w-80 border-l-4 border-l-blue-500 shadow-lg pointer-events-auto">
+                    <div id="inst-drag" class="drag-handle"></div>
+                    <p id="instruction-text" class="font-medium text-slate-700">M1 is coming in! Watch its trail carefully.</p>
+                    <button id="replay-btn" class="hidden mt-3 bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg font-bold text-sm w-full transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Replay Action
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Message / Feedback -->
+        <div id="feedback-modal" class="hidden fixed inset-0 pointer-events-none z-[100]">
+            <div id="feedback-content" class="absolute right-6 top-1/2 -translate-y-1/2 glass p-6 rounded-2xl w-[400px] shadow-2xl border-2 border-blue-400 pointer-events-auto">
+                <div id="feedback-drag" class="drag-handle mb-4"></div>
+                <h2 id="feedback-title" class="text-3xl font-bold text-blue-700 mb-4">Good Job!</h2>
+                <p id="feedback-text" class="text-[15px] mb-6 leading-relaxed text-slate-700 whitespace-pre-line"></p>
+                <button id="modal-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold transition-all transform hover:scale-105 shadow-md w-full">Continue</button>
+            </div>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="win-screen" class="hidden fixed inset-0 flex items-center justify-center pointer-events-auto bg-slate-50 z-[200]">
+            <div class="text-center p-12 glass rounded-3xl border-blue-200 shadow-2xl min-w-[500px]">
+                <h1 id="win-title" class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-2">CHAMPION!</h1>
+                <p id="congrat-msg" class="text-xl text-slate-600 mb-8 max-w-md italic mx-auto">Verification of mastery complete.</p>
+                
+                <div class="mb-6 flex flex-col items-center">
+                    <span class="text-sm uppercase tracking-widest text-slate-400 block font-bold mb-0">Final Score</span>
+                    <span id="final-score" class="text-[120px] leading-none font-black text-slate-800 block">15/15</span>
+                    <div class="flex justify-center items-center gap-2 text-sm text-slate-500 font-medium mt-2">
+                        <span id="small-title">Elastic Collision Lab v1.0</span>
+                        <span>|</span>
+                        <span id="verify-code">ABC-123</span>
+                    </div>
+                </div>
+
+                <button onclick="location.reload()" class="mt-8 text-slate-400 hover:text-slate-600 text-sm font-semibold underline transition-colors">Restart Simulation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Draggable Tool -->
+    <div id="measuring-tool" class="hidden">
+        <div class="absolute top-0 left-0 w-full flex flex-col items-center pointer-events-none" style="transform: translateY(-45px);">
+            <div class="tool-glass px-3 py-1.5 rounded-md font-mono flex gap-4">
+                <span>L: <span id="tool-len" class="text-blue-700">0.00</span>m</span>
+                <span>θ: <span id="tool-ang" class="text-blue-700">0</span>°</span>
+            </div>
+        </div>
+        <div id="tool-line" style="height: 2px; background: #2563eb; box-shadow: 0 0 4px rgba(37,99,235,0.5);"></div>
+        
+        <div id="pivot-handle" class="grab-area">
+            <div class="crosshair-icon"></div>
+        </div>
+        <div id="adjust-handle" class="grab-area">
+            <div class="crosshair-icon"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- CONSTANTS, SCORING & TOGGLES ---
+        const SCALE = 100; // 100px = 1m
+        const TOLERANCE_PX = 35;
+        const TARGET_INTERVALS = 4; // Exactly 4 intervals before and 4 after collision
+        const FRAMES_PER_DOT = 20;
+        
+        // --- GAME MODE TOGGLE ---
+        // Change GAME_MODE to 1 for 3-scenario version, 2 for 5-scenario version
+        const GAME_MODE = 1; 
+        const MAX_TRIALS = GAME_MODE === 1 ? 3 : 5;
+        const MAX_SCORE = GAME_MODE === 1 ? 15 : 25;
+        const EXERCISE_NAME = `Elastic Collision Lab ${GAME_MODE}`;
+        
+        // Set Titles
+        document.getElementById('exercise-title').innerText = EXERCISE_NAME;
+        document.getElementById('small-title').innerText = `${EXERCISE_NAME} v1.0`;
+        document.getElementById('trial-count').innerText = `Trials Completed: 0 / ${MAX_TRIALS}`;
+
+        // --- GEMINI API INTEGRATION ---
+        const apiKey = ""; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'collision-lab-001';
+
+        // Keep as fallback for extreme cases, but primary pedagogical feedback is calculated directly now.
+        async function getAIHint(prompt) {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const endpoint = isLocal ? 
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}` : 
+                `/api/gemini`;
+
+            const systemInstruction = "You are a physics tutor. Analyze the 2D collision vector mistake. Be extremely brief (2 sentences max).";
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, systemInstruction })
+                });
+                const data = await response.json();
+                return data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "Remember: Momentum is Mass × Velocity! Check your X and Y components.";
+            } catch (e) {
+                return "Think about how momentum is conserved. The total Y-momentum must remain zero.";
+            }
+        }
+
+        // --- STATE ---
+        let state = {
+            phase: 'WAITING', // RUNNING, GUESSING, REPLAY_ANIM, REPLAY_M1_ONLY, SHOW_ANSWER, WIN
+            m1: { x: 0, y: 0, r: 8, m: 1, vx: 5, vy: 0, trail: [] },
+            m2: { x: 0, y: 0, r: 8, m: 1, vx: 0, vy: 0, trail: [] },
+            initialSetup: null,
+            canvas: null,
+            ctx: null,
+            trialsCompleted: 0,
+            corrections: 0,
+            hintsUsed: 0,
+            lastGuess: null,
+            lastGuessCorrect: false,
+            time: 0,
+            postColTime: 0,
+            colTime: 0,
+            freezeTime: 0,
+            hasCollided: false,
+            colX: 0,
+            colY: 0,
+            scenario2Mass: null,
+            activeTool: 'measure', 
+            vectors: [], 
+            drawingVector: null,
+            draggingVector: null,
+            dragMode: null 
+        };
+
+        function cloneObj(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+        // --- DRAGGABLE UI LOGIC ---
+        function makeDraggable(elId, handleId) {
+            const el = document.getElementById(elId);
+            const handle = document.getElementById(handleId);
+            let isDragging = false, startX, startY, initX, initY;
+            
+            handle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX; startY = e.clientY;
+                const rect = el.getBoundingClientRect();
+                initX = rect.left; initY = rect.top;
+                
+                el.style.position = 'fixed';
+                el.style.left = initX + 'px';
+                el.style.top = initY + 'px';
+                el.style.right = 'auto'; 
+                el.style.transform = 'none'; 
+                el.style.margin = '0';
+                e.preventDefault();
+            });
+            
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                el.style.left = initX + (e.clientX - startX) + 'px';
+                el.style.top = initY + (e.clientY - startY) + 'px';
+            });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+        }
+
+        // --- TOOL PALETTE LOGIC ---
+        function initTools() {
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.activeTool = btn.dataset.tool;
+                    
+                    if (state.activeTool === 'measure') {
+                        document.getElementById('measuring-tool').classList.remove('hidden');
+                    } else {
+                        document.getElementById('measuring-tool').classList.add('hidden');
+                    }
+                    
+                    if (state.activeTool !== 'select') {
+                        state.vectors.forEach(v => v.selected = false);
+                    }
+                });
+            });
+            
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                    state.vectors = state.vectors.filter(v => !v.selected);
+                }
+            });
+        }
+
+        function switchToSelectTool() {
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            const selectBtn = document.querySelector('[data-tool="select"]');
+            if (selectBtn) selectBtn.classList.add('active');
+            state.activeTool = 'select';
+        }
+
+        // --- PHYSICS & SETUP ---
+        function initCollision() {
+            const canvas = state.canvas;
+            let m1Mass = 1, m2Mass = 1;
+            
+            if (state.trialsCompleted === 0) {
+                m1Mass = 1; m2Mass = 1;
+            } else if (state.trialsCompleted === 1) {
+                m1Mass = 1;
+                m2Mass = state.scenario2Mass || (Math.random() < 0.5 ? 2 : 0.5);
+                state.scenario2Mass = m2Mass; 
+            } else if (state.trialsCompleted === 2) {
+                m1Mass = 1;
+                m2Mass = state.scenario2Mass === 2 ? 0.5 : 2;
+            } else if (state.trialsCompleted === 3) {
+                m1Mass = 2; m2Mass = 3;
+            } else if (state.trialsCompleted === 4) {
+                m1Mass = 3; m2Mass = 1.5;
+            }
+            
+            state.m1.m = m1Mass;
+            state.m2.m = m2Mass;
+            
+            const midY = Math.floor((canvas.height / 2) / 50) * 50;
+            
+            state.m1.y = midY;
+            state.m1.vx = 3 + Math.random() * 2; // Kept slower to ensure it fits on screen
+            state.m1.vy = 0;
+            // state.m1.trail will be initialized after precise X is calculated
+            
+            state.m2.x = canvas.width * 0.5;
+            
+            // Ensure the vertical offset guarantees a collision and is mathematically safe (offset < r1 + r2)
+            const maxOffset = (state.m1.r + state.m2.r) * 0.85; 
+            const minOffset = (state.m1.r + state.m2.r) * 0.25; 
+            const sign = Math.random() < 0.5 ? 1 : -1;
+            state.m2.y = midY + sign * (minOffset + Math.random() * (maxOffset - minOffset));
+            
+            state.m2.vx = 0;
+            state.m2.vy = 0;
+            state.m2.trail = [];
+            
+            // --- PERFECT DOT TIMING CALCULATION ---
+            // Guarantee collision occurs precisely at the end of the TARGET_INTERVALS
+            const collisionDx = Math.sqrt(Math.pow(state.m1.r + state.m2.r, 2) - Math.pow(state.m2.y - state.m1.y, 2));
+            const colX = state.m2.x - collisionDx;
+            
+            const distPerDot = state.m1.vx * FRAMES_PER_DOT;
+            
+            state.m1.x = colX - (TARGET_INTERVALS * distPerDot);
+            state.colX_target = colX;
+            // --------------------------------------
+            
+            // Fix: Explicitly add the Frame 0 dot to ensure exactly 4 intervals before collision
+            state.m1.trail = [{x: state.m1.x, y: state.m1.y}];
+            
+            state.initialSetup = { m1: cloneObj(state.m1), m2: cloneObj(state.m2) };
+            
+            state.phase = 'RUNNING';
+            state.time = 0;
+            state.postColTime = 0;
+            state.hasCollided = false;
+            state.hintsUsed = 0;
+            state.lastGuess = null;
+            state.vectors = [];
+            
+            document.getElementById('mass-readout').innerText = `M1: ${state.m1.m}kg  |  M2: ${state.m2.m}kg`;
+            document.getElementById('instruction-text').innerText = "M1 is coming in! Watch its trail carefully.";
+            document.getElementById('measuring-tool').classList.add('hidden');
+            document.getElementById('tool-palette').classList.add('hidden');
+            document.getElementById('replay-btn').classList.add('hidden');
+        }
+
+        function resolveCollision() {
+            const m1 = state.m1;
+            const m2 = state.m2;
+            
+            const dx = m2.x - m1.x;
+            const dy = m2.y - m1.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            const nx = dx / distance;
+            const ny = dy / distance;
+            const tx = -ny;
+            const ty = nx;
+            
+            const v1n = m1.vx * nx + m1.vy * ny;
+            const v1t = m1.vx * tx + m1.vy * ty;
+            const v2n = m2.vx * nx + m2.vy * ny;
+            const v2t = m2.vx * tx + m2.vy * ty;
+            
+            const v1n_after = (v1n * (m1.m - m2.m) + 2 * m2.m * v2n) / (m1.m + m2.m);
+            const v2n_after = (v2n * (m2.m - m1.m) + 2 * m1.m * v1n) / (m1.m + m2.m);
+            
+            m1.vx = v1n_after * nx + v1t * tx;
+            m1.vy = v1n_after * ny + v1t * ty;
+            m2.vx = v2n_after * nx + v2t * tx;
+            m2.vy = v2n_after * ny + v2t * ty;
+            
+            state.colX = m1.x + dx/2;
+            state.colY = m1.y + dy/2;
+            
+            // Sync collision time and force immediate impact dot
+            state.colTime = state.time;
+            state.postColTime = 0;
+            state.m1.trail.push({x: state.m1.x, y: state.m1.y});
+            state.m2.trail.push({x: state.m2.x, y: state.m2.y});
+            
+            // Freeze exactly T frames after collision
+            state.freezeTime = state.colTime + (TARGET_INTERVALS * FRAMES_PER_DOT);
+        }
+
+        function startReplay() {
+            state.phase = 'REPLAY_ANIM';
+            state.m1 = cloneObj(state.initialSetup.m1);
+            state.m2 = cloneObj(state.initialSetup.m2);
+            state.time = 0;
+            state.postColTime = 0;
+            state.hasCollided = false;
+            document.getElementById('measuring-tool').classList.add('hidden');
+            document.getElementById('tool-palette').classList.add('hidden');
+            document.getElementById('instruction-text').innerText = "Replaying collision with M2 visible...";
+        }
+
+        function replayM1Only() {
+            state.phase = 'REPLAY_M1_ONLY';
+            state.m1 = cloneObj(state.initialSetup.m1);
+            state.m2 = cloneObj(state.initialSetup.m2);
+            state.time = 0;
+            state.postColTime = 0;
+            state.hasCollided = false;
+            
+            document.getElementById('tool-palette').classList.add('hidden');
+            if(state.activeTool === 'measure') document.getElementById('measuring-tool').classList.add('hidden');
+            
+            document.getElementById('replay-btn').classList.add('hidden');
+            document.getElementById('instruction-text').innerText = "Replaying M1's approach...";
+        }
+
+        // --- MEASURING TOOL LOGIC ---
+        const tool = {
+            el: document.getElementById('measuring-tool'),
+            pivot: { x: 200, y: 200 },
+            length: 150,
+            angle: 0,
+            isDragging: false,
+            activeHandle: null,
+            dragStart: { x: 0, y: 0, toolStartPivot: {}, toolStartLen: 0, toolStartAngle: 0 },
+            
+            updateUI() {
+                this.el.style.left = `${this.pivot.x}px`;
+                this.el.style.top = `${this.pivot.y}px`;
+                this.el.style.transform = `rotate(${this.angle}deg)`;
+                document.getElementById('tool-line').style.width = `${this.length}px`;
+                document.getElementById('adjust-handle').style.left = `${this.length}px`;
+                document.getElementById('tool-len').innerText = (this.length / SCALE).toFixed(2);
+                document.getElementById('tool-ang').innerText = ((-this.angle) % 360).toFixed(0);
+            }
+        };
+
+        function initTool() {
+            const onStart = (e, handle) => {
+                e.preventDefault();
+                const pos = e.touches ? e.touches[0] : e;
+                tool.isDragging = true;
+                tool.activeHandle = handle;
+                tool.dragStart = {
+                    x: pos.clientX,
+                    y: pos.clientY,
+                    toolStartPivot: { ...tool.pivot },
+                    toolStartLen: tool.length,
+                    toolStartAngle: tool.angle,
+                    mouseDist: Math.max(1, Math.hypot(pos.clientX - tool.pivot.x, pos.clientY - tool.pivot.y)),
+                    mouseAngle: Math.atan2(pos.clientY - tool.pivot.y, pos.clientX - tool.pivot.x)
+                };
+            };
+
+            document.getElementById('pivot-handle').addEventListener('mousedown', (e) => onStart(e, 'pivot'));
+            document.getElementById('adjust-handle').addEventListener('mousedown', (e) => onStart(e, 'adjust'));
+            document.getElementById('pivot-handle').addEventListener('touchstart', (e) => onStart(e, 'pivot'));
+            document.getElementById('adjust-handle').addEventListener('touchstart', (e) => onStart(e, 'adjust'));
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
+
+            function onMove(e) {
+                if (!tool.isDragging) return;
+                e.preventDefault();
+                const pos = e.touches ? e.touches[0] : e;
+                const dx = pos.clientX - tool.dragStart.x;
+                const dy = pos.clientY - tool.dragStart.y;
+
+                if (tool.activeHandle === 'pivot') {
+                    tool.pivot.x = tool.dragStart.toolStartPivot.x + dx;
+                    tool.pivot.y = tool.dragStart.toolStartPivot.y + dy;
+                } else {
+                    const curDist = Math.hypot(pos.clientX - tool.pivot.x, pos.clientY - tool.pivot.y);
+                    const curAngle = Math.atan2(pos.clientY - tool.pivot.y, pos.clientX - tool.pivot.x);
+                    
+                    tool.length = tool.dragStart.toolStartLen * (curDist / tool.dragStart.mouseDist);
+                    let angleDiff = curAngle - tool.dragStart.mouseAngle;
+                    tool.angle = tool.dragStart.toolStartAngle + angleDiff * (180 / Math.PI);
+                }
+                tool.updateUI();
+            }
+
+            function onEnd() { tool.isDragging = false; }
+            tool.updateUI();
+        }
+
+        // --- RENDER LOOP ---
+        function drawGrid(ctx, w, h) {
+            ctx.strokeStyle = '#cbd5e1'; 
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for(let x = 0; x < w; x += 50) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+            for(let y = 0; y < h; y += 50) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+            ctx.stroke();
+        }
+
+        function update() {
+            if (state.phase === 'RUNNING' || state.phase === 'REPLAY_ANIM' || state.phase === 'REPLAY_M1_ONLY') {
+                state.m1.x += state.m1.vx;
+                state.m1.y += state.m1.vy;
+                state.m2.x += state.m2.vx;
+                state.m2.y += state.m2.vy;
+                
+                state.time++;
+                if (state.hasCollided) state.postColTime++;
+                
+                // Force precision collision at the mathematically exact frame
+                if (!state.hasCollided && state.m1.x >= state.colX_target - 0.0001) {
+                    state.m1.x = state.colX_target;
+                    resolveCollision();
+                    state.hasCollided = true;
+                }
+                
+                // Perfect, flawless dot timing logic
+                if (!state.hasCollided) {
+                    if (state.time % FRAMES_PER_DOT === 0) state.m1.trail.push({x: state.m1.x, y: state.m1.y});
+                } else {
+                    if (state.postColTime > 0 && state.postColTime % FRAMES_PER_DOT === 0) {
+                        state.m1.trail.push({x: state.m1.x, y: state.m1.y});
+                        state.m2.trail.push({x: state.m2.x, y: state.m2.y});
+                    }
+                }
+                
+                if (state.phase === 'RUNNING') {
+                    if (state.hasCollided && state.time >= state.freezeTime) {
+                        state.phase = 'GUESSING';
+                        document.getElementById('instruction-text').innerText = "M2 deflected! Use tools to analyze. Shift+Click the screen to lock in M2's position.";
+                        document.getElementById('replay-btn').classList.remove('hidden');
+                        document.getElementById('tool-palette').classList.remove('hidden');
+                        if(state.activeTool === 'measure') tool.el.classList.remove('hidden');
+                    }
+                } else if (state.phase === 'REPLAY_ANIM') {
+                    if (state.time >= state.freezeTime) {
+                        state.phase = 'SHOW_ANSWER';
+                        document.getElementById('replay-btn').classList.remove('hidden');
+                        handleEndOfReplay();
+                    }
+                } else if (state.phase === 'REPLAY_M1_ONLY') {
+                    if (state.time >= state.freezeTime) {
+                        state.phase = 'GUESSING';
+                        document.getElementById('instruction-text').innerText = "Analyze the trails! Shift+Click the screen to lock in your guess for M2.";
+                        document.getElementById('replay-btn').classList.remove('hidden');
+                        document.getElementById('tool-palette').classList.remove('hidden');
+                        if(state.activeTool === 'measure') tool.el.classList.remove('hidden');
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            const ctx = state.ctx;
+            ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
+            drawGrid(ctx, state.canvas.width, state.canvas.height);
+            
+            ctx.lineWidth = 2;
+            
+            // M1 Trail
+            ctx.fillStyle = '#60a5fa'; // blue-400
+            state.m1.trail.forEach(p => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+            });
+            
+            // M2 Trail
+            if (state.phase === 'REPLAY_ANIM' || state.phase === 'SHOW_ANSWER') {
+                ctx.fillStyle = '#f87171'; // red-400
+                state.m2.trail.forEach(p => {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+                });
+            }
+            
+            // Draw M1
+            ctx.fillStyle = '#2563eb'; // blue-600
+            ctx.beginPath(); ctx.arc(state.m1.x, state.m1.y, state.m1.r, 0, Math.PI*2); ctx.fill();
+            
+            // M1 Label (Float above or below depending on vertical velocity to avoid obscuring)
+            // Note: Canvas Y increases downwards. vy > 0 means it rebounded DOWN.
+            const yOff1 = state.m1.vy > 0 ? 22 : (state.m1.vy < 0 ? -22 : -22);
+            ctx.fillStyle = '#1e3a8a'; // darker blue for text
+            ctx.font = '12px bold'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`${state.m1.m}kg`, state.m1.x, state.m1.y + yOff1);
+
+            // Draw M2
+            const showM2 = !state.hasCollided || state.phase === 'REPLAY_ANIM' || state.phase === 'SHOW_ANSWER';
+            if (showM2) {
+                ctx.fillStyle = '#e11d48'; // rose-600
+                ctx.beginPath(); ctx.arc(state.m2.x, state.m2.y, state.m2.r, 0, Math.PI*2); ctx.fill();
+                
+                // M2 Label (Float above or below)
+                const yOff2 = state.m2.vy > 0 ? 22 : (state.m2.vy < 0 ? -22 : -22);
+                ctx.fillStyle = '#881337'; // darker red for text
+                ctx.fillText(`${state.m2.m}kg`, state.m2.x, state.m2.y + yOff2);
+            }
+            
+            // Draw Click Mark
+            if (state.lastGuess && (state.phase === 'SHOW_ANSWER' || state.phase === 'GUESSING')) {
+                ctx.strokeStyle = state.lastGuessCorrect ? '#10b981' : '#f59e0b'; // green or amber
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(state.lastGuess.x - 12, state.lastGuess.y - 12); ctx.lineTo(state.lastGuess.x + 12, state.lastGuess.y + 12);
+                ctx.moveTo(state.lastGuess.x + 12, state.lastGuess.y - 12); ctx.lineTo(state.lastGuess.x - 12, state.lastGuess.y + 12);
+                ctx.stroke();
+            }
+
+            // True Vectors during Show Answer
+            if (state.phase === 'SHOW_ANSWER') {
+                const pScale = 4; // Scale factor for visual momentum
+                // M1 Vector
+                drawVector(state.m1.x, state.m1.y, state.m1.vx * state.m1.m * pScale, state.m1.vy * state.m1.m * pScale, '#2563eb', '#93c5fd');
+                // M2 Vector
+                drawVector(state.m2.x, state.m2.y, state.m2.vx * state.m2.m * pScale, state.m2.vy * state.m2.m * pScale, '#e11d48', '#fda4af');
+            }
+            
+            // Draw User Vectors
+            state.vectors.forEach(v => {
+                drawUserVector(ctx, v);
+            });
+            if (state.drawingVector) {
+                drawUserVector(ctx, state.drawingVector);
+            }
+
+            requestAnimationFrame(() => { update(); draw(); });
+        }
+
+        function drawUserVector(ctx, v) {
+            let color, compColor;
+            if (v.color === 'red') {
+                color = '#e11d48'; compColor = 'rgba(225, 29, 72, 0.3)';
+            } else if (v.color === 'green') {
+                color = '#16a34a'; compColor = 'rgba(22, 163, 74, 0.3)';
+            } else {
+                color = '#2563eb'; compColor = 'rgba(37, 99, 235, 0.3)';
+            }
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = v.selected ? 5 : 3;
+            if(v.selected) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10;
+            }
+            
+            // Main Arrow
+            ctx.beginPath(); ctx.moveTo(v.x, v.y); ctx.lineTo(v.x + v.vx, v.y + v.vy); ctx.stroke();
+            
+            // Arrowhead
+            const angle = Math.atan2(v.vy, v.vx);
+            ctx.beginPath();
+            ctx.moveTo(v.x + v.vx, v.y + v.vy);
+            ctx.lineTo(v.x + v.vx - 12 * Math.cos(angle - Math.PI/6), v.y + v.vy - 12 * Math.sin(angle - Math.PI/6));
+            ctx.moveTo(v.x + v.vx, v.y + v.vy);
+            ctx.lineTo(v.x + v.vx - 12 * Math.cos(angle + Math.PI/6), v.y + v.vy - 12 * Math.sin(angle + Math.PI/6));
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            
+            // Components
+            ctx.strokeStyle = compColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(v.x, v.y); ctx.lineTo(v.x + v.vx, v.y); ctx.lineTo(v.x + v.vx, v.y + v.vy); ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Readout - Always visible
+            const len = Math.hypot(v.vx, v.vy) / SCALE;
+            const ang = Math.atan2(v.vy, v.vx) * 180 / Math.PI;
+            ctx.font = 'bold 12px monospace';
+            const text = `L:${len.toFixed(2)}m θ:${(-ang%360).toFixed(0)}°`;
+            const textW = ctx.measureText(text).width;
+            ctx.fillStyle = v.selected ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)';
+            ctx.fillRect(v.x + v.vx/2 - textW/2 - 5, v.y + v.vy/2 - 20, textW + 10, 16);
+            ctx.fillStyle = color;
+            ctx.fillText(text, v.x + v.vx/2, v.y + v.vy/2 - 12);
+            
+            // Selection Handles
+            if (v.selected) {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(v.x, v.y, 5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(v.x + v.vx, v.y + v.vy, 5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            }
+        }
+
+        function drawVector(x, y, vx, vy, color, compColor) {
+            const ctx = state.ctx;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + vx, y + vy); ctx.stroke();
+            
+            const angle = Math.atan2(vy, vx);
+            ctx.beginPath();
+            ctx.moveTo(x + vx, y + vy);
+            ctx.lineTo(x + vx - 15 * Math.cos(angle - Math.PI/6), y + vy - 15 * Math.sin(angle - Math.PI/6));
+            ctx.moveTo(x + vx, y + vy);
+            ctx.lineTo(x + vx - 15 * Math.cos(angle + Math.PI/6), y + vy - 15 * Math.sin(angle + Math.PI/6));
+            ctx.stroke();
+            
+            ctx.strokeStyle = compColor;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + vx, y); ctx.lineTo(x + vx, y + vy); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // --- DYNAMIC GENERATOR FOR MESSAGES ---
+        function getCongratulation() {
+            const subjects = ["Precision", "Logic", "Momentum conservation", "Calculation", "Physics tracking", "Vector analysis"];
+            const verbs = ["executed", "mastered", "calculated", "visualized", "demonstrated"];
+            const endings = ["perfectly!", "like a pro.", "flawlessly.", "with absolute accuracy.", "like a true scientist."];
+            const s = subjects[Math.floor(Math.random() * subjects.length)];
+            const v = verbs[Math.floor(Math.random() * verbs.length)];
+            const e = endings[Math.floor(Math.random() * endings.length)];
+            return `${s} ${v} ${e}`;
+        }
+
+        // --- HIGHLY SPECIFIC PEDAGOGICAL FEEDBACK LOGIC ---
+        function handleGuess(gx, gy) {
+            if (state.phase !== 'GUESSING') return;
+            
+            state.lastGuess = { x: gx, y: gy };
+            const dist = Math.hypot(gx - state.m2.x, gy - state.m2.y);
+            
+            if (dist < TOLERANCE_PX) {
+                state.lastGuess = { x: state.m2.x, y: state.m2.y }; 
+                state.trialsCompleted++;
+                document.getElementById('trial-count').innerText = `Trials Completed: ${state.trialsCompleted} / ${MAX_TRIALS}`;
+                state.lastGuessCorrect = true;
+                startReplay(); 
+            } else {
+                state.corrections++;
+                state.hintsUsed++;
+                state.lastGuessCorrect = false;
+                checkMisconceptions(gx, gy);
+            }
+        }
+
+        async function checkMisconceptions(gx, gy) {
+            // Because time intervals are identical, physical Displacement (ui length) is directly proportional to Velocity!
+            const T = TARGET_INTERVALS * FRAMES_PER_DOT;
+            
+            // True UI Metrics (Lengths in Meters) Note: Inverted Y so "Up" is positive.
+            const ui_v1y_init = 0;
+            const ui_v1x_init = (state.initialSetup.m1.vx * T) / SCALE;
+            const ui_p1x_init = state.m1.m * ui_v1x_init;
+            
+            const ui_v1x = (state.m1.vx * T) / SCALE;
+            const ui_v1y = -(state.m1.vy * T) / SCALE; // Negative because canvas Y goes down
+            const ui_p1x = state.m1.m * ui_v1x;
+            const ui_p1y = state.m1.m * ui_v1y;
+            
+            // Expected UI Metrics for M2
+            const exp_p2x = ui_p1x_init - ui_p1x;
+            const exp_p2y = -ui_p1y; // MUST cancel out M1's Y momentum completely
+            
+            // Student's Guessed UI Metrics
+            const g_v2x = (gx - state.colX) / SCALE;
+            const g_v2y = -(gy - state.colY) / SCALE;
+            const g_p2x = state.m2.m * g_v2x;
+            const g_p2y = state.m2.m * g_v2y;
+            
+            const tol = 0.5; // Half a meter tolerance for guidance
+            let insight = "";
+            
+            if (Math.abs(g_v2y - (-ui_v1y)) < tol && state.m1.m !== state.m2.m) {
+                // Trap: They matched velocity, not momentum
+                insight = `Careful! Velocity != Momentum!\n\nYou matched M1's vertical velocity. But M1 is ${state.m1.m}kg and M2 is ${state.m2.m}kg. \n\nM1's Y-Momentum is ${ui_p1y.toFixed(2)}. M2 MUST have an equal and opposite Y-Momentum of ${exp_p2y.toFixed(2)}.\n\nDivide this momentum by M2's mass (${state.m2.m}kg) to find its correct vertical velocity!`;
+            } 
+            else if (Math.abs(g_p2y - exp_p2y) > tol) {
+                // Trap: Y-momentum isn't balanced at all
+                insight = `Your Y-Momentum isn't balanced!\n\nM1 entered horizontally, so total Y-Momentum must be 0.\n\nM1's Y-Velocity is ${ui_v1y.toFixed(2)}m. Multiplied by ${state.m1.m}kg, its Y-Momentum is ${ui_p1y.toFixed(2)}.\n\nM2 MUST have an opposing Y-Momentum of ${exp_p2y.toFixed(2)}. Use its mass (${state.m2.m}kg) to calculate how far it should move vertically!`;
+            }
+            else if (Math.abs(g_p2x - exp_p2x) > tol) {
+                // Trap: Y is good, X is wrong
+                insight = `Your vertical (Y) balance is great, but your horizontal (X) momentum is off!\n\nInitial X-Momentum: ${ui_p1x_init.toFixed(2)}\nM1's final X-Momentum: ${ui_p1x.toFixed(2)}\n\nThis means M2 must carry the remaining X-Momentum: ${exp_p2x.toFixed(2)}. Divide by M2's mass (${state.m2.m}kg) to find its horizontal velocity.`;
+            }
+            else {
+                // Catch all / AI Fallback for weird guesses
+                insight = await getAIHint(`Student guessed M2 position at X:${gx}, Y:${gy}. True was X:${state.m2.x}, Y:${state.m2.y}. M1 mass=${state.m1.m}, M2 mass=${state.m2.m}. Give vector component hint.`);
+            }
+
+            if (state.hintsUsed >= 3) {
+                state.lastGuess = { x: state.m2.x, y: state.m2.y };
+                startReplay(); 
+            } else {
+                showFeedback("Not quite...", insight, false);
+            }
+        }
+
+        function handleEndOfReplay() {
+            document.getElementById('instruction-text').innerText = "Review the momentum vectors (dashed lines show X/Y components).";
+            
+            const m1_setup = state.initialSetup.m1.m;
+            const m2_setup = state.initialSetup.m2.m;
+            let velExplanation = "";
+            
+            if (m1_setup === 1 && m2_setup === 1) { 
+                velExplanation = `\n\n[Instruction]: Since both disks are 1kg, their Velocity Lengths are EXACTLY THE SAME as their Momentum Lengths (p = 1 × v). You didn't need to scale the vectors.`;
+            } else {
+                velExplanation = `\n\n[Instruction]: To find M2's Velocity vector from its Momentum vector, you must divide its Momentum by its mass (${m2_setup}kg).\nVelocity Length = Momentum Length / ${m2_setup}.`;
+            }
+            
+            if (state.lastGuessCorrect) {
+                showFeedback("Excellent!", getCongratulation() + velExplanation, true);
+            } else {
+                const T = TARGET_INTERVALS * FRAMES_PER_DOT;
+                const ui_v1y = -(state.m1.vy * T) / SCALE;
+                const ui_p1y = m1_setup * ui_v1y;
+                
+                const explanation = `Let's break it down:\n\n1. M1 (${m1_setup}kg) deflected with a Y-velocity of ${ui_v1y.toFixed(2)}m.\n2. Its Y-Momentum is ${ui_p1y.toFixed(2)}.\n3. To keep total Y-momentum at 0, M2 (${m2_setup}kg) MUST have a Y-Momentum of ${(-ui_p1y).toFixed(2)}.\n4. Therefore, M2's Y-velocity is ${(-ui_p1y / m2_setup).toFixed(2)}m.` + velExplanation;
+                showFeedback("Correct Answer Revealed", explanation, true); 
+            }
+        }
+
+        function showFeedback(title, text, isEndOfTrial) {
+            document.getElementById('feedback-title').innerText = title;
+            document.getElementById('feedback-text').innerText = text;
+            document.getElementById('feedback-modal').classList.remove('hidden');
+            
+            const btn = document.getElementById('modal-btn');
+            btn.onclick = () => {
+                document.getElementById('feedback-modal').classList.add('hidden');
+                if (isEndOfTrial) {
+                    if (state.trialsCompleted >= MAX_TRIALS) {
+                        endGame();
+                    } else {
+                        initCollision();
+                    }
+                } else {
+                    state.phase = 'GUESSING';
+                }
+            };
+        }
+
+        function endGame() {
+            state.phase = 'WIN';
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+            
+            let baseScore = MAX_SCORE;
+            let extra = 0;
+            
+            const eMult = GAME_MODE === 1 ? 1 : 1.6; 
+            if (state.corrections === 0) extra = Math.round(5 * eMult);
+            else if (state.corrections === 1) extra = Math.round(4 * eMult);
+            else if (state.corrections === 2) extra = Math.round(3 * eMult);
+            else if (state.corrections === 3) extra = Math.round(2 * eMult);
+            else if (state.corrections === 4) extra = Math.round(1 * eMult);
+            else if (state.corrections > 10) baseScore = Math.max(0, MAX_SCORE - (state.corrections - 10));
+
+            // Apply extra credit directly to the displayed total
+            let totalScore = baseScore === MAX_SCORE ? baseScore + extra : baseScore;
+
+            document.getElementById('final-score').innerText = `${totalScore}/${MAX_SCORE}`;
+            
+            const topTitles = ["CHAMPION!", "BRILLIANT!", "MASTERFUL!", "PHYSICS PRO!", "OUTSTANDING!", "GENIUS!"];
+            const midTitles = ["GREAT JOB!", "WELL DONE!", "SOLID WORK!", "NICE EFFORT!"];
+            
+            if (totalScore === MAX_SCORE && state.corrections === 0) {
+                document.getElementById('win-title').innerText = "FLAWLESS!";
+                document.getElementById('congrat-msg').innerText = getCongratulation();
+            } else if (totalScore >= MAX_SCORE) {
+                document.getElementById('win-title').innerText = topTitles[Math.floor(Math.random() * topTitles.length)];
+                document.getElementById('congrat-msg').innerText = getCongratulation();
+            } else {
+                document.getElementById('win-title').innerText = midTitles[Math.floor(Math.random() * midTitles.length)];
+                document.getElementById('congrat-msg').innerText = "Keep practicing! Try again to improve your score.";
+            }
+            
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('verify-code').innerText = code;
+            document.getElementById('small-title').innerText = EXERCISE_NAME;
+
+            // Confetti Logic
+            let count = 0;
+            if (totalScore < MAX_SCORE) {
+                count = 0; // No confetti for less than 100%
+            } else if (state.corrections === 0) {
+                count = 4; // Perfect score + max extra credit
+            } else if (state.corrections <= 2) {
+                count = 3; 
+            } else if (state.corrections <= 4) {
+                count = 2;
+            } else {
+                count = 1; // 100% base score with no extra credit
+            }
+
+            for(let i=0; i<count; i++) {
+                setTimeout(() => confetti({ zIndex: 10000, particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#2563eb', '#10b981', '#38bdf8'] }), i * 800);
+            }
+        }
+
+        // --- INIT ---
+        window.onload = () => {
+            const canvas = document.getElementById('gameCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            state.canvas = canvas;
+            state.ctx = canvas.getContext('2d');
+            
+            makeDraggable('instruction-box', 'inst-drag');
+            makeDraggable('feedback-content', 'feedback-drag');
+            initTools();
+            
+            document.getElementById('replay-btn').addEventListener('click', () => {
+                if (state.phase === 'SHOW_ANSWER') {
+                    document.getElementById('feedback-modal').classList.add('hidden');
+                    startReplay();
+                } else {
+                    replayM1Only();
+                }
+            });
+
+            initTool();
+            initCollision();
+            draw();
+
+            let lastMouse = {x:0, y:0};
+
+            // Canvas Vector Interactions
+            canvas.addEventListener('mousedown', (e) => {
+                if (state.phase !== 'GUESSING' && state.phase !== 'SHOW_ANSWER') return;
+                
+                const mx = e.clientX;
+                const my = e.clientY;
+                lastMouse = { x: mx, y: my };
+
+                if (state.phase === 'GUESSING' && e.shiftKey) {
+                    if (!e.target.closest('.grab-area')) handleGuess(mx, my);
+                    return;
+                }
+                
+                if (state.activeTool === 'draw_blue' || state.activeTool === 'draw_red' || state.activeTool === 'draw_green') {
+                    state.vectors.forEach(v => v.selected = false);
+                    const colorMap = { 'draw_blue': 'blue', 'draw_red': 'red', 'draw_green': 'green' };
+                    state.drawingVector = {
+                        id: Date.now(),
+                        x: mx, y: my, vx: 0, vy: 0,
+                        color: colorMap[state.activeTool],
+                        selected: true
+                    };
+                } else if (state.activeTool === 'select') {
+                    let clickedVector = null;
+                    state.dragMode = null;
+                    
+                    state.vectors.forEach(v => v.selected = false);
+                    
+                    for (let i = state.vectors.length - 1; i >= 0; i--) {
+                        const v = state.vectors[i];
+                        if (Math.hypot(mx - (v.x + v.vx), my - (v.y + v.vy)) < 15) {
+                            clickedVector = v;
+                            state.dragMode = 'resize';
+                            break;
+                        }
+                        if (Math.hypot(mx - v.x, my - v.y) < 15) {
+                            clickedVector = v;
+                            state.dragMode = 'move';
+                            break;
+                        }
+                        const l2 = v.vx*v.vx + v.vy*v.vy;
+                        if (l2 === 0) continue;
+                        let t = ((mx - v.x) * v.vx + (my - v.y) * v.vy) / l2;
+                        t = Math.max(0, Math.min(1, t));
+                        const px = v.x + t * v.vx;
+                        const py = v.y + t * v.vy;
+                        if (Math.hypot(mx - px, my - py) < 15) { 
+                            clickedVector = v;
+                            state.dragMode = 'move';
+                            break;
+                        }
+                    }
+                    
+                    if (clickedVector) {
+                        clickedVector.selected = true;
+                        state.draggingVector = clickedVector;
+                    }
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                const dx = e.clientX - lastMouse.x;
+                const dy = e.clientY - lastMouse.y;
+                lastMouse = { x: e.clientX, y: e.clientY };
+
+                if (state.drawingVector) {
+                    state.drawingVector.vx = e.clientX - state.drawingVector.x;
+                    state.drawingVector.vy = e.clientY - state.drawingVector.y;
+                } else if (state.draggingVector) {
+                    if (state.dragMode === 'move') {
+                        state.draggingVector.x += dx;
+                        state.draggingVector.y += dy;
+                    } else if (state.dragMode === 'resize') {
+                        state.draggingVector.vx = e.clientX - state.draggingVector.x;
+                        state.draggingVector.vy = e.clientY - state.draggingVector.y;
+                    }
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (state.drawingVector) {
+                    if (Math.hypot(state.drawingVector.vx, state.drawingVector.vy) > 5) {
+                        state.vectors.push(state.drawingVector);
+                    }
+                    state.drawingVector = null;
+                    switchToSelectTool();
+                }
+                state.draggingVector = null;
+                state.dragMode = null;
+            });
+        };
+
+        window.onresize = () => {
+            state.canvas.width = window.innerWidth;
+            state.canvas.height = window.innerHeight;
+        };
+    </script>
+</body>
+</html>
