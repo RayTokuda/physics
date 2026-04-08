@@ -7,6 +7,8 @@
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti for Extra Credit Celebrations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
         body {
@@ -58,13 +60,25 @@
         <!-- Intro Screen -->
         <div id="screen-intro" class="bg-white p-8 rounded-2xl shadow-xl border border-teal-100 block">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Welcome to the Lab Analysis</h2>
+            
+            <div class="bg-teal-50 border-l-4 border-teal-500 p-5 mb-6 rounded-r-lg shadow-sm">
+                <h3 class="text-lg font-bold text-teal-800 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    Step 1: Simulator Setup
+                </h3>
+                <ol class="list-decimal list-inside text-teal-900 space-y-2 ml-1">
+                    <li>Open the <a href="https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_en.html" target="_blank" class="text-blue-600 underline font-bold hover:text-blue-800 transition-colors">PhET Waves on a String Simulator</a> (opens in new tab).</li>
+                    <li>Select the <strong>Pulse</strong> option (top left).</li>
+                    <li>Set the left generator to a <strong>Fixed End</strong> and the right side to a <strong>Loose End</strong>.</li>
+                    <li>Set the Pulse Width to <strong>0.20 s</strong>.</li>
+                </ol>
+            </div>
+
             <p class="text-gray-600 mb-4 leading-relaxed">
-                Open up the <strong>Waves on a string simulator (PhET)</strong> and follow your lab instructions. 
-                Answer the questions below. An AI instructor will grade your answers instantly.
+                Follow your lab instructions and answer the questions below. An AI instructor will grade your answers instantly.
             </p>
             <ul class="list-disc list-inside text-gray-600 mb-6 space-y-2">
-                <li>The base score is <strong>15 points</strong>.</li>
-                <li>You can earn up to <strong>5 points extra credit</strong> for getting questions right on the first try!</li>
+                <li>The base score is <strong>20 points</strong>.</li>
                 <li>If you get a question wrong, the AI will give you hints. Keep trying until you get it!</li>
                 <li>Too many corrections will start reducing your score.</li>
             </ul>
@@ -75,6 +89,18 @@
 
         <!-- Playing Screen -->
         <div id="screen-playing" class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-teal-100 hidden">
+            
+            <!-- Sim Reference Header -->
+            <div class="mb-6 bg-teal-50 border border-teal-200 p-4 rounded-xl flex flex-col md:flex-row justify-between items-center text-sm shadow-sm gap-4">
+                <div class="text-teal-800">
+                    <strong>Sim Settings:</strong> Pulse mode &bull; Fixed Left, Loose Right &bull; Width 0.20s
+                </div>
+                <a href="https://phet.colorado.edu/sims/html/wave-on-a-string/latest/wave-on-a-string_en.html" target="_blank" class="flex-shrink-0 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm flex items-center">
+                    Open PhET Simulator 
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+            </div>
+
             <!-- Progress -->
             <div class="mb-6">
                 <div class="flex justify-between text-sm font-semibold text-teal-700 mb-2">
@@ -83,6 +109,28 @@
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2.5">
                     <div id="progress-bar" class="bg-teal-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Media Container (Canvas & Diagrams) -->
+            <div id="media-container" class="mb-6 hidden flex flex-col items-center bg-gray-50 rounded-xl p-4 border border-teal-100 shadow-inner">
+                <canvas id="wave-canvas" width="600" height="200" class="w-full max-w-full bg-white border border-gray-200 shadow-sm rounded-lg hidden"></canvas>
+                
+                <div id="media-controls" class="flex gap-4 mt-4 hidden justify-center items-center w-full">
+                    <button id="btn-rewind" class="p-2.5 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded-full transition shadow-sm" title="Rewind">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12V7l-7 5 7 5v-5h2v5l7-5-7-5v5z"/></svg>
+                    </button>
+                    <button id="btn-playpause" class="p-3 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition shadow-md" title="Play/Pause">
+                        <svg id="icon-play" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="icon-pause" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <button id="btn-step" class="p-2.5 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded-full transition shadow-sm" title="Step Forward">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 7v10l8-5-8-5zm9 0v10h2V7h-2z"/></svg>
+                    </button>
+                </div>
+
+                <div id="diagram-container" class="hidden w-full flex-col items-center">
+                    <!-- SVG injected via JS -->
                 </div>
             </div>
 
@@ -120,7 +168,7 @@
             <div class="my-8 p-6 bg-teal-50 rounded-2xl border-2 border-teal-200 inline-block w-full">
                 <p class="text-sm font-semibold text-teal-600 mb-1 uppercase tracking-wider">Final Score</p>
                 <p class="text-5xl font-black text-teal-800 mb-2">
-                    <span id="score-earned">0</span> <span class="text-2xl text-teal-600">/ 15</span>
+                    <span id="score-earned">0</span> <span class="text-2xl text-teal-600">/ 20</span>
                 </p>
                 <p id="score-percent" class="text-gray-500 font-medium">(0%)</p>
             </div>
@@ -149,27 +197,32 @@
         const LAB_QUESTIONS = [
             {
                 q: "Describe the difference between reflection off a loose end and reflection off a fixed end.",
-                rubric: "Fixed end reflection inverts the wave (flips it upside down). Loose end reflection does not invert the wave (it reflects on the same side / stays right-side up)."
+                rubric: "Fixed end reflection inverts the wave (flips it upside down). Loose end reflection does not invert the wave (it reflects on the same side / stays right-side up). AI INSTRUCTION: In your feedback, you MUST explain the real-world significance of this (e.g., fixed ends create standing waves in string instruments like guitars; loose ends relate to whips cracking or free-swinging structures). Do NOT ask the student to provide these examples; simply share them as interesting facts."
             },
             {
                 q: "In the animation, two pulses have a head-on collision. Describe how this is different from a head-on collision between two cars.",
-                rubric: "Waves pass right through each other and continue on their way without being permanently altered or destroyed. Cars crash and are damaged or stopped."
+                rubric: "Waves pass right through each other and continue on their way without being permanently altered or destroyed. Cars crash and are damaged or stopped.",
+                media: "constructive"
             },
             {
                 q: "Describe what happens when the two pulses are both on the same side of the string and are directly on top of each other?",
-                rubric: "Their amplitudes add together to create a larger pulse. This is called constructive interference."
+                rubric: "Their amplitudes add together to create a larger pulse. This is called constructive interference.",
+                media: "constructive"
             },
             {
                 q: "Use the Ruler checkbox to find the amplitude in centimeters of the string when the two pulses are directly on top of each other. What is it?",
-                rubric: "The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around 1.50 cm or any explanation that states it is the sum of both."
+                rubric: "The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around 1.50 cm or any explanation that states it is the sum of both.",
+                media: "constructive-measure"
             },
             {
                 q: "How does this compare with the amplitude of each pulse by itself?",
-                rubric: "It is larger, specifically double (if they were equal) or the exact sum of the individual amplitudes."
+                rubric: "It is larger, specifically double (if they were equal) or the exact sum of the individual amplitudes.",
+                media: "constructive-measure"
             },
             {
                 q: "What is the amplitude of the string when two pulses on opposite sides of the string are exactly on top of each other?",
-                rubric: "The amplitude is zero (the string is flat), because they cancel each other out. This is destructive interference."
+                rubric: "The amplitude is zero (the string is flat), because they cancel each other out. This is destructive interference.",
+                media: "destructive-measure"
             },
             {
                 q: "Think of at least one example where interference of any sort of wave would be useful.",
@@ -180,12 +233,9 @@
                 rubric: "Accept valid real-world examples: Rogue waves sinking ships, radio/wifi static or dead zones, concert halls with bad acoustics, blurry radio signals."
             },
             {
-                q: "In slow motion mode about a minute in, the string goes completely flat before repeating the sequence. Is this an actual wave phenomenon or is this just the simulator restarting? Explain.",
-                rubric: "It's an actual wave phenomenon (destructive interference). The wave reflecting back perfectly cancels the incoming wave for a brief moment."
-            },
-            {
                 q: "Set the simulator to 0.84 Hz. How many nodes and antinodes form in the standing wave at this frequency?",
-                rubric: "It forms 3 nodes and 2 antinodes."
+                rubric: "It forms 3 nodes and 2 antinodes.",
+                media: "diagram-standing"
             },
             {
                 q: "Under what circumstances do standing waves appear in the simulator? Use frequency or wavelength in your explanation.",
@@ -205,6 +255,11 @@
         let currentQIndex = 0;
         let corrections = 0;
         let isCorrect = false;
+
+        // --- Animation Variables ---
+        let animTime = 0;
+        let animPlaying = true;
+        let currentMedia = null;
 
         // --- DOM Elements ---
         const screenIntro = document.getElementById('screen-intro');
@@ -226,6 +281,17 @@
         const feedbackBox = document.getElementById('feedback-box');
         const feedbackIcon = document.getElementById('feedback-icon');
         const feedbackText = document.getElementById('feedback-text');
+
+        // --- Added DOM Elements for Media ---
+        const mediaContainer = document.getElementById('media-container');
+        const waveCanvas = document.getElementById('wave-canvas');
+        const mediaControls = document.getElementById('media-controls');
+        const diagramContainer = document.getElementById('diagram-container');
+        const btnPlayPause = document.getElementById('btn-playpause');
+        const btnRewind = document.getElementById('btn-rewind');
+        const btnStep = document.getElementById('btn-step');
+        const iconPlay = document.getElementById('icon-play');
+        const iconPause = document.getElementById('icon-pause');
 
         // --- Initialize Movable Element ---
         const atom = document.getElementById('movable-atom');
@@ -289,10 +355,64 @@
             btnNext.classList.add('hidden');
             feedbackBox.classList.add('hidden');
             
-            questionTitle.innerText = LAB_QUESTIONS[currentQIndex].q;
+            const qData = LAB_QUESTIONS[currentQIndex];
+            questionTitle.innerText = qData.q;
             progressText.innerText = `Question ${currentQIndex + 1} of ${LAB_QUESTIONS.length}`;
             correctionsText.innerText = `Corrections: ${corrections}`;
             progressBar.style.width = `${(currentQIndex / LAB_QUESTIONS.length) * 100}%`;
+
+            // Setup Media/Animations
+            currentMedia = qData.media;
+            if (currentMedia) {
+                mediaContainer.classList.remove('hidden');
+                if (currentMedia.startsWith('diagram')) {
+                    waveCanvas.classList.add('hidden');
+                    mediaControls.classList.add('hidden');
+                    mediaControls.classList.remove('flex');
+                    diagramContainer.classList.remove('hidden');
+                    
+                    diagramContainer.innerHTML = `
+                        <p class="text-sm font-semibold text-teal-800 mb-3 bg-teal-50 px-4 py-2 rounded-lg border border-teal-200 w-full text-center">
+                            Reference Parameter Setup: <strong>Fixed End</strong>, Oscillate, Damping: None, Tension: High
+                        </p>
+                        <svg viewBox="0 0 400 100" class="w-full max-w-md mx-auto border border-gray-300 rounded-xl bg-white shadow-sm">
+                            <!-- Dashed wave -->
+                            <path d="M 0 50 Q 100 0 200 50 T 400 50" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4" />
+                            <!-- Solid wave -->
+                            <path d="M 0 50 Q 100 100 200 50 T 400 50" fill="none" stroke="#0d9488" stroke-width="3" />
+                            <!-- Fixed ends -->
+                            <line x1="2" y1="20" x2="2" y2="80" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+                            <line x1="398" y1="20" x2="398" y2="80" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+                            <!-- Nodes -->
+                            <circle cx="0" cy="50" r="5" fill="#ef4444" />
+                            <circle cx="200" cy="50" r="5" fill="#ef4444" />
+                            <circle cx="400" cy="50" r="5" fill="#ef4444" />
+                            <text x="200" y="85" font-size="12" fill="#ef4444" text-anchor="middle" font-weight="bold">Node (Zero Amp)</text>
+                            <!-- Antinodes -->
+                            <text x="100" y="20" font-size="12" fill="#0d9488" text-anchor="middle" font-weight="bold">Antinode (Max Amp)</text>
+                            <text x="300" y="20" font-size="12" fill="#0d9488" text-anchor="middle" font-weight="bold">Antinode</text>
+                        </svg>
+                    `;
+                } else {
+                    waveCanvas.classList.remove('hidden');
+                    diagramContainer.classList.add('hidden');
+                    
+                    if (currentMedia.includes('-measure')) {
+                        mediaControls.classList.remove('hidden');
+                        mediaControls.classList.add('flex');
+                    } else {
+                        mediaControls.classList.add('hidden');
+                        mediaControls.classList.remove('flex');
+                    }
+                    
+                    animTime = 0;
+                    animPlaying = true;
+                    iconPlay.classList.add('hidden');
+                    iconPause.classList.remove('hidden');
+                }
+            } else {
+                mediaContainer.classList.add('hidden');
+            }
         }
 
         async function gradeAnswer() {
@@ -426,7 +546,7 @@
             screenPlaying.classList.add('hidden');
             screenEnd.classList.remove('hidden');
 
-            let base = 15;
+            let base = 20;
             let ec = 0;
             
             if (corrections === 0) ec = 5;
@@ -436,11 +556,11 @@
             else if (corrections === 4) ec = 1;
             else if (corrections >= 5 && corrections <= 10) ec = 0;
             else {
-                base = Math.max(0, 15 - (corrections - 10));
+                base = Math.max(0, 20 - (corrections - 10));
             }
             
             const total = base + ec;
-            const percent = Math.round((total / 15) * 100);
+            const percent = Math.round((total / 20) * 100);
 
             document.getElementById('score-earned').innerText = total;
             document.getElementById('score-percent').innerText = `(${percent}%)`;
@@ -449,7 +569,7 @@
             document.getElementById('verification-code').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
 
             const endMsgEl = document.getElementById('end-message');
-            if (total < 12) {
+            if (total < 16) {
                 endMsgEl.className = "text-red-600 font-medium bg-red-50 p-3 rounded-lg border border-red-100";
                 endMsgEl.innerText = "You scored less than 80%. I invite you to try again to master these concepts and improve your score!";
                 btnRetry.classList.remove('hidden');
@@ -458,6 +578,23 @@
                 endMsgEl.innerText = "Great job! Take a screenshot of this page and turn it in for credit.";
                 btnRetry.classList.add('hidden');
             }
+
+            // Ballistic Confetti
+            if (ec > 0 && typeof confetti === 'function') {
+                // Scale confetti intensity and physics based on extra credit points
+                const particleCount = ec * 50; 
+                const spread = 60 + (ec * 10);
+                const velocity = 35 + (ec * 8);
+
+                confetti({
+                    particleCount: particleCount,
+                    spread: spread,
+                    startVelocity: velocity,
+                    origin: { y: 0.7 }, // Shoot from lower down for a ballistic arc
+                    zIndex: 1000,
+                    colors: ['#0d9488', '#14b8a6', '#fcd34d', '#f59e0b', '#3b82f6']
+                });
+            }
         }
 
         // --- Event Listeners ---
@@ -465,6 +602,104 @@
         btnSubmit.addEventListener('click', gradeAnswer);
         btnNext.addEventListener('click', handleNext);
         btnRetry.addEventListener('click', startGame);
+
+        // --- Animation Loop & Control Listeners ---
+        function loopAnimation() {
+            if (currentMedia && !currentMedia.startsWith('diagram')) {
+                const ctx = waveCanvas.getContext('2d');
+                ctx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+                const cy = waveCanvas.height / 2;
+                const w = 40;
+                const v = 2.5;
+                const A1 = 37.5; // 0.75 cm
+                const A2 = currentMedia.includes('destructive') ? -37.5 : 37.5;
+                const offsetLeft = currentMedia.includes('-measure') ? 35 : 0;
+
+                // Draw Ruler if measure is active
+                if (currentMedia.includes('-measure')) {
+                    ctx.strokeStyle = '#e5e7eb'; // gray-200
+                    ctx.beginPath();
+                    for(let y = cy - 100; y <= cy + 100; y += 25) { // 25px = 0.5cm
+                        ctx.moveTo(offsetLeft, y);
+                        ctx.lineTo(waveCanvas.width, y);
+                    }
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#64748b'; // slate-500
+                    ctx.font = '12px system-ui';
+                    ctx.fillText("0 cm", 0, cy + 4);
+                    ctx.fillText("0.5", 5, cy - 25 + 4);
+                    ctx.fillText("1.0", 5, cy - 50 + 4);
+                    ctx.fillText("1.5", 5, cy - 75 + 4);
+                    ctx.fillText("-0.5", 0, cy + 25 + 4);
+                    ctx.fillText("-1.0", 0, cy + 50 + 4);
+                    
+                    // Bold center line
+                    ctx.strokeStyle = '#94a3b8'; // slate-400
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(offsetLeft, cy);
+                    ctx.lineTo(waveCanvas.width, cy);
+                    ctx.stroke();
+                } else {
+                    // Just center line
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, cy);
+                    ctx.lineTo(waveCanvas.width, cy);
+                    ctx.stroke();
+                }
+
+                // Draw Wave
+                ctx.strokeStyle = '#0d9488'; // teal-600
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                for (let x = offsetLeft; x < waveCanvas.width; x++) {
+                    const p1 = A1 * Math.exp(-Math.pow(x - (100 + v * animTime), 2) / (w * w));
+                    const p2 = A2 * Math.exp(-Math.pow(x - (500 - v * animTime), 2) / (w * w));
+                    
+                    const y = cy - (p1 + p2);
+                    if (x === offsetLeft) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                if (animPlaying) {
+                    animTime += 1;
+                    if (animTime > 220) { // loop point extended slightly for visual break
+                        animTime = 0;
+                    }
+                }
+            }
+            requestAnimationFrame(loopAnimation);
+        }
+
+        // Kick off the animation loop
+        requestAnimationFrame(loopAnimation);
+
+        if (btnPlayPause) {
+            btnPlayPause.addEventListener('click', () => {
+                animPlaying = !animPlaying;
+                iconPlay.classList.toggle('hidden', animPlaying);
+                iconPause.classList.toggle('hidden', !animPlaying);
+            });
+            btnRewind.addEventListener('click', () => {
+                animTime = 0;
+                animPlaying = true;
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+            });
+            btnStep.addEventListener('click', () => {
+                animPlaying = false;
+                animTime += 5; // advance 5 frames
+                if (animTime > 220) animTime = 0;
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+            });
+        }
 
     </script>
 </body>
