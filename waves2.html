@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waves Virtual Lab Grader</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body {
+            background-color: #f0fdfa; /* Light teal background */
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Floating animation for the movable element */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Fade in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative flex flex-col items-center p-4">
+
+    <!-- Movable Element - Floating Atom Icon -->
+    <div id="movable-atom" class="absolute z-50 animate-float cursor-pointer flex flex-col items-center transition-all duration-100 ease-out" title="Use arrow keys to move me!">
+        <svg class="w-16 h-16 text-teal-600 drop-shadow-lg" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"></path>
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+        </svg>
+        <span class="text-xs text-teal-800 font-bold bg-white/80 px-2 rounded-full mt-1 shadow">Arrow Keys!</span>
+    </div>
+
+    <!-- Header -->
+    <header class="w-full max-w-3xl mt-8 mb-6 text-center z-10">
+        <h1 class="text-4xl font-extrabold text-teal-900 drop-shadow-sm">Waves Virtual Lab</h1>
+        <p class="text-teal-700 mt-2 font-medium">Interactive AI Grader</p>
+    </header>
+
+    <!-- UI Container -->
+    <main id="app-container" class="w-full max-w-3xl z-10 relative">
+        
+        <!-- Intro Screen -->
+        <div id="screen-intro" class="bg-white p-8 rounded-2xl shadow-xl border border-teal-100 block">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Welcome to the Lab Analysis</h2>
+            <p class="text-gray-600 mb-4 leading-relaxed">
+                Open up the <strong>Waves on a string simulator (PhET)</strong> and follow your lab instructions. 
+                Answer the questions below. An AI instructor will grade your answers instantly.
+            </p>
+            <ul class="list-disc list-inside text-gray-600 mb-6 space-y-2">
+                <li>The base score is <strong>15 points</strong>.</li>
+                <li>You can earn up to <strong>5 points extra credit</strong> for getting questions right on the first try!</li>
+                <li>If you get a question wrong, the AI will give you hints. Keep trying until you get it!</li>
+                <li>Too many corrections will start reducing your score.</li>
+            </ul>
+            <button id="btn-start" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 transform hover:scale-[1.02] shadow-md">
+                Start Virtual Lab
+            </button>
+        </div>
+
+        <!-- Playing Screen -->
+        <div id="screen-playing" class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-teal-100 hidden">
+            <!-- Progress -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm font-semibold text-teal-700 mb-2">
+                    <span id="progress-text">Question 1 of X</span>
+                    <span id="corrections-text">Corrections: 0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-teal-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Question -->
+            <div class="mb-6">
+                <h3 id="question-title" class="text-xl font-bold text-gray-800 leading-tight"></h3>
+            </div>
+
+            <!-- Input -->
+            <div class="mb-4">
+                <textarea id="answer-input" class="w-full border-2 border-gray-200 rounded-xl p-4 text-gray-700 focus:outline-none focus:border-teal-500 transition-colors resize-none" rows="4" placeholder="Type your answer here based on your PhET simulation..."></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <button id="btn-submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md">
+                Submit Answer
+            </button>
+            <button id="btn-next" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 transform hover:scale-[1.02] shadow-md hidden">
+                Next Question ➔
+            </button>
+
+            <!-- Feedback -->
+            <div id="feedback-box" class="mt-6 p-4 rounded-xl border hidden animate-fade-in">
+                <div class="flex items-start">
+                    <div id="feedback-icon" class="flex-shrink-0 mt-0.5 mr-3"></div>
+                    <div id="feedback-text" class="font-medium text-sm leading-relaxed"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- End Screen -->
+        <div id="screen-end" class="bg-white p-8 rounded-2xl shadow-xl border border-teal-100 text-center hidden animate-fade-in">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Lab Complete!</h2>
+            
+            <div class="my-8 p-6 bg-teal-50 rounded-2xl border-2 border-teal-200 inline-block w-full">
+                <p class="text-sm font-semibold text-teal-600 mb-1 uppercase tracking-wider">Final Score</p>
+                <p class="text-5xl font-black text-teal-800 mb-2">
+                    <span id="score-earned">0</span> <span class="text-2xl text-teal-600">/ 15</span>
+                </p>
+                <p id="score-percent" class="text-gray-500 font-medium">(0%)</p>
+            </div>
+
+            <!-- Required Screenshot Layout -->
+            <div class="mb-8 space-y-1">
+                <p class="text-sm text-gray-500 uppercase tracking-widest font-semibold">waves virtual lab part 2</p>
+                <p id="verification-code" class="text-xl font-mono bg-gray-100 p-2 rounded text-gray-800 tracking-widest border font-bold inline-block border-gray-300">
+                    XXXXXX
+                </p>
+                <p class="text-xs text-gray-400 mt-2">waves virtual lab part 2</p>
+            </div>
+
+            <div id="end-message-container" class="space-y-4">
+                <p id="end-message" class=""></p>
+                <button id="btn-retry" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md hidden">
+                    Try Again
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Question Bank & Rubric ---
+        const LAB_QUESTIONS = [
+            {
+                q: "Describe the difference between reflection off a loose end and reflection off a fixed end.",
+                rubric: "Fixed end reflection inverts the wave (flips it upside down). Loose end reflection does not invert the wave (it reflects on the same side / stays right-side up)."
+            },
+            {
+                q: "In the animation, two pulses have a head-on collision. Describe how this is different from a head-on collision between two cars.",
+                rubric: "Waves pass right through each other and continue on their way without being permanently altered or destroyed. Cars crash and are damaged or stopped."
+            },
+            {
+                q: "Describe what happens when the two pulses are both on the same side of the string and are directly on top of each other?",
+                rubric: "Their amplitudes add together to create a larger pulse. This is called constructive interference."
+            },
+            {
+                q: "Use the Ruler checkbox to find the amplitude in centimeters of the string when the two pulses are directly on top of each other. What is it?",
+                rubric: "The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around 1.50 cm or any explanation that states it is the sum of both."
+            },
+            {
+                q: "How does this compare with the amplitude of each pulse by itself?",
+                rubric: "It is larger, specifically double (if they were equal) or the exact sum of the individual amplitudes."
+            },
+            {
+                q: "What is the amplitude of the string when two pulses on opposite sides of the string are exactly on top of each other?",
+                rubric: "The amplitude is zero (the string is flat), because they cancel each other out. This is destructive interference."
+            },
+            {
+                q: "Think of at least one example where interference of any sort of wave would be useful.",
+                rubric: "Accept valid real-world examples: Noise-canceling headphones, musical instruments, antennas, holograms, medical imaging, fiber optics, etc."
+            },
+            {
+                q: "Think of at least one example where interference of any sort of wave would be bad.",
+                rubric: "Accept valid real-world examples: Rogue waves sinking ships, radio/wifi static or dead zones, concert halls with bad acoustics, blurry radio signals."
+            },
+            {
+                q: "In slow motion mode about a minute in, the string goes completely flat before repeating the sequence. Is this an actual wave phenomenon or is this just the simulator restarting? Explain.",
+                rubric: "It's an actual wave phenomenon (destructive interference). The wave reflecting back perfectly cancels the incoming wave for a brief moment."
+            },
+            {
+                q: "Set the simulator to 0.84 Hz. How many nodes and antinodes form in the standing wave at this frequency?",
+                rubric: "It forms 3 nodes and 2 antinodes."
+            },
+            {
+                q: "Under what circumstances do standing waves appear in the simulator? Use frequency or wavelength in your explanation.",
+                rubric: "Standing waves appear when the frequency is an exact multiple of the fundamental frequency, or when the string length is an exact multiple of half-wavelengths."
+            },
+            {
+                q: "What are the 7 frequencies where standing waves are likely to occur in this simulator with both ends fixed (between 0 and 3 Hz)?",
+                rubric: "Multiples of approximately 0.42 Hz. Accept combinations of: 0.42, 0.84, 1.26, 1.68, 2.10, 2.52, 2.94 Hz. Allow slight variations (like 0.41 or 0.43 multiples)."
+            },
+            {
+                q: "Explain why the standing waves are not actually standing still.",
+                rubric: "They are created by two identical waves continuously moving in opposite directions and interfering. The particles of the string are also still moving up and down; only the horizontal position of the nodes appears still."
+            }
+        ];
+
+        // --- State Variables ---
+        let currentQIndex = 0;
+        let corrections = 0;
+        let isCorrect = false;
+
+        // --- DOM Elements ---
+        const screenIntro = document.getElementById('screen-intro');
+        const screenPlaying = document.getElementById('screen-playing');
+        const screenEnd = document.getElementById('screen-end');
+        
+        const btnStart = document.getElementById('btn-start');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnNext = document.getElementById('btn-next');
+        const btnRetry = document.getElementById('btn-retry');
+        
+        const questionTitle = document.getElementById('question-title');
+        const answerInput = document.getElementById('answer-input');
+        
+        const progressText = document.getElementById('progress-text');
+        const correctionsText = document.getElementById('corrections-text');
+        const progressBar = document.getElementById('progress-bar');
+        
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const feedbackText = document.getElementById('feedback-text');
+
+        // --- Initialize Movable Element ---
+        const atom = document.getElementById('movable-atom');
+        let atomX = window.innerWidth - 100;
+        let atomY = window.innerHeight - 100;
+
+        function updateAtomPos() {
+            atom.style.left = `${atomX}px`;
+            atom.style.top = `${atomY}px`;
+        }
+
+        window.addEventListener('resize', () => {
+            atomX = Math.max(0, Math.min(window.innerWidth - 64, atomX));
+            atomY = Math.max(0, Math.min(window.innerHeight - 64, atomY));
+            updateAtomPos();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            // Prevent movement when user is typing in the textarea
+            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
+
+            const step = 25;
+            let moved = false;
+            if (e.key === 'ArrowUp') { atomY -= step; moved = true; }
+            if (e.key === 'ArrowDown') { atomY += step; moved = true; }
+            if (e.key === 'ArrowLeft') { atomX -= step; moved = true; }
+            if (e.key === 'ArrowRight') { atomX += step; moved = true; }
+
+            if (moved) {
+                atomX = Math.max(0, Math.min(window.innerWidth - 64, atomX));
+                atomY = Math.max(0, Math.min(window.innerHeight - 64, atomY));
+                updateAtomPos();
+                e.preventDefault(); // Stop window from scrolling
+            }
+        });
+
+        // Initial placement
+        setTimeout(() => {
+            atomX = window.innerWidth > 800 ? window.innerWidth - 150 : window.innerWidth - 80;
+            atomY = window.innerHeight - 150;
+            updateAtomPos();
+        }, 100);
+
+        // --- Core Application Logic ---
+
+        function startGame() {
+            currentQIndex = 0;
+            corrections = 0;
+            screenIntro.classList.add('hidden');
+            screenEnd.classList.add('hidden');
+            screenPlaying.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isCorrect = false;
+            answerInput.value = '';
+            answerInput.disabled = false;
+            
+            btnSubmit.classList.remove('hidden');
+            btnNext.classList.add('hidden');
+            feedbackBox.classList.add('hidden');
+            
+            questionTitle.innerText = LAB_QUESTIONS[currentQIndex].q;
+            progressText.innerText = `Question ${currentQIndex + 1} of ${LAB_QUESTIONS.length}`;
+            correctionsText.innerText = `Corrections: ${corrections}`;
+            progressBar.style.width = `${(currentQIndex / LAB_QUESTIONS.length) * 100}%`;
+        }
+
+        async function gradeAnswer() {
+            const answer = answerInput.value.trim();
+            if (!answer) return;
+
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add('opacity-75', 'cursor-not-allowed');
+            btnSubmit.innerHTML = `
+                <span class="flex items-center justify-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Evaluating...
+                </span>`;
+
+            feedbackBox.classList.add('hidden');
+
+            const qData = LAB_QUESTIONS[currentQIndex];
+            const systemInstruction = "You are a helpful, encouraging physics teacher grading a high school student's virtual lab. You must output your response ONLY as a JSON object, without any markdown formatting blocks. The JSON must exactly contain: \"correct\" (boolean), \"feedback\" (string guiding them if wrong, praising if right), and \"corrections_made\" (integer: 1 if they were completely wrong and needed correction, 0 if they got it mostly right).";
+            const prompt = `Question: ${qData.q}\nCorrect Concept/Rubric: ${qData.rubric}\nStudent's Answer: ${answer}\n\nEvaluate the student's answer. Be lenient on exact wording as long as they grasp the core physics concept.`;
+
+            try {
+                let evaluation = null;
+
+                // 1. Try Vercel Backend
+                try {
+                    const vercelRes = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, systemInstruction })
+                    });
+                    
+                    if (vercelRes.ok) {
+                        const data = await vercelRes.json();
+                        let cleanText = data.text.replace(/```json/g, '').replace(/```/g, '').trim();
+                        evaluation = JSON.parse(cleanText);
+                    }
+                } catch (e) {
+                    console.log("Vercel backend not found, using preview fallback...");
+                }
+
+                // 2. Fallback to Canvas API
+                if (!evaluation) {
+                    const canvasApiKey = "";
+                    const canvasUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${canvasApiKey}`;
+                    
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemInstruction }] },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    correct: { type: "BOOLEAN" },
+                                    feedback: { type: "STRING" },
+                                    corrections_made: { type: "INTEGER" }
+                                },
+                                required: ["correct", "feedback", "corrections_made"]
+                            }
+                        }
+                    };
+
+                    const delays = [1000, 2000, 4000, 8000, 16000];
+                    for (let i = 0; i < 5; i++) {
+                        try {
+                            const res = await fetch(canvasUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                evaluation = JSON.parse(data.candidates[0].content.parts[0].text);
+                                break;
+                            }
+                        } catch (err) {
+                            if (i === 4) throw err;
+                            await new Promise(r => setTimeout(r, delays[i]));
+                        }
+                    }
+                }
+
+                // Apply Evaluation
+                if (evaluation) {
+                    isCorrect = evaluation.correct;
+                    feedbackText.innerText = evaluation.feedback;
+                    feedbackIcon.innerText = isCorrect ? '✅' : '❌';
+                    
+                    if (isCorrect) {
+                        feedbackBox.className = "mt-6 p-4 rounded-xl border bg-green-50 border-green-200 text-green-800 animate-fade-in";
+                        btnSubmit.classList.add('hidden');
+                        btnNext.classList.remove('hidden');
+                        btnNext.innerText = currentQIndex < LAB_QUESTIONS.length - 1 ? 'Next Question ➔' : 'View Final Score ➔';
+                        answerInput.disabled = true;
+                    } else {
+                        feedbackBox.className = "mt-6 p-4 rounded-xl border bg-red-50 border-red-200 text-red-800 animate-fade-in";
+                        corrections++;
+                        correctionsText.innerText = `Corrections: ${corrections}`;
+                    }
+                    feedbackBox.classList.remove('hidden');
+                } else {
+                    throw new Error("Invalid AI response.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                feedbackIcon.innerText = '⚠️';
+                feedbackText.innerText = "Network error or AI service unavailable. Please check your connection and try again.";
+                feedbackBox.className = "mt-6 p-4 rounded-xl border bg-yellow-50 border-yellow-200 text-yellow-800 animate-fade-in";
+                feedbackBox.classList.remove('hidden');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('opacity-75', 'cursor-not-allowed');
+                btnSubmit.innerText = 'Submit Answer';
+            }
+        }
+
+        function handleNext() {
+            if (currentQIndex < LAB_QUESTIONS.length - 1) {
+                currentQIndex++;
+                loadQuestion();
+            } else {
+                showEndScreen();
+            }
+        }
+
+        function showEndScreen() {
+            screenPlaying.classList.add('hidden');
+            screenEnd.classList.remove('hidden');
+
+            let base = 15;
+            let ec = 0;
+            
+            if (corrections === 0) ec = 5;
+            else if (corrections === 1) ec = 4;
+            else if (corrections === 2) ec = 3;
+            else if (corrections === 3) ec = 2;
+            else if (corrections === 4) ec = 1;
+            else if (corrections >= 5 && corrections <= 10) ec = 0;
+            else {
+                base = Math.max(0, 15 - (corrections - 10));
+            }
+            
+            const total = base + ec;
+            const percent = Math.round((total / 15) * 100);
+
+            document.getElementById('score-earned').innerText = total;
+            document.getElementById('score-percent').innerText = `(${percent}%)`;
+            
+            // Generate random alphanumeric string
+            document.getElementById('verification-code').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            const endMsgEl = document.getElementById('end-message');
+            if (total < 12) {
+                endMsgEl.className = "text-red-600 font-medium bg-red-50 p-3 rounded-lg border border-red-100";
+                endMsgEl.innerText = "You scored less than 80%. I invite you to try again to master these concepts and improve your score!";
+                btnRetry.classList.remove('hidden');
+            } else {
+                endMsgEl.className = "text-green-600 font-bold text-lg bg-green-50 p-3 rounded-lg border border-green-100";
+                endMsgEl.innerText = "Great job! Take a screenshot of this page and turn it in for credit.";
+                btnRetry.classList.add('hidden');
+            }
+        }
+
+        // --- Event Listeners ---
+        btnStart.addEventListener('click', startGame);
+        btnSubmit.addEventListener('click', gradeAnswer);
+        btnNext.addEventListener('click', handleNext);
+        btnRetry.addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
