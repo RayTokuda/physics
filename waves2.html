@@ -211,7 +211,7 @@
             },
             {
                 q: "Use the Ruler checkbox to find the amplitude in centimeters of the string when the two pulses are directly on top of each other. What is it?",
-                rubric: "The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around 1.50 cm or any explanation that states it is the sum of both.",
+                rubric: "The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around 1.50 cm or any explanation that states it is the sum of both.", // Will be dynamically updated!
                 media: "constructive-measure"
             },
             {
@@ -256,10 +256,18 @@
         let corrections = 0;
         let isCorrect = false;
 
-        // --- Animation Variables ---
+        // --- Animation Variables & Variations ---
         let animTime = 0;
         let animPlaying = true;
         let currentMedia = null;
+
+        // Randomize the wave heights for Questions 4 and 5
+        const waveVariations = [
+            { ampPx: 25, ampCm: 1.0 },   // Individual: 0.5 cm, Total: 1.0 cm
+            { ampPx: 37.5, ampCm: 1.5 }, // Individual: 0.75 cm, Total: 1.5 cm
+            { ampPx: 50, ampCm: 2.0 }    // Individual: 1.0 cm, Total: 2.0 cm
+        ];
+        let currentVarIndex = 1;
 
         // --- DOM Elements ---
         const screenIntro = document.getElementById('screen-intro');
@@ -343,6 +351,12 @@
             screenIntro.classList.add('hidden');
             screenEnd.classList.add('hidden');
             screenPlaying.classList.remove('hidden');
+
+            // Randomize the wave variation for this session so students have different answers
+            currentVarIndex = Math.floor(Math.random() * waveVariations.length);
+            const expectedAnswer = waveVariations[currentVarIndex].ampCm.toFixed(1);
+            LAB_QUESTIONS[3].rubric = `The amplitude should be the sum of the two individual amplitudes. Accept any numerical answer around ${expectedAnswer} cm or any explanation that states it is the sum of both.`;
+
             loadQuestion();
         }
 
@@ -579,21 +593,36 @@
                 btnRetry.classList.add('hidden');
             }
 
-            // Ballistic Confetti
+            // Ballistic Confetti logic with delays based on Extra Credit tier
             if (ec > 0 && typeof confetti === 'function') {
-                // Scale confetti intensity and physics based on extra credit points
-                const particleCount = ec * 50; 
-                const spread = 60 + (ec * 10);
-                const velocity = 35 + (ec * 8);
+                let bursts = 0;
+                if (ec === 5) bursts = 3;            // Score 25/20 -> 3 bursts
+                else if (ec >= 2 && ec <= 4) bursts = 2; // Score 22-24/20 -> 2 bursts
+                else if (ec === 1) bursts = 1;       // Score 21/20 -> 1 burst
 
-                confetti({
-                    particleCount: particleCount,
-                    spread: spread,
-                    startVelocity: velocity,
-                    origin: { y: 0.7 }, // Shoot from lower down for a ballistic arc
-                    zIndex: 1000,
-                    colors: ['#0d9488', '#14b8a6', '#fcd34d', '#f59e0b', '#3b82f6']
-                });
+                const fire = (xOffset, delay) => {
+                    setTimeout(() => {
+                        confetti({
+                            particleCount: 80 + (ec * 15),
+                            spread: 60 + (ec * 10),
+                            startVelocity: 35 + (ec * 8),
+                            origin: { y: 0.7, x: xOffset },
+                            zIndex: 1000,
+                            colors: ['#0d9488', '#14b8a6', '#fcd34d', '#f59e0b', '#3b82f6']
+                        });
+                    }, delay);
+                };
+
+                if (bursts === 1) {
+                    fire(0.5, 0); // Center
+                } else if (bursts === 2) {
+                    fire(0.35, 0);   // Left
+                    fire(0.65, 400); // Right
+                } else if (bursts === 3) {
+                    fire(0.5, 0);    // Center
+                    fire(0.25, 400); // Left
+                    fire(0.75, 800); // Right
+                }
             }
         }
 
@@ -612,8 +641,11 @@
                 const cy = waveCanvas.height / 2;
                 const w = 40;
                 const v = 2.5;
-                const A1 = 37.5; // 0.75 cm
-                const A2 = currentMedia.includes('destructive') ? -37.5 : 37.5;
+                
+                // Use the randomly selected variation amplitude
+                const baseA = waveVariations[currentVarIndex].ampPx;
+                const A1 = baseA; 
+                const A2 = currentMedia.includes('destructive') ? -baseA : baseA;
                 const offsetLeft = currentMedia.includes('-measure') ? 35 : 0;
 
                 // Draw Ruler if measure is active
