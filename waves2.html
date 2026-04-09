@@ -557,11 +557,18 @@
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(payload)
                             });
-                            if (res.ok) {
-                                const data = await res.json();
-                                evaluation = JSON.parse(data.candidates[0].content.parts[0].text);
-                                break;
+                            
+                            // Explicitly throw an error on non-200 responses to trigger the retry/backoff loop
+                            if (!res.ok) {
+                                throw new Error(`HTTP error! status: ${res.status}`);
                             }
+                            
+                            const data = await res.json();
+                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                            // Safely strip away markdown backticks if AI returns them despite JSON schema instructions
+                            let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                            evaluation = JSON.parse(cleanText);
+                            break;
                         } catch (err) {
                             if (i === 4) throw err;
                             await new Promise(r => setTimeout(r, delays[i]));
