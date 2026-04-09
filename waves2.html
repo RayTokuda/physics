@@ -381,12 +381,12 @@
                     { format: "inline-dropdown", q: "A wave reflecting off a fixed end will {0}, while reflecting off a loose end will {1}.", dropdowns: [["invert (flip upside down)", "stay upright (on the same side)"], ["invert (flip upside down)", "stay upright (on the same side)"]], correct: [0, 1], media: "reflection-toggle", feedback: "Fixed ends force the wave to invert, while loose ends allow it to reflect on the same side." },
                     { format: "mc", q: "Which statement best describes reflection at boundaries?", options: ["Fixed ends invert the wave; loose ends do not.", "Loose ends invert the wave; fixed ends do not.", "Both ends invert the wave.", "Neither end inverts the wave."], correct: 0, media: "reflection-toggle", feedback: "Fixed ends force the wave to invert, while loose ends allow it to reflect on the same side." }
                 ]),
-                // Q2 - Collisions
+                // Q2 - Collisions (using the new asymmetrical pulses 'constructive-diff' to clearly see them pass through)
                 pickRandom([
-                    { format: "ma", q: "Select ALL that apply when two wave pulses collide head-on:", options: ["They pass right through each other.", "They bounce off each other.", "They are permanently altered or damaged.", "They temporarily combine their amplitudes."], correct: [0, 3], media: "constructive", feedback: "Waves, unlike physical objects like cars, pass right through each other and just combine amplitudes momentarily." },
-                    { format: "mc", q: "Unlike two cars crashing, two wave pulses that collide will...", options: ["Pass through each other and continue unchanged.", "Destroy each other entirely.", "Bounce backwards.", "Merge permanently into one larger wave."], correct: 0, media: "constructive", feedback: "Waves pass right through each other and continue on their way without being permanently altered or destroyed." }
+                    { format: "ma", q: "Select ALL that apply when two wave pulses collide head-on:", options: ["They pass right through each other.", "They bounce off each other.", "They are permanently altered or damaged.", "They temporarily combine their amplitudes."], correct: [0, 3], media: "constructive-diff", feedback: "Waves, unlike physical objects like cars, pass right through each other and just combine amplitudes momentarily." },
+                    { format: "mc", q: "Unlike two cars crashing, two wave pulses that collide will...", options: ["Pass through each other and continue unchanged.", "Destroy each other entirely.", "Bounce backwards.", "Merge permanently into one larger wave."], correct: 0, media: "constructive-diff", feedback: "Waves pass right through each other and continue on their way without being permanently altered or destroyed." }
                 ]),
-                // Q3 - Constructive Concept
+                // Q3 - Constructive Concept (keeping symmetrical 'constructive' pulses as requested)
                 pickRandom([
                     { format: "inline-dropdown", q: "When two pulses on the same side overlap perfectly, their amplitudes {0} to create a {1} pulse. This is called {2} interference.", dropdowns: [["add together", "cancel out"], ["larger", "smaller"], ["constructive", "destructive"]], correct: [0, 0, 0], media: "constructive", feedback: "Their amplitudes add together to create a larger pulse. This is called constructive interference." },
                     { format: "select", q: "What is the term for when two pulses on the same side of the string overlap to make a larger pulse?", options: ["-- Select Term --", "Constructive interference", "Destructive interference", "Refraction", "Diffraction"], correct: 1, media: "constructive", feedback: "Their amplitudes add together to create a larger pulse. This is called constructive interference." }
@@ -421,10 +421,10 @@
                     { format: "inline-dropdown", q: "(Note: A Node is a point of zero amplitude, and an Antinode is a point of maximum amplitude.) Set the simulator to: Oscillate, Fixed End, Amplitude 0.02 cm, 0.84 Hz, Damping 0, Tension 80%. At this frequency, the standing wave forms {0} nodes and {1} antinodes.", dropdowns: [["1", "2", "3", "4", "5"], ["1", "2", "3", "4", "5"]], correct: [2, 1], media: "standing-wave-0.84", feedback: "At 0.84 Hz, the wave forms exactly 3 nodes (points of no movement) and 2 antinodes (the large oscillating loops)." },
                     { format: "select", q: "(Note: A Node is a point of zero amplitude, and an Antinode is a point of maximum amplitude.) Set the simulator to: Oscillate, Fixed End, Amplitude 0.02 cm, 0.84 Hz, Damping 0, Tension 80%. How many nodes and antinodes form in the standing wave at this frequency?", options: ["-- Select --", "2 nodes, 1 antinode", "3 nodes, 2 antinodes", "4 nodes, 3 antinodes", "2 nodes, 3 antinodes"], correct: 2, media: "standing-wave-0.84", feedback: "At 0.84 Hz, the wave forms exactly 3 nodes (points of no movement) and 2 antinodes (the large oscillating loops)." }
                 ]),
-                // Q10 - Standing wave circumstances
+                // Q10 - Standing wave circumstances (wavelength focus)
                 pickRandom([
-                    { format: "mc", q: "Under what circumstances do standing waves appear in the simulator?", options: ["When the frequency is an exact multiple of the fundamental frequency.", "When the frequency is completely random.", "When the amplitude is set to maximum.", "When the wave speed changes constantly."], correct: 0, media: "standing-wave-explanation", feedback: "Standing waves only form at exact resonant frequencies (multiples of the fundamental frequency)." },
-                    { format: "inline-dropdown", q: "Standing waves appear when the string length is an exact multiple of {0}, or when the frequency is an exact multiple of the {1}.", dropdowns: [["quarter-wavelengths", "half-wavelengths", "full wavelengths"], ["fundamental frequency", "maximum amplitude", "wave speed"]], correct: [1, 0], media: "standing-wave-explanation", feedback: "Standing waves require the length to fit exact multiples of half-wavelengths, matching the fundamental resonant frequency." }
+                    { format: "mc", q: "Based on the animation, under what circumstances do standing waves appear on the string?", options: ["When the string length is an exact multiple of a half-wavelength.", "When the wavelength is exactly equal to the amplitude.", "When the wave travels at the speed of light.", "When the string length is an exact multiple of a quarter-wavelength."], correct: 0, media: "standing-wave-explanation", feedback: "Standing waves form when the waves exactly 'fit' the string, meaning the string length is an exact multiple of half-wavelengths (creating stationary nodes at the fixed boundaries)." },
+                    { format: "inline-dropdown", q: "Standing waves appear when the waves perfectly fit the boundaries. This happens when the string length is an exact multiple of {0}.", dropdowns: [["quarter-wavelengths", "half-wavelengths", "full wavelengths"]], correct: [1], media: "standing-wave-explanation", feedback: "Standing waves require the length to fit exact multiples of half-wavelengths, ensuring the fixed ends are always nodes." }
                 ]),
                 // Q11 - Frequencies
                 pickRandom([
@@ -522,7 +522,7 @@
                     waveCanvas.classList.remove('hidden');
                     diagramContainer.classList.add('hidden');
                     
-                    if (currentMedia.includes('-measure') || currentMedia === 'reflection-toggle' || currentMedia.startsWith('standing-wave')) {
+                    if (currentMedia.includes('-measure') || currentMedia.includes('constructive') || currentMedia === 'reflection-toggle' || currentMedia.startsWith('standing-wave')) {
                         mediaControls.classList.remove('hidden');
                         mediaControls.classList.add('flex');
                     } else {
@@ -1016,12 +1016,19 @@
                         }
                     }
                 } else {
-                    const w = 40;
+                    let w1 = 40;
+                    let w2 = 40;
                     const v = 2.5;
                     
                     const baseA = waveVariations[currentVarIndex].ampPx;
-                    const A1 = baseA; 
-                    const A2 = currentMedia.includes('destructive') ? -baseA : baseA;
+                    let A1 = baseA; 
+                    let A2 = currentMedia.includes('destructive') ? -baseA : baseA;
+                    
+                    if (currentMedia === 'constructive-diff') {
+                        A2 = baseA * 0.6; // Smaller amplitude right pulse
+                        w2 = 20;          // Narrower right pulse
+                    }
+                    
                     const offsetLeft = currentMedia.includes('-measure') ? 35 : 0;
 
                     if (currentMedia.includes('-measure')) {
@@ -1070,8 +1077,8 @@
                     ctx.beginPath();
 
                     for (let x = offsetLeft; x < waveCanvas.width; x++) {
-                        const p1 = A1 * Math.exp(-Math.pow(x - (100 + v * animTime), 2) / (w * w));
-                        const p2 = A2 * Math.exp(-Math.pow(x - (500 - v * animTime), 2) / (w * w));
+                        const p1 = A1 * Math.exp(-Math.pow(x - (100 + v * animTime), 2) / (w1 * w1));
+                        const p2 = A2 * Math.exp(-Math.pow(x - (500 - v * animTime), 2) / (w2 * w2));
                         
                         const y = cy - (p1 + p2);
                         if (x === offsetLeft) ctx.moveTo(x, y);
