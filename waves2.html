@@ -114,7 +114,7 @@
 
             <!-- Media Container (Canvas & Diagrams) -->
             <div id="media-container" class="mb-6 hidden flex flex-col items-center bg-gray-50 rounded-xl p-4 border border-teal-100 shadow-inner">
-                <canvas id="wave-canvas" width="600" height="200" class="w-full max-w-full bg-white border border-gray-200 shadow-sm rounded-lg hidden"></canvas>
+                <canvas id="wave-canvas" width="600" height="360" class="w-full max-w-full bg-white border border-gray-200 shadow-sm rounded-lg hidden"></canvas>
                 
                 <div id="media-controls" class="flex gap-4 mt-4 hidden justify-center items-center w-full">
                     <button id="btn-rewind" class="p-2.5 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded-full transition shadow-sm" title="Rewind to Start">
@@ -873,8 +873,8 @@
                         
                         // Center lines
                         ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1.5; ctx.beginPath();
-                        ctx.moveTo(0, cy - 60); ctx.lineTo(L, cy - 60);
-                        ctx.moveTo(0, cy + 60); ctx.lineTo(L, cy + 60);
+                        ctx.moveTo(0, cy - 90); ctx.lineTo(L, cy - 90);
+                        ctx.moveTo(0, cy + 90); ctx.lineTo(L, cy + 90);
                         ctx.stroke();
                         ctx.strokeStyle = '#94a3b8'; ctx.beginPath();
                         ctx.moveTo(0, cy); ctx.lineTo(L, cy); ctx.stroke();
@@ -887,8 +887,8 @@
                         ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.beginPath();
                         for(let x=0; x<=L; x++) {
                             let y = A * Math.sin(k*x - omega*pLocalTime);
-                            if (x === 0) ctx.moveTo(x, (cy - 60) - y);
-                            else ctx.lineTo(x, (cy - 60) - y);
+                            if (x === 0) ctx.moveTo(x, (cy - 90) - y);
+                            else ctx.lineTo(x, (cy - 90) - y);
                         }
                         ctx.stroke();
 
@@ -896,8 +896,8 @@
                         ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.beginPath();
                         for(let x=0; x<=L; x++) {
                             let y = -A * Math.sin(k*(2*L-x) - omega*pLocalTime);
-                            if (x === 0) ctx.moveTo(x, (cy + 60) - y);
-                            else ctx.lineTo(x, (cy + 60) - y);
+                            if (x === 0) ctx.moveTo(x, (cy + 90) - y);
+                            else ctx.lineTo(x, (cy + 90) - y);
                         }
                         ctx.stroke();
 
@@ -940,7 +940,7 @@
                     // Right Wall (Always Fixed End)
                     ctx.fillStyle = '#475569';
                     if (phaseMode === 'phase3') {
-                        ctx.fillRect(L, cy - 100, 20, 200);
+                        ctx.fillRect(L, cy - 140, 20, 280);
                         // Left driver
                         ctx.fillStyle = '#ef4444';
                         ctx.beginPath(); ctx.arc(0, cy, 6, 0, Math.PI*2); ctx.fill();
@@ -1047,7 +1047,7 @@
                     if (currentMedia.includes('-measure')) {
                         ctx.strokeStyle = '#e5e7eb'; // gray-200
                         ctx.beginPath();
-                        for(let y = cy - 100; y <= cy + 100; y += 25) { // 25px = 0.5cm
+                        for(let y = cy - 150; y <= cy + 150; y += 25) { // 25px = 0.5cm
                             ctx.moveTo(offsetLeft, y);
                             ctx.lineTo(waveCanvas.width, y);
                         }
@@ -1059,8 +1059,16 @@
                         ctx.fillText("0.5", 5, cy - 25 + 4);
                         ctx.fillText("1.0", 5, cy - 50 + 4);
                         ctx.fillText("1.5", 5, cy - 75 + 4);
+                        ctx.fillText("2.0", 5, cy - 100 + 4);
+                        ctx.fillText("2.5", 5, cy - 125 + 4);
+                        ctx.fillText("3.0", 5, cy - 150 + 4);
+                        
                         ctx.fillText("-0.5", 0, cy + 25 + 4);
                         ctx.fillText("-1.0", 0, cy + 50 + 4);
+                        ctx.fillText("-1.5", 0, cy + 75 + 4);
+                        ctx.fillText("-2.0", 0, cy + 100 + 4);
+                        ctx.fillText("-2.5", 0, cy + 125 + 4);
+                        ctx.fillText("-3.0", 0, cy + 150 + 4);
                         
                         // Bold center line
                         ctx.strokeStyle = '#94a3b8'; // slate-400
