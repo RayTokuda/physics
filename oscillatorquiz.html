@@ -1,0 +1,918 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { BookOpen, CheckCircle, XCircle, ArrowRight, RefreshCcw, FileText, ChevronRight, Calculator, Download } from 'lucide-react';
+
+// --- MATH FORMATTING HELPER ---
+const MathEq = ({ children }) => (
+  <span className="font-serif text-lg tracking-wide bg-gray-50 px-2 py-1 rounded border border-gray-200 shadow-sm mx-1">
+    {children}
+  </span>
+);
+
+const Fraction = ({ num, den }) => (
+  <span className="inline-flex flex-col text-center align-middle text-sm mx-1" style={{ verticalAlign: '-0.5em' }}>
+    <span className="border-b border-gray-800 pb-[1px]">{num}</span>
+    <span className="pt-[1px]">{den}</span>
+  </span>
+);
+
+const Sqrt = ({ children }) => (
+  <span className="whitespace-nowrap">
+    &radic;<span className="border-t border-gray-800 pt-[1px] ml-[1px]">{children}</span>
+  </span>
+);
+
+// --- PHYSICS ANIMATION COMPONENT ---
+const PhysicsAnimation = ({ type }) => {
+  const [time, setTime] = useState(0);
+  const requestRef = useRef();
+
+  useEffect(() => {
+    const animate = (t) => {
+      setTime(t / 1000);
+      requestRef.current = requestAnimationFrame(animate);
+    };
+    requestRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, []);
+
+  const renderAnimation = () => {
+    // Shared constants
+    const centerX = 200;
+    const baseY = 100;
+    
+    if (type === 'two-springs') {
+      const x = 50 * Math.sin(3 * time);
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner">
+          <line x1="20" y1="120" x2="380" y2="120" stroke="#475569" strokeWidth="4" />
+          <rect x="10" y="40" width="20" height="80" fill="#334155" />
+          <rect x="370" y="40" width="20" height="80" fill="#334155" />
+          
+          {/* Left Spring */}
+          <path d={`M 30 ${baseY} Q ${(centerX + x + 30)/2} ${baseY + 20} ${centerX - 25 + x} ${baseY}`} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="5 5" />
+          {/* Right Spring */}
+          <path d={`M ${centerX + 25 + x} ${baseY} Q ${(370 + centerX + x)/2} ${baseY - 20} 370 ${baseY}`} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="5 5" />
+          
+          {/* Mass */}
+          <rect x={centerX - 25 + x} y={baseY - 25} width="50" height="45" fill="#3B82F6" rx="4" />
+          <text x={centerX + x} y={baseY + 5} fill="white" textAnchor="middle" fontWeight="bold">m</text>
+        </svg>
+      );
+    }
+
+    if (type === 'standard-shm') {
+      const x = 60 * Math.sin(4 * time);
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner">
+          <line x1="20" y1="120" x2="380" y2="120" stroke="#475569" strokeWidth="4" />
+          <rect x="40" y="40" width="20" height="80" fill="#334155" />
+          
+          {/* Spring */}
+          <path d={`M 60 ${baseY} Q ${(centerX + x + 60)/2} ${baseY + 20} ${centerX - 30 + x} ${baseY}`} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="5 5" />
+          
+          {/* Mass */}
+          <rect x={centerX - 30 + x} y={baseY - 25} width="60" height="45" fill="#EF4444" rx="4" />
+          <text x={centerX + x} y={baseY + 5} fill="white" textAnchor="middle" fontWeight="bold">10kg</text>
+          
+          {/* Amplitude markers */}
+          <line x1={centerX} y1="130" x2={centerX} y2="150" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 4"/>
+          <text x={centerX} y="165" fill="#64748B" textAnchor="middle" fontSize="12">x=0</text>
+        </svg>
+      );
+    }
+
+    if (type === 'rolling-sphere') {
+      const x = 60 * Math.sin(2.5 * time);
+      const rotation = (x / 25) * (180 / Math.PI); // rotation in degrees
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner">
+          <line x1="20" y1="125" x2="380" y2="125" stroke="#475569" strokeWidth="4" />
+          <rect x="40" y="40" width="20" height="85" fill="#334155" />
+          
+          {/* Spring attached to center */}
+          <path d={`M 60 ${baseY} L ${centerX + x} ${baseY}`} fill="none" stroke="#94A3B8" strokeWidth="3" strokeDasharray="4 4" />
+          
+          {/* Sphere */}
+          <g transform={`translate(${centerX + x}, ${baseY}) rotate(${rotation})`}>
+            <circle cx="0" cy="0" r="25" fill="#F59E0B" />
+            <circle cx="0" cy="0" r="23" fill="none" stroke="#B45309" strokeWidth="2" />
+            <line x1="-25" y1="0" x2="25" y2="0" stroke="#B45309" strokeWidth="2" />
+            <line x1="0" y1="-25" x2="0" y2="25" stroke="#B45309" strokeWidth="2" />
+          </g>
+        </svg>
+      );
+    }
+
+    if (type === 'ballistic') {
+      const cycleTime = time % 4;
+      let bulletX = -10;
+      let blockX = centerX;
+      
+      if (cycleTime < 1) {
+        // Bullet moving
+        bulletX = -10 + (centerX - (-10)) * cycleTime;
+      } else {
+        // Impact and oscillation
+        bulletX = centerX - 15 + 40 * Math.sin(4 * (cycleTime - 1));
+        blockX = centerX + 40 * Math.sin(4 * (cycleTime - 1));
+      }
+
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner overflow-hidden">
+          <line x1="20" y1="125" x2="380" y2="125" stroke="#475569" strokeWidth="4" />
+          <rect x="340" y="40" width="20" height="85" fill="#334155" />
+          
+          {/* Spring */}
+          <path d={`M ${blockX + 25} ${baseY} L 340 ${baseY}`} fill="none" stroke="#94A3B8" strokeWidth="4" strokeDasharray="5 5" />
+          
+          {/* Block */}
+          <rect x={blockX - 25} y={baseY - 25} width="50" height="50" fill="#10B981" rx="4" />
+          <text x={blockX} y={baseY + 5} fill="white" textAnchor="middle" fontWeight="bold">M</text>
+          
+          {/* Bullet */}
+          {cycleTime < 1 ? (
+             <rect x={bulletX} y={baseY - 5} width="20" height="10" fill="#475569" rx="2" />
+          ) : (
+             <circle cx={bulletX + 15} cy={baseY} r="5" fill="#1E293B" />
+          )}
+        </svg>
+      );
+    }
+
+    if (type === 'physical-pendulum') {
+      const theta = 25 * Math.sin(3 * time);
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner">
+          <line x1="150" y1="30" x2="250" y2="30" stroke="#475569" strokeWidth="4" />
+          <g transform={`translate(${centerX}, 30) rotate(${theta})`}>
+            <rect x="-6" y="0" width="12" height="130" fill="#64748B" rx="6" />
+            <circle cx="0" cy="0" r="4" fill="#F87171" />
+            <circle cx="0" cy="65" r="4" fill="#38BDF8" /> {/* CM marker */}
+          </g>
+          <text x="100" y="25" fill="#64748B" fontSize="12">Pivot</text>
+        </svg>
+      );
+    }
+
+    if (type === 'earth-hole') {
+      const y = 70 * Math.sin(2.5 * time);
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner overflow-hidden">
+          <circle cx={centerX} cy={baseY} r="85" fill="#BFDBFE" stroke="#3B82F6" strokeWidth="2" />
+          <line x1={centerX} y1="15" x2={centerX} y2="185" stroke="#EFF6FF" strokeWidth="12" />
+          <line x1={centerX} y1="15" x2={centerX} y2="185" stroke="#94A3B8" strokeWidth="2" strokeDasharray="4 4" />
+          <circle cx={centerX} cy={baseY + y} r="8" fill="#EF4444" />
+          <text x={centerX + 100} y={baseY + 5} fill="#1E3A8A" fontWeight="bold">Earth</text>
+        </svg>
+      );
+    }
+
+    if (type === 'unicycle') {
+      const speed = 150; // pixels per second visual
+      const seamSpacing = 120;
+      const offset = (speed * time) % seamSpacing;
+      const bounceFreq = speed / seamSpacing;
+      const yOffset = 15 * Math.sin(bounceFreq * time * 2 * Math.PI); // bouncing
+      
+      return (
+        <svg viewBox="0 0 400 200" className="w-full h-48 bg-blue-50 rounded-lg shadow-inner overflow-hidden">
+          <line x1="0" y1="160" x2="400" y2="160" stroke="#475569" strokeWidth="4" />
+          {[-seamSpacing, 0, seamSpacing, seamSpacing*2, seamSpacing*3].map((pos, i) => (
+            <line key={i} x1={pos - offset + 200} y1="155" x2={pos - offset + 200} y2="165" stroke="#1E293B" strokeWidth="4" />
+          ))}
+          <g transform={`translate(${centerX}, ${130 + yOffset})`}>
+            <circle cx="0" cy="0" r="30" fill="none" stroke="#334155" strokeWidth="6" />
+            <circle cx="0" cy="0" r="4" fill="#1E293B" />
+            <line x1="0" y1="0" x2="0" y2="-40" stroke="#94A3B8" strokeWidth="6" />
+            <path d="M -10 -40 Q 15 -50 -10 -60 Q 15 -70 -10 -80 L 0 -80 L 0 -90" fill="none" stroke="#3B82F6" strokeWidth="4" />
+            <rect x="-20" y="-100" width="40" height="10" fill="#EF4444" rx="4" />
+          </g>
+        </svg>
+      );
+    }
+
+    return null;
+  };
+
+  return renderAnimation();
+};
+
+// --- QUIZ DATA ---
+const quizData = [
+  {
+    id: 1,
+    title: "Oscillation on a Frictionless Surface",
+    type: "mcq",
+    animation: "two-springs",
+    question: "A mass m is on a frictionless surface between two identical springs, both with spring constant K. Find the period of oscillation T in terms of m and K.",
+    options: [
+      { id: 'A', content: <MathEq>2&pi;<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'B', content: <MathEq>2&pi;<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>, correct: true },
+      { id: 'C', content: <MathEq>2&pi;<Sqrt><Fraction num="2m" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'D', content: <MathEq>&pi;<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p>Let's derive this using <strong>Newton's 2nd Law</strong>.</p>
+        <p>1. Displace the mass by a distance <MathEq>x</MathEq> to the right.</p>
+        <p>2. The right spring compresses (pushing left with <MathEq>-Kx</MathEq>) and the left spring stretches (pulling left with <MathEq>-Kx</MathEq>).</p>
+        <p>3. Apply <MathEq>F = ma</MathEq>:<br/>
+           <MathEq>-Kx - Kx = m<Fraction num="d²x" den="dt²"/></MathEq>
+        </p>
+        <p>4. Solve for acceleration <MathEq>a = <Fraction num="d²x" den="dt²"/></MathEq>:<br/>
+           <MathEq><Fraction num="d²x" den="dt²"/> = -<Fraction num="2K" den="m"/>x</MathEq>
+        </p>
+        <p>5. In Simple Harmonic Motion, <MathEq><Fraction num="d²x" den="dt²"/> = -&omega;&sup2;x</MathEq>. So the coefficient of <MathEq>-x</MathEq> is <MathEq>&omega;&sup2;</MathEq>:<br/>
+           <MathEq>&omega;&sup2; = <Fraction num="2K" den="m"/></MathEq>
+        </p>
+        <p>Since period <MathEq>T = <Fraction num="2&pi;" den="&omega;"/></MathEq>, taking the square root gives:<br/>
+           <MathEq>T = 2&pi;<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>.
+        </p>
+      </div>
+    )
+  },
+  {
+    id: 2,
+    title: "Simple Harmonic Motion Calculations",
+    type: "numeric",
+    animation: "standard-shm",
+    question: "A 0.1 kg mass is undergoing simple harmonic motion with amplitude A = 10 cm and period T = 0.20 s.",
+    inputs: [
+      { id: 'force', label: 'a) What is the maximum force on the mass? (in N)', correctValue: 9.87, tolerance: 0.1 },
+      { id: 'spring', label: 'b) What is the spring constant K? (in N/m)', correctValue: 98.7, tolerance: 1.0 }
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p>Let's break down the SHM parameters:</p>
+        <p>1. Find angular frequency <MathEq>&omega; = 2&pi; / T = 2&pi; / 0.20 = 10&pi; rad/s</MathEq>.</p>
+        <p>2. Convert Amplitude to meters: <MathEq>A = 0.1 m</MathEq>.</p>
+        <p><strong>Part A (Force):</strong><br/>
+           Maximum acceleration is <MathEq>a<sub>max</sub> = A&omega;&sup2; = (0.1)(100&pi;&sup2;) &approx; 98.7 m/s&sup2;</MathEq>.<br/>
+           Maximum force <MathEq>F<sub>max</sub> = m a<sub>max</sub> = (0.1 kg)(98.7 m/s&sup2;) = 9.87 N</MathEq>.
+        </p>
+        <p><strong>Part B (Spring Constant):</strong><br/>
+           We know <MathEq>&omega; = <Sqrt>K/m</Sqrt></MathEq>, so <MathEq>K = m&omega;&sup2;</MathEq>.<br/>
+           <MathEq>K = (0.1)(100&pi;&sup2;) &approx; 98.7 N/m</MathEq>.
+        </p>
+      </div>
+    )
+  },
+  {
+    id: 3,
+    title: "Rolling Sphere Oscillator",
+    type: "mcq",
+    animation: "rolling-sphere",
+    question: "A solid sphere (Mass M, Radius R) rolls without slipping while attached to a spring K at its center (r=0). Find the period T. (Hint: I = 2MR²/5)",
+    options: [
+      { id: 'A', content: <MathEq>2&pi;<Sqrt><Fraction num="M" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'B', content: <MathEq>2&pi;<Sqrt><Fraction num="2M" den="5K"/></Sqrt></MathEq>, correct: false },
+      { id: 'C', content: <MathEq>2&pi;<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>, correct: true },
+      { id: 'D', content: <MathEq>2&pi;<Sqrt><Fraction num="5M" den="7K"/></Sqrt></MathEq>, correct: false },
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p>Let's use <strong>Newton's Second Law</strong> for translation and rotation.</p>
+        <p>1. Translation (<MathEq>F = ma</MathEq>): The forces are the spring force and static friction (<MathEq>f<sub>s</sub></MathEq>). <br/>
+           <MathEq>-Kx - f<sub>s</sub> = Ma</MathEq>
+        </p>
+        <p>2. Rotation (<MathEq>&tau; = I&alpha;</MathEq>): The spring attaches at the center (<MathEq>r=0</MathEq>), so only friction provides torque. <br/>
+           <MathEq>f<sub>s</sub>R = I&alpha;</MathEq>
+        </p>
+        <p>3. Use rolling without slipping (<MathEq>&alpha; = a/R</MathEq>) and <MathEq>I = &frac25;MR&sup2;</MathEq>:<br/>
+           <MathEq>f<sub>s</sub>R = (&frac25;MR&sup2;)(a/R) &rarr; f<sub>s</sub> = &frac25;Ma</MathEq>
+        </p>
+        <p>4. Substitute <MathEq>f<sub>s</sub></MathEq> back into the translation equation:<br/>
+           <MathEq>-Kx - &frac25;Ma = Ma &rarr; -Kx = &frac75;Ma</MathEq>
+        </p>
+        <p>5. Isolate acceleration to find the differential equation form <MathEq>a = -&omega;&sup2;x</MathEq>:<br/>
+           <MathEq>a = -<Fraction num="5K" den="7M"/>x</MathEq>, so <MathEq>&omega;&sup2; = <Fraction num="5K" den="7M"/></MathEq>
+        </p>
+        <p>Period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2&pi;<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>.</p>
+      </div>
+    )
+  },
+  {
+    id: 4,
+    title: "Ballistic Spring Pendulum",
+    type: "numeric",
+    animation: "ballistic",
+    question: "A 4.0 kg block rests on a frictionless surface attached to a spring (K = 500 N/m). A 50g bullet is fired at 150 m/s and embeds in the block.",
+    inputs: [
+      { id: 'amp', label: 'a) Find the amplitude of the resulting SHM (in m)', correctValue: 0.166, tolerance: 0.005 },
+      { id: 'ke', label: 'b) What fraction of original KE is stored? (in %)', correctValue: 1.23, tolerance: 0.1 }
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p>This is a two-part collision and energy problem.</p>
+        <p><strong>1. Inelastic Collision (Momentum Conserved):</strong><br/>
+           <MathEq>m<sub>bullet</sub>v<sub>i</sub> = (m<sub>bullet</sub> + M<sub>block</sub>)v<sub>f</sub></MathEq><br/>
+           <MathEq>(0.05)(150) = (4.05)v<sub>f</sub> &rarr; v<sub>f</sub> &approx; 1.85 m/s</MathEq>.
+        </p>
+        <p><strong>2. Spring Compression (Energy Conserved):</strong><br/>
+           <MathEq>&frac12;(m+M)v<sub>f</sub>&sup2; = &frac12;KA&sup2;</MathEq><br/>
+           <MathEq>&frac12;(4.05)(1.85)&sup2; = &frac12;(500)A&sup2; &rarr; 6.94 J = 250 A&sup2;</MathEq><br/>
+           <MathEq>A &approx; 0.166 m</MathEq>.
+        </p>
+        <p><strong>3. Kinetic Energy Fraction:</strong><br/>
+           Initial <MathEq>KE = &frac12;(0.05)(150)&sup2; = 562.5 J</MathEq>.<br/>
+           Stored <MathEq>KE</MathEq> (from part 2) <MathEq>= 6.94 J</MathEq>.<br/>
+           Fraction <MathEq>= 6.94 / 562.5 &approx; 0.0123 = 1.23%</MathEq>.
+        </p>
+      </div>
+    )
+  },
+  {
+    id: 5,
+    title: "Physical Pendulum (Step-by-Step)",
+    type: "multi-part-mcq",
+    animation: "physical-pendulum",
+    question: "A uniform rod of mass M and length L is pivoted at one end. Follow the steps to find its period of small oscillations.",
+    parts: [
+      {
+        id: 'part1',
+        label: 'Step 1: Use the Parallel Axis Theorem (I = I_cm + Md²) to find the moment of inertia I about the pivot. (Note: I_cm = 1/12 ML²)',
+        options: [
+          { id: 'A', content: <MathEq>I = <Fraction num="1" den="12"/>ML²</MathEq>, correct: false, feedback: "Incorrect. This is the moment of inertia about the center of mass, not the pivot." },
+          { id: 'B', content: <MathEq>I = <Fraction num="1" den="4"/>ML²</MathEq>, correct: false, feedback: "Incorrect. You added M(L/4)², but the distance to the CM is L/2." },
+          { id: 'C', content: <MathEq>I = <Fraction num="1" den="3"/>ML²</MathEq>, correct: true, feedback: "Correct! I = 1/12 ML² + M(L/2)² = 1/3 ML²." }
+        ]
+      },
+      {
+        id: 'part2',
+        label: 'Step 2: What is the correct torque equation (τ = Iα) for this pendulum? (Let right be positive θ)',
+        options: [
+          { id: 'A', content: <MathEq>-MgL sin(θ) = Iα</MathEq>, correct: false, feedback: "Incorrect. The distance from the pivot to the CM is L/2, not L." },
+          { id: 'B', content: <MathEq>-Mg<Fraction num="L" den="2"/> sin(θ) = Iα</MathEq>, correct: true, feedback: "Correct! Gravity acts at the CM." },
+          { id: 'C', content: <MathEq>Mg<Fraction num="L" den="2"/> cos(θ) = Iα</MathEq>, correct: false, feedback: "Incorrect. The perpendicular component of force uses sin(θ)." }
+        ]
+      },
+      {
+        id: 'part3',
+        label: 'Step 3: Use the small angle approximation (sin θ ≈ θ) to turn this into the SHM differential equation form (d²θ/dt² = -ω²θ).',
+        options: [
+          { id: 'A', content: <MathEq><Fraction num="d²θ" den="dt²"/> = -<Fraction num="3g" den="2L"/>θ</MathEq>, correct: true, feedback: "Correct! Substituting I and simplifying gives this." },
+          { id: 'B', content: <MathEq><Fraction num="d²θ" den="dt²"/> = -<Fraction num="2g" den="3L"/>θ</MathEq>, correct: false, feedback: "Incorrect. Check your fraction division: (1/2) / (1/3) = 3/2." },
+          { id: 'C', content: <MathEq><Fraction num="d²θ" den="dt²"/> = -<Fraction num="g" den="L"/>θ</MathEq>, correct: false, feedback: "Incorrect. This is for a simple pendulum." }
+        ]
+      },
+      {
+        id: 'part4',
+        label: 'Step 4: Using ω² from the previous step, what is the period T?',
+        options: [
+          { id: 'A', content: <MathEq>T = 2π<Sqrt><Fraction num="L" den="g"/></Sqrt></MathEq>, correct: false, feedback: "Incorrect. This is for a simple pendulum." },
+          { id: 'B', content: <MathEq>T = 2π<Sqrt><Fraction num="2L" den="3g"/></Sqrt></MathEq>, correct: true, feedback: "Correct! T = 2π/ω, so you invert the fraction." },
+          { id: 'C', content: <MathEq>T = 2π<Sqrt><Fraction num="3L" den="2g"/></Sqrt></MathEq>, correct: false, feedback: "Incorrect. You forgot to invert ω² when dividing." }
+        ]
+      }
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p><strong>Step 1:</strong> The center of mass is at <MathEq>d = L/2</MathEq>. By Parallel Axis Theorem:<br/>
+           <MathEq>I = <Fraction num="1" den="12"/>ML² + M(L/2)² = <Fraction num="1" den="12"/>ML² + <Fraction num="3" den="12"/>ML² = <Fraction num="1" den="3"/>ML²</MathEq>.
+        </p>
+        <p><strong>Step 2:</strong> Gravity acts at the CM (distance L/2 from pivot), creating a restoring torque:<br/>
+           <MathEq>τ = -Mg(L/2)sin(θ) = Iα</MathEq>.
+        </p>
+        <p><strong>Step 3:</strong> Small angles mean <MathEq>sin(θ) ≈ θ</MathEq>. Substitute <MathEq>I</MathEq> and <MathEq>α = <Fraction num="d²θ" den="dt²"/></MathEq>:<br/>
+           <MathEq>-Mg<Fraction num="L" den="2"/>θ = (<Fraction num="1" den="3"/>ML²)<Fraction num="d²θ" den="dt²"/></MathEq><br/>
+           <MathEq><Fraction num="d²θ" den="dt²"/> = -<Fraction num="MgL/2" den="ML²/3"/>θ = -<Fraction num="3g" den="2L"/>θ</MathEq>.
+        </p>
+        <p><strong>Step 4:</strong> The coefficient is <MathEq>ω² = <Fraction num="3g" den="2L"/></MathEq>. Period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2π<Sqrt><Fraction num="2L" den="3g"/></Sqrt></MathEq>.</p>
+      </div>
+    )
+  },
+  {
+    id: 6,
+    title: "Oscillator Through the Earth",
+    type: "multi-part-mcq",
+    animation: "earth-hole",
+    question: "A hole is drilled from the North pole to the South pole of a uniform Earth (Mass M, Radius R). A mass m is dropped in. Follow the steps to find its period.",
+    parts: [
+      {
+        id: 'part1',
+        label: 'Step 1: What is the gravitational force F_g on the mass when it is at distance r from the center? (Assume uniform density)',
+        options: [
+          { id: 'A', content: <MathEq>F = -G<Fraction num="Mm" den="r²"/></MathEq>, correct: false, feedback: "Incorrect. That's for a point mass or outside a sphere." },
+          { id: 'B', content: <MathEq>F = -G<Fraction num="Mm" den="R³"/>r</MathEq>, correct: true, feedback: "Correct! Force scales linearly with r inside a uniform sphere." },
+          { id: 'C', content: <MathEq>F = -mg</MathEq>, correct: false, feedback: "Incorrect. Gravity g is not constant inside the Earth." }
+        ]
+      },
+      {
+        id: 'part2',
+        label: 'Step 2: Use Newton\'s 2nd Law (F = ma) to write the differential equation for the position r(t).',
+        options: [
+          { id: 'A', content: <MathEq><Fraction num="d²r" den="dt²"/> = -<Fraction num="GM" den="R³"/>r</MathEq>, correct: true, feedback: "Correct! F = ma gives this exact differential equation." },
+          { id: 'B', content: <MathEq><Fraction num="d²r" den="dt²"/> = -<Fraction num="g" den="r"/></MathEq>, correct: false, feedback: "Incorrect. The units don't align here." },
+          { id: 'C', content: <MathEq><Fraction num="d²r" den="dt²"/> = -<Fraction num="GM" den="r²"/></MathEq>, correct: false, feedback: "Incorrect. This implies acceleration increases as you get closer to the center." }
+        ]
+      },
+      {
+        id: 'part3',
+        label: 'Step 3: Identify ω² from your differential equation, noting that surface gravity g = GM/R².',
+        options: [
+          { id: 'A', content: <MathEq>ω² = <Fraction num="R" den="g"/></MathEq>, correct: false, feedback: "Incorrect. You've inverted it." },
+          { id: 'B', content: <MathEq>ω² = <Fraction num="g" den="R"/></MathEq>, correct: true, feedback: "Correct! Substitute GM/R³ = g/R." },
+          { id: 'C', content: <MathEq>ω² = <Fraction num="GM" den="R"/></MathEq>, correct: false, feedback: "Incorrect. Dimensional analysis fails here." }
+        ]
+      },
+      {
+        id: 'part4',
+        label: 'Step 4: What is the period T of this oscillation?',
+        options: [
+          { id: 'A', content: <MathEq>T = 2π<Sqrt><Fraction num="R" den="g"/></Sqrt></MathEq>, correct: true, feedback: "Correct! About 84 minutes." },
+          { id: 'B', content: <MathEq>T = 2π<Sqrt><Fraction num="g" den="R"/></Sqrt></MathEq>, correct: false, feedback: "Incorrect. T = 2π/ω, so you must flip the fraction." },
+          { id: 'C', content: <MathEq>T = 2π<Sqrt><Fraction num="R³" den="GMm"/></Sqrt></MathEq>, correct: false, feedback: "Incorrect. m cancels out in Step 2." }
+        ]
+      }
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p><strong>Step 1:</strong> Inside a uniform sphere, the gravitational force is proportional to the distance from the center <MathEq>r</MathEq> (only the mass "inside" <MathEq>r</MathEq> pulls it down):<br/>
+           <MathEq>F = -G<Fraction num="Mm_{inside}" den="r²"/> = -G<Fraction num="M(r³/R³)" den="r²"/>m = -G<Fraction num="Mm" den="R³"/>r</MathEq>.
+        </p>
+        <p><strong>Step 2:</strong> Set <MathEq>F = m a</MathEq> where <MathEq>a = <Fraction num="d²r" den="dt²"/></MathEq>:<br/>
+           <MathEq>-G<Fraction num="Mm" den="R³"/>r = m<Fraction num="d²r" den="dt²"/> &rarr; <Fraction num="d²r" den="dt²"/> = -<Fraction num="GM" den="R³"/>r</MathEq>.
+        </p>
+        <p><strong>Step 3:</strong> Comparing this to <MathEq><Fraction num="d²r" den="dt²"/> = -ω²r</MathEq>, we see <MathEq>ω² = <Fraction num="GM" den="R³"/></MathEq>. Since surface gravity <MathEq>g = <Fraction num="GM" den="R²"/></MathEq>, we can simplify to <MathEq>ω² = <Fraction num="g" den="R"/></MathEq>.</p>
+        <p><strong>Step 4:</strong> The period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2π<Sqrt><Fraction num="R" den="g"/></Sqrt></MathEq>. (This evaluates to about 84 minutes!)</p>
+      </div>
+    )
+  },
+  {
+    id: 7,
+    title: "Resonance on the Expressway",
+    type: "multi-part-mcq",
+    animation: "unicycle",
+    question: "The main expressway is constructed out of pavement slabs with seams that are 43 meters apart. When you ride your powered unicycle at 27 m/s, it develops noticeable resonance vibrations. If the payload of the single suspension spring is 100 kg, follow the steps to find the spring constant k.",
+    parts: [
+      {
+        id: 'part1',
+        label: 'Step 1: Resonance occurs when the driving frequency matches the natural frequency. What is the period T of the driving force (time between hitting seams)?',
+        options: [
+          { id: 'A', content: <MathEq>T = 1161 s</MathEq>, correct: false, feedback: "Incorrect. You multiplied distance by speed. Use t = d/v." },
+          { id: 'B', content: <MathEq>T = 0.63 s</MathEq>, correct: false, feedback: "Incorrect. You divided speed by distance. Use t = d/v." },
+          { id: 'C', content: <MathEq>T = 1.59 s</MathEq>, correct: true, feedback: "Correct! T = d/v = 43 / 27 ≈ 1.593 s." }
+        ]
+      },
+      {
+        id: 'part2',
+        label: 'Step 2: What is the natural angular frequency ω of the unicycle suspension?',
+        options: [
+          { id: 'A', content: <MathEq>ω = 3.95 rad/s</MathEq>, correct: true, feedback: "Correct! ω = 2π / T = 2π / 1.593 ≈ 3.945 rad/s." },
+          { id: 'B', content: <MathEq>ω = 10.0 rad/s</MathEq>, correct: false, feedback: "Incorrect. You used ω = 2πT instead of 2π/T." },
+          { id: 'C', content: <MathEq>ω = 0.25 rad/s</MathEq>, correct: false, feedback: "Incorrect. You used ω = T/2π instead of 2π/T." }
+        ]
+      },
+      {
+        id: 'part3',
+        label: 'Step 3: Using the payload mass m = 100 kg, find the spring constant k from ω = √(k/m).',
+        options: [
+          { id: 'A', content: <MathEq>k = 395 N/m</MathEq>, correct: false, feedback: "Incorrect. You multiplied m by ω. It should be mω²." },
+          { id: 'B', content: <MathEq>k = 1557 N/m</MathEq>, correct: true, feedback: "Correct! k = mω² = 100 * (3.945)² ≈ 1557 N/m." },
+          { id: 'C', content: <MathEq>k = 15.6 N/m</MathEq>, correct: false, feedback: "Incorrect. You divided ω² by m instead of multiplying." }
+        ]
+      }
+    ],
+    tutorial: (
+      <div className="space-y-3">
+        <p><strong>Step 1:</strong> The time between bumps is the period of the driving force. Using velocity <MathEq>v = d/t</MathEq>:<br/>
+           <MathEq>T = <Fraction num="d" den="v"/> = <Fraction num="43 m" den="27 m/s"/> &approx; 1.5926 s</MathEq>.
+        </p>
+        <p><strong>Step 2:</strong> Resonance occurs when the driving period matches the natural period. We convert this to angular frequency:<br/>
+           <MathEq>ω = <Fraction num="2π" den="T"/> = <Fraction num="2π" den="1.5926"/> &approx; 3.945 rad/s</MathEq>.
+        </p>
+        <p><strong>Step 3:</strong> The natural frequency of a spring-mass system is <MathEq>ω = <Sqrt>k/m</Sqrt></MathEq>. Solving for k:<br/>
+           <MathEq>k = mω² = 100 &times; (3.945)² = 100 &times; 15.567 &approx; 1557 N/m</MathEq>.</p>
+      </div>
+    )
+  }
+];
+
+// --- MAIN APP COMPONENT ---
+export default function App() {
+  const [appState, setAppState] = useState('welcome'); // 'welcome', 'quiz', 'summary'
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [answers, setAnswers] = useState({}); // Stores user answers
+  
+  // Quiz specific state
+  const [selectedMcq, setSelectedMcq] = useState(null);
+  const [numericInputs, setNumericInputs] = useState({});
+  const [multiMcqAnswers, setMultiMcqAnswers] = useState({});
+  const [multiPartStatus, setMultiPartStatus] = useState({}); // Stores 'correct' | 'incorrect' for each part
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(null); // null, true, false
+
+  const currentQ = quizData[currentQIndex];
+
+  const handleStart = () => {
+    setAppState('quiz');
+    setCurrentQIndex(0);
+    setAnswers({});
+    resetQuestionState();
+  };
+
+  const resetQuestionState = () => {
+    setSelectedMcq(null);
+    setNumericInputs({});
+    setMultiMcqAnswers({});
+    setMultiPartStatus({});
+    setShowTutorial(false);
+    setIsCorrect(null);
+  };
+
+  // Auto-check for multi-part questions when all parts are correct
+  useEffect(() => {
+    if (currentQ?.type === 'multi-part-mcq') {
+      const allCorrect = currentQ.parts.length > 0 && currentQ.parts.every(p => multiPartStatus[p.id] === 'correct');
+      if (allCorrect && isCorrect === null) {
+        setIsCorrect(true);
+        setAnswers(prev => ({
+          ...prev,
+          [currentQ.id]: { isCorrect: true, userAnswer: multiMcqAnswers }
+        }));
+      }
+    }
+  }, [multiPartStatus, currentQ, multiMcqAnswers, isCorrect]);
+
+  const handleCheckPart = (partId) => {
+    const selected = multiMcqAnswers[partId];
+    if (!selected) return;
+    
+    const part = currentQ.parts.find(p => p.id === partId);
+    const opt = part.options.find(o => o.id === selected);
+    const correct = opt.correct;
+    
+    setMultiPartStatus(prev => ({
+      ...prev,
+      [partId]: correct ? 'correct' : 'incorrect'
+    }));
+  };
+
+  const checkAnswer = () => {
+    let correct = false;
+    
+    if (currentQ.type === 'mcq') {
+      if (!selectedMcq) return;
+      const selectedOption = currentQ.options.find(o => o.id === selectedMcq);
+      correct = selectedOption.correct;
+    } else if (currentQ.type === 'multi-part-mcq') {
+      let allCorrect = true;
+      for (const part of currentQ.parts) {
+        const selectedOptId = multiMcqAnswers[part.id];
+        const opt = part.options.find(o => o.id === selectedOptId);
+        if (!opt || !opt.correct) {
+          allCorrect = false;
+          break;
+        }
+      }
+      correct = allCorrect && Object.keys(multiMcqAnswers).length === currentQ.parts.length;
+    } else {
+      // Check numeric inputs
+      let allCorrect = true;
+      for (const input of currentQ.inputs) {
+        const userVal = parseFloat(numericInputs[input.id]);
+        if (isNaN(userVal)) {
+          allCorrect = false;
+          break;
+        }
+        const diff = Math.abs(userVal - input.correctValue);
+        if (diff > input.tolerance) {
+          allCorrect = false;
+        }
+      }
+      correct = allCorrect && Object.keys(numericInputs).length === currentQ.inputs.length;
+    }
+
+    setIsCorrect(correct);
+    
+    // Save to answers log
+    setAnswers(prev => ({
+      ...prev,
+      [currentQ.id]: {
+        isCorrect: correct,
+        userAnswer: currentQ.type === 'mcq' ? selectedMcq : (currentQ.type === 'multi-part-mcq' ? { ...multiMcqAnswers } : { ...numericInputs })
+      }
+    }));
+
+    if (!correct) {
+      setShowTutorial(true);
+    }
+  };
+
+  const nextQuestion = () => {
+    if (currentQIndex < quizData.length - 1) {
+      setCurrentQIndex(prev => prev + 1);
+      resetQuestionState();
+    } else {
+      setAppState('summary');
+    }
+  };
+
+  // --- VIEWS ---
+  if (appState === 'welcome') {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-lg w-full text-center space-y-6">
+          <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-blue-600">
+            <BookOpen size={40} />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800">Physics 14 Practice</h1>
+          <p className="text-slate-600 text-lg">
+            Master Simple Harmonic Motion, Oscillators, and Ballistic Pendulums. 
+            Interactive animations and tutorials included!
+          </p>
+          <button 
+            onClick={handleStart}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center justify-center"
+          >
+            Start Practice Quiz <ArrowRight className="ml-2" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (appState === 'summary') {
+    const score = Object.values(answers).filter(a => a.isCorrect).length;
+    
+    const downloadHTML = () => {
+      const summaryElement = document.getElementById('summary-document');
+      if (!summaryElement) return;
+
+      // Clone the element to remove action buttons before downloading
+      const clone = summaryElement.cloneNode(true);
+      const actionsDiv = clone.querySelector('#summary-actions');
+      if (actionsDiv) actionsDiv.remove();
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Physics 14 Practice - Results</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-slate-50 p-6 md:p-12 font-sans text-slate-800">
+          ${clone.outerHTML}
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Physics_Quiz_Results.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 p-6 md:p-12">
+        <div id="summary-document" className="max-w-4xl mx-auto space-y-8">
+          <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
+            <h1 className="text-4xl font-extrabold text-slate-800 mb-2 flex justify-center items-center">
+              <FileText className="mr-3 text-blue-600" size={40} />
+              Final Submission Document
+            </h1>
+            <p className="text-xl text-slate-600">You scored {score} out of {quizData.length}</p>
+            <div id="summary-actions" className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button 
+                onClick={handleStart}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-6 rounded-lg transition-colors flex items-center"
+              >
+                <RefreshCcw className="mr-2" size={18} /> Restart Practice
+              </button>
+              <button 
+                onClick={downloadHTML}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center"
+              >
+                <Download className="mr-2" size={18} /> Download as HTML
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {quizData.map((q, idx) => (
+              <div key={q.id} className="bg-white p-6 rounded-2xl shadow-md border-l-4 border-blue-500">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Q{idx + 1}: {q.title}</h3>
+                    <p className="text-slate-700 mb-4">{q.question}</p>
+                  </div>
+                  {answers[q.id]?.isCorrect ? 
+                    <CheckCircle className="text-green-500 shrink-0" size={28} /> : 
+                    <XCircle className="text-red-500 shrink-0" size={28} />
+                  }
+                </div>
+                
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                  <h4 className="font-semibold text-slate-700 flex items-center mb-2">
+                    <Calculator className="mr-2" size={16} /> Step-by-Step Solution
+                  </h4>
+                  <div className="text-slate-600 text-sm">
+                    {q.tutorial}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Quiz View
+  return (
+    <div className="min-h-screen bg-slate-100 p-4 md:p-8 flex flex-col items-center">
+      <div className="max-w-3xl w-full">
+        {/* Progress Bar */}
+        <div className="mb-6 flex items-center justify-between text-sm font-medium text-slate-500">
+          <span>Question {currentQIndex + 1} of {quizData.length}</span>
+          <div className="flex-1 mx-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-500"
+              style={{ width: `${((currentQIndex) / quizData.length) * 100}%` }}
+            />
+          </div>
+          <span>{Math.round(((currentQIndex) / quizData.length) * 100)}%</span>
+        </div>
+
+        {/* Main Card */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border border-slate-200">
+          <div className="bg-slate-800 p-4 text-white">
+            <h2 className="text-xl font-bold">{currentQ.title}</h2>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <p className="text-lg text-slate-800 leading-relaxed">
+              {currentQ.question}
+            </p>
+
+            <PhysicsAnimation type={currentQ.animation} />
+
+            {/* Inputs based on type */}
+            <div className="space-y-4">
+              {currentQ.type === 'mcq' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {currentQ.options.map(opt => (
+                    <button
+                      key={opt.id}
+                      disabled={isCorrect !== null}
+                      onClick={() => setSelectedMcq(opt.id)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedMcq === opt.id 
+                          ? 'border-blue-500 bg-blue-50 shadow-md' 
+                          : 'border-slate-200 hover:border-blue-300 bg-white'
+                      } ${isCorrect !== null ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      <span className="font-bold mr-3 text-slate-400">{opt.id}.</span>
+                      {opt.content}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {currentQ.type === 'multi-part-mcq' && (
+                <div className="space-y-6">
+                  {currentQ.parts.map(part => {
+                    const status = multiPartStatus[part.id];
+                    const isPartCheckedAndCorrect = status === 'correct';
+                    const selectedOpt = part.options.find(o => o.id === multiMcqAnswers[part.id]);
+
+                    return (
+                      <div key={part.id} className={`p-5 rounded-xl border-2 ${status === 'correct' ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-slate-50'}`}>
+                        <p className="font-bold text-slate-800 mb-3">{part.label}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                          {part.options.map(opt => (
+                            <button
+                              key={opt.id}
+                              disabled={isCorrect !== null || isPartCheckedAndCorrect}
+                              onClick={() => {
+                                setMultiMcqAnswers(prev => ({ ...prev, [part.id]: opt.id }));
+                                setMultiPartStatus(prev => ({ ...prev, [part.id]: null }));
+                              }}
+                              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                multiMcqAnswers[part.id] === opt.id 
+                                  ? 'border-blue-500 bg-blue-100 shadow-sm' 
+                                  : 'border-slate-300 hover:border-blue-300 bg-white'
+                              } ${(isCorrect !== null || isPartCheckedAndCorrect) ? 'opacity-70 cursor-not-allowed' : ''} ${isPartCheckedAndCorrect && opt.correct ? 'border-green-500 bg-green-100' : ''}`}
+                            >
+                              {opt.content}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <button
+                            onClick={() => handleCheckPart(part.id)}
+                            disabled={!multiMcqAnswers[part.id] || isPartCheckedAndCorrect || isCorrect !== null}
+                            className="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                          >
+                            Check Step
+                          </button>
+                          
+                          {status && selectedOpt && (
+                            <div className={`text-sm font-medium p-3 rounded-lg flex-1 w-full ${status === 'correct' ? 'text-green-800 bg-green-100 border border-green-200' : 'text-red-800 bg-red-100 border border-red-200'}`}>
+                              {status === 'correct' ? <CheckCircle size={16} className="inline mr-1" /> : <XCircle size={16} className="inline mr-1" />}
+                              {selectedOpt.feedback}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {currentQ.type === 'numeric' && (
+                <div className="space-y-4">
+                  {currentQ.inputs.map(input => (
+                    <div key={input.id} className="flex flex-col md:flex-row md:items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <label className="text-slate-700 font-medium mb-2 md:mb-0">{input.label}</label>
+                      <input 
+                        type="number"
+                        disabled={isCorrect !== null}
+                        step="any"
+                        value={numericInputs[input.id] || ''}
+                        onChange={(e) => setNumericInputs(prev => ({...prev, [input.id]: e.target.value}))}
+                        className="p-2 border-2 border-slate-300 rounded-lg focus:border-blue-500 outline-none transition-colors w-full md:w-32 text-center"
+                        placeholder="e.g. 10.5"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action Area */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              
+              {/* Feedback messages */}
+              <div className="flex-1 w-full">
+                {isCorrect === true && (
+                  <div className="flex items-center text-green-600 bg-green-50 p-3 rounded-lg border border-green-200">
+                    <CheckCircle className="mr-2" /> <span className="font-semibold">Correct! Great job.</span>
+                  </div>
+                )}
+                {isCorrect === false && (
+                  <div className="flex items-center text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                    <XCircle className="mr-2" /> <span className="font-semibold">Not quite right. Let's look at the tutorial.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Buttons */}
+              {isCorrect === null ? (
+                currentQ.type === 'multi-part-mcq' ? (
+                  <div className="text-slate-500 italic text-sm text-center w-full sm:w-auto p-3">
+                    Complete all steps to continue.
+                  </div>
+                ) : (
+                  <button 
+                    onClick={checkAnswer}
+                    disabled={(currentQ.type === 'mcq' && !selectedMcq) || (currentQ.type === 'numeric' && Object.keys(numericInputs).length !== currentQ.inputs.length)}
+                    className="w-full sm:w-auto bg-blue-600 disabled:bg-slate-300 text-white font-bold py-3 px-8 rounded-xl shadow-sm transition-colors"
+                  >
+                    Check Answer
+                  </button>
+                )
+              ) : (
+                <button 
+                  onClick={nextQuestion}
+                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-transform hover:scale-105 flex items-center justify-center"
+                >
+                  {currentQIndex < quizData.length - 1 ? 'Next Question' : 'Finish & View Document'} <ChevronRight className="ml-2" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Tutorial Panel (Expands if wrong or requested) */}
+        {showTutorial && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-2xl shadow-md animate-fade-in-up">
+            <h3 className="text-amber-800 font-bold text-lg mb-3 flex items-center">
+              <BookOpen className="mr-2" size={20} /> Instructor Tutorial
+            </h3>
+            <div className="text-amber-900 leading-relaxed">
+              {currentQ.tutorial}
+            </div>
+            {isCorrect === false && (
+              <button 
+                onClick={resetQuestionState}
+                className="mt-4 bg-amber-200 hover:bg-amber-300 text-amber-900 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+              >
+                Try Again
+              </button>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
