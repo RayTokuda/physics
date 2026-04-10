@@ -17,7 +17,7 @@ const Fraction = ({ num, den }) => (
 
 const Sqrt = ({ children }) => (
   <span className="whitespace-nowrap">
-    &radic;<span className="border-t border-gray-800 pt-[1px] ml-[1px]">{children}</span>
+    √<span className="border-t border-gray-800 pt-[1px] ml-[1px]">{children}</span>
   </span>
 );
 
@@ -206,10 +206,10 @@ const quizData = [
     animation: "two-springs",
     question: "A mass m is on a frictionless surface between two identical springs, both with spring constant K. Find the period of oscillation T in terms of m and K.",
     options: [
-      { id: 'A', content: <MathEq>2&pi;<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
-      { id: 'B', content: <MathEq>2&pi;<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>, correct: true },
-      { id: 'C', content: <MathEq>2&pi;<Sqrt><Fraction num="2m" den="K"/></Sqrt></MathEq>, correct: false },
-      { id: 'D', content: <MathEq>&pi;<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'A', content: <MathEq>2π<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'B', content: <MathEq>2π<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>, correct: true },
+      { id: 'C', content: <MathEq>2π<Sqrt><Fraction num="2m" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'D', content: <MathEq>π<Sqrt><Fraction num="m" den="K"/></Sqrt></MathEq>, correct: false },
     ],
     tutorial: (
       <div className="space-y-3">
@@ -222,11 +222,11 @@ const quizData = [
         <p>4. Solve for acceleration <MathEq>a = <Fraction num="d²x" den="dt²"/></MathEq>:<br/>
            <MathEq><Fraction num="d²x" den="dt²"/> = -<Fraction num="2K" den="m"/>x</MathEq>
         </p>
-        <p>5. In Simple Harmonic Motion, <MathEq><Fraction num="d²x" den="dt²"/> = -&omega;&sup2;x</MathEq>. So the coefficient of <MathEq>-x</MathEq> is <MathEq>&omega;&sup2;</MathEq>:<br/>
-           <MathEq>&omega;&sup2; = <Fraction num="2K" den="m"/></MathEq>
+        <p>5. In Simple Harmonic Motion, <MathEq><Fraction num="d²x" den="dt²"/> = -ω²x</MathEq>. So the coefficient of <MathEq>-x</MathEq> is <MathEq>ω²</MathEq>:<br/>
+           <MathEq>ω² = <Fraction num="2K" den="m"/></MathEq>
         </p>
-        <p>Since period <MathEq>T = <Fraction num="2&pi;" den="&omega;"/></MathEq>, taking the square root gives:<br/>
-           <MathEq>T = 2&pi;<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>.
+        <p>Since period <MathEq>T = <Fraction num="2π" den="ω"/></MathEq>, taking the square root gives:<br/>
+           <MathEq>T = 2π<Sqrt><Fraction num="m" den="2K"/></Sqrt></MathEq>.
         </p>
       </div>
     )
@@ -244,15 +244,15 @@ const quizData = [
     tutorial: (
       <div className="space-y-3">
         <p>Let's break down the SHM parameters:</p>
-        <p>1. Find angular frequency <MathEq>&omega; = 2&pi; / T = 2&pi; / 0.20 = 10&pi; rad/s</MathEq>.</p>
+        <p>1. Find angular frequency <MathEq>ω = 2π / T = 2π / 0.20 = 10π rad/s</MathEq>.</p>
         <p>2. Convert Amplitude to meters: <MathEq>A = 0.1 m</MathEq>.</p>
         <p><strong>Part A (Force):</strong><br/>
-           Maximum acceleration is <MathEq>a<sub>max</sub> = A&omega;&sup2; = (0.1)(100&pi;&sup2;) &approx; 98.7 m/s&sup2;</MathEq>.<br/>
-           Maximum force <MathEq>F<sub>max</sub> = m a<sub>max</sub> = (0.1 kg)(98.7 m/s&sup2;) = 9.87 N</MathEq>.
+           Maximum acceleration is <MathEq>a<sub>max</sub> = Aω² = (0.1)(100π²) ≈ 98.7 m/s²</MathEq>.<br/>
+           Maximum force <MathEq>F<sub>max</sub> = m a<sub>max</sub> = (0.1 kg)(98.7 m/s²) = 9.87 N</MathEq>.
         </p>
         <p><strong>Part B (Spring Constant):</strong><br/>
-           We know <MathEq>&omega; = <Sqrt>K/m</Sqrt></MathEq>, so <MathEq>K = m&omega;&sup2;</MathEq>.<br/>
-           <MathEq>K = (0.1)(100&pi;&sup2;) &approx; 98.7 N/m</MathEq>.
+           We know <MathEq>ω = <Sqrt>K/m</Sqrt></MathEq>, so <MathEq>K = mω²</MathEq>.<br/>
+           <MathEq>K = (0.1)(100π²) ≈ 98.7 N/m</MathEq>.
         </p>
       </div>
     )
@@ -264,10 +264,10 @@ const quizData = [
     animation: "rolling-sphere",
     question: "A solid sphere (Mass M, Radius R) rolls without slipping while attached to a spring K at its center (r=0). Find the period T. (Hint: I = 2MR²/5)",
     options: [
-      { id: 'A', content: <MathEq>2&pi;<Sqrt><Fraction num="M" den="K"/></Sqrt></MathEq>, correct: false },
-      { id: 'B', content: <MathEq>2&pi;<Sqrt><Fraction num="2M" den="5K"/></Sqrt></MathEq>, correct: false },
-      { id: 'C', content: <MathEq>2&pi;<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>, correct: true },
-      { id: 'D', content: <MathEq>2&pi;<Sqrt><Fraction num="5M" den="7K"/></Sqrt></MathEq>, correct: false },
+      { id: 'A', content: <MathEq>2π<Sqrt><Fraction num="M" den="K"/></Sqrt></MathEq>, correct: false },
+      { id: 'B', content: <MathEq>2π<Sqrt><Fraction num="2M" den="5K"/></Sqrt></MathEq>, correct: false },
+      { id: 'C', content: <MathEq>2π<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>, correct: true },
+      { id: 'D', content: <MathEq>2π<Sqrt><Fraction num="5M" den="7K"/></Sqrt></MathEq>, correct: false },
     ],
     tutorial: (
       <div className="space-y-3">
@@ -275,19 +275,19 @@ const quizData = [
         <p>1. Translation (<MathEq>F = ma</MathEq>): The forces are the spring force and static friction (<MathEq>f<sub>s</sub></MathEq>). <br/>
            <MathEq>-Kx - f<sub>s</sub> = Ma</MathEq>
         </p>
-        <p>2. Rotation (<MathEq>&tau; = I&alpha;</MathEq>): The spring attaches at the center (<MathEq>r=0</MathEq>), so only friction provides torque. <br/>
-           <MathEq>f<sub>s</sub>R = I&alpha;</MathEq>
+        <p>2. Rotation (<MathEq>τ = Iα</MathEq>): The spring attaches at the center (<MathEq>r=0</MathEq>), so only friction provides torque. <br/>
+           <MathEq>f<sub>s</sub>R = Iα</MathEq>
         </p>
-        <p>3. Use rolling without slipping (<MathEq>&alpha; = a/R</MathEq>) and <MathEq>I = &frac25;MR&sup2;</MathEq>:<br/>
-           <MathEq>f<sub>s</sub>R = (&frac25;MR&sup2;)(a/R) &rarr; f<sub>s</sub> = &frac25;Ma</MathEq>
+        <p>3. Use rolling without slipping (<MathEq>α = a/R</MathEq>) and <MathEq>I = 2/5 MR²</MathEq>:<br/>
+           <MathEq>f<sub>s</sub>R = (2/5 MR²)(a/R) → f<sub>s</sub> = 2/5 Ma</MathEq>
         </p>
         <p>4. Substitute <MathEq>f<sub>s</sub></MathEq> back into the translation equation:<br/>
-           <MathEq>-Kx - &frac25;Ma = Ma &rarr; -Kx = &frac75;Ma</MathEq>
+           <MathEq>-Kx - 2/5 Ma = Ma → -Kx = 7/5 Ma</MathEq>
         </p>
-        <p>5. Isolate acceleration to find the differential equation form <MathEq>a = -&omega;&sup2;x</MathEq>:<br/>
-           <MathEq>a = -<Fraction num="5K" den="7M"/>x</MathEq>, so <MathEq>&omega;&sup2; = <Fraction num="5K" den="7M"/></MathEq>
+        <p>5. Isolate acceleration to find the differential equation form <MathEq>a = -ω²x</MathEq>:<br/>
+           <MathEq>a = -<Fraction num="5K" den="7M"/>x</MathEq>, so <MathEq>ω² = <Fraction num="5K" den="7M"/></MathEq>
         </p>
-        <p>Period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2&pi;<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>.</p>
+        <p>Period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2π<Sqrt><Fraction num="7M" den="5K"/></Sqrt></MathEq>.</p>
       </div>
     )
   },
@@ -306,17 +306,17 @@ const quizData = [
         <p>This is a two-part collision and energy problem.</p>
         <p><strong>1. Inelastic Collision (Momentum Conserved):</strong><br/>
            <MathEq>m<sub>bullet</sub>v<sub>i</sub> = (m<sub>bullet</sub> + M<sub>block</sub>)v<sub>f</sub></MathEq><br/>
-           <MathEq>(0.05)(150) = (4.05)v<sub>f</sub> &rarr; v<sub>f</sub> &approx; 1.85 m/s</MathEq>.
+           <MathEq>(0.05)(150) = (4.05)v<sub>f</sub> → v<sub>f</sub> ≈ 1.85 m/s</MathEq>.
         </p>
         <p><strong>2. Spring Compression (Energy Conserved):</strong><br/>
-           <MathEq>&frac12;(m+M)v<sub>f</sub>&sup2; = &frac12;KA&sup2;</MathEq><br/>
-           <MathEq>&frac12;(4.05)(1.85)&sup2; = &frac12;(500)A&sup2; &rarr; 6.94 J = 250 A&sup2;</MathEq><br/>
-           <MathEq>A &approx; 0.166 m</MathEq>.
+           <MathEq>1/2 (m+M)v<sub>f</sub>² = 1/2 KA²</MathEq><br/>
+           <MathEq>1/2 (4.05)(1.85)² = 1/2 (500)A² → 6.94 J = 250 A²</MathEq><br/>
+           <MathEq>A ≈ 0.166 m</MathEq>.
         </p>
         <p><strong>3. Kinetic Energy Fraction:</strong><br/>
-           Initial <MathEq>KE = &frac12;(0.05)(150)&sup2; = 562.5 J</MathEq>.<br/>
+           Initial <MathEq>KE = 1/2 (0.05)(150)² = 562.5 J</MathEq>.<br/>
            Stored <MathEq>KE</MathEq> (from part 2) <MathEq>= 6.94 J</MathEq>.<br/>
-           Fraction <MathEq>= 6.94 / 562.5 &approx; 0.0123 = 1.23%</MathEq>.
+           Fraction <MathEq>= 6.94 / 562.5 ≈ 0.0123 = 1.23%</MathEq>.
         </p>
       </div>
     )
@@ -431,7 +431,7 @@ const quizData = [
            <MathEq>F = -G<Fraction num="Mm_{inside}" den="r²"/> = -G<Fraction num="M(r³/R³)" den="r²"/>m = -G<Fraction num="Mm" den="R³"/>r</MathEq>.
         </p>
         <p><strong>Step 2:</strong> Set <MathEq>F = m a</MathEq> where <MathEq>a = <Fraction num="d²r" den="dt²"/></MathEq>:<br/>
-           <MathEq>-G<Fraction num="Mm" den="R³"/>r = m<Fraction num="d²r" den="dt²"/> &rarr; <Fraction num="d²r" den="dt²"/> = -<Fraction num="GM" den="R³"/>r</MathEq>.
+           <MathEq>-G<Fraction num="Mm" den="R³"/>r = m<Fraction num="d²r" den="dt²"/> → <Fraction num="d²r" den="dt²"/> = -<Fraction num="GM" den="R³"/>r</MathEq>.
         </p>
         <p><strong>Step 3:</strong> Comparing this to <MathEq><Fraction num="d²r" den="dt²"/> = -ω²r</MathEq>, we see <MathEq>ω² = <Fraction num="GM" den="R³"/></MathEq>. Since surface gravity <MathEq>g = <Fraction num="GM" den="R²"/></MathEq>, we can simplify to <MathEq>ω² = <Fraction num="g" den="R"/></MathEq>.</p>
         <p><strong>Step 4:</strong> The period is <MathEq>T = <Fraction num="2π" den="ω"/> = 2π<Sqrt><Fraction num="R" den="g"/></Sqrt></MathEq>. (This evaluates to about 84 minutes!)</p>
@@ -468,7 +468,7 @@ const quizData = [
         label: 'Step 3: Using the payload mass m = 100 kg, find the spring constant k from ω = √(k/m).',
         options: [
           { id: 'A', content: <MathEq>k = 395 N/m</MathEq>, correct: false, feedback: "Incorrect. You multiplied m by ω. It should be mω²." },
-          { id: 'B', content: <MathEq>k = 1557 N/m</MathEq>, correct: true, feedback: "Correct! k = mω² = 100 * (3.945)² ≈ 1557 N/m." },
+          { id: 'B', content: <MathEq>k = 1557 N/m</MathEq>, correct: true, feedback: "Correct! k = mω² = 100 × (3.945)² ≈ 1557 N/m." },
           { id: 'C', content: <MathEq>k = 15.6 N/m</MathEq>, correct: false, feedback: "Incorrect. You divided ω² by m instead of multiplying." }
         ]
       }
@@ -476,13 +476,13 @@ const quizData = [
     tutorial: (
       <div className="space-y-3">
         <p><strong>Step 1:</strong> The time between bumps is the period of the driving force. Using velocity <MathEq>v = d/t</MathEq>:<br/>
-           <MathEq>T = <Fraction num="d" den="v"/> = <Fraction num="43 m" den="27 m/s"/> &approx; 1.5926 s</MathEq>.
+           <MathEq>T = <Fraction num="d" den="v"/> = <Fraction num="43 m" den="27 m/s"/> ≈ 1.5926 s</MathEq>.
         </p>
         <p><strong>Step 2:</strong> Resonance occurs when the driving period matches the natural period. We convert this to angular frequency:<br/>
-           <MathEq>ω = <Fraction num="2π" den="T"/> = <Fraction num="2π" den="1.5926"/> &approx; 3.945 rad/s</MathEq>.
+           <MathEq>ω = <Fraction num="2π" den="T"/> = <Fraction num="2π" den="1.5926"/> ≈ 3.945 rad/s</MathEq>.
         </p>
         <p><strong>Step 3:</strong> The natural frequency of a spring-mass system is <MathEq>ω = <Sqrt>k/m</Sqrt></MathEq>. Solving for k:<br/>
-           <MathEq>k = mω² = 100 &times; (3.945)² = 100 &times; 15.567 &approx; 1557 N/m</MathEq>.</p>
+           <MathEq>k = mω² = 100 × (3.945)² = 100 × 15.567 ≈ 1557 N/m</MathEq>.</p>
       </div>
     )
   }
