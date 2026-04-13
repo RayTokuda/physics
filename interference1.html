@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Interference Master</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { margin: 0; background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        .canvas-container {
+            image-rendering: pixelated;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        // --- Game Configuration ---
+        const TOTAL_ROUNDS = 5;
+        const BASE_POINTS_PER_ROUND = 3;
+        const EXTRA_CREDIT_PER_ROUND = 1;
+        const TOLERANCE_RADIANS = 0.06; // About 3.5 degrees of leeway
+
+        // Simple reusable SVG Graph Component
+        const SimpleGraph = ({ data, xKey, yKey, xLabel, yLabel, title, showTrendline = true }) => {
+            if (data.length === 0) return <div className="h-48 bg-slate-900 rounded flex items-center justify-center text-slate-500">No data yet</div>;
+            
+            const xMax = Math.max(...data.map(d => d[xKey])) * 1.2;
+            const yMax = Math.max(...data.map(d => d[yKey])) * 1.2;
+            
+            // Calculate trendline slope (assuming passing through origin for these physics equations)
+            const lastPoint = data[data.length - 1];
+            const slope = lastPoint[yKey] / lastPoint[xKey];
+            const trendYAtXMax = slope * xMax;
+            const svgTrendY = 180 - (trendYAtXMax / yMax) * 160;
+
+            return (
+                <div className="flex flex-col items-center w-full">
+                    <div className="text-xs font-bold text-slate-400 mb-2">{title}</div>
+                    <svg viewBox="0 0 300 200" className="bg-slate-900 rounded-lg border border-slate-700 w-full max-w-sm h-auto shadow-inner">
+                        {/* Axes */}
+                        <line x1="30" y1="20" x2="30" y2="180" stroke="#475569" strokeWidth="2" />
+                        <line x1="30" y1="180" x2="280" y2="180" stroke="#475569" strokeWidth="2" />
+                        
+                        {/* Trendline */}
+                        {showTrendline && data.length > 1 && (
+                            <line x1="30" y1="180" x2="280" y2={Math.max(20, svgTrendY)} stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
+                        )}
+
+                        {/* Connecting Line (for curves) */}
+                        {!showTrendline && data.length > 1 && (
+                            <polyline
+                                points={data.map(d => `${30 + (d[xKey]/xMax)*250},${180 - (d[yKey]/yMax)*160}`).join(' ')}
+                                fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.5"
+                            />
+                        )}
+
+                        {/* Data points */}
+                        {data.map((d, i) => (
+                            <circle key={i} 
+                                cx={30 + (d[xKey]/xMax)*250} 
+                                cy={180 - (d[yKey]/yMax)*160} 
+                                r="5" fill="#3b82f6" 
+                                stroke="#1e293b" strokeWidth="2"
+                            />
+                        ))}
+
+                        {/* Labels */}
+                        <text x="155" y="195" fill="#94a3b8" fontSize="10" textAnchor="middle">{xLabel}</text>
+                        <text x="10" y="100" fill="#94a3b8" fontSize="10" textAnchor="middle" transform="rotate(-90 10,100)">{yLabel}</text>
+                    </svg>
+                </div>
+            );
+        };
+
+        const App = () => {
+            // General Game State
+            const [appMode, setAppMode] = useState('p1'); // 'p1' or 'p2'
+            const [gameState, setGameState] = useState('intro'); // 'intro', 'playing', 'win'
+            const [accessCode, setAccessCode] = useState('');
+            
+            // Scoring
+            const [score, setScore] = useState(0);
+            const [extraCredit, setExtraCredit] = useState(0);
+            const [freeCorrectionsLeft, setFreeCorrectionsLeft] = useState(2);
+            
+            // Common Simulation State
+            const [userD, setUserD] = useState(60);
+            const [userLambda, setUserLambda] = useState(20);
+            const [targetAngle, setTargetAngle] = useState(0);
+            const [lockedSlider, setLockedSlider] = useState(null); // 'd', 'lambda', or null
+            
+            const [feedback, setFeedback] = useState("");
+            const [feedbackType, setFeedbackType] = useState(""); // 'error', 'success', 'hint'
+            const [isChecking, setIsChecking] = useState(false);
+
+            // Canvas & Animation refs
+            const canvasRef = useRef(null);
+            const requestRef = useRef();
+            const timeRef = useRef(0);
+
+            const verificationCode = useMemo(() => Math.random().toString(36).substring(2, 8).toUpperCase(), []);
+            
+            // --- PART 1 SPECIFIC STATE ---
+            const [round, setRound] = useState(1);
+            const [attemptsThisRound, setAttemptsThisRound] = useState(0);
+            const [pointsLostThisRound, setPointsLostThisRound] = useState(0);
+
+            // --- PART 2 SPECIFIC STATE ---
+            const [p2Stage, setP2Stage] = useState('data1'); // 'data1', 'q1', 'data2', 'q2', 'syn1', 'syn2'
+            const [p2Data1, setP2Data1] = useState([]);
+            const [p2Data2, setP2Data2] = useState([]);
+            const [p2TargetThetaDeg, setP2TargetThetaDeg] = useState(30);
+            const [p2CurrentLambdaTarget, setP2CurrentLambdaTarget] = useState(15);
+            const [p2QAnswer, setP2QAnswer] = useState('');
+            const [p2MistakesThisStage, setP2MistakesThisStage] = useState(0);
+
+            // --- Shared Calculation ---
+            const calculateAngle = (lambda, d) => {
+                if (lambda > d) return NaN; // No pattern
+                return Math.asin(lambda / d);
+            };
+
+            // --- PART 1 LOGIC ---
+            const startRoundP1 = (roundNum) => {
+                setRound(roundNum);
+                setAttemptsThisRound(0);
+                setPointsLostThisRound(0);
+                setFeedback("");
+                setFeedbackType("");
+                setIsChecking(false);
+                timeRef.current = 0; 
+
+                if (roundNum === 4) {
+                    setLockedSlider('d');
+                    const targetLambda = 15 + Math.random() * 20;
+                    setTargetAngle(calculateAngle(targetLambda, 60));
+                    setUserD(60);
+                    setUserLambda(targetLambda > 25 ? 12 : 38); 
+                } else if (roundNum === 5) {
+                    setLockedSlider('lambda');
+                    const targetD = 40 + Math.random() * 40;
+                    setTargetAngle(calculateAngle(25, targetD));
+                    setUserD(targetD > 60 ? 35 : 95); 
+                    setUserLambda(25);
+                } else {
+                    setLockedSlider(null);
+                    const randD = 40 + Math.random() * 50;
+                    const randLambda = 15 + Math.random() * 20;
+                    const safeLambda = Math.min(randLambda, randD * 0.8);
+                    setTargetAngle(calculateAngle(safeLambda, randD));
+                    setUserD(60);
+                    setUserLambda(20);
+                }
+            };
+
+            const handleCheckP1 = () => {
+                if (isChecking) return;
+                const currentAngle = calculateAngle(userLambda, userD);
+                
+                if (isNaN(currentAngle)) {
+                    setFeedback("Wavelength too large compared to distance! Try increasing distance or decreasing wavelength.");
+                    setFeedbackType("error");
+                    setAttemptsThisRound(a => a + 1);
+                    if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
+                    else setPointsLostThisRound(prev => prev + 1);
+                    return;
+                }
+
+                const diff = Math.abs(currentAngle - targetAngle);
+
+                if (diff <= TOLERANCE_RADIANS) {
+                    setIsChecking(true);
+                    setFeedbackType("success");
+                    let earnedBasePoints = BASE_POINTS_PER_ROUND;
+
+                    if (attemptsThisRound === 0) {
+                        setExtraCredit(prev => prev + EXTRA_CREDIT_PER_ROUND);
+                        setFeedback("Perfect match on the first try!");
+                    } else {
+                        earnedBasePoints = Math.max(1, BASE_POINTS_PER_ROUND - pointsLostThisRound);
+                        if (pointsLostThisRound === 0) setFeedback("Great job! You found it! Full points awarded.");
+                        else setFeedback(`You found it! You earned ${earnedBasePoints} out of ${BASE_POINTS_PER_ROUND} points.`);
+                    }
+                    
+                    setScore(prev => prev + earnedBasePoints);
+                    setTimeout(() => {
+                        if (round < TOTAL_ROUNDS) startRoundP1(round + 1);
+                        else endGame();
+                    }, 2500);
+                } else {
+                    setAttemptsThisRound(a => a + 1);
+                    if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
+                    else setPointsLostThisRound(prev => prev + 1);
+                    
+                    setFeedbackType("hint");
+                    if (currentAngle > targetAngle) setFeedback("Pattern too WIDE. To make narrower: INCREASE distance (d) or DECREASE wavelength (λ).");
+                    else setFeedback("Pattern too NARROW. To make wider: DECREASE distance (d) or INCREASE wavelength (λ).");
+                }
+            };
+
+            // --- PART 2 LOGIC ---
+            const startPart2Stage = (stage) => {
+                setP2Stage(stage);
+                setFeedback("");
+                setFeedbackType("");
+                setP2MistakesThisStage(0);
+                setP2QAnswer('');
+                timeRef.current = 0;
+
+                if (stage === 'data1') {
+                    // Setup fixed angle experiment
+                    const randomThetaDeg = Math.floor(25 + Math.random() * 20); // 25 to 45 degrees
+                    setP2TargetThetaDeg(randomThetaDeg);
+                    setTargetAngle(randomThetaDeg * (Math.PI / 180));
+                    setLockedSlider('lambda');
+                    setP2CurrentLambdaTarget(15);
+                    setUserLambda(15);
+                    setUserD(80); // off-target
+                } else if (stage === 'data2') {
+                    // Setup fixed distance experiment
+                    setUserD(60);
+                    setLockedSlider('d');
+                    setP2CurrentLambdaTarget(15);
+                    setUserLambda(15);
+                    setTargetAngle(0); // Free tracking
+                }
+            };
+
+            const handleRecordDataP2 = () => {
+                if (p2Stage === 'data1') {
+                    const currentAngle = calculateAngle(userLambda, userD);
+                    const diff = Math.abs(currentAngle - targetAngle);
+                    
+                    if (diff <= TOLERANCE_RADIANS) {
+                        setFeedbackType("success");
+                        setFeedback("Data point recorded!");
+                        const newData = [...p2Data1, { lambda: userLambda, d: userD }];
+                        setP2Data1(newData);
+                        
+                        if (newData.length >= 4) {
+                            setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
+                            setTimeout(() => startPart2Stage('q1'), 1500);
+                        } else {
+                            // Next target
+                            const nextLambda = userLambda + 5;
+                            setP2CurrentLambdaTarget(nextLambda);
+                            setUserLambda(nextLambda);
+                        }
+                    } else {
+                        if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
+                        else setP2MistakesThisStage(prev => prev + 1);
+                        
+                        setFeedbackType("hint");
+                        if (isNaN(currentAngle)) setFeedback("Wavelength too large for distance.");
+                        else if (currentAngle > targetAngle) setFeedback("Pattern too wide. Try increasing distance (d).");
+                        else setFeedback("Pattern too narrow. Try decreasing distance (d).");
+                    }
+                } else if (p2Stage === 'data2') {
+                    if (userLambda === p2CurrentLambdaTarget) {
+                        const currentAngle = calculateAngle(userLambda, userD);
+                        const sinTheta = Math.sin(currentAngle);
+                        
+                        setFeedbackType("success");
+                        setFeedback("Angle recorded!");
+                        const newData = [...p2Data2, { lambda: userLambda, sinTheta: sinTheta, thetaDeg: currentAngle * (180/Math.PI) }];
+                        setP2Data2(newData);
+                        
+                        if (newData.length >= 4) {
+                            setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
+                            setTimeout(() => startPart2Stage('q2'), 1500);
+                        } else {
+                            const nextLambda = userLambda + 10;
+                            setP2CurrentLambdaTarget(nextLambda);
+                            setUserLambda(nextLambda);
+                        }
+                    } else {
+                        setFeedbackType("error");
+                        setFeedback(`Please set the Wavelength to exactly ${p2CurrentLambdaTarget} before recording.`);
+                    }
+                }
+            };
+
+            const submitP2Question = (correctAnswerId, nextStage, hints) => {
+                if (p2QAnswer === correctAnswerId) {
+                    setFeedbackType("success");
+                    setFeedback("Correct! Excellent job.");
+                    setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
+                    
+                    // Extra credit if no mistakes
+                    if (p2MistakesThisStage === 0 && freeCorrectionsLeft === 2) {
+                         // We'll award extra credit secretly at the end if score is perfect, 
+                         // but let's manually track perfect answers here
+                         setExtraCredit(prev => prev + 1);
+                    }
+
+                    setTimeout(() => {
+                        if (nextStage === 'win') endGame();
+                        else startPart2Stage(nextStage);
+                    }, 2000);
+                } else {
+                    if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
+                    else setP2MistakesThisStage(prev => prev + 1);
+                    
+                    setFeedbackType("error");
+                    // Progressive hint logic
+                    const hintIndex = Math.min(p2MistakesThisStage, hints.length - 1);
+                    setFeedback(`Incorrect. Hint: ${hints[hintIndex]}`);
+                }
+            };
+
+            // --- Game Flow Control ---
+            const startGame = () => {
+                setScore(0);
+                setExtraCredit(0);
+                setFreeCorrectionsLeft(3); // A little more leeway for part 2 overall
+                
+                if (accessCode.trim().toUpperCase() === 'MASTER2') {
+                    setAppMode('p2');
+                    setGameState('playing');
+                    startPart2Stage('data1');
+                } else {
+                    setAppMode('p1');
+                    setGameState('playing');
+                    startRoundP1(1);
+                }
+            };
+
+            const endGame = () => {
+                setGameState('win');
+                const bursts = extraCredit >= 3 ? 3 : extraCredit > 0 ? 2 : 1;
+                let count = 0;
+                const interval = setInterval(() => {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.5, x: 0.5 }, colors: ['#3b82f6', '#10b981', '#ffffff']});
+                    count++;
+                    if (count >= bursts) clearInterval(interval);
+                }, 800);
+            };
+
+            // --- Simulation Rendering Loop ---
+            const renderCanvas = useCallback(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+
+                const imgData = ctx.createImageData(width, height);
+                const data = imgData.data;
+
+                const cx = width / 2;
+                const cy = 20;
+                const d = userD;
+                const lambda = userLambda;
+                const k = (2 * Math.PI) / lambda;
+                const omega = 0.5; 
+                const t = timeRef.current;
+                const v_phase = omega / k;
+                const maxRadius = v_phase * t;
+
+                const s1x = cx - d / 2;
+                const s2x = cx + d / 2;
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const dist1 = Math.sqrt((x - s1x) ** 2 + (y - cy) ** 2);
+                        const dist2 = Math.sqrt((x - s2x) ** 2 + (y - cy) ** 2);
+
+                        let wave1 = 0;
+                        if (dist1 < maxRadius) {
+                            const edgeDampening = Math.min(1, (maxRadius - dist1) / lambda);
+                            wave1 = Math.sin(k * dist1 - omega * t) * edgeDampening;
+                        }
+
+                        let wave2 = 0;
+                        if (dist2 < maxRadius) {
+                            const edgeDampening = Math.min(1, (maxRadius - dist2) / lambda);
+                            wave2 = Math.sin(k * dist2 - omega * t) * edgeDampening;
+                        }
+
+                        const intensity = (wave1 + wave2 + 2) / 4; 
+                        
+                        const r = Math.floor(10 + intensity * 30);
+                        const g = Math.floor(50 + intensity * 150);
+                        const b = Math.floor(150 + intensity * 105);
+
+                        const index = (y * width + x) * 4;
+                        data[index] = r;
+                        data[index + 1] = g;
+                        data[index + 2] = b;
+                        data[index + 3] = 255; 
+                    }
+                }
+
+                ctx.putImageData(imgData, 0, 0);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(s1x, cy, 4, 0, 2 * Math.PI); ctx.fill();
+                ctx.beginPath(); ctx.arc(s2x, cy, 4, 0, 2 * Math.PI); ctx.fill();
+
+                // Draw Overlays
+                if (gameState === 'playing') {
+                    const lineLength = 250;
+
+                    const drawAngleOverlay = (angle, color, isDashed) => {
+                        // Draw Centerline
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([4, 4]);
+                        ctx.beginPath(); 
+                        ctx.moveTo(cx, cy); 
+                        ctx.lineTo(cx, cy + lineLength); 
+                        ctx.stroke();
+                        
+                        // Set style for antinode lines
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        if (isDashed) ctx.setLineDash([8, 8]);
+                        else ctx.setLineDash([]);
+                        
+                        // Left & Right antinode lines
+                        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - Math.sin(angle) * lineLength, cy + Math.cos(angle) * lineLength); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(angle) * lineLength, cy + Math.cos(angle) * lineLength); ctx.stroke();
+                        ctx.setLineDash([]);
+                        
+                        // Draw Angle Arcs from centerline
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.arc(cx, cy, 60, Math.PI/2 - angle, Math.PI/2, false); ctx.stroke();
+                        ctx.beginPath(); ctx.arc(cx, cy, 60, Math.PI/2, Math.PI/2 + angle, false); ctx.stroke();
+                        
+                        // Draw Theta (θ) Labels
+                        ctx.fillStyle = color;
+                        ctx.font = 'italic 16px serif';
+                        ctx.fillText('θ', cx + Math.sin(angle/2) * 75 - 5, cy + Math.cos(angle/2) * 75 + 5);
+                        ctx.fillText('θ', cx - Math.sin(angle/2) * 75 - 5, cy + Math.cos(angle/2) * 75 + 5);
+                    };
+
+                    if (appMode === 'p1' || p2Stage === 'data1') {
+                        // Draw target angle dashed lines
+                        if (targetAngle) {
+                            drawAngleOverlay(targetAngle, 'rgba(255, 255, 255, 0.8)', true);
+                        }
+                    } else if (appMode === 'p2' && p2Stage === 'data2') {
+                        // Draw live tracking lines and text
+                        const currentAngle = calculateAngle(userLambda, userD);
+                        if (!isNaN(currentAngle)) {
+                            drawAngleOverlay(currentAngle, 'rgba(16, 185, 129, 0.9)', false);
+                            
+                            // Text box for angle (moved slightly to accommodate arcs)
+                            const deg = currentAngle * (180 / Math.PI);
+                            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                            ctx.fillRect(cx - 40, cy + 160, 80, 24);
+                            ctx.fillStyle = '#10b981';
+                            ctx.font = '14px monospace';
+                            ctx.fillText(`θ = ${deg.toFixed(1)}°`, cx - 35, cy + 177);
+                        }
+                    }
+                }
+
+                timeRef.current += 1;
+                requestRef.current = requestAnimationFrame(renderCanvas);
+            }, [userD, userLambda, targetAngle, gameState, appMode, p2Stage]);
+
+            useEffect(() => {
+                requestRef.current = requestAnimationFrame(renderCanvas);
+                return () => cancelAnimationFrame(requestRef.current);
+            }, [renderCanvas]);
+
+            // --- UI Rendering ---
+
+            if (gameState === 'intro') {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, #3b82f6 0%, transparent 60%)' }}></div>
+                        
+                        <div className="bg-slate-800/80 backdrop-blur-md p-8 md:p-12 rounded-2xl shadow-2xl border border-slate-700 max-w-2xl w-full text-center relative z-10">
+                            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
+                                Wave Interference Master
+                            </h1>
+                            <p className="text-slate-300 mb-6 text-lg leading-relaxed">
+                                Welcome to the lab! Before we explore the quantum realm with the double-slit experiment, we need to understand how classical waves behave.
+                            </p>
+                            
+                            <div className="bg-slate-900/50 rounded-xl p-6 text-left mb-8 border border-slate-700">
+                                <h2 className="text-xl font-bold text-blue-300 mb-3 flex items-center gap-2">
+                                    <i data-lucide="info" className="w-5 h-5"></i> Your Mission
+                                </h2>
+                                <ul className="space-y-3 text-slate-300">
+                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>You will be shown a target interference pattern (dashed lines).</span></li>
+                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>Adjust the <strong>Source Distance (d)</strong> and <strong>Wavelength (λ)</strong> to make your water waves match the target lines.</span></li>
+                                    <li className="flex items-start gap-2"><span className="text-amber-400 font-bold mt-0.5">⚠</span><span className="text-amber-100"><strong>Crucial:</strong> Match the target to the solid bright/dark <strong>antinodal lines</strong>, NOT the blurry nodal lines!</span></li>
+                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>Try to match the pattern in as few attempts as possible.</span></li>
+                                </ul>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                                <button onClick={startGame} className="bg-blue-600 hover:bg-blue-500 text-white text-lg px-10 py-4 rounded-xl font-bold transition-all duration-200 shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transform hover:-translate-y-1">
+                                    {accessCode.toUpperCase() === 'MASTER2' ? 'Enter Interference Master 2' : 'Enter the Lab'}
+                                </button>
+                                
+                                <input 
+                                    type="text" 
+                                    placeholder="Access Code (Optional)" 
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value)}
+                                    className="bg-slate-900 border border-slate-600 rounded-xl px-4 py-4 text-slate-300 focus:outline-none focus:border-blue-500 text-center w-full sm:w-auto"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (gameState === 'win') {
+                const totalScore = score + extraCredit;
+                const maxBase = appMode === 'p1' ? TOTAL_ROUNDS * BASE_POINTS_PER_ROUND : 25;
+
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6">
+                        <div className="bg-slate-800 p-10 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-teal-400 to-emerald-500"></div>
+
+                            {extraCredit > 0 ? (
+                                <div className="mb-8 mt-2">
+                                    <h1 className="text-2xl font-bold text-amber-400 px-4 py-3 bg-amber-400/10 rounded-xl border border-amber-500/30 leading-snug">
+                                        Surprise! You earned {extraCredit} Extra Credit point(s) for perfect accuracy!
+                                    </h1>
+                                </div>
+                            ) : (
+                                <div className="mb-8">
+                                    <h1 className="text-3xl font-bold text-white mb-2">Lab Complete!</h1>
+                                    <p className="text-slate-400">You've mastered wave interference.</p>
+                                </div>
+                            )}
+                            
+                            <div className="bg-slate-900 rounded-xl p-6 mb-8 border border-slate-700 relative">
+                                <div className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Final Score</div>
+                                <div className="flex justify-center items-baseline gap-2">
+                                    <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">{totalScore}</span>
+                                    <span className="text-2xl text-slate-500 font-bold">/ {maxBase}</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-800 flex flex-col gap-3 items-center">
+                                <h2 className="text-lg font-bold text-white">13 Interference Lab - {appMode === 'p1' ? 'Wave Matcher' : 'Master 2'}</h2>
+                                <div className="text-xs text-slate-500 font-mono flex flex-col gap-1 items-center">
+                                    <span className="text-slate-400 bg-slate-800 px-4 py-2 rounded text-base select-all border border-slate-700 font-bold tracking-widest">
+                                        CODE: {verificationCode}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // --- Playing State Views ---
+            
+            // Common Controls UI
+            const SimulationPanel = ({ children, titleBadge }) => (
+                <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
+                        <div className="w-full flex justify-between text-xs text-slate-400 mb-2 px-2 font-mono">
+                            <span>{titleBadge}</span>
+                            <span className="text-amber-400 font-bold">MATCH TO ANTINODES</span>
+                        </div>
+                        <div className="canvas-container bg-black w-full aspect-square max-w-[400px]">
+                            <canvas ref={canvasRef} width="200" height="200" className="w-full h-full object-cover" />
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        {children}
+                    </div>
+                </div>
+            );
+
+            // PART 1 UI
+            if (appMode === 'p1') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                        <div className="w-full max-w-4xl flex justify-between items-end mb-6">
+                            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                                Wave Matcher <span className="text-sm font-normal px-2 py-1 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">Round {round} of {TOTAL_ROUNDS}</span>
+                            </h1>
+                            <div className="text-right">
+                                <div className="text-sm text-slate-400 font-bold uppercase">Points</div>
+                                <div className="text-2xl font-black text-blue-400">{score}</div>
+                            </div>
+                        </div>
+
+                        <SimulationPanel titleBadge="Target lines indicated by dashes">
+                            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
+                                <h2 className="text-lg font-bold text-white mb-6">Simulation Controls</h2>
+                                <div className="space-y-8">
+                                    <div className={lockedSlider === 'd' ? "opacity-50" : ""}>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">Source Distance <span className="text-blue-400 font-mono text-xs">(d)</span>{lockedSlider === 'd' && <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 ml-2">LOCKED</span>}</label>
+                                            <span className="text-blue-400 font-mono font-bold">{userD.toFixed(1)}</span>
+                                        </div>
+                                        <input type="range" min="10" max="100" step="0.5" value={userD} onChange={(e) => setUserD(parseFloat(e.target.value))} disabled={isChecking || lockedSlider === 'd'} className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isChecking || lockedSlider === 'd' ? 'cursor-not-allowed' : 'cursor-pointer'}`} />
+                                    </div>
+                                    <div className={lockedSlider === 'lambda' ? "opacity-50" : ""}>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">Wavelength <span className="text-teal-400 font-mono text-xs">(λ)</span>{lockedSlider === 'lambda' && <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 ml-2">LOCKED</span>}</label>
+                                            <span className="text-teal-400 font-mono font-bold">{userLambda.toFixed(1)}</span>
+                                        </div>
+                                        <input type="range" min="10" max="40" step="0.5" value={userLambda} onChange={(e) => setUserLambda(parseFloat(e.target.value))} disabled={isChecking || lockedSlider === 'lambda'} className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isChecking || lockedSlider === 'lambda' ? 'cursor-not-allowed' : 'cursor-pointer'}`} style={{accentColor: '#14b8a6'}} />
+                                    </div>
+                                </div>
+                                <button onClick={handleCheckP1} disabled={isChecking} className={`w-full mt-10 py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${isChecking ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white transform hover:-translate-y-1'}`}>
+                                    {isChecking ? 'Correct!' : 'Check Match'}
+                                </button>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border transition-all duration-300 ${feedbackType === '' ? 'bg-slate-800/50 border-slate-700/50 text-slate-500' : feedbackType === 'success' ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-300' : 'bg-amber-900/30 border-amber-500/50 text-amber-300'}`}>
+                                <h3 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-80">{feedbackType === '' ? 'Status' : feedbackType === 'success' ? 'Result' : 'Feedback / Hint'}</h3>
+                                <p className="text-sm leading-relaxed">{feedback || "Adjust sliders to match the bright/dark antinodal lines with the dashed target lines."}</p>
+                            </div>
+                        </SimulationPanel>
+                    </div>
+                );
+            }
+
+            // PART 2 UI 
+            return (
+                <div className="min-h-screen flex flex-col items-center p-4 md:p-8 pb-20 overflow-y-auto">
+                    <div className="w-full max-w-4xl flex justify-between items-end mb-6 shrink-0">
+                        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                            Master Mode <span className="text-sm font-normal px-2 py-1 bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">Data & Synthesis</span>
+                        </h1>
+                        <div className="text-right">
+                            <div className="text-sm text-slate-400 font-bold uppercase">Points</div>
+                            <div className="text-2xl font-black text-purple-400">{score}</div>
+                        </div>
+                    </div>
+
+                    {/* Stage Switcher */}
+                    {p2Stage === 'data1' && (
+                        <SimulationPanel titleBadge={`Exp 1: Fixed Angle (θ = ${p2TargetThetaDeg}°)`}>
+                            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
+                                <div className="mb-6 pb-4 border-b border-slate-700">
+                                    <h2 className="text-lg font-bold text-white mb-2">Experiment 1: Constant Angle</h2>
+                                    <p className="text-sm text-slate-400">Keep the interference pattern aligned with the dashed line (<span className="text-amber-400 font-mono">θ = {p2TargetThetaDeg}°</span>).</p>
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="opacity-60 bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                        <div className="flex justify-between mb-1">
+                                            <label className="text-sm text-slate-300">Target Wavelength (λ)</label>
+                                            <span className="text-teal-400 font-mono font-bold">{p2CurrentLambdaTarget}</span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 italic">Slider is locked for this experiment. We want specific data points.</p>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-sm font-medium text-slate-300">Find matching Distance (d)</label>
+                                            <span className="text-blue-400 font-mono font-bold">{userD.toFixed(1)}</span>
+                                        </div>
+                                        <input type="range" min="10" max="100" step="0.5" value={userD} onChange={(e) => setUserD(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+                                    </div>
+                                </div>
+                                <button onClick={handleRecordDataP2} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 text-white">Record Data Point</button>
+                            </div>
+                            
+                            {/* Data Table */}
+                            <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                                <h3 className="text-sm font-bold text-slate-300 mb-3">Collected Data</h3>
+                                <table className="w-full text-sm text-left text-slate-400">
+                                    <thead className="text-xs uppercase bg-slate-900 text-slate-500">
+                                        <tr><th className="px-3 py-2">Wavelength (λ)</th><th className="px-3 py-2">Distance (d)</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {p2Data1.map((d, i) => (
+                                            <tr key={i} className="border-b border-slate-700"><td className="px-3 py-2 text-teal-400 font-mono">{d.lambda}</td><td className="px-3 py-2 text-blue-400 font-mono">{d.d.toFixed(1)}</td></tr>
+                                        ))}
+                                        {p2Data1.length < 4 && <tr><td colSpan="2" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {4 - p2Data1.length} more point(s)...</td></tr>}
+                                    </tbody>
+                                </table>
+                                {feedback && <div className={`mt-3 text-sm p-2 rounded ${feedbackType === 'error' || feedbackType === 'hint' ? 'bg-amber-900/30 text-amber-300' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                            </div>
+                        </SimulationPanel>
+                    )}
+
+                    {p2Stage === 'q1' && (
+                        <div className="w-full max-w-4xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+                            <h2 className="text-2xl font-bold text-white mb-6">Analysis 1: Constant Angle</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="flex flex-col items-center justify-center bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                    <SimpleGraph data={p2Data1} xKey="d" yKey="lambda" xLabel="Distance (d)" yLabel="Wavelength (λ)" title="Wavelength vs. Separation Distance" />
+                                </div>
+                                <div className="flex flex-col justify-center">
+                                    <p className="text-slate-300 mb-6 text-lg">Looking at the graph of your data, the points form a straight line passing through the origin. What mathematical relationship does this linear graph represent?</p>
+                                    <div className="space-y-3">
+                                        <button onClick={() => setP2QAnswer('q1_a')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q1_a' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = k / d</span> (Inverse)
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('q1_b')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q1_b' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = k · d</span> (Directly Proportional)
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('q1_c')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q1_c' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = k · d²</span> (Quadratic)
+                                        </button>
+                                    </div>
+                                    <button onClick={() => submitP2Question('q1_b', 'data2', [
+                                        "A straight line sloping upwards from the origin means that as x increases, y increases by a constant multiplier.",
+                                        "This is a directly proportional relationship. Look for the equation where lambda equals a constant times d."
+                                    ])} disabled={!p2QAnswer} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
+                                    
+                                    {feedback && <div className={`mt-4 text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {p2Stage === 'data2' && (
+                        <SimulationPanel titleBadge={`Exp 2: Fixed Distance (d = 60)`}>
+                            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
+                                <div className="mb-6 pb-4 border-b border-slate-700">
+                                    <h2 className="text-lg font-bold text-white mb-2">Experiment 2: Constant Distance</h2>
+                                    <p className="text-sm text-slate-400">Keep distance constant at <span className="font-mono text-blue-400">d = 60</span>. Vary wavelength to the target value and record the resulting Angle θ.</p>
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="opacity-60 bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                        <div className="flex justify-between mb-1">
+                                            <label className="text-sm text-slate-300">Distance (d)</label>
+                                            <span className="text-blue-400 font-mono font-bold">60.0</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-sm font-medium text-slate-300">Set Wavelength (λ) to target: <span className="text-white font-bold">{p2CurrentLambdaTarget}</span></label>
+                                            <span className="text-teal-400 font-mono font-bold">{userLambda.toFixed(1)}</span>
+                                        </div>
+                                        <input type="range" min="10" max="50" step="1" value={userLambda} onChange={(e) => setUserLambda(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" style={{accentColor: '#14b8a6'}} />
+                                    </div>
+                                </div>
+                                <button onClick={handleRecordDataP2} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 text-white">Record Data Point</button>
+                            </div>
+                            
+                            <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                                <h3 className="text-sm font-bold text-slate-300 mb-3">Collected Data</h3>
+                                <table className="w-full text-sm text-left text-slate-400">
+                                    <thead className="text-xs uppercase bg-slate-900 text-slate-500">
+                                        <tr><th className="px-2 py-2">Wavelength (λ)</th><th className="px-2 py-2">Angle (θ)</th><th className="px-2 py-2">sin(θ)</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {p2Data2.map((d, i) => (
+                                            <tr key={i} className="border-b border-slate-700">
+                                                <td className="px-2 py-2 text-teal-400 font-mono">{d.lambda}</td>
+                                                <td className="px-2 py-2 font-mono">{d.thetaDeg.toFixed(1)}°</td>
+                                                <td className="px-2 py-2 text-emerald-400 font-mono">{d.sinTheta.toFixed(3)}</td>
+                                            </tr>
+                                        ))}
+                                        {p2Data2.length < 4 && <tr><td colSpan="3" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {4 - p2Data2.length} more point(s)...</td></tr>}
+                                    </tbody>
+                                </table>
+                                {feedback && <div className={`mt-3 text-sm p-2 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                            </div>
+                        </SimulationPanel>
+                    )}
+
+                    {p2Stage === 'q2' && (
+                        <div className="w-full max-w-4xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl">
+                            <h2 className="text-2xl font-bold text-white mb-6">Analysis 2: Constant Distance</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="flex flex-col items-center justify-center bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                                    <SimpleGraph data={p2Data2} xKey="thetaDeg" yKey="lambda" xLabel="Angle θ (degrees)" yLabel="Wavelength (λ)" title="Wavelength vs. Angle (θ)" showTrendline={false} />
+                                </div>
+                                <div className="flex flex-col justify-center">
+                                    <p className="text-slate-300 mb-6 text-lg">We plotted your Wavelength data against the Angle <span className="font-mono text-amber-400 text-sm">θ</span>. Notice that it is <strong>not</strong> a perfectly straight line! It curves slightly downwards as the angle increases. Based on this shape, what is the most likely mathematical relationship?</p>
+                                    <div className="space-y-3">
+                                        <button onClick={() => setP2QAnswer('q2_a')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q2_a' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = K / θ</span> (Inverse)
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('q2_b')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q2_b' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = K · sin(θ)</span> (Sine Wave)
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('q2_c')} className={`w-full p-4 rounded-xl text-left border transition-all ${p2QAnswer === 'q2_c' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-lg">λ = K · cos(θ)</span> (Cosine Wave)
+                                        </button>
+                                    </div>
+                                    <button onClick={() => submitP2Question('q2_b', 'syn1', [
+                                        "Notice how the curve would start at 0 when the angle is 0, and grows as the angle increases.",
+                                        "Cosine starts at its maximum value at 0 degrees. Sine starts at 0 at 0 degrees. Which one matches our data?"
+                                    ])} disabled={!p2QAnswer} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
+                                    
+                                    {feedback && <div className={`mt-4 text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {p2Stage === 'syn1' && (
+                        <div className="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl mx-auto">
+                            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 text-center">Synthesis: Putting it together</h2>
+                            
+                            <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 mb-8 space-y-4 text-center text-lg">
+                                <p>From Experiment 1, you proved: <br/><span className="font-mono text-2xl text-blue-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = k · d</span></p>
+                                <p>From Experiment 2, you proved: <br/><span className="font-mono text-2xl text-emerald-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = K · sin(θ)</span></p>
+                            </div>
+
+                            <div className="mb-6">
+                                <p className="text-slate-300 mb-4 text-lg font-medium">To combine these into one master equation, we need to know what the unknown constant <span className="font-mono text-blue-400">k</span> from the first equation actually is.</p>
+                                <p className="text-slate-400 mb-4">Let's look at your specific data. What was the constant angle <span className="font-mono font-bold text-amber-400">θ</span> that we locked you into during Experiment 1?</p>
+                                
+                                <select 
+                                    className="w-full p-4 bg-slate-900 border border-slate-600 rounded-xl text-white text-lg focus:outline-none focus:border-purple-500"
+                                    value={p2QAnswer}
+                                    onChange={(e) => setP2QAnswer(e.target.value)}
+                                >
+                                    <option value="" disabled>Select the angle you used...</option>
+                                    {/* Generate a few fake options and the real one, shuffled (cheaply) */}
+                                    {[15, p2TargetThetaDeg, 55, 70].sort((a,b)=>a-b).map(val => (
+                                        <option key={val} value={val}>{val}°</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button onClick={() => submitP2Question(p2TargetThetaDeg.toString(), 'syn2', [
+                                `Think back to the very first part of this section. The title literally said "Fixed Angle (θ = ${p2TargetThetaDeg}°)".`,
+                                `Select ${p2TargetThetaDeg} from the dropdown.`
+                            ])} disabled={!p2QAnswer} className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Confirm Angle</button>
+                            
+                            {feedback && <div className={`mt-4 text-center text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                        </div>
+                    )}
+
+                    {p2Stage === 'syn2' && (
+                        <div className="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl mx-auto">
+                            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 text-center">The Master Equation</h2>
+                            
+                            <div className="text-slate-300 text-lg space-y-4 mb-8">
+                                <p>You correctly remembered that your fixed angle was <span className="font-mono text-amber-400 font-bold">{p2TargetThetaDeg}°</span>.</p>
+                                <p>In your first experiment, your data line <span className="font-mono text-blue-400">λ = k · d</span> had a slope (k) of approximately <span className="font-mono font-bold bg-slate-900 px-2 rounded">{Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</span>.</p>
+                                <div className="bg-slate-900 border border-purple-500/50 p-4 rounded-xl mt-4 text-center">
+                                    <p className="text-sm text-slate-400 mb-1">Grab a calculator! What is the sine of your angle?</p>
+                                    <p className="font-mono text-xl text-emerald-400 font-bold">sin({p2TargetThetaDeg}°) = {Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</p>
+                                </div>
+                            </div>
+
+                            <p className="text-slate-300 mb-6 text-xl text-center">Because these numbers match perfectly, what must the constant <span className="font-mono text-blue-400 font-bold">k</span> represent in the equation <span className="font-mono">λ = k · d</span>?</p>
+                            
+                            <div className="space-y-3 mb-8">
+                                <button onClick={() => setP2QAnswer('syn2_a')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_a' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                    <span className="font-mono text-xl font-bold">k = sin(θ)</span>
+                                </button>
+                                <button onClick={() => setP2QAnswer('syn2_b')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_b' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                    <span className="font-mono text-xl font-bold">k = cos(θ)</span>
+                                </button>
+                                <button onClick={() => setP2QAnswer('syn2_c')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_c' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                    <span className="font-mono text-xl font-bold">k = tan(θ)</span>
+                                </button>
+                            </div>
+
+                            <button onClick={() => submitP2Question('syn2_a', 'win', [
+                                `Look at the math box above. The slope k (${Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}) is exactly equal to sin(${p2TargetThetaDeg}°).`,
+                                `Therefore, the constant k is sin(θ).`
+                            ])} disabled={!p2QAnswer} className="w-full bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-xl shadow-lg transform transition-all">Complete Synthesis Lab</button>
+                            
+                            {feedback && <div className={`mt-4 text-center text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        lucide.createIcons();
+    </script>
+</body>
+</html>
