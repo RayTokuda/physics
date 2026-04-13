@@ -123,9 +123,6 @@
                 <h1 id="scenario-title" class="text-2xl md:text-3xl font-bold">Rocket Science Challenge</h1>
                 <p class="mt-1 text-indigo-200">Conservation of Momentum & Spacecraft Propulsion</p>
             </div>
-            <div class="text-right">
-                <span id="scenario-counter" class="bg-indigo-800 px-3 py-1 rounded-full text-sm font-bold shadow-inner">Scenario 1 of 3</span>
-            </div>
         </header>
 
         <!-- Content -->
@@ -254,9 +251,11 @@
                 </div>
             </div>
 
-            <!-- Dynamic footer area (Next Scenario or Code) -->
-            <div id="win-footer" class="border-t border-slate-200 pt-6">
-                <button id="btn-next-scenario" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95">Try Again ➡️</button>
+            <!-- Dynamic footer area (Next Scenario, Retry, or Restart) -->
+            <div id="win-footer" class="border-t border-slate-200 pt-6 space-y-3">
+                <button id="btn-next-scenario" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95">Next Scenario ➡️</button>
+                <button id="btn-retry-scenario" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl shadow-sm transition transform active:scale-95">Try Again (New Variables) 🔄</button>
+                <button id="btn-restart-all" class="hidden w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95">Restart from Scenario 1 🚀</button>
             </div>
         </div>
     </div>
@@ -783,7 +782,6 @@
 
             // Update UI Texts dynamically based on the active config
             document.getElementById('scenario-title').innerText = s.title;
-            document.getElementById('scenario-counter').innerText = `Scenario ${idx + 1} of ${scenarios.length}`;
             document.getElementById('scenario-brief').innerHTML = s.briefTemplate(activeConfig);
             document.getElementById('scenario-constraints').innerHTML = s.constraintsTemplate(activeConfig);
 
@@ -1049,11 +1047,13 @@
             const winScreen = document.getElementById('win-screen');
             const winCard = document.getElementById('win-card');
             
-            // Check if final scenario
+            // Check if final scenario to toggle navigation buttons
             if (currentScenarioIdx < scenarios.length - 1) {
                 document.getElementById('btn-next-scenario').classList.remove('hidden');
+                document.getElementById('btn-restart-all').classList.add('hidden');
             } else {
                 document.getElementById('btn-next-scenario').classList.add('hidden');
+                document.getElementById('btn-restart-all').classList.remove('hidden');
             }
 
             winScreen.classList.remove('hidden');
@@ -1067,7 +1067,8 @@
             if (confettisToFire > 0) fireBallisticConfetti(confettisToFire);
         }
 
-        document.getElementById('btn-next-scenario').addEventListener('click', () => {
+        // --- Win Screen Navigation Handlers ---
+        function closeWinScreen(callback) {
             const winScreen = document.getElementById('win-screen');
             const winCard = document.getElementById('win-card');
             winCard.classList.remove('scale-100', 'opacity-100');
@@ -1075,8 +1076,20 @@
             setTimeout(() => {
                 winScreen.classList.add('hidden');
                 winScreen.classList.remove('flex');
-                loadScenario(currentScenarioIdx + 1);
+                if (callback) callback();
             }, 300);
+        }
+
+        document.getElementById('btn-next-scenario').addEventListener('click', () => {
+            closeWinScreen(() => loadScenario(currentScenarioIdx + 1));
+        });
+
+        document.getElementById('btn-retry-scenario').addEventListener('click', () => {
+            closeWinScreen(() => loadScenario(currentScenarioIdx));
+        });
+
+        document.getElementById('btn-restart-all').addEventListener('click', () => {
+            closeWinScreen(() => loadScenario(0));
         });
 
         // --- Ballistic Confetti System ---
