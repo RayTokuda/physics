@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocket Science Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for the rocket animation track */
+        .rocket-track {
+            background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 9999px;
+            position: relative;
+            overflow: hidden;
+        }
+        .rocket-track::after {
+            content: '';
+            position: absolute;
+            right: 33%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #ef4444; /* Target line */
+            z-index: 10;
+        }
+        #rocket {
+            transition: left 0.5s ease-out;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            z-index: 20;
+        }
+        #exhaust-flame {
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 8px;
+            border-radius: 4px 0 0 4px;
+            transition: width 0.5s ease-out, background-color 0.5s ease-out;
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        /* --- Added Lesson Animation Styles --- */
+        .lesson-step {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease-out;
+            margin-bottom: 2rem;
+            display: none;
+        }
+        .lesson-step.active {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .math-eq {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+            background: #e0e7ff;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8 font-sans text-slate-800">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Lesson Overlay -->
+    <div id="lesson-view" class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden min-h-[70vh] flex flex-col p-8 md:p-12 relative z-10">
+        <button id="skip-lesson" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold px-4 py-2 bg-slate-100 rounded-full text-sm">Skip Lesson &times;</button>
+        
+        <h1 class="text-3xl font-bold text-indigo-700 mb-8 border-b pb-4">Deriving the Rocket Equation</h1>
+        
+        <div class="flex-grow flex flex-col justify-center items-center text-center">
+            
+            <div id="step-1" class="lesson-step">
+                <p class="text-lg text-slate-600 mb-2">We start with the <strong>Impulse-Momentum Theorem</strong>:</p>
+                <div class="math-eq">F &Delta;t = m &Delta;v</div>
+                <p class="text-sm text-slate-500 mt-2">Force applied over time equals change in momentum.</p>
+            </div>
+
+            <div id="step-2" class="lesson-step">
+                <p class="text-lg text-slate-600 mb-2">For rocket exhaust, the "velocity change" is the exhaust velocity (<strong class="text-indigo-600">v<sub>e</sub></strong>) and the "mass" is the mass of the ejected fuel (<strong class="text-indigo-600">&Delta;m</strong>).</p>
+                <div class="math-eq">F &Delta;t = &Delta;m &middot; v<sub>e</sub></div>
+            </div>
+
+            <div id="step-3" class="lesson-step">
+                <p class="text-lg text-slate-600 mb-2">Divide both sides by the time interval (<strong class="text-indigo-600">&Delta;t</strong>) to solve for Thrust (F):</p>
+                <div class="math-eq bg-emerald-100 text-emerald-800 border border-emerald-300">F = v<sub>e</sub> &middot; (&Delta;m / &Delta;t)</div>
+                <p class="text-md text-emerald-700 font-bold mt-4">Thrust = (Exhaust Velocity) &times; (Mass Flow Rate)</p>
+            </div>
+
+            <div id="step-4" class="lesson-step mt-8">
+                <button id="start-sim-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition transform active:scale-95 text-lg">
+                    Start Simulation Challenges 🚀
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="main-app" class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden hidden">
+        
+        <!-- Header -->
+        <header class="bg-indigo-700 text-white p-6 flex justify-between items-center">
+            <div>
+                <h1 id="scenario-title" class="text-2xl md:text-3xl font-bold">Rocket Science Challenge</h1>
+                <p class="mt-1 text-indigo-200">Conservation of Momentum & Spacecraft Propulsion</p>
+            </div>
+            <div class="text-right">
+                <span id="scenario-counter" class="bg-indigo-800 px-3 py-1 rounded-full text-sm font-bold shadow-inner">Scenario 1 of 3</span>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Left Column: Mission & Simulation -->
+            <div class="space-y-6">
+                
+                <!-- Mission Brief -->
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-800 mb-2">Mission Briefing</h2>
+                    <p id="scenario-brief" class="text-sm text-slate-600 mb-3"></p>
+                    <ul id="scenario-constraints" class="text-sm font-medium text-slate-700 space-y-1"></ul>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">Propulsion Parameters</h2>
+                    
+                    <div class="mb-5">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-medium text-slate-700">Exhaust Velocity (v<sub>e</sub>)</label>
+                            <span id="ve-val" class="text-sm font-bold text-indigo-600">4000 m/s</span>
+                        </div>
+                        <input type="range" id="slider-ve" min="1000" max="50000" step="1000" value="4000" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-medium text-slate-700">Mass Flow Rate (&Delta;m/&Delta;t)</label>
+                            <span id="dm-val" class="text-sm font-bold text-indigo-600">10 kg/s</span>
+                        </div>
+                        <input type="range" id="slider-dm" min="1" max="50" step="1" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <button id="btn-launch" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95 flex justify-center items-center text-lg mt-6">
+                        🚀 LAUNCH
+                    </button>
+                </div>
+
+                <!-- Live Results -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                        <div class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Final Velocity</div>
+                        <div id="result-v" class="text-2xl font-black text-blue-800">0 m/s</div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
+                        <div class="text-xs text-red-600 font-bold uppercase tracking-wider mb-1">Fuel Used</div>
+                        <div id="result-fuel" class="text-2xl font-black text-red-800">0 kg</div>
+                    </div>
+                </div>
+                
+                <!-- Simulation Feedback Modal -->
+                <div id="sim-feedback-area" class="hidden mt-4 p-4 rounded-lg text-sm font-medium"></div>
+
+            </div>
+
+            <!-- Right Column: Graphs & Questions -->
+            <div class="space-y-6">
+                
+                <!-- Visual Rocket Track -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="text-xs font-bold text-slate-500 mb-2 uppercase">Trajectory</div>
+                    <div class="rocket-track h-12 w-full">
+                        <div id="rocket" style="left: 0%;">🚀
+                            <div id="exhaust-flame" style="width: 0px; background-color: #f97316;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <canvas id="velocityChart" height="200"></canvas>
+                </div>
+
+                <!-- Question & Submission -->
+                <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100">
+                    <h2 class="text-md font-bold text-slate-800 mb-3">Theoretical Application</h2>
+                    
+                    <!-- Question 1 -->
+                    <div class="mb-4">
+                        <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Question 1: Graph Analysis</h3>
+                        <p id="question-text-1" class="text-sm text-slate-700 mb-3 font-medium"></p>
+                        <div id="options-container-1" class="space-y-2">
+                            <!-- Options injected via JS -->
+                        </div>
+                        <div id="q1-feedback" class="hidden mt-3 p-3 rounded-lg text-sm font-medium"></div>
+                        <button id="btn-check-q1" class="w-full mt-3 bg-slate-300 text-slate-500 font-bold py-2 px-4 rounded-xl shadow-sm transition cursor-not-allowed" disabled>
+                            Check Answer 1
+                        </button>
+                    </div>
+
+                    <!-- Question 2 -->
+                    <div class="mb-2 border-t border-indigo-200 pt-4">
+                        <h3 class="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Question 2: Parameter Relationships</h3>
+                        <p id="question-text-2" class="text-sm text-slate-700 mb-3 font-medium"></p>
+                        <div id="options-container-2" class="space-y-2">
+                            <!-- Options injected via JS -->
+                        </div>
+                        <div id="q2-feedback" class="hidden mt-3 p-3 rounded-lg text-sm font-medium"></div>
+                        <button id="btn-check-q2" class="w-full mt-3 bg-slate-300 text-slate-500 font-bold py-2 px-4 rounded-xl shadow-sm transition cursor-not-allowed" disabled>
+                            Check Answer 2
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Win Screen Overlay -->
+    <div id="win-screen" class="fixed inset-0 bg-slate-900 bg-opacity-95 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 md:p-12 rounded-3xl shadow-2xl max-w-lg w-full text-center transform scale-95 opacity-0 transition-all duration-500" id="win-card">
+            <div class="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="text-5xl">🏆</span>
+            </div>
+            <h2 id="win-title" class="text-3xl font-black text-slate-900 mb-2">Scenario Cleared!</h2>
+            <p id="win-subtitle" class="text-slate-500 font-medium mb-6">Excellent application of physics principles.</p>
+            
+            <div class="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
+                <div class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Your Score</div>
+                <div id="final-score" class="text-5xl font-black text-indigo-600 mb-2">7 / 5</div>
+                <div class="text-sm text-slate-500 font-medium mb-4">Exercise: Rocket Science Challenge (HS-PS3-3)</div>
+                <div class="inline-block bg-white border border-slate-200 px-4 py-2 rounded-lg">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2">Confirmation Code:</span>
+                    <span id="win-conf-code" class="font-mono font-bold text-slate-800 tracking-widest text-lg"></span>
+                </div>
+            </div>
+
+            <!-- Dynamic footer area (Next Scenario or Code) -->
+            <div id="win-footer" class="border-t border-slate-200 pt-6">
+                <button id="btn-next-scenario" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition transform active:scale-95">Try Again ➡️</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- System & State Data ---
+        const DRY_MASS = 100; // kg (Lowered to 100kg to make the non-linear acceleration curve obvious!)
+        const BURN_TIME = 10; // seconds
+        
+        let promptCount = 0;
+        let currentScenarioIdx = 0;
+        let currentQuestion1Idx = 0;
+        let currentQuestion2Idx = 0;
+        let q1Locked = false;
+        let q2Locked = false;
+        let isLaunching = false;
+        let simPassed = false;
+        let activeConfig = null; // Tracks the currently randomized configuration
+        
+        const scenarios = [
+            {
+                title: "Scenario 1: Mass Flow Optimization",
+                briefTemplate: (c) => `With a fixed Exhaust Velocity of ${c.fixedVe} m/s, find the <strong>lowest possible integer</strong> mass flow rate that reaches the target velocity. <em>(Notice the graph curve upwards as fuel mass is depleted!)</em>`,
+                constraintsTemplate: (c) => `<li>🎯 <strong>Target Velocity:</strong> &ge; ${c.targetV} m/s</li><li>💨 <strong>Constraint:</strong> Exhaust Velocity fixed at ${c.fixedVe} m/s</li>`,
+                configs: [
+                    { targetV: 1832, exactDm: 15, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 5 },
+                    { targetV: 1386, exactDm: 10, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 4 },
+                    { targetV: 2197, exactDm: 20, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 8 },
+                    { targetV: 2505, exactDm: 25, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 12 },
+                    { targetV: 2772, exactDm: 30, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 14 },
+                    { targetV: 3218, exactDm: 40, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 20 },
+                    { targetV: 3583, exactDm: 50, exactVe: null, fixedVe: 2000, fixedDm: null, defaultVe: 2000, defaultDm: 25 }
+                ],
+                maxFuel: Infinity,
+                minFuel: 0,
+                q1Pool: [
+                    {
+                        text: "Look at the v(t) graph you just generated. Why is the velocity graph a curve (concave up) rather than a straight line?",
+                        options: [
+                            {val: 'A', text: "The exhaust velocity increases over time."},
+                            {val: 'B', text: "The rocket's mass decreases continuously, causing acceleration to increase."},
+                            {val: 'C', text: "Gravity assists the rocket more effectively at higher speeds."},
+                            {val: 'D', text: "The mass flow rate increases automatically."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "Exhaust velocity is fixed by the slider.",
+                            'C': "This simulation assumes deep space (no gravity).",
+                            'D': "The mass flow rate is constant throughout the 10 seconds."
+                        }
+                    },
+                    {
+                        text: "According to the impulse-momentum theorem (F&Delta;t = m&Delta;v), why does the constant thrust force produce more acceleration near the end of the burn?",
+                        options: [
+                            {val: 'A', text: "The exhaust velocity magically increases."},
+                            {val: 'B', text: "The thrust force increases as it burns."},
+                            {val: 'C', text: "The total mass (m) is smaller, so &Delta;v must be larger for the same applied impulse."},
+                            {val: 'D', text: "Space becomes less dense, reducing friction."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Exhaust velocity is fixed.",
+                            'B': "Thrust remains constant because mass flow rate and exhaust velocity are constant.",
+                            'D': "There is no friction in the vacuum of space."
+                        }
+                    },
+                    {
+                        text: "What happens to the slope of the v(t) graph (the acceleration) as the rocket burns fuel?",
+                        options: [
+                            {val: 'A', text: "The slope increases because the rocket gets lighter."},
+                            {val: 'B', text: "The slope decreases because fuel is running out."},
+                            {val: 'C', text: "The slope remains constant."},
+                            {val: 'D', text: "The slope drops to zero."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "Look at the graph: it bends upwards, meaning slope increases.",
+                            'C': "A constant slope would mean a perfectly straight line.",
+                            'D': "If it dropped to zero, velocity would stop increasing."
+                        }
+                    }
+                ],
+                q2Pool: [
+                    {
+                        text: "With exhaust velocity fixed at 2000 m/s, how does changing the mass flow rate (&Delta;m/&Delta;t) affect the final velocity?",
+                        options: [
+                            {val: 'A', text: "Increasing mass flow rate decreases final velocity."},
+                            {val: 'B', text: "Mass flow rate has no effect on final velocity."},
+                            {val: 'C', text: "Increasing mass flow rate increases final velocity by ejecting more total mass."},
+                            {val: 'D', text: "Decreasing mass flow rate increases final velocity."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Think about what happened when you moved the slider to the right.",
+                            'B': "Moving the slider clearly changed the outcome!",
+                            'D': "Less fuel ejected means less momentum transferred to the rocket."
+                        }
+                    },
+                    {
+                        text: "If you want to reach a significantly higher target velocity but cannot change the exhaust velocity, what must you do to the mass flow rate?",
+                        options: [
+                            {val: 'A', text: "Increase it, so more total mass is ejected over the 10 seconds."},
+                            {val: 'B', text: "Decrease it, to conserve fuel."},
+                            {val: 'C', text: "Keep it the same, and just wait longer."},
+                            {val: 'D', text: "It is impossible to reach a higher speed."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "Conserving fuel means you transfer less momentum.",
+                            'C': "Burn time is strictly limited to 10 seconds.",
+                            'D': "The sliders prove it is possible!"
+                        }
+                    },
+                    {
+                        text: "Why did finding the *lowest* mass flow rate satisfy this scenario's optimization constraint?",
+                        options: [
+                            {val: 'A', text: "It maximized the final speed."},
+                            {val: 'B', text: "Higher mass flow rates would exceed the target velocity and unnecessarily waste fuel."},
+                            {val: 'C', text: "Lowest mass flow rate yields the highest acceleration."},
+                            {val: 'D', text: "It automatically increases the exhaust velocity."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "The goal was optimization (efficiency), not maximum possible speed.",
+                            'C': "Lower mass flow rate yields lower thrust and lower acceleration.",
+                            'D': "Exhaust velocity was locked and cannot change."
+                        }
+                    }
+                ]
+            },
+            {
+                title: "Scenario 2: Engine Optimization",
+                briefTemplate: (c) => `You have a strict fuel limit of 100 kg (&Delta;m = ${c.fixedDm} kg/s). Find the <strong>lowest effective</strong> exhaust velocity setting to reach the target speed.`,
+                constraintsTemplate: (c) => `<li>🎯 <strong>Target Velocity:</strong> &ge; ${c.targetV} m/s</li><li>⚖️ <strong>Constraint:</strong> &Delta;m fixed at ${c.fixedDm} kg/s</li>`,
+                configs: [
+                    { targetV: 2079, exactDm: null, exactVe: 3000,  fixedVe: null, fixedDm: 10, defaultVe: 1000, defaultDm: 10 },
+                    { targetV: 1386, exactDm: null, exactVe: 2000,  fixedVe: null, fixedDm: 10, defaultVe: 1000, defaultDm: 10 },
+                    { targetV: 2772, exactDm: null, exactVe: 4000,  fixedVe: null, fixedDm: 10, defaultVe: 2000, defaultDm: 10 },
+                    { targetV: 3465, exactDm: null, exactVe: 5000,  fixedVe: null, fixedDm: 10, defaultVe: 2000, defaultDm: 10 },
+                    { targetV: 4158, exactDm: null, exactVe: 6000,  fixedVe: null, fixedDm: 10, defaultVe: 3000, defaultDm: 10 },
+                    { targetV: 5545, exactDm: null, exactVe: 8000,  fixedVe: null, fixedDm: 10, defaultVe: 4000, defaultDm: 10 },
+                    { targetV: 6931, exactDm: null, exactVe: 10000, fixedVe: null, fixedDm: 10, defaultVe: 4000, defaultDm: 10 }
+                ],
+                maxFuel: 100,
+                minFuel: 0,
+                q1Pool: [
+                    {
+                        text: "Even with a strict fuel limit and fixed mass flow rate, the v(t) graph still curves upward. Why?",
+                        options: [
+                            {val: 'A', text: "The exhaust velocity increases over time."},
+                            {val: 'B', text: "The total mass still decreases continuously as fuel burns, increasing acceleration."},
+                            {val: 'C', text: "The thrust force increases over time."},
+                            {val: 'D', text: "The graph is actually a straight line."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "Exhaust velocity remains constant once set.",
+                            'C': "Thrust is constant because both v_e and Δm/Δt are constant.",
+                            'D': "Look closely at the graph; it bends upward."
+                        }
+                    },
+                    {
+                        text: "What causes the continuous increase in acceleration (the steepening slope) during the 10-second burn?",
+                        options: [
+                            {val: 'A', text: "The rocket is getting closer to its target."},
+                            {val: 'B', text: "The fuel burns hotter over time."},
+                            {val: 'C', text: "The steady reduction of fuel mass makes the rocket lighter."},
+                            {val: 'D', text: "Gravity is pulling it faster."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Distance doesn't affect acceleration in a vacuum.",
+                            'B': "The engine parameters are constant.",
+                            'D': "This simulation assumes deep space."
+                        }
+                    },
+                    {
+                        text: "If you added a massive, heavy payload to the rocket, how would the upward curve of the v(t) graph change?",
+                        options: [
+                            {val: 'A', text: "It would be flatter (more linear) because the change in mass is a smaller percentage of the total mass."},
+                            {val: 'B', text: "It would curve upwards much more sharply."},
+                            {val: 'C', text: "It would immediately curve downwards."},
+                            {val: 'D', text: "It would not change at all."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "A heavier rocket is harder to accelerate.",
+                            'C': "Thrust is still pushing it forward, so it won't slow down.",
+                            'D': "Mass directly affects acceleration (a = F/m)."
+                        }
+                    }
+                ],
+                q2Pool: [
+                    {
+                        text: "With the mass flow rate fixed at 10 kg/s, how does increasing exhaust velocity change the final velocity?",
+                        options: [
+                            {val: 'A', text: "It decreases final velocity."},
+                            {val: 'B', text: "It increases final velocity by increasing the total thrust force."},
+                            {val: 'C', text: "It has no effect on final velocity."},
+                            {val: 'D', text: "It makes the rocket heavier."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "Think about what happened when you moved the slider to the right.",
+                            'C': "Moving the slider clearly changed the outcome!",
+                            'D': "Exhaust velocity is speed, not mass."
+                        }
+                    },
+                    {
+                        text: "If you are unable to change the mass flow rate (&Delta;m/&Delta;t), why is increasing exhaust velocity the only way to gain more speed?",
+                        options: [
+                            {val: 'A', text: "It decreases the burn time of the rocket."},
+                            {val: 'B', text: "It reduces the dry mass of the spacecraft."},
+                            {val: 'C', text: "It provides more momentum transfer per kilogram of fuel ejected."},
+                            {val: 'D', text: "It automatically increases the fuel capacity."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Burn time is strictly 10 seconds.",
+                            'B': "Dry mass is fixed at 100 kg.",
+                            'D': "Fuel limit is capped at 100 kg."
+                        }
+                    },
+                    {
+                        text: "What happens to the total thrust force (F = v<sub>e</sub> &middot; &Delta;m/&Delta;t) if you double the exhaust velocity while mass flow rate remains fixed?",
+                        options: [
+                            {val: 'A', text: "The thrust force doubles."},
+                            {val: 'B', text: "The thrust force halves."},
+                            {val: 'C', text: "The thrust force remains the same."},
+                            {val: 'D', text: "The thrust force quadruples."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "If you multiply F by 2 on one side, it doesn't halve the other.",
+                            'C': "Changing v_e changes the formula's output.",
+                            'D': "It's a direct linear relationship, not squared."
+                        }
+                    }
+                ]
+            },
+            {
+                title: "Scenario 3: The Balancing Act",
+                briefTemplate: (c) => `Reach the target velocity using the <strong>lowest combination</strong> of settings. Set Exhaust Velocity to ${c.exactVe} m/s, then find the absolute minimum mass flow rate.`,
+                constraintsTemplate: (c) => `<li>🎯 <strong>Target Velocity:</strong> &ge; ${c.targetV} m/s</li><li>⚙️ <strong>Task:</strong> Set v<sub>e</sub> to ${c.exactVe} m/s, then minimize &Delta;m</li>`,
+                configs: [
+                    { targetV: 2626, exactDm: 14, exactVe: 3000, fixedVe: null, fixedDm: null, defaultVe: 1000, defaultDm: 5 },
+                    { targetV: 2326, exactDm: 22, exactVe: 2000, fixedVe: null, fixedDm: null, defaultVe: 1000, defaultDm: 5 },
+                    { targetV: 2967, exactDm: 11, exactVe: 4000, fixedVe: null, fixedDm: null, defaultVe: 2000, defaultDm: 5 },
+                    { targetV: 2938, exactDm: 8,  exactVe: 5000, fixedVe: null, fixedDm: null, defaultVe: 2000, defaultDm: 5 },
+                    { targetV: 3758, exactDm: 25, exactVe: 3000, fixedVe: null, fixedDm: null, defaultVe: 2000, defaultDm: 10 },
+                    { targetV: 3183, exactDm: 7,  exactVe: 6000, fixedVe: null, fixedDm: null, defaultVe: 3000, defaultDm: 4 },
+                    { targetV: 3008, exactDm: 35, exactVe: 2000, fixedVe: null, fixedDm: null, defaultVe: 1000, defaultDm: 15 }
+                ],
+                maxFuel: Infinity,
+                minFuel: 0,
+                q1Pool: [
+                    {
+                        text: "Why does the rocket's acceleration peak at the exact moment the engine shuts off (t = 10s)?",
+                        options: [
+                            {val: 'A', text: "Because the exhaust velocity reaches its maximum at the end."},
+                            {val: 'B', text: "Because the thrust force increases right before shutdown."},
+                            {val: 'C', text: "Because the rocket's mass is at its absolute minimum at the end of the burn."},
+                            {val: 'D', text: "Because the air resistance disappears."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Exhaust velocity is constant.",
+                            'B': "Thrust is constant.",
+                            'D': "There is no air resistance in space."
+                        }
+                    },
+                    {
+                        text: "If the rocket burned fuel for 20 seconds instead of 10, what would the v(t) curve look like after 10 seconds?",
+                        options: [
+                            {val: 'A', text: "It would become perfectly flat."},
+                            {val: 'B', text: "It would continue to curve upwards even more steeply as mass drops further."},
+                            {val: 'C', text: "It would start curving downwards."},
+                            {val: 'D', text: "It would drop to zero."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "As long as thrust is applied, velocity increases.",
+                            'C': "Thrust is still pushing it forward.",
+                            'D': "It doesn't lose velocity in a vacuum."
+                        }
+                    },
+                    {
+                        text: "In this scenario, how did the principle of conservation of momentum apply?",
+                        options: [
+                            {val: 'A', text: "Momentum of the fuel backward exactly equals momentum of the rocket forward."},
+                            {val: 'B', text: "The rocket lost momentum to the surrounding vacuum."},
+                            {val: 'C', text: "Exhaust velocity was conserved."},
+                            {val: 'D', text: "Mass was converted directly into energy."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "A vacuum doesn't absorb momentum.",
+                            'C': "Velocity is not conserved; momentum is conserved.",
+                            'D': "This is classical mechanics, not relativity."
+                        }
+                    }
+                ],
+                q2Pool: [
+                    {
+                        text: "If you had chosen a *lower* exhaust velocity than the requested setting, what would you have to do to the mass flow rate to reach the same target velocity?",
+                        options: [
+                            {val: 'A', text: "Decrease it."},
+                            {val: 'B', text: "Keep it exactly the same."},
+                            {val: 'C', text: "Increase it significantly to compensate for the lower thrust per kg."},
+                            {val: 'D', text: "Make it negative."}
+                        ],
+                        correctAnswer: 'C',
+                        hints: {
+                            'A': "Decreasing both would result in a very slow rocket.",
+                            'B': "A lower v_e means less thrust, so final velocity would drop.",
+                            'D': "Mass flow rate cannot be negative."
+                        }
+                    },
+                    {
+                        text: "If the target velocity was doubled but the exhaust velocity remained fixed, what must happen to the mass flow rate to compensate?",
+                        options: [
+                            {val: 'A', text: "It would need to increase."},
+                            {val: 'B', text: "It would remain the same."},
+                            {val: 'C', text: "It would need to decrease."},
+                            {val: 'D', text: "It would drop to zero."}
+                        ],
+                        correctAnswer: 'A',
+                        hints: {
+                            'B': "The same parameters will yield the same final velocity.",
+                            'C': "Decreasing mass flow rate reduces thrust and final velocity.",
+                            'D': "Zero mass flow means zero thrust."
+                        }
+                    },
+                    {
+                        text: "Why did finding the *lowest* combination of settings satisfy the optimization constraint?",
+                        options: [
+                            {val: 'A', text: "It maximizes the final velocity for an unlimited fuel supply."},
+                            {val: 'B', text: "It minimizes the fuel mass required to achieve the necessary momentum transfer."},
+                            {val: 'C', text: "It makes the rocket heavier at the end of the burn."},
+                            {val: 'D', text: "It increases the exhaust velocity automatically."}
+                        ],
+                        correctAnswer: 'B',
+                        hints: {
+                            'A': "If fuel is unlimited, a higher mass flow rate would result in higher velocity.",
+                            'C': "You want the rocket to be lighter, not heavier.",
+                            'D': "Exhaust velocity is a fixed setting, not an automatic result."
+                        }
+                    }
+                ]
+            }
+        ];
+
+        // --- DOM Elements ---
+        const sliderVe = document.getElementById('slider-ve');
+        const sliderDm = document.getElementById('slider-dm');
+        const veVal = document.getElementById('ve-val');
+        const dmVal = document.getElementById('dm-val');
+        const resultV = document.getElementById('result-v');
+        const resultFuel = document.getElementById('result-fuel');
+        const btnLaunch = document.getElementById('btn-launch');
+        const btnCheckQ1 = document.getElementById('btn-check-q1');
+        const btnCheckQ2 = document.getElementById('btn-check-q2');
+        const rocket = document.getElementById('rocket');
+        const exhaustFlame = document.getElementById('exhaust-flame');
+        const optionsContainer1 = document.getElementById('options-container-1');
+        const optionsContainer2 = document.getElementById('options-container-2');
+
+        // --- Button & Feedback Utilities ---
+        function enableButton(id) {
+            const btn = document.getElementById(id);
+            btn.disabled = false;
+            btn.className = "w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-xl shadow-md transition transform active:scale-95";
+        }
+
+        function disableButton(id) {
+            const btn = document.getElementById(id);
+            btn.disabled = true;
+            btn.className = "w-full mt-3 bg-slate-300 text-slate-500 font-bold py-2 px-4 rounded-xl shadow-sm transition cursor-not-allowed";
+        }
+
+        function setFeedback(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.classList.remove('hidden');
+            el.className = `mt-3 p-3 rounded-lg text-sm font-bold block ${
+                type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+            }`;
+            el.innerHTML = message;
+        }
+
+        function hideFeedback(elementId) {
+            const el = document.getElementById(elementId);
+            el.classList.add('hidden');
+        }
+
+        function renderQ1() {
+            let s = scenarios[currentScenarioIdx];
+            let q1 = s.q1Pool[currentQuestion1Idx];
+            
+            document.getElementById('question-text-1').innerHTML = q1.text;
+            optionsContainer1.innerHTML = '';
+            
+            if (q1Locked) {
+                let correctOpt = q1.options.find(o => o.val === q1.correctAnswer);
+                optionsContainer1.innerHTML = `<div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-700 font-medium">✅ Locked Correct Answer: <strong>${correctOpt.val})</strong> ${correctOpt.text}</div>`;
+            } else {
+                q1.options.forEach(opt => {
+                    let label = document.createElement('label');
+                    label.className = "flex items-start space-x-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition";
+                    label.innerHTML = `
+                        <input type="radio" name="answer1" value="${opt.val}" class="mt-1">
+                        <span class="text-sm text-slate-700"><strong>${opt.val})</strong> ${opt.text}</span>
+                    `;
+                    label.addEventListener('click', () => hideFeedback('q1-feedback'));
+                    optionsContainer1.appendChild(label);
+                });
+            }
+        }
+
+        function renderQ2() {
+            let s = scenarios[currentScenarioIdx];
+            let q2 = s.q2Pool[currentQuestion2Idx];
+            
+            document.getElementById('question-text-2').innerHTML = q2.text;
+            optionsContainer2.innerHTML = '';
+            
+            if (q2Locked) {
+                let correctOpt = q2.options.find(o => o.val === q2.correctAnswer);
+                optionsContainer2.innerHTML = `<div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-700 font-medium">✅ Locked Correct Answer: <strong>${correctOpt.val})</strong> ${correctOpt.text}</div>`;
+            } else {
+                q2.options.forEach(opt => {
+                    let label = document.createElement('label');
+                    label.className = "flex items-start space-x-3 p-3 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition";
+                    label.innerHTML = `
+                        <input type="radio" name="answer2" value="${opt.val}" class="mt-1">
+                        <span class="text-sm text-slate-700"><strong>${opt.val})</strong> ${opt.text}</span>
+                    `;
+                    label.addEventListener('click', () => hideFeedback('q2-feedback'));
+                    optionsContainer2.appendChild(label);
+                });
+            }
+        }
+
+        function renderQuestions() {
+            renderQ1();
+            renderQ2();
+        }
+
+        // --- Lesson Animation ---
+        let lessonInterval;
+        function runLesson() {
+            const steps = [document.getElementById('step-1'), document.getElementById('step-2'), document.getElementById('step-3'), document.getElementById('step-4')];
+            let stepIdx = 0;
+            
+            steps[stepIdx].classList.add('active');
+            
+            lessonInterval = setInterval(() => {
+                stepIdx++;
+                if (stepIdx < steps.length) {
+                    steps[stepIdx].classList.add('active');
+                } else {
+                    clearInterval(lessonInterval);
+                }
+            }, 3000);
+        }
+
+        function skipLesson() {
+            clearInterval(lessonInterval);
+            document.getElementById('lesson-view').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            loadScenario(0);
+        }
+
+        document.getElementById('start-sim-btn').addEventListener('click', skipLesson);
+        document.getElementById('skip-lesson').addEventListener('click', skipLesson);
+
+        // --- Chart Setup ---
+        const ctx = document.getElementById('velocityChart').getContext('2d');
+        const velocityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 11}, (_, i) => i),
+                datasets: [{
+                    label: 'Velocity (m/s)',
+                    data: Array(11).fill(null),
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'Time (s)' } },
+                    y: { 
+                        title: { display: true, text: 'Velocity (m/s)' },
+                        min: 0,
+                        suggestedMax: 2000
+                    }
+                },
+                elements: {
+                    point: { radius: 4, backgroundColor: '#4f46e5' }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // --- Scenario Management ---
+        function loadScenario(idx) {
+            currentScenarioIdx = idx;
+            currentQuestion1Idx = 0;
+            currentQuestion2Idx = 0;
+            q1Locked = false;
+            q2Locked = false;
+            promptCount = 0;
+            simPassed = false;
+            
+            let s = scenarios[idx];
+            
+            // Randomly select one of the 7 mathematical configurations for this scenario
+            activeConfig = s.configs[Math.floor(Math.random() * s.configs.length)];
+
+            // Update UI Texts dynamically based on the active config
+            document.getElementById('scenario-title').innerText = s.title;
+            document.getElementById('scenario-counter').innerText = `Scenario ${idx + 1} of ${scenarios.length}`;
+            document.getElementById('scenario-brief').innerHTML = s.briefTemplate(activeConfig);
+            document.getElementById('scenario-constraints').innerHTML = s.constraintsTemplate(activeConfig);
+
+            // Generate Options
+            renderQuestions();
+
+            // Configure Sliders
+            sliderVe.value = activeConfig.defaultVe;
+            sliderDm.value = activeConfig.defaultDm;
+
+            if (activeConfig.fixedVe !== null) {
+                sliderVe.disabled = true;
+                sliderVe.classList.add('opacity-50');
+            } else {
+                sliderVe.disabled = false;
+                sliderVe.classList.remove('opacity-50');
+            }
+
+            if (activeConfig.fixedDm !== null) {
+                sliderDm.disabled = true;
+                sliderDm.classList.add('opacity-50');
+            } else {
+                sliderDm.disabled = false;
+                sliderDm.classList.remove('opacity-50');
+            }
+
+            // Reset UI States
+            hideFeedback('sim-feedback-area');
+            hideFeedback('q1-feedback');
+            hideFeedback('q2-feedback');
+            resultV.innerText = '0 m/s';
+            resultV.className = 'text-2xl font-black text-blue-800';
+            resultFuel.innerText = '0 kg';
+            resultFuel.className = 'text-2xl font-black text-red-800';
+            rocket.style.left = '0%';
+            velocityChart.data.datasets[0].data = Array(11).fill(null);
+            velocityChart.update();
+            updatePreviewValues();
+
+            // Lock Submit until simulation passes
+            disableButton('btn-check-q1');
+            disableButton('btn-check-q2');
+        }
+
+        function updatePreviewValues() {
+            veVal.innerText = parseFloat(sliderVe.value).toLocaleString() + ' m/s';
+            dmVal.innerText = parseFloat(sliderDm.value) + ' kg/s';
+        }
+
+        sliderVe.addEventListener('input', updatePreviewValues);
+        sliderDm.addEventListener('input', updatePreviewValues);
+
+        // --- Launch & Animation Logic ---
+        btnLaunch.addEventListener('click', () => {
+            if (isLaunching) return;
+            isLaunching = true;
+            simPassed = false;
+            
+            // Disable UI
+            sliderVe.disabled = true;
+            sliderDm.disabled = true;
+            btnLaunch.disabled = true;
+            btnLaunch.innerHTML = "🚀 Burning...";
+            btnLaunch.classList.replace('bg-blue-600', 'bg-orange-500');
+
+            const ve = parseFloat(sliderVe.value);
+            const dm = parseFloat(sliderDm.value);
+            const m0 = DRY_MASS + (dm * BURN_TIME);
+            
+            // Pre-calculate data points, explicitly setting t=0
+            let finalData = [0];
+            for(let i=1; i<=10; i++) {
+                let m = m0 - (dm * i);
+                finalData.push(ve * Math.log(m0/m));
+            }
+
+            velocityChart.data.datasets[0].data = Array(11).fill(null);
+            velocityChart.data.datasets[0].data[0] = 0; // Ensures line starts at 0,0
+            velocityChart.update();
+            
+            let step = 0;
+            const TOTAL_STEPS = 50;
+            
+            let launchTimer = setInterval(() => {
+                step++;
+                let currentT = (step / TOTAL_STEPS) * BURN_TIME; 
+                
+                let m = m0 - (dm * currentT);
+                let v = ve * Math.log(m0/m);
+                
+                // Update text
+                resultV.innerText = Math.round(v).toLocaleString() + ' m/s';
+                resultFuel.innerText = Math.round(dm * currentT) + ' kg';
+                
+                // Update rocket visual
+                let percentPos = Math.min((v / 3000) * 90, 95);
+                rocket.style.left = percentPos + '%';
+                let flameLength = Math.min((dm / 50) * 100, 100) + 20; 
+                exhaustFlame.style.width = flameLength + 'px';
+                exhaustFlame.style.backgroundColor = ve > 2000 ? '#06b6d4' : '#f97316';
+
+                // Reveal chart
+                if (step % (TOTAL_STEPS/10) === 0) { 
+                    let sec = step / (TOTAL_STEPS/10);
+                    velocityChart.data.datasets[0].data[sec] = finalData[sec];
+                    velocityChart.update();
+                }
+
+                // Finish
+                if (step >= TOTAL_STEPS) {
+                    clearInterval(launchTimer);
+                    exhaustFlame.style.width = '0px'; 
+                    isLaunching = false;
+                    
+                    let s = scenarios[currentScenarioIdx];
+                    sliderVe.disabled = activeConfig.fixedVe !== null;
+                    sliderDm.disabled = activeConfig.fixedDm !== null;
+                    
+                    btnLaunch.disabled = false;
+                    btnLaunch.innerHTML = "🚀 Re-Launch";
+                    btnLaunch.classList.replace('bg-orange-500', 'bg-slate-800');
+
+                    evaluateSimPass(v, dm * BURN_TIME, s, activeConfig);
+                }
+            }, 40); // 40ms * 50 = 2000ms animation
+        });
+
+        function evaluateSimPass(finalV, totalFuel, s, config) {
+            let passV = finalV >= config.targetV;
+            let passFuel = totalFuel <= s.maxFuel && totalFuel >= s.minFuel;
+            
+            const dm = parseFloat(sliderDm.value);
+            const ve = parseFloat(sliderVe.value);
+
+            let isOptimized = true;
+            let optMsg = "";
+
+            if (passV && config.exactDm !== null && dm > config.exactDm) {
+                isOptimized = false;
+                optMsg = "You reached the speed, but used too much fuel! Find the <em>lowest</em> valid mass flow rate.";
+            } else if (passV && config.exactVe !== null && ve > config.exactVe) {
+                isOptimized = false;
+                optMsg = "You reached the speed, but the exhaust velocity is unnecessarily high. Find the <em>lowest</em> effective setting.";
+            }
+
+            resultV.className = passV ? 'text-2xl font-black text-emerald-600' : 'text-2xl font-black text-red-600';
+            resultFuel.className = passFuel ? 'text-2xl font-black text-emerald-600' : 'text-2xl font-black text-red-600';
+
+            if (passV && passFuel && isOptimized) {
+                simPassed = true;
+                setFeedback('sim-feedback-area', "✅ <strong>Optimal Parameters Achieved!</strong> Now select the correct theoretical answers below.", "success");
+                
+                if (!q1Locked) enableButton('btn-check-q1');
+                if (!q2Locked) enableButton('btn-check-q2');
+            } else {
+                simPassed = false;
+                
+                if (!passV) setFeedback('sim-feedback-area', "❌ <strong>Target Velocity Missed.</strong> Adjust your sliders to increase final speed.", "error");
+                else if (!passFuel) setFeedback('sim-feedback-area', "❌ <strong>Fuel Constraint Failed.</strong> You used too much fuel.", "error");
+                else setFeedback('sim-feedback-area', `❌ <strong>Not Optimized.</strong> ${optMsg}`, "error");
+                
+                disableButton('btn-check-q1');
+                disableButton('btn-check-q2');
+            }
+        }
+
+        function checkWinCondition() {
+            if (q1Locked && q2Locked) {
+                setTimeout(triggerWin, 800); // Slight delay so they can read the final "Correct" message
+            }
+        }
+
+        // --- Validation & Grading ---
+        btnCheckQ1.addEventListener('click', () => {
+            if (!simPassed || q1Locked) return;
+
+            let s = scenarios[currentScenarioIdx];
+            let q1 = s.q1Pool[currentQuestion1Idx];
+            const sel1 = document.querySelector('input[name="answer1"]:checked');
+
+            if (!sel1) {
+                setFeedback('q1-feedback', "⚠️ You must select an answer before checking.", "error");
+                return;
+            }
+
+            if (sel1.value === q1.correctAnswer) {
+                q1Locked = true;
+                setFeedback('q1-feedback', "✅ <strong>Question 1 Correct!</strong> Answer locked.", "success");
+                disableButton('btn-check-q1');
+                renderQ1();
+                checkWinCondition();
+            } else {
+                promptCount++;
+                setFeedback('q1-feedback', `❌ <strong>Incorrect:</strong> ${q1.hints[sel1.value]} <br><br><span class="text-indigo-600 mt-2 block font-black">Loading an alternative question for this concept...</span>`, "error");
+                currentQuestion1Idx = (currentQuestion1Idx + 1) % s.q1Pool.length;
+                renderQ1();
+            }
+        });
+
+        btnCheckQ2.addEventListener('click', () => {
+            if (!simPassed || q2Locked) return;
+
+            let s = scenarios[currentScenarioIdx];
+            let q2 = s.q2Pool[currentQuestion2Idx];
+            const sel2 = document.querySelector('input[name="answer2"]:checked');
+
+            if (!sel2) {
+                setFeedback('q2-feedback', "⚠️ You must select an answer before checking.", "error");
+                return;
+            }
+
+            if (sel2.value === q2.correctAnswer) {
+                q2Locked = true;
+                setFeedback('q2-feedback', "✅ <strong>Question 2 Correct!</strong> Answer locked.", "success");
+                disableButton('btn-check-q2');
+                renderQ2();
+                checkWinCondition();
+            } else {
+                promptCount++;
+                setFeedback('q2-feedback', `❌ <strong>Incorrect:</strong> ${q2.hints[sel2.value]} <br><br><span class="text-indigo-600 mt-2 block font-black">Loading an alternative question for this concept...</span>`, "error");
+                currentQuestion2Idx = (currentQuestion2Idx + 1) % s.q2Pool.length;
+                renderQ2();
+            }
+        });
+
+        function triggerWin() {
+            let scoreNumerator = 5;
+            let confettisToFire = 0;
+
+            if (promptCount === 0) {
+                scoreNumerator = 7;
+                confettisToFire = 3;
+            } else if (promptCount === 1) {
+                scoreNumerator = 6;
+                confettisToFire = 2;
+            } else if (promptCount === 2) {
+                scoreNumerator = 5;
+                confettisToFire = 1;
+            } else {
+                scoreNumerator = Math.max(0, 5 - (promptCount - 2)); 
+            }
+
+            const winTitle = document.getElementById('win-title');
+            const winSubtitle = document.getElementById('win-subtitle');
+
+            if (scoreNumerator >= 7) {
+                winTitle.innerText = "Flawless Execution!";
+                winSubtitle.innerText = "A masterclass in propulsion physics! Absolutely brilliant.";
+            } else if (scoreNumerator === 6) {
+                winTitle.innerText = "Stellar Performance!";
+                winSubtitle.innerText = "Excellent application of momentum principles. Great job!";
+            } else if (scoreNumerator === 5) {
+                winTitle.innerText = "Scenario Cleared!";
+                winSubtitle.innerText = "Solid work! You successfully applied the physics concepts.";
+            } else {
+                winTitle.innerText = "Mission Accomplished!";
+                winSubtitle.innerText = "You made it! Keep reviewing conservation of momentum to improve.";
+            }
+
+            document.getElementById('final-score').innerText = `${scoreNumerator} / 5`;
+            document.getElementById('win-conf-code').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            const winScreen = document.getElementById('win-screen');
+            const winCard = document.getElementById('win-card');
+            
+            // Check if final scenario
+            if (currentScenarioIdx < scenarios.length - 1) {
+                document.getElementById('btn-next-scenario').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-next-scenario').classList.add('hidden');
+            }
+
+            winScreen.classList.remove('hidden');
+            winScreen.classList.add('flex');
+            
+            setTimeout(() => {
+                winCard.classList.remove('scale-95', 'opacity-0');
+                winCard.classList.add('scale-100', 'opacity-100');
+            }, 50);
+
+            if (confettisToFire > 0) fireBallisticConfetti(confettisToFire);
+        }
+
+        document.getElementById('btn-next-scenario').addEventListener('click', () => {
+            const winScreen = document.getElementById('win-screen');
+            const winCard = document.getElementById('win-card');
+            winCard.classList.remove('scale-100', 'opacity-100');
+            winCard.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                winScreen.classList.add('hidden');
+                winScreen.classList.remove('flex');
+                loadScenario(currentScenarioIdx + 1);
+            }, 300);
+        });
+
+        // --- Ballistic Confetti System ---
+        function fireBallisticConfetti(burstsCount) {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particles = [];
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+            function createBurst() {
+                const x = canvas.width / 2;
+                const y = canvas.height;
+                for (let i = 0; i < 80; i++) {
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 25, 
+                        vy: (Math.random() * -15) - 15, 
+                        size: Math.random() * 8 + 4,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * 360,
+                        rotationSpeed: (Math.random() - 0.5) * 10
+                    });
+                }
+            }
+
+            let burstsFired = 0;
+            const burstInterval = setInterval(() => {
+                createBurst();
+                burstsFired++;
+                if (burstsFired >= burstsCount) clearInterval(burstInterval);
+            }, 600);
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4; 
+                    p.rotation += p.rotationSpeed;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation * Math.PI / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                    ctx.restore();
+                }
+
+                particles = particles.filter(p => p.y < canvas.height + 50);
+
+                if (particles.length > 0 || burstsFired < burstsCount) {
+                    requestAnimationFrame(animate);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+                }
+            }
+            animate();
+        }
+
+        // Handle Window Resize for Confetti
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Initialize Lesson on startup
+        runLesson();
+
+    </script>
+</body>
+</html>
