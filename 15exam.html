@@ -89,14 +89,14 @@
         const exactUniK = uniMass * Math.pow(uniOmega, 2);
         const correctUniK = Math.round(exactUniK / 10) * 10; // Round to nearest 10
 
-        // Target period for disk (Q18)
+        // Target period for disk (Q18/17 depending on flow)
         const targetPeriod = 3.0;
         const g = 9.8;
         // r = (g * T^2) / (6 * pi^2)
         const exactDiskRadius = (g * Math.pow(targetPeriod, 2)) / (6 * Math.pow(Math.PI, 2));
         const correctDiskRadius = exactDiskRadius.toFixed(2);
 
-        // Rolling Sphere variables for Q23
+        // Rolling Sphere variables
         const sphereMasses = [3, 5, 6, 7, 8];
         const correctSphereMass = sphereMasses[Math.floor(Math.random() * sphereMasses.length)];
         const targetPeriodSphere = 3.0; // 3 seconds
@@ -290,7 +290,7 @@
                 solution: `Maximum velocity for a simple harmonic oscillator is $v_{max} = \\omega x_{max}$. Here, $x_{max}$ is the amplitude (the radius $R$), and $\\omega = \\sqrt{\\frac{GM}{R^3}}$. So $v_{max} = R \\sqrt{\\frac{GM}{R^3}} = \\sqrt{\\frac{GM}{R}}$. Plugging in the values gives $v_{max} \\approx ${Math.round(maxTunnelVelocity)} \\text{ m/s}$.`
             });
 
-            // Q15-16 Block (Disk Pendulum)
+            // Q15-17 Block (Disk Pendulum)
             questions.push({
                 id: 'q15', num: 15, type: 'radio',
                 canvasId: 'disk-canvas',
@@ -306,16 +306,29 @@
             });
 
             questions.push({
-                id: 'q16', num: 16, type: 'number',
+                id: 'q16', num: 16, type: 'radio',
+                text: `Using Newton's Second Law for Rotation ($\\tau = I\\alpha$) and the small-angle approximation ($\\sin\\theta \\approx \\theta$), which of the following is the correct differential equation for the angular position $\\theta$ of the swinging disk?`,
+                options: [
+                    `$-\\frac{2g}{3r}\\theta = \\frac{d^2\\theta}{dt^2}$`,
+                    `$-\\frac{3g}{2r}\\theta = \\frac{d^2\\theta}{dt^2}$`,
+                    `$-\\frac{g}{r}\\theta = \\frac{d^2\\theta}{dt^2}$`,
+                    `$-\\frac{g}{3r}\\theta = \\frac{d^2\\theta}{dt^2}$`
+                ],
+                correct: `$-\\frac{2g}{3r}\\theta = \\frac{d^2\\theta}{dt^2}$`,
+                solution: `For a physical pendulum, the restoring torque is $\\tau = -mgd\\sin\\theta \\approx -mgr\\theta$ (where $d=r$ is the distance from pivot to CM). Using $\\tau = I\\alpha$, we get $-mgr\\theta = I\\frac{d^2\\theta}{dt^2}$. Substituting $I = \\frac{3}{2}mr^2$, we have $-mgr\\theta = \\frac{3}{2}mr^2\\frac{d^2\\theta}{dt^2}$. Simplifying yields $-\\frac{2g}{3r}\\theta = \\frac{d^2\\theta}{dt^2}$.`
+            });
+
+            questions.push({
+                id: 'q17', num: 17, type: 'number',
                 unit: 'meters',
                 text: `To calibrate the disk pendulum properly so that causality doesn't cease, it must have a period of exactly <b>${targetPeriod.toFixed(1)} seconds</b>. <br><br>Assuming standard gravity ($g = 9.80 \\text{ m/s}^2$), what must be the <b>radius $r$</b> of the disk in meters? (Enter your answer to two decimal places).`,
                 correct: correctDiskRadius,
                 solution: `The period of a physical pendulum is $T = 2\\pi\\sqrt{\\frac{I}{mgd_{cm}}}$. We know $I = \\frac{3}{2}mr^2$ and $d_{cm} = r$. Substituting gives $T = 2\\pi\\sqrt{\\frac{\\frac{3}{2}mr^2}{mgr}} = 2\\pi\\sqrt{\\frac{3r}{2g}}$. Solving for $r$: $r = \\frac{gT^2}{6\\pi^2}$. With $T=${targetPeriod}$ and $g=9.8$, $r \\approx ${correctDiskRadius} \\text{ m}$.`
             });
 
-            // Q17-21 Block (Rolling Spheres)
+            // Q18-22 Block (Rolling Spheres)
             questions.push({
-                id: 'q17', num: 17, type: 'radio',
+                id: 'q18', num: 18, type: 'radio',
                 canvasId: 'rolling-canvas',
                 text: `The third timepiece involves a solid crystalline sphere attached to a horizontal spring of constant $k$. A sphere of mass $M$ and radius $R$ is rolling back and forth without slipping on a horizontal surface, acting as an oscillator. <br><br>When the sphere is rolling, what fraction of its total kinetic energy is rotational kinetic energy? (Recall $I_{sphere} = \\frac{2}{5}MR^2$)`,
                 options: [
@@ -329,7 +342,7 @@
             });
 
             questions.push({
-                id: 'q18', num: 18, type: 'radio',
+                id: 'q19', num: 19, type: 'radio',
                 text: `Using conservation of energy or Newton's laws, which of the following is the correct differential equation for the motion of the center of mass of the rolling sphere oscillator?`,
                 options: [
                     `$-\\frac{5k}{7M}x = \\frac{d^2x}{dt^2}$`,
@@ -342,7 +355,7 @@
             });
 
             questions.push({
-                id: 'q19', num: 19, type: 'radio',
+                id: 'q20', num: 20, type: 'radio',
                 text: `Based on the differential equation from the previous question, what is the theoretical period $T$ of this rolling oscillator?`,
                 options: [
                     `$2\\pi\\sqrt{\\frac{7M}{5k}}$`,
@@ -355,7 +368,7 @@
             });
 
             questions.push({
-                id: 'q20', num: 20, type: 'radio',
+                id: 'q21', num: 21, type: 'radio',
                 text: `How does the period of the rolling sphere compare to the period it would have if the surface were completely frictionless and it only slid back and forth without rolling?`,
                 options: [
                     `It is longer by a factor of $\\sqrt{7/5}$`,
@@ -368,7 +381,7 @@
             });
 
             questions.push({
-                id: 'q21', num: 21, type: 'radio',
+                id: 'q22', num: 22, type: 'radio',
                 text: `The period of the oscillator must be exactly three seconds but there are five solid crystalline spheres lying in disarray. Their masses are 3 kg, 5 kg, 6 kg, 7 kg and 8 kg. Which one should you use to fix the Oscillator of Fate? The radius of each sphere is 0.25 meters but you might not need to use radius in your decision.<br><br>Assume the spring constant of the mechanism is calibrated to exactly <b>${sphereK.toFixed(2)} N/m</b>.`,
                 options: [
                     `3 kg`,
@@ -381,9 +394,9 @@
                 solution: `We know $T = 3 \\text{ s}$ and $T = 2\\pi\\sqrt{\\frac{7M}{5k}}$. Squaring both sides: $T^2 = 4\\pi^2 \\frac{7M}{5k}$. Solving for mass $M$: $M = \\frac{5k T^2}{28\\pi^2}$. Plugging in $k = ${sphereK.toFixed(2)}$ and $T = 3$, we find $M = ${correctSphereMass} \\text{ kg}$.`
             });
 
-            // Q22 Block (Unicycle)
+            // Q23 Block (Unicycle)
             questions.push({
-                id: 'q22', num: 22, type: 'radio',
+                id: 'q23', num: 23, type: 'radio',
                 canvasId: 'unicycle-canvas',
                 text: `On the Planet Chronis, the most popular transportation is the gyro stabilized powered unicycle. The main expressway is constructed out of pavement slabs with seams that are <b>${uniDistance} meters apart</b>. <br><br>You find that when you ride your powered unicycle at <b>${uniVelocity} m/s</b> on the expressway, it develops noticeable resonance vibrations. If the payload of the single suspension spring at this time is <b>${uniMass} kg</b>, then the spring constant $k$ of the unicycle’s suspension is closest to which of the following?`,
                 options: [
