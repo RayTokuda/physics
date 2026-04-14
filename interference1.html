@@ -29,8 +29,15 @@
             overflow: hidden;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         }
-        input[type=range] {
-            accent-color: #3b82f6;
+        /* Chrome, Safari, Edge, Opera - Hide number input arrows */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* Firefox - Hide number input arrows */
+        input[type=number] {
+            -moz-appearance: textfield;
         }
     </style>
 </head>
@@ -44,16 +51,25 @@
         const TOTAL_ROUNDS = 5;
         const BASE_POINTS_PER_ROUND = 3;
         const EXTRA_CREDIT_PER_ROUND = 1;
-        const TOLERANCE_RADIANS = 0.06; // About 3.5 degrees of leeway
+        const TOLERANCE_RADIANS = 0.05; 
+
+        // Hardcoded point values to guarantee 25 max base points
+        const P2_BASE_POINTS = { data1: 4, q1: 4, data2: 4, q2: 4, syn1: 3, syn2: 3, syn3: 3 };
+        
+        // Sequences for Exp 1 and Exp 2 Data Collection
+        const P2_EXP1_D_SEQ = [40, 60, 80, 100];
+        const P2_EXP2_THETA_SEQ = [20, 40, 60, 80];
+
+        // --- Shared Components ---
 
         // Simple reusable SVG Graph Component
         const SimpleGraph = ({ data, xKey, yKey, xLabel, yLabel, title, showTrendline = true }) => {
             if (data.length === 0) return <div className="h-48 bg-slate-900 rounded flex items-center justify-center text-slate-500">No data yet</div>;
             
-            const xMax = Math.max(...data.map(d => d[xKey])) * 1.2;
-            const yMax = Math.max(...data.map(d => d[yKey])) * 1.2;
+            const xMax = Math.max(...data.map(d => d[xKey]), 10) * 1.1;
+            const yMax = Math.max(...data.map(d => d[yKey]), 10) * 1.1;
             
-            // Calculate trendline slope (assuming passing through origin for these physics equations)
+            // Calculate trendline slope assuming it passes through origin
             const lastPoint = data[data.length - 1];
             const slope = lastPoint[yKey] / lastPoint[xKey];
             const trendYAtXMax = slope * xMax;
@@ -98,51 +114,117 @@
             );
         };
 
+        // Layout Wrapper Component
+        const SimulationPanel = ({ children, titleBadge, canvasRef }) => (
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
+                    <div className="w-full flex justify-between text-xs text-slate-400 mb-2 px-2 font-mono">
+                        <span>{titleBadge}</span>
+                        <span className="text-amber-400 font-bold">MATCH TO ANTINODES</span>
+                    </div>
+                    <div className="canvas-container bg-black w-full aspect-square max-w-[400px]">
+                        <canvas ref={canvasRef} width="200" height="200" className="w-full h-full object-cover" />
+                    </div>
+                </div>
+                <div className="flex flex-col gap-4">
+                    {children}
+                </div>
+            </div>
+        );
+
+        // Fine Wavelength Input Component
+        const WavelengthControls = ({ userLambda, setUserLambda, isChecking, lockedSlider }) => {
+            const [inputValue, setInputValue] = useState(userLambda.toString());
+            
+            useEffect(() => {
+                setInputValue(userLambda.toString());
+            }, [userLambda]);
+
+            const handleInputChange = (e) => {
+                setInputValue(e.target.value);
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val >= 10 && val <= 100) {
+                    setUserLambda(val);
+                }
+            };
+
+            return (
+                <div>
+                    <div className="flex justify-between mb-2">
+                        <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                            Wavelength <span className="text-teal-400 font-mono text-xs">(λ)</span>
+                            {lockedSlider === 'lambda' && <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 ml-2">LOCKED</span>}
+                        </label>
+                        <span className="text-teal-400 font-mono font-bold">{Number(userLambda).toFixed(1)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setUserLambda(l => Math.max(10, l - 0.1))} disabled={isChecking || lockedSlider === 'lambda'} className="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-bold disabled:opacity-50 transition-colors">-</button>
+                        
+                        <input type="range" min="10" max="100" step="0.5" value={userLambda} onChange={(e) => setUserLambda(parseFloat(e.target.value))} disabled={isChecking || lockedSlider === 'lambda'} className={`flex-grow h-2 bg-slate-700 rounded-lg appearance-none ${isChecking || lockedSlider === 'lambda' ? 'cursor-not-allowed' : 'cursor-pointer'}`} style={{accentColor: '#14b8a6'}} />
+                        
+                        <button onClick={() => setUserLambda(l => Math.min(100, l + 0.1))} disabled={isChecking || lockedSlider === 'lambda'} className="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-slate-300 font-bold disabled:opacity-50 transition-colors">+</button>
+                        
+                        <input type="number" min="10" max="100" step="0.1" value={inputValue} onChange={handleInputChange} disabled={isChecking || lockedSlider === 'lambda'} className="w-16 h-8 px-1 bg-slate-900 border border-slate-600 rounded text-teal-400 font-mono text-center text-sm focus:outline-none focus:border-teal-400 disabled:opacity-50" />
+                    </div>
+                </div>
+            );
+        };
+
+
         const App = () => {
-            // General Game State
-            const [appMode, setAppMode] = useState('p1'); // 'p1' or 'p2'
-            const [gameState, setGameState] = useState('intro'); // 'intro', 'playing', 'win'
+            const [appMode, setAppMode] = useState('p1'); 
+            const [gameState, setGameState] = useState('intro'); 
             const [accessCode, setAccessCode] = useState('');
             
-            // Scoring
             const [score, setScore] = useState(0);
             const [extraCredit, setExtraCredit] = useState(0);
             const [freeCorrectionsLeft, setFreeCorrectionsLeft] = useState(2);
             
-            // Common Simulation State
             const [userD, setUserD] = useState(60);
             const [userLambda, setUserLambda] = useState(20);
             const [targetAngle, setTargetAngle] = useState(0);
-            const [lockedSlider, setLockedSlider] = useState(null); // 'd', 'lambda', or null
+            const [lockedSlider, setLockedSlider] = useState(null); 
             
             const [feedback, setFeedback] = useState("");
-            const [feedbackType, setFeedbackType] = useState(""); // 'error', 'success', 'hint'
+            const [feedbackType, setFeedbackType] = useState(""); 
             const [isChecking, setIsChecking] = useState(false);
 
-            // Canvas & Animation refs
             const canvasRef = useRef(null);
             const requestRef = useRef();
             const timeRef = useRef(0);
 
             const verificationCode = useMemo(() => Math.random().toString(36).substring(2, 8).toUpperCase(), []);
             
-            // --- PART 1 SPECIFIC STATE ---
+            // P1
             const [round, setRound] = useState(1);
             const [attemptsThisRound, setAttemptsThisRound] = useState(0);
             const [pointsLostThisRound, setPointsLostThisRound] = useState(0);
 
-            // --- PART 2 SPECIFIC STATE ---
-            const [p2Stage, setP2Stage] = useState('data1'); // 'data1', 'q1', 'data2', 'q2', 'syn1', 'syn2'
+            // P2
+            const [p2Stage, setP2Stage] = useState('data1'); 
             const [p2Data1, setP2Data1] = useState([]);
             const [p2Data2, setP2Data2] = useState([]);
             const [p2TargetThetaDeg, setP2TargetThetaDeg] = useState(30);
-            const [p2CurrentLambdaTarget, setP2CurrentLambdaTarget] = useState(15);
             const [p2QAnswer, setP2QAnswer] = useState('');
-            const [p2MistakesThisStage, setP2MistakesThisStage] = useState(0);
+            const [p2AttemptsThisStage, setP2AttemptsThisStage] = useState(0);
+            const [p2MistakesThisStage, setP2MistakesThisStage] = useState(0); 
+            const [showDataReview, setShowDataReview] = useState(false);
+            
+            // P2 Syn3 specific state
+            const [syn3A, setSyn3A] = useState('');
+            const [syn3B, setSyn3B] = useState('');
+            const [syn3C, setSyn3C] = useState('');
+            const [syn3D, setSyn3D] = useState('');
 
-            // --- Shared Calculation ---
+            const calculatedSlope = useMemo(() => {
+                if (p2Data1.length >= 2) {
+                    return (p2Data1[p2Data1.length - 1].lambda / p2Data1[p2Data1.length - 1].d).toFixed(3);
+                }
+                return "0.000";
+            }, [p2Data1]);
+
             const calculateAngle = (lambda, d) => {
-                if (lambda > d) return NaN; // No pattern
+                if (lambda > d) return NaN;
                 return Math.asin(lambda / d);
             };
 
@@ -229,94 +311,136 @@
                 setP2Stage(stage);
                 setFeedback("");
                 setFeedbackType("");
+                setP2AttemptsThisStage(0);
                 setP2MistakesThisStage(0);
                 setP2QAnswer('');
+                setSyn3A(''); setSyn3B(''); setSyn3C(''); setSyn3D('');
+                setIsChecking(false);
                 timeRef.current = 0;
 
                 if (stage === 'data1') {
-                    // Setup fixed angle experiment
-                    const randomThetaDeg = Math.floor(25 + Math.random() * 20); // 25 to 45 degrees
+                    const randomThetaDeg = [30, 40, 50, 60][Math.floor(Math.random() * 4)];
                     setP2TargetThetaDeg(randomThetaDeg);
                     setTargetAngle(randomThetaDeg * (Math.PI / 180));
-                    setLockedSlider('lambda');
-                    setP2CurrentLambdaTarget(15);
-                    setUserLambda(15);
-                    setUserD(80); // off-target
-                } else if (stage === 'data2') {
-                    // Setup fixed distance experiment
-                    setUserD(60);
                     setLockedSlider('d');
-                    setP2CurrentLambdaTarget(15);
-                    setUserLambda(15);
-                    setTargetAngle(0); // Free tracking
+                    setP2Data1([]);
+                    setUserD(P2_EXP1_D_SEQ[0]);
+                    setUserLambda(10); 
+                } else if (stage === 'data2') {
+                    const randomD = [60, 70, 80, 90][Math.floor(Math.random() * 4)];
+                    setUserD(randomD);
+                    setLockedSlider('d');
+                    setP2Data2([]);
+                    setTargetAngle(P2_EXP2_THETA_SEQ[0] * (Math.PI / 180));
+                    setUserLambda(10); 
                 }
             };
 
             const handleRecordDataP2 = () => {
+                if (isChecking) return;
+
                 if (p2Stage === 'data1') {
                     const currentAngle = calculateAngle(userLambda, userD);
+                    
+                    if (isNaN(currentAngle)) {
+                        setP2AttemptsThisStage(prev => prev + 1);
+                        setFeedbackType("error");
+                        setFeedback("Wavelength is mathematically too large for this distance (no pattern forms). Decrease Wavelength.");
+                        return;
+                    }
+
                     const diff = Math.abs(currentAngle - targetAngle);
                     
                     if (diff <= TOLERANCE_RADIANS) {
                         setFeedbackType("success");
-                        setFeedback("Data point recorded!");
                         const newData = [...p2Data1, { lambda: userLambda, d: userD }];
                         setP2Data1(newData);
                         
-                        if (newData.length >= 4) {
-                            setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
-                            setTimeout(() => startPart2Stage('q1'), 1500);
+                        if (newData.length >= P2_EXP1_D_SEQ.length) {
+                            setIsChecking(true);
+                            setScore(prev => prev + Math.max(1, P2_BASE_POINTS.data1 - p2MistakesThisStage));
+                            if (p2MistakesThisStage === 0 && p2AttemptsThisStage === P2_EXP1_D_SEQ.length - 1) {
+                                setExtraCredit(prev => Math.min(5, prev + 1));
+                            }
+                            setFeedback("Experiment 1 Data Collection Complete!");
+                            setTimeout(() => startPart2Stage('q1'), 2000);
                         } else {
-                            // Next target
-                            const nextLambda = userLambda + 5;
-                            setP2CurrentLambdaTarget(nextLambda);
-                            setUserLambda(nextLambda);
+                            setUserD(P2_EXP1_D_SEQ[newData.length]);
+                            setUserLambda(10); 
+                            setFeedback(`Point recorded! Now find the wavelength for d = ${P2_EXP1_D_SEQ[newData.length]}`);
                         }
                     } else {
+                        setP2AttemptsThisStage(prev => prev + 1);
                         if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
                         else setP2MistakesThisStage(prev => prev + 1);
                         
                         setFeedbackType("hint");
-                        if (isNaN(currentAngle)) setFeedback("Wavelength too large for distance.");
-                        else if (currentAngle > targetAngle) setFeedback("Pattern too wide. Try increasing distance (d).");
-                        else setFeedback("Pattern too narrow. Try decreasing distance (d).");
+                        if (currentAngle > targetAngle) setFeedback("Pattern too wide. DECREASE Wavelength (λ).");
+                        else setFeedback("Pattern too narrow. INCREASE Wavelength (λ).");
                     }
+
                 } else if (p2Stage === 'data2') {
-                    if (userLambda === p2CurrentLambdaTarget) {
-                        const currentAngle = calculateAngle(userLambda, userD);
-                        const sinTheta = Math.sin(currentAngle);
-                        
+                    const currentAngle = calculateAngle(userLambda, userD);
+                    
+                    if (isNaN(currentAngle)) {
+                        setP2AttemptsThisStage(prev => prev + 1);
+                        setFeedbackType("error");
+                        setFeedback("Wavelength is mathematically too large for this distance. Pick a smaller wavelength.");
+                        return;
+                    }
+
+                    const diff = Math.abs(currentAngle - targetAngle);
+
+                    if (diff <= TOLERANCE_RADIANS) {
                         setFeedbackType("success");
-                        setFeedback("Angle recorded!");
-                        const newData = [...p2Data2, { lambda: userLambda, sinTheta: sinTheta, thetaDeg: currentAngle * (180/Math.PI) }];
+                        const exactTargetDeg = P2_EXP2_THETA_SEQ[p2Data2.length];
+                        const exactTargetRad = exactTargetDeg * (Math.PI / 180);
+                        
+                        const newData = [...p2Data2, { 
+                            lambda: userLambda, 
+                            thetaDeg: exactTargetDeg, 
+                            sinTheta: Math.sin(exactTargetRad) 
+                        }];
                         setP2Data2(newData);
                         
-                        if (newData.length >= 4) {
-                            setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
-                            setTimeout(() => startPart2Stage('q2'), 1500);
+                        if (newData.length >= P2_EXP2_THETA_SEQ.length) {
+                            setIsChecking(true);
+                            setScore(prev => prev + Math.max(1, P2_BASE_POINTS.data2 - p2MistakesThisStage));
+                            if (p2MistakesThisStage === 0 && p2AttemptsThisStage === P2_EXP2_THETA_SEQ.length - 1) {
+                                setExtraCredit(prev => Math.min(5, prev + 1));
+                            }
+                            setFeedback("Experiment 2 Data Collection Complete!");
+                            setTimeout(() => startPart2Stage('q2'), 2000);
                         } else {
-                            const nextLambda = userLambda + 10;
-                            setP2CurrentLambdaTarget(nextLambda);
-                            setUserLambda(nextLambda);
+                            setTargetAngle(P2_EXP2_THETA_SEQ[newData.length] * (Math.PI / 180));
+                            setUserLambda(10);
+                            setFeedback(`Point recorded! Now adjust wavelength to hit the new target angle (${P2_EXP2_THETA_SEQ[newData.length]}°).`);
                         }
                     } else {
-                        setFeedbackType("error");
-                        setFeedback(`Please set the Wavelength to exactly ${p2CurrentLambdaTarget} before recording.`);
+                        setP2AttemptsThisStage(prev => prev + 1);
+                        if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
+                        else setP2MistakesThisStage(prev => prev + 1);
+                        
+                        setFeedbackType("hint");
+                        if (currentAngle > targetAngle) setFeedback("Pattern too wide. DECREASE Wavelength (λ).");
+                        else setFeedback("Pattern too narrow. INCREASE Wavelength (λ).");
                     }
                 }
             };
 
-            const submitP2Question = (correctAnswerId, nextStage, hints) => {
-                if (p2QAnswer === correctAnswerId) {
+            const submitP2QuestionMulti = (isCorrect, nextStage, hints) => {
+                if (isChecking) return;
+
+                if (isCorrect) {
+                    setIsChecking(true);
                     setFeedbackType("success");
                     setFeedback("Correct! Excellent job.");
-                    setScore(prev => prev + Math.max(1, 5 - p2MistakesThisStage));
                     
-                    // Extra credit if no mistakes
-                    if (p2MistakesThisStage === 0 && freeCorrectionsLeft === 2) {
-                         // We'll award extra credit secretly at the end if score is perfect, 
-                         // but let's manually track perfect answers here
-                         setExtraCredit(prev => prev + 1);
+                    setScore(prev => prev + Math.max(1, P2_BASE_POINTS[p2Stage] - p2MistakesThisStage));
+                    
+                    // Award 1 extra credit if perfect attempt
+                    if (p2AttemptsThisStage === 0 && p2MistakesThisStage === 0) {
+                         setExtraCredit(prev => Math.min(5, prev + 1));
                     }
 
                     setTimeout(() => {
@@ -324,21 +448,32 @@
                         else startPart2Stage(nextStage);
                     }, 2000);
                 } else {
+                    setP2AttemptsThisStage(prev => prev + 1);
                     if (freeCorrectionsLeft > 0) setFreeCorrectionsLeft(prev => prev - 1);
                     else setP2MistakesThisStage(prev => prev + 1);
                     
                     setFeedbackType("error");
-                    // Progressive hint logic
-                    const hintIndex = Math.min(p2MistakesThisStage, hints.length - 1);
+                    const hintIndex = Math.min(p2AttemptsThisStage, hints.length - 1);
                     setFeedback(`Incorrect. Hint: ${hints[hintIndex]}`);
                 }
+            };
+
+            const handleSyn3Submit = () => {
+                const isA_Correct = syn3A === 'lambda';
+                const isBC_Correct = (syn3B === 'd' && syn3C === 'sin_theta') || (syn3B === 'sin_theta' && syn3C === 'd');
+                const isD_Correct = syn3D === 'd_correct';
+
+                submitP2QuestionMulti(isA_Correct && isBC_Correct && isD_Correct, 'win', [
+                    "You found that λ = k · d, and k = sin(θ). Substitute sin(θ) for k in the equation builder.",
+                    "The equation should be λ = d · sin(θ). To solve for d, divide both sides by sin(θ)."
+                ]);
             };
 
             // --- Game Flow Control ---
             const startGame = () => {
                 setScore(0);
                 setExtraCredit(0);
-                setFreeCorrectionsLeft(3); // A little more leeway for part 2 overall
+                setFreeCorrectionsLeft(3); 
                 
                 if (accessCode.trim().toUpperCase() === 'MASTER2') {
                     setAppMode('p2');
@@ -428,7 +563,6 @@
                     const lineLength = 250;
 
                     const drawAngleOverlay = (angle, color, isDashed) => {
-                        // Draw Centerline
                         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                         ctx.lineWidth = 1;
                         ctx.setLineDash([4, 4]);
@@ -437,49 +571,42 @@
                         ctx.lineTo(cx, cy + lineLength); 
                         ctx.stroke();
                         
-                        // Set style for antinode lines
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 2;
                         if (isDashed) ctx.setLineDash([8, 8]);
                         else ctx.setLineDash([]);
                         
-                        // Left & Right antinode lines
                         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - Math.sin(angle) * lineLength, cy + Math.cos(angle) * lineLength); ctx.stroke();
                         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(angle) * lineLength, cy + Math.cos(angle) * lineLength); ctx.stroke();
                         ctx.setLineDash([]);
                         
-                        // Draw Angle Arcs from centerline
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 1;
                         ctx.beginPath(); ctx.arc(cx, cy, 60, Math.PI/2 - angle, Math.PI/2, false); ctx.stroke();
                         ctx.beginPath(); ctx.arc(cx, cy, 60, Math.PI/2, Math.PI/2 + angle, false); ctx.stroke();
                         
-                        // Draw Theta (θ) Labels
                         ctx.fillStyle = color;
                         ctx.font = 'italic 16px serif';
                         ctx.fillText('θ', cx + Math.sin(angle/2) * 75 - 5, cy + Math.cos(angle/2) * 75 + 5);
                         ctx.fillText('θ', cx - Math.sin(angle/2) * 75 - 5, cy + Math.cos(angle/2) * 75 + 5);
                     };
 
-                    if (appMode === 'p1' || p2Stage === 'data1') {
-                        // Draw target angle dashed lines
-                        if (targetAngle) {
-                            drawAngleOverlay(targetAngle, 'rgba(255, 255, 255, 0.8)', true);
-                        }
-                    } else if (appMode === 'p2' && p2Stage === 'data2') {
-                        // Draw live tracking lines and text
-                        const currentAngle = calculateAngle(userLambda, userD);
-                        if (!isNaN(currentAngle)) {
-                            drawAngleOverlay(currentAngle, 'rgba(16, 185, 129, 0.9)', false);
-                            
-                            // Text box for angle (moved slightly to accommodate arcs)
-                            const deg = currentAngle * (180 / Math.PI);
-                            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                            ctx.fillRect(cx - 40, cy + 160, 80, 24);
-                            ctx.fillStyle = '#10b981';
-                            ctx.font = '14px monospace';
-                            ctx.fillText(`θ = ${deg.toFixed(1)}°`, cx - 35, cy + 177);
-                        }
+                    // Render Dashed Targets
+                    if (targetAngle) {
+                        drawAngleOverlay(targetAngle, 'rgba(255, 255, 255, 0.8)', true);
+                    }
+                    
+                    // Render Solid Active Wave Line
+                    const currentAngle = calculateAngle(userLambda, userD);
+                    if (!isNaN(currentAngle)) {
+                        drawAngleOverlay(currentAngle, 'rgba(16, 185, 129, 0.9)', false);
+                        
+                        const deg = currentAngle * (180 / Math.PI);
+                        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                        ctx.fillRect(cx - 40, cy + 160, 80, 24);
+                        ctx.fillStyle = '#10b981';
+                        ctx.font = '14px monospace';
+                        ctx.fillText(`θ = ${deg.toFixed(1)}°`, cx - 35, cy + 177);
                     }
                 }
 
@@ -512,8 +639,8 @@
                                     <i data-lucide="info" className="w-5 h-5"></i> Your Mission
                                 </h2>
                                 <ul className="space-y-3 text-slate-300">
-                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>You will be shown a target interference pattern (dashed lines).</span></li>
-                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>Adjust the <strong>Source Distance (d)</strong> and <strong>Wavelength (λ)</strong> to make your water waves match the target lines.</span></li>
+                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>You will be shown a target interference pattern (dashed white lines).</span></li>
+                                    <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>Adjust the parameters to make your water waves (solid green tracking lines) match the targets.</span></li>
                                     <li className="flex items-start gap-2"><span className="text-amber-400 font-bold mt-0.5">⚠</span><span className="text-amber-100"><strong>Crucial:</strong> Match the target to the solid bright/dark <strong>antinodal lines</strong>, NOT the blurry nodal lines!</span></li>
                                     <li className="flex items-start gap-2"><span className="text-blue-400 font-bold mt-0.5">•</span><span>Try to match the pattern in as few attempts as possible.</span></li>
                                 </ul>
@@ -539,7 +666,7 @@
 
             if (gameState === 'win') {
                 const totalScore = score + extraCredit;
-                const maxBase = appMode === 'p1' ? TOTAL_ROUNDS * BASE_POINTS_PER_ROUND : 25;
+                const maxBase = appMode === 'p1' ? TOTAL_ROUNDS * BASE_POINTS_PER_ROUND : 25; 
 
                 return (
                     <div className="min-h-screen flex items-center justify-center p-6">
@@ -548,8 +675,8 @@
 
                             {extraCredit > 0 ? (
                                 <div className="mb-8 mt-2">
-                                    <h1 className="text-2xl font-bold text-amber-400 px-4 py-3 bg-amber-400/10 rounded-xl border border-amber-500/30 leading-snug">
-                                        Surprise! You earned {extraCredit} Extra Credit point(s) for perfect accuracy!
+                                    <h1 className="text-xl font-bold text-amber-400 px-4 py-3 bg-amber-400/10 rounded-xl border border-amber-500/30 leading-snug">
+                                        Surprise! You earned {extraCredit} Extra Credit point(s) for flawless execution!
                                     </h1>
                                 </div>
                             ) : (
@@ -559,22 +686,22 @@
                                 </div>
                             )}
                             
-                            <div className="bg-slate-900 rounded-xl p-6 mb-8 border border-slate-700 relative">
+                            <div className="bg-slate-900 rounded-xl p-6 border border-slate-700 relative">
                                 <div className="text-sm text-slate-500 uppercase tracking-wider font-bold mb-1">Final Score</div>
-                                <div className="flex justify-center items-baseline gap-2">
+                                <div className="flex justify-center items-baseline gap-2 mb-6">
                                     <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300">{totalScore}</span>
                                     <span className="text-2xl text-slate-500 font-bold">/ {maxBase}</span>
                                 </div>
-                            </div>
-
-                            <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-800 flex flex-col gap-3 items-center">
-                                <h2 className="text-lg font-bold text-white">13 Interference Lab - {appMode === 'p1' ? 'Wave Matcher' : 'Master 2'}</h2>
-                                <div className="text-xs text-slate-500 font-mono flex flex-col gap-1 items-center">
-                                    <span className="text-slate-400 bg-slate-800 px-4 py-2 rounded text-base select-all border border-slate-700 font-bold tracking-widest">
+                                <div className="flex flex-col gap-1 text-center pt-4 border-t border-slate-800">
+                                    <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                                        13 Interference Lab - {appMode === 'p1' ? 'Wave Matcher' : 'Master 2'}
+                                    </div>
+                                    <div className="text-xs text-slate-400 font-mono select-all tracking-widest">
                                         CODE: {verificationCode}
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 );
@@ -582,24 +709,6 @@
 
             // --- Playing State Views ---
             
-            // Common Controls UI
-            const SimulationPanel = ({ children, titleBadge }) => (
-                <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
-                        <div className="w-full flex justify-between text-xs text-slate-400 mb-2 px-2 font-mono">
-                            <span>{titleBadge}</span>
-                            <span className="text-amber-400 font-bold">MATCH TO ANTINODES</span>
-                        </div>
-                        <div className="canvas-container bg-black w-full aspect-square max-w-[400px]">
-                            <canvas ref={canvasRef} width="200" height="200" className="w-full h-full object-cover" />
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-4">
-                        {children}
-                    </div>
-                </div>
-            );
-
             // PART 1 UI
             if (appMode === 'p1') {
                 return (
@@ -614,7 +723,7 @@
                             </div>
                         </div>
 
-                        <SimulationPanel titleBadge="Target lines indicated by dashes">
+                        <SimulationPanel titleBadge="Target lines indicated by dashes" canvasRef={canvasRef}>
                             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
                                 <h2 className="text-lg font-bold text-white mb-6">Simulation Controls</h2>
                                 <div className="space-y-8">
@@ -626,11 +735,7 @@
                                         <input type="range" min="10" max="100" step="0.5" value={userD} onChange={(e) => setUserD(parseFloat(e.target.value))} disabled={isChecking || lockedSlider === 'd'} className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isChecking || lockedSlider === 'd' ? 'cursor-not-allowed' : 'cursor-pointer'}`} />
                                     </div>
                                     <div className={lockedSlider === 'lambda' ? "opacity-50" : ""}>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-sm font-medium text-slate-300 flex items-center gap-2">Wavelength <span className="text-teal-400 font-mono text-xs">(λ)</span>{lockedSlider === 'lambda' && <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 ml-2">LOCKED</span>}</label>
-                                            <span className="text-teal-400 font-mono font-bold">{userLambda.toFixed(1)}</span>
-                                        </div>
-                                        <input type="range" min="10" max="40" step="0.5" value={userLambda} onChange={(e) => setUserLambda(parseFloat(e.target.value))} disabled={isChecking || lockedSlider === 'lambda'} className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isChecking || lockedSlider === 'lambda' ? 'cursor-not-allowed' : 'cursor-pointer'}`} style={{accentColor: '#14b8a6'}} />
+                                        <WavelengthControls userLambda={userLambda} setUserLambda={setUserLambda} isChecking={isChecking} lockedSlider={lockedSlider} />
                                     </div>
                                 </div>
                                 <button onClick={handleCheckP1} disabled={isChecking} className={`w-full mt-10 py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${isChecking ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white transform hover:-translate-y-1'}`}>
@@ -640,7 +745,7 @@
 
                             <div className={`p-5 rounded-2xl border transition-all duration-300 ${feedbackType === '' ? 'bg-slate-800/50 border-slate-700/50 text-slate-500' : feedbackType === 'success' ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-300' : 'bg-amber-900/30 border-amber-500/50 text-amber-300'}`}>
                                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-80">{feedbackType === '' ? 'Status' : feedbackType === 'success' ? 'Result' : 'Feedback / Hint'}</h3>
-                                <p className="text-sm leading-relaxed">{feedback || "Adjust sliders to match the bright/dark antinodal lines with the dashed target lines."}</p>
+                                <p className="text-sm leading-relaxed">{feedback || "Adjust sliders to make the solid green lines match the dashed white target lines."}</p>
                             </div>
                         </SimulationPanel>
                     </div>
@@ -662,29 +767,25 @@
 
                     {/* Stage Switcher */}
                     {p2Stage === 'data1' && (
-                        <SimulationPanel titleBadge={`Exp 1: Fixed Angle (θ = ${p2TargetThetaDeg}°)`}>
+                        <SimulationPanel titleBadge={`Exp 1: Fixed Angle (θ = ${p2TargetThetaDeg}°)`} canvasRef={canvasRef}>
                             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
                                 <div className="mb-6 pb-4 border-b border-slate-700">
                                     <h2 className="text-lg font-bold text-white mb-2">Experiment 1: Constant Angle</h2>
-                                    <p className="text-sm text-slate-400">Keep the interference pattern aligned with the dashed line (<span className="text-amber-400 font-mono">θ = {p2TargetThetaDeg}°</span>).</p>
+                                    <p className="text-sm text-slate-400">Keep the interference pattern aligned with the fixed dashed line (<span className="text-amber-400 font-mono">θ = {p2TargetThetaDeg}°</span>). We give you a distance, you find the wavelength.</p>
                                 </div>
                                 <div className="space-y-6">
                                     <div className="opacity-60 bg-slate-900 p-3 rounded-lg border border-slate-700">
                                         <div className="flex justify-between mb-1">
-                                            <label className="text-sm text-slate-300">Target Wavelength (λ)</label>
-                                            <span className="text-teal-400 font-mono font-bold">{p2CurrentLambdaTarget}</span>
-                                        </div>
-                                        <p className="text-xs text-slate-500 italic">Slider is locked for this experiment. We want specific data points.</p>
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-sm font-medium text-slate-300">Find matching Distance (d)</label>
+                                            <label className="text-sm text-slate-300">Given Distance (d)</label>
                                             <span className="text-blue-400 font-mono font-bold">{userD.toFixed(1)}</span>
                                         </div>
-                                        <input type="range" min="10" max="100" step="0.5" value={userD} onChange={(e) => setUserD(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+                                        <input type="range" min="10" max="100" step="0.5" value={userD} readOnly disabled className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-not-allowed" />
+                                    </div>
+                                    <div>
+                                        <WavelengthControls userLambda={userLambda} setUserLambda={setUserLambda} isChecking={isChecking} lockedSlider={null} />
                                     </div>
                                 </div>
-                                <button onClick={handleRecordDataP2} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 text-white">Record Data Point</button>
+                                <button onClick={handleRecordDataP2} disabled={isChecking} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white">Record Data Point</button>
                             </div>
                             
                             {/* Data Table */}
@@ -692,15 +793,21 @@
                                 <h3 className="text-sm font-bold text-slate-300 mb-3">Collected Data</h3>
                                 <table className="w-full text-sm text-left text-slate-400">
                                     <thead className="text-xs uppercase bg-slate-900 text-slate-500">
-                                        <tr><th className="px-3 py-2">Wavelength (λ)</th><th className="px-3 py-2">Distance (d)</th></tr>
+                                        <tr><th className="px-3 py-2">Distance (d)</th><th className="px-3 py-2">Wavelength (λ)</th></tr>
                                     </thead>
                                     <tbody>
                                         {p2Data1.map((d, i) => (
-                                            <tr key={i} className="border-b border-slate-700"><td className="px-3 py-2 text-teal-400 font-mono">{d.lambda}</td><td className="px-3 py-2 text-blue-400 font-mono">{d.d.toFixed(1)}</td></tr>
+                                            <tr key={i} className="border-b border-slate-700"><td className="px-3 py-2 text-blue-400 font-mono">{d.d.toFixed(1)}</td><td className="px-3 py-2 text-teal-400 font-mono">{d.lambda.toFixed(1)}</td></tr>
                                         ))}
-                                        {p2Data1.length < 4 && <tr><td colSpan="2" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {4 - p2Data1.length} more point(s)...</td></tr>}
+                                        {p2Data1.length < P2_EXP1_D_SEQ.length && <tr><td colSpan="2" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {P2_EXP1_D_SEQ.length - p2Data1.length} more point(s)...</td></tr>}
                                     </tbody>
                                 </table>
+                                {p2Data1.length >= 2 && (
+                                    <div className="mt-4 p-3 bg-slate-900 border border-slate-700 rounded-lg text-center">
+                                        <span className="text-slate-400 text-sm">Slope (k) ≈ </span>
+                                        <span className="text-blue-400 font-mono font-bold text-lg">{calculatedSlope}</span>
+                                    </div>
+                                )}
                                 {feedback && <div className={`mt-3 text-sm p-2 rounded ${feedbackType === 'error' || feedbackType === 'hint' ? 'bg-amber-900/30 text-amber-300' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
                             </div>
                         </SimulationPanel>
@@ -712,6 +819,7 @@
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="flex flex-col items-center justify-center bg-slate-900/50 p-4 rounded-xl border border-slate-700">
                                     <SimpleGraph data={p2Data1} xKey="d" yKey="lambda" xLabel="Distance (d)" yLabel="Wavelength (λ)" title="Wavelength vs. Separation Distance" />
+                                    <div className="mt-3 text-sm text-slate-400">Calculated Slope (k) ≈ <span className="font-mono text-blue-400 font-bold text-base">{calculatedSlope}</span></div>
                                 </div>
                                 <div className="flex flex-col justify-center">
                                     <p className="text-slate-300 mb-6 text-lg">Looking at the graph of your data, the points form a straight line passing through the origin. What mathematical relationship does this linear graph represent?</p>
@@ -726,10 +834,10 @@
                                             <span className="font-mono text-lg">λ = k · d²</span> (Quadratic)
                                         </button>
                                     </div>
-                                    <button onClick={() => submitP2Question('q1_b', 'data2', [
+                                    <button onClick={() => submitP2QuestionMulti(p2QAnswer === 'q1_b', 'data2', [
                                         "A straight line sloping upwards from the origin means that as x increases, y increases by a constant multiplier.",
                                         "This is a directly proportional relationship. Look for the equation where lambda equals a constant times d."
-                                    ])} disabled={!p2QAnswer} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
+                                    ])} disabled={!p2QAnswer || isChecking} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
                                     
                                     {feedback && <div className={`mt-4 text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
                                 </div>
@@ -738,45 +846,42 @@
                     )}
 
                     {p2Stage === 'data2' && (
-                        <SimulationPanel titleBadge={`Exp 2: Fixed Distance (d = 60)`}>
+                        <SimulationPanel titleBadge={`Exp 2: Fixed Distance (d = ${userD.toFixed(1)})`} canvasRef={canvasRef}>
                             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex-grow">
                                 <div className="mb-6 pb-4 border-b border-slate-700">
                                     <h2 className="text-lg font-bold text-white mb-2">Experiment 2: Constant Distance</h2>
-                                    <p className="text-sm text-slate-400">Keep distance constant at <span className="font-mono text-blue-400">d = 60</span>. Vary wavelength to the target value and record the resulting Angle θ.</p>
+                                    <p className="text-sm text-slate-400">Distance is locked at <span className="font-mono text-blue-400">d = {userD.toFixed(1)}</span>. We provide the target angles, you find the matching wavelengths.</p>
                                 </div>
                                 <div className="space-y-6">
                                     <div className="opacity-60 bg-slate-900 p-3 rounded-lg border border-slate-700">
                                         <div className="flex justify-between mb-1">
-                                            <label className="text-sm text-slate-300">Distance (d)</label>
-                                            <span className="text-blue-400 font-mono font-bold">60.0</span>
+                                            <label className="text-sm text-slate-300">Target Angle (θ)</label>
+                                            <span className="text-amber-400 font-mono font-bold">{P2_EXP2_THETA_SEQ[p2Data2.length] || P2_EXP2_THETA_SEQ[P2_EXP2_THETA_SEQ.length-1]}°</span>
                                         </div>
+                                        <p className="text-xs text-slate-500 italic">Dashed lines are set to this required angle.</p>
                                     </div>
                                     <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-sm font-medium text-slate-300">Set Wavelength (λ) to target: <span className="text-white font-bold">{p2CurrentLambdaTarget}</span></label>
-                                            <span className="text-teal-400 font-mono font-bold">{userLambda.toFixed(1)}</span>
-                                        </div>
-                                        <input type="range" min="10" max="50" step="1" value={userLambda} onChange={(e) => setUserLambda(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" style={{accentColor: '#14b8a6'}} />
+                                        <WavelengthControls userLambda={userLambda} setUserLambda={setUserLambda} isChecking={isChecking} lockedSlider={null} />
                                     </div>
                                 </div>
-                                <button onClick={handleRecordDataP2} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 text-white">Record Data Point</button>
+                                <button onClick={handleRecordDataP2} disabled={isChecking} className="w-full mt-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white">Record Data Point</button>
                             </div>
                             
                             <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                                 <h3 className="text-sm font-bold text-slate-300 mb-3">Collected Data</h3>
                                 <table className="w-full text-sm text-left text-slate-400">
                                     <thead className="text-xs uppercase bg-slate-900 text-slate-500">
-                                        <tr><th className="px-2 py-2">Wavelength (λ)</th><th className="px-2 py-2">Angle (θ)</th><th className="px-2 py-2">sin(θ)</th></tr>
+                                        <tr><th className="px-2 py-2">Angle (θ)</th><th className="px-2 py-2">Wavelength (λ)</th><th className="px-2 py-2">sin(θ)</th></tr>
                                     </thead>
                                     <tbody>
                                         {p2Data2.map((d, i) => (
                                             <tr key={i} className="border-b border-slate-700">
-                                                <td className="px-2 py-2 text-teal-400 font-mono">{d.lambda}</td>
                                                 <td className="px-2 py-2 font-mono">{d.thetaDeg.toFixed(1)}°</td>
+                                                <td className="px-2 py-2 text-teal-400 font-mono">{d.lambda.toFixed(1)}</td>
                                                 <td className="px-2 py-2 text-emerald-400 font-mono">{d.sinTheta.toFixed(3)}</td>
                                             </tr>
                                         ))}
-                                        {p2Data2.length < 4 && <tr><td colSpan="3" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {4 - p2Data2.length} more point(s)...</td></tr>}
+                                        {p2Data2.length < P2_EXP2_THETA_SEQ.length && <tr><td colSpan="3" className="px-3 py-4 text-center text-slate-600 italic">Waiting for {P2_EXP2_THETA_SEQ.length - p2Data2.length} more point(s)...</td></tr>}
                                     </tbody>
                                 </table>
                                 {feedback && <div className={`mt-3 text-sm p-2 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
@@ -804,10 +909,10 @@
                                             <span className="font-mono text-lg">λ = K · cos(θ)</span> (Cosine Wave)
                                         </button>
                                     </div>
-                                    <button onClick={() => submitP2Question('q2_b', 'syn1', [
+                                    <button onClick={() => submitP2QuestionMulti(p2QAnswer === 'q2_b', 'syn1', [
                                         "Notice how the curve would start at 0 when the angle is 0, and grows as the angle increases.",
                                         "Cosine starts at its maximum value at 0 degrees. Sine starts at 0 at 0 degrees. Which one matches our data?"
-                                    ])} disabled={!p2QAnswer} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
+                                    ])} disabled={!p2QAnswer || isChecking} className="mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-3 rounded-lg font-bold">Submit Answer</button>
                                     
                                     {feedback && <div className={`mt-4 text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
                                 </div>
@@ -815,76 +920,176 @@
                         </div>
                     )}
 
-                    {p2Stage === 'syn1' && (
-                        <div className="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl mx-auto">
-                            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 text-center">Synthesis: Putting it together</h2>
-                            
-                            <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 mb-8 space-y-4 text-center text-lg">
-                                <p>From Experiment 1, you proved: <br/><span className="font-mono text-2xl text-blue-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = k · d</span></p>
-                                <p>From Experiment 2, you proved: <br/><span className="font-mono text-2xl text-emerald-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = K · sin(θ)</span></p>
-                            </div>
+                    {(p2Stage === 'syn1' || p2Stage === 'syn2' || p2Stage === 'syn3') && (
+                        <div className="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl mx-auto relative">
+                            {/* Review Data Button */}
+                            <button onClick={() => setShowDataReview(true)} className="absolute top-4 right-4 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors">
+                                <span className="font-bold">Review Lab Data</span>
+                            </button>
 
-                            <div className="mb-6">
-                                <p className="text-slate-300 mb-4 text-lg font-medium">To combine these into one master equation, we need to know what the unknown constant <span className="font-mono text-blue-400">k</span> from the first equation actually is.</p>
-                                <p className="text-slate-400 mb-4">Let's look at your specific data. What was the constant angle <span className="font-mono font-bold text-amber-400">θ</span> that we locked you into during Experiment 1?</p>
-                                
-                                <select 
-                                    className="w-full p-4 bg-slate-900 border border-slate-600 rounded-xl text-white text-lg focus:outline-none focus:border-purple-500"
-                                    value={p2QAnswer}
-                                    onChange={(e) => setP2QAnswer(e.target.value)}
-                                >
-                                    <option value="" disabled>Select the angle you used...</option>
-                                    {/* Generate a few fake options and the real one, shuffled (cheaply) */}
-                                    {[15, p2TargetThetaDeg, 55, 70].sort((a,b)=>a-b).map(val => (
-                                        <option key={val} value={val}>{val}°</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {p2Stage === 'syn1' && (
+                                <>
+                                    <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 mt-4 text-center">Synthesis: Putting it together</h2>
+                                    
+                                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 mb-8 space-y-4 text-center text-lg">
+                                        <p>From Experiment 1, you proved: <br/><span className="font-mono text-2xl text-blue-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = k · d</span></p>
+                                        <p>From Experiment 2, you proved: <br/><span className="font-mono text-2xl text-emerald-400 font-bold block mt-2 bg-slate-800 py-3 rounded">λ = K · sin(θ)</span></p>
+                                    </div>
 
-                            <button onClick={() => submitP2Question(p2TargetThetaDeg.toString(), 'syn2', [
-                                `Think back to the very first part of this section. The title literally said "Fixed Angle (θ = ${p2TargetThetaDeg}°)".`,
-                                `Select ${p2TargetThetaDeg} from the dropdown.`
-                            ])} disabled={!p2QAnswer} className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Confirm Angle</button>
+                                    <div className="mb-6">
+                                        <p className="text-slate-300 mb-4 text-lg font-medium">To combine these into one master equation, we need to know what the unknown constant <span className="font-mono text-blue-400">k</span> from the first equation actually is.</p>
+                                        <p className="text-slate-400 mb-4">Let's look at your specific data. What was the constant angle <span className="font-mono font-bold text-amber-400">θ</span> that we locked you into during Experiment 1?</p>
+                                        
+                                        <select 
+                                            className="w-full p-4 bg-slate-900 border border-slate-600 rounded-xl text-white text-lg focus:outline-none focus:border-purple-500 cursor-pointer"
+                                            value={p2QAnswer}
+                                            onChange={(e) => setP2QAnswer(e.target.value)}
+                                        >
+                                            <option value="" disabled>Select the angle you used...</option>
+                                            {[15, p2TargetThetaDeg, 55, 70].sort((a,b)=>a-b).map(val => (
+                                                <option key={val} value={val}>{val}°</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <button onClick={() => submitP2QuestionMulti(p2QAnswer === p2TargetThetaDeg.toString(), 'syn2', [
+                                        `If you forgot, click the "Review Lab Data" button in the top right corner!`,
+                                        `Select ${p2TargetThetaDeg} from the dropdown.`
+                                    ])} disabled={!p2QAnswer || isChecking} className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Confirm Angle</button>
+                                </>
+                            )}
+
+                            {p2Stage === 'syn2' && (
+                                <>
+                                    <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 mt-4 text-center">Identifying the Constant</h2>
+                                    
+                                    <div className="text-slate-300 text-lg space-y-4 mb-8">
+                                        <p>You correctly remembered that your fixed angle was <span className="font-mono text-amber-400 font-bold">{p2TargetThetaDeg}°</span>.</p>
+                                        <p>In your first experiment, your data line <span className="font-mono text-blue-400">λ = k · d</span> had a slope (k) of approximately <span className="font-mono font-bold bg-slate-900 px-2 rounded">{Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</span>.</p>
+                                        <div className="bg-slate-900 border border-purple-500/50 p-4 rounded-xl mt-4 text-center">
+                                            <p className="text-sm text-slate-400 mb-1">Grab a calculator! What is the sine of your angle?</p>
+                                            <p className="font-mono text-xl text-emerald-400 font-bold">sin({p2TargetThetaDeg}°) = {Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</p>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-slate-300 mb-6 text-xl text-center">Because these numbers match perfectly, what must the constant <span className="font-mono text-blue-400 font-bold">k</span> represent in the equation <span className="font-mono">λ = k · d</span>?</p>
+                                    
+                                    <div className="space-y-3 mb-8">
+                                        <button onClick={() => setP2QAnswer('syn2_a')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_a' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-xl font-bold">k = sin(θ)</span>
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('syn2_b')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_b' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-xl font-bold">k = cos(θ)</span>
+                                        </button>
+                                        <button onClick={() => setP2QAnswer('syn2_c')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_c' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                            <span className="font-mono text-xl font-bold">k = tan(θ)</span>
+                                        </button>
+                                    </div>
+
+                                    <button onClick={() => submitP2QuestionMulti(p2QAnswer === 'syn2_a', 'syn3', [
+                                        `Look at the math box above. The slope k (${Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}) is exactly equal to sin(${p2TargetThetaDeg}°).`,
+                                        `Therefore, the constant k is sin(θ).`
+                                    ])} disabled={!p2QAnswer || isChecking} className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Confirm Constant</button>
+                                </>
+                            )}
+
+                            {p2Stage === 'syn3' && (
+                                <>
+                                    <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 mt-4 text-center">The Grand Finale</h2>
+                                    
+                                    <div className="mb-6">
+                                        <p className="text-slate-300 text-lg mb-2 text-center">Construct the final Master Equation by selecting the correct variables from the dropdowns below:</p>
+                                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-2xl font-mono mt-6 bg-slate-900 p-6 rounded-xl border border-slate-700">
+                                            <select value={syn3A} onChange={e => setSyn3A(e.target.value)} className="bg-slate-800 border border-slate-600 text-white rounded p-2 focus:outline-none focus:border-purple-500 text-center w-full sm:w-auto cursor-pointer">
+                                                <option value="" disabled>?</option>
+                                                <option value="lambda">λ</option>
+                                                <option value="d">d</option>
+                                                <option value="sin_theta">sin(θ)</option>
+                                                <option value="cos_theta">cos(θ)</option>
+                                            </select>
+                                            <span className="text-white">=</span>
+                                            <select value={syn3B} onChange={e => setSyn3B(e.target.value)} className="bg-slate-800 border border-slate-600 text-white rounded p-2 focus:outline-none focus:border-purple-500 text-center w-full sm:w-auto cursor-pointer">
+                                                <option value="" disabled>?</option>
+                                                <option value="lambda">λ</option>
+                                                <option value="d">d</option>
+                                                <option value="sin_theta">sin(θ)</option>
+                                                <option value="cos_theta">cos(θ)</option>
+                                            </select>
+                                            <span className="text-white">·</span>
+                                            <select value={syn3C} onChange={e => setSyn3C(e.target.value)} className="bg-slate-800 border border-slate-600 text-white rounded p-2 focus:outline-none focus:border-purple-500 text-center w-full sm:w-auto cursor-pointer">
+                                                <option value="" disabled>?</option>
+                                                <option value="lambda">λ</option>
+                                                <option value="d">d</option>
+                                                <option value="sin_theta">sin(θ)</option>
+                                                <option value="cos_theta">cos(θ)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-8 pt-6 border-t border-slate-700">
+                                        <p className="text-slate-300 text-lg mb-4 text-center">Now, algebraically rearrange your equation to solve for the <strong>separation distance (d)</strong>:</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <button onClick={() => setSyn3D('d_wrong1')} className={`p-4 rounded-xl text-center border transition-all ${syn3D === 'd_wrong1' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                                <span className="font-mono text-lg font-bold">d = λ · sin(θ)</span>
+                                            </button>
+                                            <button onClick={() => setSyn3D('d_correct')} className={`p-4 rounded-xl text-center border transition-all ${syn3D === 'd_correct' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                                <span className="font-mono text-lg font-bold">d = λ / sin(θ)</span>
+                                            </button>
+                                            <button onClick={() => setSyn3D('d_wrong2')} className={`p-4 rounded-xl text-center border transition-all ${syn3D === 'd_wrong2' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                                <span className="font-mono text-lg font-bold">d = sin(θ) / λ</span>
+                                            </button>
+                                            <button onClick={() => setSyn3D('d_wrong3')} className={`p-4 rounded-xl text-center border transition-all ${syn3D === 'd_wrong3' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
+                                                <span className="font-mono text-lg font-bold">d = λ + sin(θ)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button onClick={handleSyn3Submit} disabled={!syn3A || !syn3B || !syn3C || !syn3D || isChecking} className="w-full bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-xl shadow-lg transform transition-all">Complete Synthesis Lab</button>
+                                </>
+                            )}
                             
                             {feedback && <div className={`mt-4 text-center text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
                         </div>
                     )}
 
-                    {p2Stage === 'syn2' && (
-                        <div className="w-full max-w-2xl bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-xl mx-auto">
-                            <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-6 text-center">The Master Equation</h2>
-                            
-                            <div className="text-slate-300 text-lg space-y-4 mb-8">
-                                <p>You correctly remembered that your fixed angle was <span className="font-mono text-amber-400 font-bold">{p2TargetThetaDeg}°</span>.</p>
-                                <p>In your first experiment, your data line <span className="font-mono text-blue-400">λ = k · d</span> had a slope (k) of approximately <span className="font-mono font-bold bg-slate-900 px-2 rounded">{Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</span>.</p>
-                                <div className="bg-slate-900 border border-purple-500/50 p-4 rounded-xl mt-4 text-center">
-                                    <p className="text-sm text-slate-400 mb-1">Grab a calculator! What is the sine of your angle?</p>
-                                    <p className="font-mono text-xl text-emerald-400 font-bold">sin({p2TargetThetaDeg}°) = {Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}</p>
+                    {/* Data Review Modal */}
+                    {showDataReview && (
+                        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="bg-slate-800 border border-slate-600 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-white">Previous Experiment Data</h2>
+                                    <button onClick={() => setShowDataReview(false)} className="text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded px-3 py-1">
+                                        Close
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Exp 1 Data View */}
+                                    <div className="bg-slate-900 p-5 rounded-xl border border-slate-700">
+                                        <h3 className="text-lg font-bold text-blue-400 mb-4 text-center">Exp 1: Fixed Angle (θ = {p2TargetThetaDeg}°)</h3>
+                                        <SimpleGraph data={p2Data1} xKey="d" yKey="lambda" xLabel="Distance (d)" yLabel="Wavelength (λ)" title="" showTrendline={true} />
+                                        <div className="text-center mt-2 text-sm text-slate-400">Slope (k) ≈ <span className="font-mono text-blue-400 font-bold">{calculatedSlope}</span></div>
+                                        <table className="w-full text-xs text-center text-slate-400 mt-4">
+                                            <thead className="uppercase bg-slate-800 text-slate-500"><tr><th className="px-2 py-2">Distance (d)</th><th className="px-2 py-2">Wavelength (λ)</th></tr></thead>
+                                            <tbody>{p2Data1.map((d, i) => <tr key={i} className="border-b border-slate-800"><td className="px-2 py-2">{d.d.toFixed(1)}</td><td className="px-2 py-2">{d.lambda.toFixed(1)}</td></tr>)}</tbody>
+                                        </table>
+                                    </div>
+                                    {/* Exp 2 Data View */}
+                                    <div className="bg-slate-900 p-5 rounded-xl border border-slate-700">
+                                        <h3 className="text-lg font-bold text-emerald-400 mb-4 text-center">Exp 2: Fixed Distance (d = {userD.toFixed(1)})</h3>
+                                        <SimpleGraph data={p2Data2} xKey="thetaDeg" yKey="lambda" xLabel="Angle θ (degrees)" yLabel="Wavelength (λ)" title="" showTrendline={false} />
+                                        <table className="w-full text-xs text-center text-slate-400 mt-4">
+                                            <thead className="uppercase bg-slate-800 text-slate-500"><tr><th className="px-2 py-2">Angle (θ)</th><th className="px-2 py-2">Wavelength (λ)</th><th className="px-2 py-2">sin(θ)</th></tr></thead>
+                                            <tbody>{p2Data2.map((d, i) => <tr key={i} className="border-b border-slate-800"><td className="px-2 py-2">{d.thetaDeg.toFixed(1)}°</td><td className="px-2 py-2">{d.lambda.toFixed(1)}</td><td className="px-2 py-2">{d.sinTheta.toFixed(3)}</td></tr>)}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex justify-end">
+                                    <button onClick={() => setShowDataReview(false)} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg">Return to Synthesis</button>
                                 </div>
                             </div>
-
-                            <p className="text-slate-300 mb-6 text-xl text-center">Because these numbers match perfectly, what must the constant <span className="font-mono text-blue-400 font-bold">k</span> represent in the equation <span className="font-mono">λ = k · d</span>?</p>
-                            
-                            <div className="space-y-3 mb-8">
-                                <button onClick={() => setP2QAnswer('syn2_a')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_a' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
-                                    <span className="font-mono text-xl font-bold">k = sin(θ)</span>
-                                </button>
-                                <button onClick={() => setP2QAnswer('syn2_b')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_b' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
-                                    <span className="font-mono text-xl font-bold">k = cos(θ)</span>
-                                </button>
-                                <button onClick={() => setP2QAnswer('syn2_c')} className={`w-full p-4 rounded-xl text-center border transition-all ${p2QAnswer === 'syn2_c' ? 'border-purple-500 bg-purple-500/20 text-white' : 'border-slate-600 bg-slate-900 text-slate-400 hover:bg-slate-700'}`}>
-                                    <span className="font-mono text-xl font-bold">k = tan(θ)</span>
-                                </button>
-                            </div>
-
-                            <button onClick={() => submitP2Question('syn2_a', 'win', [
-                                `Look at the math box above. The slope k (${Math.sin(p2TargetThetaDeg * Math.PI/180).toFixed(3)}) is exactly equal to sin(${p2TargetThetaDeg}°).`,
-                                `Therefore, the constant k is sin(θ).`
-                            ])} disabled={!p2QAnswer} className="w-full bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-xl shadow-lg transform transition-all">Complete Synthesis Lab</button>
-                            
-                            {feedback && <div className={`mt-4 text-center text-sm p-3 rounded ${feedbackType === 'error' ? 'bg-amber-900/30 text-amber-300 border border-amber-500/30' : 'bg-emerald-900/30 text-emerald-300'}`}>{feedback}</div>}
                         </div>
                     )}
+
                 </div>
             );
         };
