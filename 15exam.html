@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 15 Exam - Interactive Oscillators</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .canvas-container { border-radius: 0.5rem; overflow: hidden; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); background: #fff; margin-bottom: 1rem; }
+        canvas { display: block; width: 100%; height: auto; }
+        .question-card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 2rem; margin-bottom: 2rem; transition: transform 0.2s;}
+        .question-card:hover { transform: translateY(-2px); }
+        .radio-label { display: flex; align-items: center; cursor: pointer; padding: 0.5rem; border-radius: 0.5rem; transition: background 0.2s; }
+        .radio-label:hover { background: #f1f5f9; }
+        input[type="radio"] { margin-right: 0.75rem; width: 1.25rem; height: 1.25rem; cursor: pointer; }
+        input[type="number"] { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; width: 150px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+    <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6">
+        
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight mb-3">Quiz: Ch 15 Exam</h1>
+            <p class="text-lg text-slate-600">The Clockwork Planet of Chronis - Interactive Edition</p>
+        </div>
+
+        <div id="quiz-container">
+            <!-- Questions will be injected here via JavaScript -->
+        </div>
+
+        <div class="text-center mt-8">
+            <button id="submit-btn" onclick="submitExam()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-full shadow-lg transition duration-300 transform hover:scale-105 text-xl">
+                Submit Exam
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Score Overlay -->
+    <div id="score-overlay" class="fixed inset-0 bg-slate-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-10 max-w-lg w-full text-center shadow-2xl relative">
+            <h2 class="text-3xl font-bold text-indigo-900 mb-2">Exam Submitted</h2>
+            <p class="text-slate-500 mb-6" id="test-name-display">Ch 15 Exam: Interactive Oscillators</p>
+            
+            <div class="text-6xl font-black text-emerald-500 mb-4" id="score-display">--/--</div>
+            
+            <div class="bg-slate-100 p-4 rounded-lg mb-8">
+                <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Verification Code</p>
+                <p class="text-2xl font-mono text-slate-800 tracking-widest" id="verification-code">XXXX-XXXX</p>
+            </div>
+
+            <p class="text-slate-600 mb-6">Download your responses and the correct solutions to study later.</p>
+
+            <button onclick="downloadStudyGuide()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg shadow transition duration-300 w-full mb-3 flex items-center justify-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Download Study Guide (HTML)
+            </button>
+            <button onclick="closeOverlay()" class="text-slate-500 hover:text-slate-800 underline text-sm">Review Questions</button>
+        </div>
+    </div>
+
+    <script>
+        // --- RANDOMIZATION & STATE ---
+        const studentSeed = Math.random();
+        
+        // Randomize 3, 4, 5, or 6 springs
+        const numSprings = Math.floor(Math.random() * 4) + 3; 
+        
+        // Randomize unicycle variables
+        const uniVelocity = Math.floor(Math.random() * 11) + 20; // 20 to 30 m/s
+        const uniDistance = Math.floor(Math.random() * 21) + 30; // 30 to 50 m
+        const uniMass = Math.floor(Math.random() * 41) + 80;     // 80 to 120 kg
+        
+        // Calculate Unicycle Spring Constant (k = m * (2*pi*v/L)^2)
+        const uniOmega = (2 * Math.PI * uniVelocity) / uniDistance;
+        const exactUniK = uniMass * Math.pow(uniOmega, 2);
+        const correctUniK = Math.round(exactUniK / 10) * 10; // Round to nearest 10
+
+        // Target period for disk (Q18)
+        const targetPeriod = 3.0;
+        const g = 9.8;
+        // r = (g * T^2) / (6 * pi^2)
+        const exactDiskRadius = (g * Math.pow(targetPeriod, 2)) / (6 * Math.pow(Math.PI, 2));
+        const correctDiskRadius = exactDiskRadius.toFixed(2);
+
+        // Rolling Sphere variables for Q23
+        const sphereMasses = [3, 5, 6, 7, 8];
+        const correctSphereMass = sphereMasses[Math.floor(Math.random() * sphereMasses.length)];
+        const targetPeriodSphere = 3.0; // 3 seconds
+        // T = 2 * pi * sqrt(7M / 5k) => k = 4 * pi^2 * 7 * M / (5 * T^2)
+        const sphereK = (4 * Math.pow(Math.PI, 2) * 7 * correctSphereMass) / (5 * Math.pow(targetPeriodSphere, 2));
+
+        // State to hold questions and answers
+        const questions = [];
+        let time = 0; // Global animation time
+
+        // --- QUESTION GENERATION ---
+        function generateQuestions() {
+            // Q1
+            questions.push({
+                id: 'q1', num: 1, type: 'radio',
+                text: "I affirm that the work done on this exam is my own and that no human helped me during this exam nor did I make use of the results on someone else's exam.",
+                options: ["True", "False"],
+                correct: "True",
+                solution: "Academic honesty is required."
+            });
+
+            // Q2-7 Block (Springs in Series)
+            questions.push({
+                id: 'q2', num: 2, type: 'radio',
+                canvasId: 'springs-canvas',
+                text: `The Clockwork Planet of Chronis is cast in disarray by the malevolent forces of Entropy. The first timepiece is a simple harmonic oscillator composed of <b>${numSprings} identical massless springs</b> of spring constant $k$ connected in series, attached to a mass $m$. <br><br>Start with Newton's 2nd Law and decide which of the following is the correct differential equation for the oscillator.`,
+                options: [
+                    `$-\\frac{k}{${numSprings}m}x = \\frac{d^{2}x}{dt^{2}}$`,
+                    `$-\\frac{${numSprings}k}{m}x = \\frac{d^{2}x}{dt^{2}}$`,
+                    `$-kx = \\frac{d^{2}x}{dt^{2}}$`,
+                    `$-\\frac{k}{m}x = \\frac{d^{2}x}{dt^{2}}$`
+                ],
+                correct: `$-\\frac{k}{${numSprings}m}x = \\frac{d^{2}x}{dt^{2}}$`,
+                solution: `For ${numSprings} springs in series, the effective spring constant is $k_{eff} = \\frac{k}{${numSprings}}$. Applying Newton's 2nd law: $-k_{eff}x = ma \\implies -\\frac{k}{${numSprings}}x = m\\frac{d^2x}{dt^2}$. Dividing by m gives the correct differential equation.`
+            });
+
+            questions.push({
+                id: 'q3', num: 3, type: 'radio',
+                text: `The differential equation in Question 2 suggests a solution of sinusoidal form. Which of the following is the standard general solution for the position $x(t)$ of the mass? (Let $x_m$ be the maximum amplitude, $\\omega$ be the angular frequency, and $\\phi$ be the phase constant).`,
+                options: [
+                    `$x(t) = x_m \\cos(\\omega t + \\phi)$`,
+                    `$x(t) = x_m e^{-\\omega t}$`,
+                    `$x(t) = \\frac{1}{2}x_m t^2$`,
+                    `$x(t) = x_m \\tan(\\omega t + \\phi)$`
+                ],
+                correct: `$x(t) = x_m \\cos(\\omega t + \\phi)$`,
+                solution: `A simple harmonic oscillator's position is described by a sinusoidal function. The standard cosine form is $x(t) = x_m \\cos(\\omega t + \\phi)$.`
+            });
+
+            questions.push({
+                id: 'q4', num: 4, type: 'radio',
+                text: `Taking the first derivative with respect to time of the position function $x(t) = x_m \\cos(\\omega t + \\phi)$, what is the velocity $v(t)$ of the oscillator?`,
+                options: [
+                    `$v(t) = -x_m \\omega \\sin(\\omega t + \\phi)$`,
+                    `$v(t) = x_m \\omega \\cos(\\omega t + \\phi)$`,
+                    `$v(t) = -x_m \\omega^2 \\cos(\\omega t + \\phi)$`,
+                    `$v(t) = x_m \\omega^2 \\sin(\\omega t + \\phi)$`
+                ],
+                correct: `$v(t) = -x_m \\omega \\sin(\\omega t + \\phi)$`,
+                solution: `The derivative of $\\cos(u)$ is $-\\sin(u) \\cdot u'$. Applying the chain rule, $\\frac{d}{dt}[x_m \\cos(\\omega t + \\phi)] = -x_m \\omega \\sin(\\omega t + \\phi)$.`
+            });
+
+            questions.push({
+                id: 'q5', num: 5, type: 'radio',
+                text: `Taking the second derivative with respect to time (or the first derivative of velocity), what is the acceleration $a(t)$ of the oscillator?`,
+                options: [
+                    `$a(t) = -x_m \\omega^2 \\cos(\\omega t + \\phi)$`,
+                    `$a(t) = -x_m \\omega \\sin(\\omega t + \\phi)$`,
+                    `$a(t) = x_m \\omega^2 \\cos(\\omega t + \\phi)$`,
+                    `$a(t) = x_m \\omega^2 \\sin(\\omega t + \\phi)$`
+                ],
+                correct: `$a(t) = -x_m \\omega^2 \\cos(\\omega t + \\phi)$`,
+                solution: `The derivative of $-x_m \\omega \\sin(\\omega t + \\phi)$ is $-x_m \\omega (\\omega) \\cos(\\omega t + \\phi) = -x_m \\omega^2 \\cos(\\omega t + \\phi)$.`
+            });
+
+            questions.push({
+                id: 'q6', num: 6, type: 'radio',
+                text: `Substitute $x(t)$ and $a(t)$ back into the correct differential equation from Question 2. Solving for the angular frequency $\\omega$, which of the following is correct for the ${numSprings}$ springs in series?`,
+                options: [
+                    `$\\omega = \\sqrt{\\frac{k}{${numSprings}m}}$`,
+                    `$\\omega = \\sqrt{\\frac{${numSprings}k}{m}}$`,
+                    `$\\omega = \\sqrt{\\frac{k}{m}}$`,
+                    `$\\omega = \\sqrt{\\frac{${numSprings}m}{k}}$`
+                ],
+                correct: `$\\omega = \\sqrt{\\frac{k}{${numSprings}m}}$`,
+                solution: `Substituting yields $-\\frac{k}{${numSprings}m}(x_m \\cos(\\omega t + \\phi)) = -x_m \\omega^2 \\cos(\\omega t + \\phi)$. Canceling terms leaves $\\omega^2 = \\frac{k}{${numSprings}m}$, so $\\omega = \\sqrt{\\frac{k}{${numSprings}m}}$.`
+            });
+
+            questions.push({
+                id: 'q7', num: 7, type: 'radio',
+                text: `Based on the ${numSprings} springs in series from the previous question, what is the expected period $T$ of the oscillator?`,
+                options: [
+                    `$2\\pi\\sqrt{\\frac{m}{k}}$`,
+                    `$2\\pi\\sqrt{\\frac{${numSprings}m}{k}}$`,
+                    `$2\\pi\\sqrt{\\frac{m}{${numSprings}k}}$`,
+                    `$\\frac{1}{2\\pi}\\sqrt{\\frac{k}{${numSprings}m}}$`
+                ],
+                correct: `$2\\pi\\sqrt{\\frac{${numSprings}m}{k}}$`,
+                solution: `The period is $T = 2\\pi\\sqrt{\\frac{m}{k_{eff}}}$. Since $k_{eff} = \\frac{k}{${numSprings}}$, substituting this in gives $T = 2\\pi\\sqrt{\\frac{${numSprings}m}{k}}$.`
+            });
+
+            questions.push({
+                id: 'q8', num: 8, type: 'radio',
+                text: `A straight, frictionless tunnel is drilled directly through the center of the Clockwork Planet of Chronis (assume it is a uniform solid sphere of mass $M$ and radius $R$). A maintenance worker drops a wrench of mass $m$ into the hole from the surface. <br><br>Using Newton's Law of Universal Gravitation for the interior of a uniform sphere ($F_g = -\\frac{GMm}{R^3}r$), which of the following is the correct differential equation for the radial position $r$ of the wrench?`,
+                options: [
+                    `$-\\frac{GM}{R^3}r = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{GMm}{r^2} = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{Gm}{R^2}r = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{GM}{r^3}r = \\frac{d^2r}{dt^2}$`
+                ],
+                correct: `$-\\frac{GM}{R^3}r = \\frac{d^2r}{dt^2}$`,
+                solution: `According to Newton's Second Law, $F = ma$. Substituting the gravitational force inside a uniform sphere: $-\\frac{GMm}{R^3}r = m \\frac{d^2r}{dt^2}$. The mass of the wrench $m$ cancels out, leaving $\\frac{d^2r}{dt^2} = -\\frac{GM}{R^3}r$.`
+            });
+
+            questions.push({
+                id: 'q9', num: 9, type: 'radio',
+                text: `Based on the differential equation from the previous question, what is the theoretical period $T$ of oscillation for the wrench falling through the planet?`,
+                options: [
+                    `$2\\pi\\sqrt{\\frac{R^3}{GM}}$`,
+                    `$2\\pi\\sqrt{\\frac{GM}{R^3}}$`,
+                    `$2\\pi\\sqrt{\\frac{R^2}{GM}}$`,
+                    `$2\\pi\\sqrt{\\frac{M}{GR^3}}$`
+                ],
+                correct: `$2\\pi\\sqrt{\\frac{R^3}{GM}}$`,
+                solution: `The differential equation is of the form $a = -\\omega^2 r$. By comparison, $\\omega^2 = \\frac{GM}{R^3}$, so $\\omega = \\sqrt{\\frac{GM}{R^3}}$. The period is $T = \\frac{2\\pi}{\\omega} = 2\\pi\\sqrt{\\frac{R^3}{GM}}$.`
+            });
+
+            // Constants for Q10 & Q12 calculations
+            const chronisRadius = 6.37e6; 
+            const chronisMass = 5.97e24; 
+            const G = 6.674e-11;
+            const tunnelPeriodSeconds = 2 * Math.PI * Math.sqrt(Math.pow(chronisRadius, 3) / (G * chronisMass));
+            const tunnelFallMinutes = (tunnelPeriodSeconds / 2) / 60; // Time to fall exactly to the other side
+            
+            questions.push({
+                id: 'q10', num: 10, type: 'number',
+                unit: 'minutes',
+                text: `Assume the Clockwork Planet of Chronis has the same radius as Earth ($R = 6.37 \\times 10^6 \\text{ m}$) and mass $M = 5.97 \\times 10^{24} \\text{ kg}$. How many <b>minutes</b> will it take for the wrench to travel from the surface, through the center, to the exact opposite side of the planet? (Enter your answer to one decimal place). <br><br><i>Note: $G = 6.674 \\times 10^{-11} \\text{ m}^3/(\\text{kg}\\cdot\\text{s}^2)$</i>.`,
+                correct: tunnelFallMinutes.toFixed(1),
+                solution: `The time to reach the opposite side is exactly half of the full period $T$. Half-period $t = \\frac{1}{2} \\left( 2\\pi\\sqrt{\\frac{R^3}{GM}} \\right) = \\pi\\sqrt{\\frac{(6.37 \\times 10^6)^3}{(6.674 \\times 10^{-11})(5.97 \\times 10^{24})}} \\approx 2532 \\text{ seconds}$. Dividing by 60 gives approximately ${tunnelFallMinutes.toFixed(1)} \\text{ minutes}$.`
+            });
+
+            questions.push({
+                id: 'q11', num: 11, type: 'radio',
+                text: `When the wrench passes through the exact center of the Planet Chronis, which of the following statements is true regarding its acceleration and velocity?`,
+                options: [
+                    `Acceleration is zero, and velocity is at its maximum magnitude.`,
+                    `Acceleration is at its maximum magnitude, and velocity is zero.`,
+                    `Both acceleration and velocity are zero.`,
+                    `Both acceleration and velocity are at their maximum magnitudes.`
+                ],
+                correct: `Acceleration is zero, and velocity is at its maximum magnitude.`,
+                solution: `At the center of the planet ($r = 0$), the restoring gravitational force is zero, meaning acceleration is zero. Because all potential energy has been converted to kinetic energy, the velocity is at its absolute maximum.`
+            });
+
+            const maxTunnelVelocity = Math.sqrt((G * chronisMass) / chronisRadius);
+
+            questions.push({
+                id: 'q12', num: 12, type: 'number',
+                unit: 'm/s',
+                text: `Calculate the maximum speed (in m/s) the wrench reaches as it passes through the center of Chronis. (Use the mass and radius given in Question 10. Enter your answer to the nearest whole number).`,
+                correct: Math.round(maxTunnelVelocity).toString(),
+                solution: `Maximum velocity for a simple harmonic oscillator is $v_{max} = \\omega x_{max}$. Here, $x_{max}$ is the amplitude (the radius $R$), and $\\omega = \\sqrt{\\frac{GM}{R^3}}$. So $v_{max} = R \\sqrt{\\frac{GM}{R^3}} = \\sqrt{\\frac{GM}{R}}$. Plugging in the values gives $v_{max} \\approx ${Math.round(maxTunnelVelocity)} \\text{ m/s}$.`
+            });
+
+            // Q13-18 Block (Disk Pendulum)
+            questions.push({
+                id: 'q13', num: 13, type: 'radio',
+                canvasId: 'disk-canvas',
+                text: `For the second timepiece, you discover a physical pendulum. The original pendulum stick has been destroyed and replaced by a <b>uniform solid disk</b> of mass $m$ and radius $r$. The disk is pivoted to swing freely around a pin located exactly at its <b>top edge</b>.<br><br>The moment of inertia of a disk around its center of mass is $I_{cm} = \\frac{1}{2}mr^2$. Using the parallel axis theorem, what is the moment of inertia $I_{edge}$ around the pivot?`,
+                options: [
+                    `$\\frac{1}{2}mr^2$`,
+                    `$\\frac{3}{2}mr^2$`,
+                    `$mr^2$`,
+                    `$\\frac{2}{5}mr^2$`
+                ],
+                correct: `$\\frac{3}{2}mr^2$`,
+                solution: `The parallel axis theorem states $I = I_{cm} + md^2$. Here, the distance $d$ from the center of mass to the edge is $r$. So, $I_{edge} = \\frac{1}{2}mr^2 + mr^2 = \\frac{3}{2}mr^2$.`
+            });
+
+            questions.push({
+                id: 'q18', num: 18, type: 'number',
+                unit: 'meters',
+                text: `To calibrate the disk pendulum properly so that causality doesn't cease, it must have a period of exactly <b>${targetPeriod.toFixed(1)} seconds</b>. <br><br>Assuming standard gravity ($g = 9.80 \\text{ m/s}^2$), what must be the <b>radius $r$</b> of the disk in meters? (Enter your answer to two decimal places).`,
+                correct: correctDiskRadius,
+                solution: `The period of a physical pendulum is $T = 2\\pi\\sqrt{\\frac{I}{mgd_{cm}}}$. We know $I = \\frac{3}{2}mr^2$ and $d_{cm} = r$. Substituting gives $T = 2\\pi\\sqrt{\\frac{\\frac{3}{2}mr^2}{mgr}} = 2\\pi\\sqrt{\\frac{3r}{2g}}$. Solving for $r$: $r = \\frac{gT^2}{6\\pi^2}$. With $T=${targetPeriod}$ and $g=9.8$, $r \\approx ${correctDiskRadius} \\text{ m}$.`
+            });
+
+            // Q19-23 Block (Rolling Spheres)
+            questions.push({
+                id: 'q19', num: 19, type: 'radio',
+                canvasId: 'rolling-canvas',
+                text: `The third timepiece involves a solid crystalline sphere attached to a horizontal spring of constant $k$. A sphere of mass $M$ and radius $R$ is rolling back and forth without slipping on a horizontal surface, acting as an oscillator. <br><br>When the sphere is rolling, what fraction of its total kinetic energy is rotational kinetic energy? (Recall $I_{sphere} = \\frac{2}{5}MR^2$)`,
+                options: [
+                    `$\\frac{2}{7}$`,
+                    `$\\frac{2}{5}$`,
+                    `$\\frac{5}{7}$`,
+                    `$\\frac{1}{2}$`
+                ],
+                correct: `$\\frac{2}{7}$`,
+                solution: `$KE_{trans} = \\frac{1}{2}Mv^2$. $KE_{rot} = \\frac{1}{2}I\\omega^2 = \\frac{1}{2}(\\frac{2}{5}MR^2)(\\frac{v}{R})^2 = \\frac{1}{5}Mv^2$. Total $KE = \\frac{1}{2}Mv^2 + \\frac{1}{5}Mv^2 = \\frac{7}{10}Mv^2$. Fraction rotational = $(\\frac{1}{5}) / (\\frac{7}{10}) = \\frac{2}{7}$.`
+            });
+
+            questions.push({
+                id: 'q20', num: 20, type: 'radio',
+                text: `Using conservation of energy or Newton's laws, which of the following is the correct differential equation for the motion of the center of mass of the rolling sphere oscillator?`,
+                options: [
+                    `$-\\frac{5k}{7M}x = \\frac{d^2x}{dt^2}$`,
+                    `$-\\frac{k}{M}x = \\frac{d^2x}{dt^2}$`,
+                    `$-\\frac{7k}{5M}x = \\frac{d^2x}{dt^2}$`,
+                    `$-\\frac{2k}{5M}x = \\frac{d^2x}{dt^2}$`
+                ],
+                correct: `$-\\frac{5k}{7M}x = \\frac{d^2x}{dt^2}$`,
+                solution: `Total Energy $E = \\frac{1}{2}kx^2 + \\frac{1}{2}Mv^2 + \\frac{1}{2}I\\omega^2 = \\frac{1}{2}kx^2 + \\frac{7}{10}Mv^2$. Taking the time derivative $dE/dt = 0$, we get $kxv + \\frac{7}{5}Mva = 0$. Dividing by $v$ and rearranging gives $a = -\\frac{5k}{7M}x$, which is $\\frac{d^2x}{dt^2} = -\\frac{5k}{7M}x$.`
+            });
+
+            questions.push({
+                id: 'q21', num: 21, type: 'radio',
+                text: `Based on the differential equation from the previous question, what is the theoretical period $T$ of this rolling oscillator?`,
+                options: [
+                    `$2\\pi\\sqrt{\\frac{7M}{5k}}$`,
+                    `$2\\pi\\sqrt{\\frac{M}{k}}$`,
+                    `$2\\pi\\sqrt{\\frac{5M}{7k}}$`,
+                    `$2\\pi\\sqrt{\\frac{2M}{5k}}$`
+                ],
+                correct: `$2\\pi\\sqrt{\\frac{7M}{5k}}$`,
+                solution: `From the differential equation $a = -\\omega^2 x$, we identify $\\omega^2 = \\frac{5k}{7M}$. Thus, $\\omega = \\sqrt{\\frac{5k}{7M}}$. The period is $T = \\frac{2\\pi}{\\omega} = 2\\pi\\sqrt{\\frac{7M}{5k}}$.`
+            });
+
+            questions.push({
+                id: 'q22', num: 22, type: 'radio',
+                text: `How does the period of the rolling sphere compare to the period it would have if the surface were completely frictionless and it only slid back and forth without rolling?`,
+                options: [
+                    `It is longer by a factor of $\\sqrt{7/5}$`,
+                    `It is shorter by a factor of $\\sqrt{5/7}$`,
+                    `It is exactly the same`,
+                    `It is longer by a factor of $7/5$`
+                ],
+                correct: `It is longer by a factor of $\\sqrt{7/5}$`,
+                solution: `A sliding mass without rolling has a period $T_{slide} = 2\\pi\\sqrt{\\frac{M}{k}}$. The rolling period is $T_{roll} = 2\\pi\\sqrt{\\frac{7M}{5k}} = T_{slide} \\times \\sqrt{\\frac{7}{5}}$. Since $\\sqrt{1.4} > 1$, it takes longer to oscillate because energy is being transferred into rotation as well as translation.`
+            });
+
+            questions.push({
+                id: 'q23', num: 23, type: 'radio',
+                text: `The period of the oscillator must be exactly three seconds but there are five solid crystalline spheres lying in disarray. Their masses are 3 kg, 5 kg, 6 kg, 7 kg and 8 kg. Which one should you use to fix the Oscillator of Fate? The radius of each sphere is 0.25 meters but you might not need to use radius in your decision.<br><br>Assume the spring constant of the mechanism is calibrated to exactly <b>${sphereK.toFixed(2)} N/m</b>.`,
+                options: [
+                    `3 kg`,
+                    `5 kg`,
+                    `6 kg`,
+                    `7 kg`,
+                    `8 kg`
+                ],
+                correct: `${correctSphereMass} kg`,
+                solution: `We know $T = 3 \\text{ s}$ and $T = 2\\pi\\sqrt{\\frac{7M}{5k}}$. Squaring both sides: $T^2 = 4\\pi^2 \\frac{7M}{5k}$. Solving for mass $M$: $M = \\frac{5k T^2}{28\\pi^2}$. Plugging in $k = ${sphereK.toFixed(2)}$ and $T = 3$, we find $M = ${correctSphereMass} \\text{ kg}$.`
+            });
+
+            // Q24 Block (Unicycle)
+            questions.push({
+                id: 'q24', num: 24, type: 'radio',
+                canvasId: 'unicycle-canvas',
+                text: `On the Planet Chronis, the most popular transportation is the gyro stabilized powered unicycle. The main expressway is constructed out of pavement slabs with seams that are <b>${uniDistance} meters apart</b>. <br><br>You find that when you ride your powered unicycle at <b>${uniVelocity} m/s</b> on the expressway, it develops noticeable resonance vibrations. If the payload of the single suspension spring at this time is <b>${uniMass} kg</b>, then the spring constant $k$ of the unicycle’s suspension is closest to which of the following?`,
+                options: [
+                    `${correctUniK - 200} N/m`,
+                    `${correctUniK} N/m`,
+                    `${correctUniK + 300} N/m`,
+                    `${correctUniK - 400} N/m`,
+                    `${correctUniK + 150} N/m`
+                ].sort(() => Math.random() - 0.5), // Shuffle options
+                correct: `${correctUniK} N/m`,
+                solution: `The time between hitting seams is $T = \\frac{L}{v} = \\frac{${uniDistance}}{${uniVelocity}}$ s. Resonance occurs when this matches the natural period $T = 2\\pi\\sqrt{\\frac{m}{k}}$. Therefore, $\\frac{${uniDistance}}{${uniVelocity}} = 2\\pi\\sqrt{\\frac{${uniMass}}{k}}$. Solving for $k$: $k = m(\\frac{2\\pi v}{L})^2 = ${uniMass}(\\frac{2\\pi(${uniVelocity})}{${uniDistance}})^2 \\approx ${correctUniK} \\text{ N/m}$.`
+            });
+        }
+
+        // --- RENDER UI ---
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            let html = '';
+
+            questions.forEach((q, index) => {
+                html += `<div class="question-card" id="card-${q.id}">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Question ${q.num}</h3>`;
+                
+                if (q.canvasId) {
+                    html += `<div class="canvas-container mb-6"><canvas id="${q.canvasId}" width="800" height="250"></canvas></div>`;
+                }
+
+                html += `<p class="text-slate-700 text-lg mb-6 leading-relaxed">${q.text}</p>`;
+
+                if (q.type === 'radio') {
+                    html += `<div class="space-y-3">`;
+                    q.options.forEach((opt, i) => {
+                        html += `
+                        <label class="radio-label group">
+                            <input type="radio" name="${q.id}" value="${opt}" class="text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-slate-700 text-lg group-hover:text-indigo-900">${opt}</span>
+                        </label>`;
+                    });
+                    html += `</div>`;
+                } else if (q.type === 'number') {
+                    html += `
+                    <div class="flex items-center">
+                        <input type="number" id="input-${q.id}" step="0.01" placeholder="e.g. 1.23" class="text-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <span class="ml-3 text-slate-500 text-lg">${q.unit || 'meters'}</span>
+                    </div>`;
+                }
+
+                // Placeholder for grading feedback
+                html += `<div id="feedback-${q.id}" class="mt-4 hidden p-4 rounded-md text-sm font-medium"></div>`;
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // --- ANIMATIONS (HTML5 CANVAS) ---
+        function drawSpring(ctx, startX, startY, endX, endY, coils, radius) {
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.save();
+            ctx.translate(startX, startY);
+            ctx.rotate(angle);
+            
+            const segment = dist / (coils * 2);
+            ctx.lineTo(segment, 0);
+            
+            for (let i = 1; i <= coils * 2; i++) {
+                const x = segment + (i - 1) * segment;
+                const nextX = segment + i * segment;
+                const midX = (x + nextX) / 2;
+                const yOffset = (i % 2 === 1) ? radius : -radius;
+                
+                if (i === coils * 2) {
+                    ctx.lineTo(dist, 0); // Last straight line
+                } else {
+                    ctx.lineTo(midX, yOffset);
+                }
+            }
+            
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function renderAnimations() {
+            time += 0.04;
+
+            // 1. Springs Canvas
+            const c1 = document.getElementById('springs-canvas');
+            if (c1) {
+                const ctx1 = c1.getContext('2d');
+                ctx1.clearRect(0, 0, c1.width, c1.height);
+                
+                // Base coords
+                const wallX = 50;
+                const cy = c1.height / 2;
+                
+                // Calculate oscillation
+                const amplitude = 100;
+                const omega = 2; 
+                const blockX = 400 + amplitude * Math.cos(omega * time);
+                
+                // Draw Wall
+                ctx1.fillStyle = '#334155';
+                ctx1.fillRect(wallX-20, cy-60, 20, 120);
+                
+                // Draw N springs in series
+                const springNodes = numSprings;
+                const segmentWidth = (blockX - wallX) / springNodes;
+                
+                for(let i=0; i<springNodes; i++) {
+                    const sx = wallX + i * segmentWidth;
+                    const ex = wallX + (i+1) * segmentWidth;
+                    drawSpring(ctx1, sx, cy, ex, cy, 6, 15);
+                    
+                    // Draw little connection nodes between springs
+                    if (i < springNodes - 1) {
+                        ctx1.beginPath();
+                        ctx1.arc(ex, cy, 4, 0, Math.PI*2);
+                        ctx1.fillStyle = '#94a3b8';
+                        ctx1.fill();
+                    }
+                }
+                
+                // Draw Mass Block
+                ctx1.fillStyle = '#4f46e5';
+                ctx1.fillRect(blockX, cy - 30, 60, 60);
+                ctx1.fillStyle = '#ffffff';
+                ctx1.font = '20px sans-serif';
+                ctx1.fillText('m', blockX + 22, cy + 6);
+            }
+
+            // 2. Disk Canvas
+            const c2 = document.getElementById('disk-canvas');
+            if (c2) {
+                const ctx2 = c2.getContext('2d');
+                ctx2.clearRect(0, 0, c2.width, c2.height);
+                
+                const cx = c2.width / 2;
+                const pivotY = 30;
+                const diskRadius = 80;
+                
+                // Oscillation
+                const maxAngle = Math.PI / 4;
+                const angle = maxAngle * Math.cos(2 * time);
+                
+                ctx2.save();
+                ctx2.translate(cx, pivotY);
+                ctx2.rotate(angle);
+                
+                // Draw Disk (Pivot is at top edge, so center is down by diskRadius)
+                ctx2.beginPath();
+                ctx2.arc(0, diskRadius, diskRadius, 0, Math.PI*2);
+                ctx2.fillStyle = 'rgba(79, 70, 229, 0.2)';
+                ctx2.fill();
+                ctx2.strokeStyle = '#4f46e5';
+                ctx2.lineWidth = 4;
+                ctx2.stroke();
+                
+                // Draw Center of Mass
+                ctx2.beginPath();
+                ctx2.arc(0, diskRadius, 4, 0, Math.PI*2);
+                ctx2.fillStyle = '#1e1b4b';
+                ctx2.fill();
+                
+                // Draw reference line to show rotation
+                ctx2.beginPath();
+                ctx2.moveTo(0, 0);
+                ctx2.lineTo(0, diskRadius*2);
+                ctx2.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx2.lineWidth = 2;
+                ctx2.stroke();
+                
+                ctx2.restore();
+                
+                // Draw Pivot Pin
+                ctx2.beginPath();
+                ctx2.arc(cx, pivotY, 6, 0, Math.PI*2);
+                ctx2.fillStyle = '#ef4444';
+                ctx2.fill();
+            }
+
+            // 3. Rolling Canvas
+            const c3 = document.getElementById('rolling-canvas');
+            if (c3) {
+                const ctx3 = c3.getContext('2d');
+                ctx3.clearRect(0, 0, c3.width, c3.height);
+                
+                const cy = 180;
+                const r = 40;
+                
+                // Oscillation back and forth
+                const amp = 200;
+                const x = c3.width/2 + amp * Math.cos(1.5 * time);
+                const rotation = x / r; // v = omega*r -> x = theta*r for rolling without slipping
+                
+                // Ground
+                ctx3.beginPath();
+                ctx3.moveTo(50, cy + r);
+                ctx3.lineTo(750, cy + r);
+                ctx3.strokeStyle = '#94a3b8';
+                ctx3.lineWidth = 4;
+                ctx3.stroke();
+
+                // Wall for spring
+                ctx3.fillStyle = '#334155';
+                ctx3.fillRect(30, cy - 60, 20, 120);
+
+                // Spring attaching to center of sphere
+                drawSpring(ctx3, 50, cy, x, cy, 10, 15);
+                
+                // Sphere
+                ctx3.save();
+                ctx3.translate(x, cy);
+                ctx3.rotate(rotation);
+                
+                ctx3.beginPath();
+                ctx3.arc(0, 0, r, 0, Math.PI*2);
+                
+                // Create a cool crystalline/gradient effect
+                const grad = ctx3.createRadialGradient(-10, -10, 5, 0, 0, r);
+                grad.addColorStop(0, '#67e8f9');
+                grad.addColorStop(1, '#0891b2');
+                ctx3.fillStyle = grad;
+                ctx3.fill();
+                ctx3.lineWidth = 2;
+                ctx3.strokeStyle = '#164e63';
+                ctx3.stroke();
+                
+                // Spokes to show rotation clearly
+                for(let i=0; i<4; i++) {
+                    ctx3.beginPath();
+                    ctx3.moveTo(0, 0);
+                    ctx3.lineTo(r * Math.cos(i * Math.PI/2), r * Math.sin(i * Math.PI/2));
+                    ctx3.strokeStyle = 'rgba(255,255,255,0.6)';
+                    ctx3.stroke();
+                }
+                
+                ctx3.restore();
+            }
+
+            // 4. Unicycle Canvas
+            const c4 = document.getElementById('unicycle-canvas');
+            if (c4) {
+                const ctx4 = c4.getContext('2d');
+                ctx4.clearRect(0, 0, c4.width, c4.height);
+                
+                const cy = 160;
+                const wheelR = 30;
+                
+                // Simulated forward movement and bump resonance
+                const speed = 150; // pixels per second
+                const virtualX = time * speed;
+                
+                // Seams in the pavement creating resonance
+                const seamSpacing = 100;
+                const bumpAmplitude = 10;
+                const suspensionFreq = (Math.PI * 2 * speed) / seamSpacing;
+                const bounce = bumpAmplitude * Math.abs(Math.sin(Math.PI * virtualX / seamSpacing));
+                
+                // Draw Pavement & Seams scrolling left
+                ctx4.beginPath();
+                ctx4.moveTo(0, cy + wheelR);
+                ctx4.lineTo(c4.width, cy + wheelR);
+                ctx4.lineWidth = 4;
+                ctx4.strokeStyle = '#475569';
+                ctx4.stroke();
+                
+                const offset = virtualX % seamSpacing;
+                ctx4.fillStyle = '#94a3b8';
+                for(let i = -1; i < 10; i++) {
+                    const seamX = i * seamSpacing - offset;
+                    ctx4.fillRect(seamX, cy + wheelR, 4, 15);
+                }
+                
+                // Draw Unicycle (Fixed X, bouncing Y)
+                const ux = c4.width / 2;
+                const uy = cy - bounce;
+                
+                // Wheel
+                ctx4.save();
+                ctx4.translate(ux, uy);
+                ctx4.rotate(virtualX / wheelR); // wheel rotation
+                ctx4.beginPath();
+                ctx4.arc(0, 0, wheelR, 0, Math.PI*2);
+                ctx4.strokeStyle = '#1e293b';
+                ctx4.lineWidth = 6;
+                ctx4.stroke();
+                // Spokes
+                for(let i=0; i<6; i++) {
+                    ctx4.beginPath();
+                    ctx4.moveTo(0, 0);
+                    ctx4.lineTo(wheelR, 0);
+                    ctx4.strokeStyle = '#64748b';
+                    ctx4.lineWidth = 2;
+                    ctx4.stroke();
+                    ctx4.rotate(Math.PI / 3);
+                }
+                ctx4.restore();
+                
+                // Frame & Spring
+                ctx4.beginPath();
+                ctx4.moveTo(ux, uy);
+                ctx4.lineTo(ux, uy - 40); // fork
+                ctx4.lineWidth = 4;
+                ctx4.strokeStyle = '#3b82f6';
+                ctx4.stroke();
+                
+                // Spring visually compresses
+                const springBase = uy - 40;
+                const springTop = uy - 80 + bounce*0.8;
+                drawSpring(ctx4, ux, springBase, ux, springTop, 4, 10);
+                
+                // Seat / Payload
+                ctx4.fillStyle = '#0f172a';
+                ctx4.fillRect(ux - 20, springTop - 10, 40, 10);
+                ctx4.beginPath();
+                ctx4.arc(ux, springTop - 25, 15, 0, Math.PI*2); // rider representation
+                ctx4.fillStyle = '#ef4444';
+                ctx4.fill();
+            }
+
+            requestAnimationFrame(renderAnimations);
+        }
+
+        // --- GRADING AND SUBMISSION ---
+        function submitExam() {
+            let score = 0;
+
+            questions.forEach(q => {
+                const card = document.getElementById(`card-${q.id}`);
+                const feedbackBox = document.getElementById(`feedback-${q.id}`);
+                feedbackBox.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800', 'bg-red-100', 'text-red-800');
+                
+                let studentAnswer = null;
+                let isCorrect = false;
+
+                if (q.type === 'radio') {
+                    const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+                    if (selected) {
+                        studentAnswer = selected.value;
+                        isCorrect = (studentAnswer === q.correct);
+                    }
+                } else if (q.type === 'number') {
+                    const input = document.getElementById(`input-${q.id}`);
+                    if (input.value !== '') {
+                        studentAnswer = parseFloat(input.value);
+                        // allow slight margin of error (e.g. 0.05)
+                        isCorrect = Math.abs(studentAnswer - parseFloat(q.correct)) < 0.05;
+                    }
+                }
+
+                q.studentAnswer = studentAnswer; // Save for download later
+
+                if (isCorrect) {
+                    score++;
+                    card.classList.add('border-2', 'border-emerald-400');
+                    feedbackBox.innerHTML = `<b>Correct!</b><br>Solution: ${q.solution}`;
+                    feedbackBox.classList.add('bg-emerald-100', 'text-emerald-800', 'block');
+                } else {
+                    card.classList.add('border-2', 'border-red-400');
+                    feedbackBox.innerHTML = `<b>Incorrect.</b> Your answer: ${studentAnswer || 'None'}<br>Correct Answer: ${q.correct}<br>Solution: ${q.solution}`;
+                    feedbackBox.classList.add('bg-red-100', 'text-red-800', 'block');
+                }
+                
+                // Format math in feedback
+                MathJax.typesetPromise([feedbackBox]);
+            });
+
+            // Show Score Screen
+            document.getElementById('score-display').innerText = `${score} / ${questions.length}`;
+            
+            // Generate Verification Code
+            const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let vcode = '';
+            for(let i=0; i<8; i++) {
+                if (i===4) vcode += '-';
+                vcode += charSet.charAt(Math.floor(Math.random() * charSet.length));
+            }
+            document.getElementById('verification-code').innerText = vcode;
+            
+            document.getElementById('score-overlay').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function closeOverlay() {
+            document.getElementById('score-overlay').classList.add('hidden');
+        }
+
+        // --- DOWNLOAD HTML EXPORT ---
+        function downloadStudyGuide() {
+            let docHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Study Guide - Ch 15 Exam</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 20px; color: #333; }
+                    h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+                    .question { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+                    .correct-ans { color: #059669; font-weight: bold; }
+                    .student-ans { color: #dc2626; }
+                    .solution { margin-top: 15px; background: #e0f2fe; padding: 15px; border-left: 4px solid #0284c7; }
+                </style>
+                <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
+            </head>
+            <body>
+                <h1>Ch 15 Exam - Study Guide</h1>
+                <p>Verification Code: <strong>${document.getElementById('verification-code').innerText}</strong></p>
+                <p>Score: <strong>${document.getElementById('score-display').innerText}</strong></p>
+                <hr>
+            `;
+
+            questions.forEach(q => {
+                docHtml += `
+                <div class="question">
+                    <h3>Question ${q.num}</h3>
+                    <p>${q.text}</p>
+                    <p><strong>Your Answer:</strong> <span class="student-ans">${q.studentAnswer || 'Skipped'}</span></p>
+                    <p><strong>Correct Answer:</strong> <span class="correct-ans">${q.correct}</span></p>
+                    <div class="solution">
+                        <strong>Explanation:</strong> ${q.solution}
+                    </div>
+                </div>`;
+            });
+
+            docHtml += `</body></html>`;
+
+            const blob = new Blob([docHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Ch15_Exam_Study_Guide.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- INIT ---
+        window.onload = () => {
+            generateQuestions();
+            renderQuiz();
+            
+            // Run MathJax after rendering HTML
+            MathJax.typesetPromise().then(() => {
+                // Start animations once layout is set
+                renderAnimations();
+            });
+        };
+    </script>
+</body>
+</html>
