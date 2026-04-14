@@ -55,7 +55,7 @@
             <h2 class="text-3xl font-bold text-indigo-900 mb-2">Exam Submitted</h2>
             <p class="text-slate-500 mb-6" id="test-name-display">Ch 15 Exam: Interactive Oscillators</p>
             
-            <div class="text-6xl font-black text-emerald-500 mb-4" id="score-display">--/--</div>
+            <div class="text-6xl font-black text-emerald-500 mb-4" id="score-display">-- / 100 pts</div>
             
             <div class="bg-slate-100 p-4 rounded-lg mb-8">
                 <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Verification Code</p>
@@ -198,6 +198,7 @@
                 solution: `The period is $T = 2\\pi\\sqrt{\\frac{m}{k_{eff}}}$. Since $k_{eff} = \\frac{k}{${numSprings}}$, substituting this in gives $T = 2\\pi\\sqrt{\\frac{${numSprings}m}{k}}$.`
             });
 
+            // Tunnel Through Planet Block
             questions.push({
                 id: 'q8', num: 8, type: 'radio',
                 text: `A straight, frictionless tunnel is drilled directly through the center of the Clockwork Planet of Chronis (assume it is a uniform solid sphere of mass $M$ and radius $R$). A maintenance worker drops a wrench of mass $m$ into the hole from the surface. <br><br>Using Newton's Law of Universal Gravitation for the interior of a uniform sphere ($F_g = -\\frac{GMm}{R^3}r$), which of the following is the correct differential equation for the radial position $r$ of the wrench?`,
@@ -224,7 +225,33 @@
                 solution: `The differential equation is of the form $a = -\\omega^2 r$. By comparison, $\\omega^2 = \\frac{GM}{R^3}$, so $\\omega = \\sqrt{\\frac{GM}{R^3}}$. The period is $T = \\frac{2\\pi}{\\omega} = 2\\pi\\sqrt{\\frac{R^3}{GM}}$.`
             });
 
-            // Constants for Q10 & Q12 calculations
+            questions.push({
+                id: 'q10', num: 10, type: 'radio',
+                text: `If you express the mass $M$ of the planet in terms of its uniform density $\\rho$ and volume $V = \\frac{4}{3}\\pi R^3$, what is the differential equation for the radial position $r$ of the wrench?`,
+                options: [
+                    `$-\\frac{4}{3}\\pi G \\rho r = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{3}{4}\\pi G \\rho r = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{4\\pi G \\rho}{3R} r = \\frac{d^2r}{dt^2}$`,
+                    `$-\\frac{G \\rho}{R^3} r = \\frac{d^2r}{dt^2}$`
+                ],
+                correct: `$-\\frac{4}{3}\\pi G \\rho r = \\frac{d^2r}{dt^2}$`,
+                solution: `Substituting $M = \\rho \\frac{4}{3}\\pi R^3$ into $-\\frac{GM}{R^3}r = \\frac{d^2r}{dt^2}$ gives $-\\frac{G (\\rho \\frac{4}{3}\\pi R^3)}{R^3}r = \\frac{d^2r}{dt^2}$. The $R^3$ terms cancel, leaving $-\\frac{4}{3}\\pi G \\rho r = \\frac{d^2r}{dt^2}$.`
+            });
+
+            questions.push({
+                id: 'q11', num: 11, type: 'radio',
+                text: `Based on the density-dependent differential equation from the previous question, what is the theoretical period $T$ of oscillation?`,
+                options: [
+                    `$\\sqrt{\\frac{3\\pi}{G\\rho}}$`,
+                    `$\\sqrt{\\frac{4\\pi}{3G\\rho}}$`,
+                    `$2\\pi\\sqrt{\\frac{3G\\rho}{4\\pi}}$`,
+                    `$\\frac{2\\pi}{G\\rho}$`
+                ],
+                correct: `$\\sqrt{\\frac{3\\pi}{G\\rho}}$`,
+                solution: `From $a = -\\omega^2 r$, we identify $\\omega^2 = \\frac{4}{3}\\pi G \\rho$, so $\\omega = \\sqrt{\\frac{4}{3}\\pi G \\rho}$. The period is $T = \\frac{2\\pi}{\\omega} = 2\\pi \\sqrt{\\frac{3}{4\\pi G \\rho}} = \\sqrt{\\frac{3\\pi}{G\\rho}}$.`
+            });
+
+            // Constants for Q12 & Q14 calculations
             const chronisRadius = 6.37e6; 
             const chronisMass = 5.97e24; 
             const G = 6.674e-11;
@@ -232,15 +259,16 @@
             const tunnelFallMinutes = (tunnelPeriodSeconds / 2) / 60; // Time to fall exactly to the other side
             
             questions.push({
-                id: 'q10', num: 10, type: 'number',
+                id: 'q12', num: 12, type: 'number',
                 unit: 'minutes',
+                leeway: 2.0, // +/- 2 minutes leeway
                 text: `Assume the Clockwork Planet of Chronis has the same radius as Earth ($R = 6.37 \\times 10^6 \\text{ m}$) and mass $M = 5.97 \\times 10^{24} \\text{ kg}$. How many <b>minutes</b> will it take for the wrench to travel from the surface, through the center, to the exact opposite side of the planet? (Enter your answer to one decimal place). <br><br><i>Note: $G = 6.674 \\times 10^{-11} \\text{ m}^3/(\\text{kg}\\cdot\\text{s}^2)$</i>.`,
                 correct: tunnelFallMinutes.toFixed(1),
-                solution: `The time to reach the opposite side is exactly half of the full period $T$. Half-period $t = \\frac{1}{2} \\left( 2\\pi\\sqrt{\\frac{R^3}{GM}} \\right) = \\pi\\sqrt{\\frac{(6.37 \\times 10^6)^3}{(6.674 \\times 10^{-11})(5.97 \\times 10^{24})}} \\approx 2532 \\text{ seconds}$. Dividing by 60 gives approximately ${tunnelFallMinutes.toFixed(1)} \\text{ minutes}$.`
+                solution: `The time to reach the opposite side is exactly half of the full period $T$. Half-period $t = \\frac{1}{2} \\left( 2\\pi\\sqrt{\\frac{R^3}{GM}} \\right) = \\pi\\sqrt{\\frac{(6.37 \\times 10^6)^3}{(6.674 \\times 10^{-11})(5.97 \\times 10^{24})}} \\approx 2532 \\text{ seconds}$. Dividing by 60 gives approximately <b>${tunnelFallMinutes.toFixed(1)} minutes</b>.`
             });
 
             questions.push({
-                id: 'q11', num: 11, type: 'radio',
+                id: 'q13', num: 13, type: 'radio',
                 text: `When the wrench passes through the exact center of the Planet Chronis, which of the following statements is true regarding its acceleration and velocity?`,
                 options: [
                     `Acceleration is zero, and velocity is at its maximum magnitude.`,
@@ -255,16 +283,16 @@
             const maxTunnelVelocity = Math.sqrt((G * chronisMass) / chronisRadius);
 
             questions.push({
-                id: 'q12', num: 12, type: 'number',
+                id: 'q14', num: 14, type: 'number',
                 unit: 'm/s',
-                text: `Calculate the maximum speed (in m/s) the wrench reaches as it passes through the center of Chronis. (Use the mass and radius given in Question 10. Enter your answer to the nearest whole number).`,
+                text: `Calculate the maximum speed (in m/s) the wrench reaches as it passes through the center of Chronis. (Use the mass and radius given in Question 12. Enter your answer to the nearest whole number).`,
                 correct: Math.round(maxTunnelVelocity).toString(),
                 solution: `Maximum velocity for a simple harmonic oscillator is $v_{max} = \\omega x_{max}$. Here, $x_{max}$ is the amplitude (the radius $R$), and $\\omega = \\sqrt{\\frac{GM}{R^3}}$. So $v_{max} = R \\sqrt{\\frac{GM}{R^3}} = \\sqrt{\\frac{GM}{R}}$. Plugging in the values gives $v_{max} \\approx ${Math.round(maxTunnelVelocity)} \\text{ m/s}$.`
             });
 
-            // Q13-18 Block (Disk Pendulum)
+            // Q15-16 Block (Disk Pendulum)
             questions.push({
-                id: 'q13', num: 13, type: 'radio',
+                id: 'q15', num: 15, type: 'radio',
                 canvasId: 'disk-canvas',
                 text: `For the second timepiece, you discover a physical pendulum. The original pendulum stick has been destroyed and replaced by a <b>uniform solid disk</b> of mass $m$ and radius $r$. The disk is pivoted to swing freely around a pin located exactly at its <b>top edge</b>.<br><br>The moment of inertia of a disk around its center of mass is $I_{cm} = \\frac{1}{2}mr^2$. Using the parallel axis theorem, what is the moment of inertia $I_{edge}$ around the pivot?`,
                 options: [
@@ -278,16 +306,16 @@
             });
 
             questions.push({
-                id: 'q18', num: 18, type: 'number',
+                id: 'q16', num: 16, type: 'number',
                 unit: 'meters',
                 text: `To calibrate the disk pendulum properly so that causality doesn't cease, it must have a period of exactly <b>${targetPeriod.toFixed(1)} seconds</b>. <br><br>Assuming standard gravity ($g = 9.80 \\text{ m/s}^2$), what must be the <b>radius $r$</b> of the disk in meters? (Enter your answer to two decimal places).`,
                 correct: correctDiskRadius,
                 solution: `The period of a physical pendulum is $T = 2\\pi\\sqrt{\\frac{I}{mgd_{cm}}}$. We know $I = \\frac{3}{2}mr^2$ and $d_{cm} = r$. Substituting gives $T = 2\\pi\\sqrt{\\frac{\\frac{3}{2}mr^2}{mgr}} = 2\\pi\\sqrt{\\frac{3r}{2g}}$. Solving for $r$: $r = \\frac{gT^2}{6\\pi^2}$. With $T=${targetPeriod}$ and $g=9.8$, $r \\approx ${correctDiskRadius} \\text{ m}$.`
             });
 
-            // Q19-23 Block (Rolling Spheres)
+            // Q17-21 Block (Rolling Spheres)
             questions.push({
-                id: 'q19', num: 19, type: 'radio',
+                id: 'q17', num: 17, type: 'radio',
                 canvasId: 'rolling-canvas',
                 text: `The third timepiece involves a solid crystalline sphere attached to a horizontal spring of constant $k$. A sphere of mass $M$ and radius $R$ is rolling back and forth without slipping on a horizontal surface, acting as an oscillator. <br><br>When the sphere is rolling, what fraction of its total kinetic energy is rotational kinetic energy? (Recall $I_{sphere} = \\frac{2}{5}MR^2$)`,
                 options: [
@@ -301,7 +329,7 @@
             });
 
             questions.push({
-                id: 'q20', num: 20, type: 'radio',
+                id: 'q18', num: 18, type: 'radio',
                 text: `Using conservation of energy or Newton's laws, which of the following is the correct differential equation for the motion of the center of mass of the rolling sphere oscillator?`,
                 options: [
                     `$-\\frac{5k}{7M}x = \\frac{d^2x}{dt^2}$`,
@@ -314,7 +342,7 @@
             });
 
             questions.push({
-                id: 'q21', num: 21, type: 'radio',
+                id: 'q19', num: 19, type: 'radio',
                 text: `Based on the differential equation from the previous question, what is the theoretical period $T$ of this rolling oscillator?`,
                 options: [
                     `$2\\pi\\sqrt{\\frac{7M}{5k}}$`,
@@ -327,7 +355,7 @@
             });
 
             questions.push({
-                id: 'q22', num: 22, type: 'radio',
+                id: 'q20', num: 20, type: 'radio',
                 text: `How does the period of the rolling sphere compare to the period it would have if the surface were completely frictionless and it only slid back and forth without rolling?`,
                 options: [
                     `It is longer by a factor of $\\sqrt{7/5}$`,
@@ -340,7 +368,7 @@
             });
 
             questions.push({
-                id: 'q23', num: 23, type: 'radio',
+                id: 'q21', num: 21, type: 'radio',
                 text: `The period of the oscillator must be exactly three seconds but there are five solid crystalline spheres lying in disarray. Their masses are 3 kg, 5 kg, 6 kg, 7 kg and 8 kg. Which one should you use to fix the Oscillator of Fate? The radius of each sphere is 0.25 meters but you might not need to use radius in your decision.<br><br>Assume the spring constant of the mechanism is calibrated to exactly <b>${sphereK.toFixed(2)} N/m</b>.`,
                 options: [
                     `3 kg`,
@@ -353,9 +381,9 @@
                 solution: `We know $T = 3 \\text{ s}$ and $T = 2\\pi\\sqrt{\\frac{7M}{5k}}$. Squaring both sides: $T^2 = 4\\pi^2 \\frac{7M}{5k}$. Solving for mass $M$: $M = \\frac{5k T^2}{28\\pi^2}$. Plugging in $k = ${sphereK.toFixed(2)}$ and $T = 3$, we find $M = ${correctSphereMass} \\text{ kg}$.`
             });
 
-            // Q24 Block (Unicycle)
+            // Q22 Block (Unicycle)
             questions.push({
-                id: 'q24', num: 24, type: 'radio',
+                id: 'q22', num: 22, type: 'radio',
                 canvasId: 'unicycle-canvas',
                 text: `On the Planet Chronis, the most popular transportation is the gyro stabilized powered unicycle. The main expressway is constructed out of pavement slabs with seams that are <b>${uniDistance} meters apart</b>. <br><br>You find that when you ride your powered unicycle at <b>${uniVelocity} m/s</b> on the expressway, it develops noticeable resonance vibrations. If the payload of the single suspension spring at this time is <b>${uniMass} kg</b>, then the spring constant $k$ of the unicycle’s suspension is closest to which of the following?`,
                 options: [
@@ -710,8 +738,9 @@
                     const input = document.getElementById(`input-${q.id}`);
                     if (input.value !== '') {
                         studentAnswer = parseFloat(input.value);
-                        // allow slight margin of error (e.g. 0.05)
-                        isCorrect = Math.abs(studentAnswer - parseFloat(q.correct)) < 0.05;
+                        // Apply custom leeway if exists, else default to 0.05
+                        const leeway = q.leeway !== undefined ? q.leeway : 0.05;
+                        isCorrect = Math.abs(studentAnswer - parseFloat(q.correct)) <= leeway;
                     }
                 }
 
@@ -727,13 +756,17 @@
                     feedbackBox.innerHTML = `<b>Incorrect.</b> Your answer: ${studentAnswer || 'None'}<br>Correct Answer: ${q.correct}<br>Solution: ${q.solution}`;
                     feedbackBox.classList.add('bg-red-100', 'text-red-800', 'block');
                 }
-                
-                // Format math in feedback
-                MathJax.typesetPromise([feedbackBox]);
             });
 
+            // Perform MathJax rendering safely across all revealed feedback boxes at once
+            MathJax.typesetPromise();
+
+            // Calculate percentage based on 100 points
+            const totalPoints = 100;
+            const scaledScore = Math.round((score / questions.length) * totalPoints);
+
             // Show Score Screen
-            document.getElementById('score-display').innerText = `${score} / ${questions.length}`;
+            document.getElementById('score-display').innerText = `${scaledScore} / 100 pts`;
             
             // Generate Verification Code
             const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -768,6 +801,11 @@
                     .student-ans { color: #dc2626; }
                     .solution { margin-top: 15px; background: #e0f2fe; padding: 15px; border-left: 4px solid #0284c7; }
                 </style>
+                <script>
+                    MathJax = {
+                        tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] }
+                    };
+                <\/script>
                 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script>
             </head>
             <body>
