@@ -45,8 +45,11 @@
                     <select id="mat1-select" class="w-full bg-white border border-slate-300 text-slate-700 py-2 px-3 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium">
                         <option value="1.00">Air (1.00)</option>
                         <option value="1.33">Water (1.33)</option>
+                        <option value="1.47">Vegetable Oil (1.47)</option>
                         <option value="1.50">Glass (1.50)</option>
                         <option value="1.60">Material X (1.60)</option>
+                        <option value="1.77">Sapphire (1.77)</option>
+                        <option value="2.42">Diamond (2.42)</option>
                     </select>
                 </div>
                 <div class="flex-1 bg-slate-50 p-3 rounded border border-slate-200">
@@ -54,8 +57,11 @@
                     <select id="mat2-select" class="w-full bg-white border border-slate-300 text-slate-700 py-2 px-3 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium">
                         <option value="1.00">Air (1.00)</option>
                         <option value="1.33" selected>Water (1.33)</option>
+                        <option value="1.47">Vegetable Oil (1.47)</option>
                         <option value="1.50">Glass (1.50)</option>
                         <option value="1.60">Material X (1.60)</option>
+                        <option value="1.77">Sapphire (1.77)</option>
+                        <option value="2.42">Diamond (2.42)</option>
                         <option value="mystery" id="mystery-option">Mystery Substance</option>
                     </select>
                 </div>
@@ -166,6 +172,25 @@
         let corrections = 0;
         let mistakesOnCurrent = 0;
 
+        // Randomize materials for steps 2, 3, and 4 to ensure unique progression
+        const materialPool = [
+            { name: "Vegetable Oil", n: 1.47 },
+            { name: "Glass", n: 1.50 },
+            { name: "Material X", n: 1.60 },
+            { name: "Sapphire", n: 1.77 },
+            { name: "Diamond", n: 2.42 }
+        ];
+        
+        // Shuffle the pool to pick 3 distinct materials
+        for (let i = materialPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [materialPool[i], materialPool[j]] = [materialPool[j], materialPool[i]];
+        }
+        
+        const step2Mat = materialPool[0];
+        const step3Mat = materialPool[1];
+        const step4Mat = materialPool[2];
+
         const questions = [
             {
                 title: "Step 1: Slopes & Indices",
@@ -181,30 +206,42 @@
             },
             {
                 title: "Step 2: Different Material",
-                instructions: "Change n₂ to 1.50 (Glass). What would be the slope of the sin(θ₁) vs sin(θ₂) graph for this material?",
+                instructions: `Change n₂ to ${step2Mat.n.toFixed(2)} (${step2Mat.name}). What would be the slope of the sin(θ₁) vs sin(θ₂) graph for this material?`,
                 inputType: "number",
-                correctAnswer: 1.50,
+                correctAnswer: step2Mat.n,
                 tolerance: 0.05,
                 hints: [
                     "Hint 1: Use the same method as before. Notice how the index of the bottom material relates to the slope when the top material is 1.00.",
                     "Hint 2: The slope of the graph is equal to n₂ / n₁. Since n₁ is 1.00, the slope is just n₂.",
-                    "Hint 3: The index of refraction for glass is exactly 1.50, so the slope is 1.50."
+                    `Hint 3: The index of refraction for ${step2Mat.name} is exactly ${step2Mat.n.toFixed(2)}, so the slope is ${step2Mat.n.toFixed(2)}.`
                 ]
             },
             {
-                title: "Step 3: Material X",
-                instructions: "Change n₂ to Material X (1.60). What is the slope of its graph?",
+                title: "Step 3: Keep Testing",
+                instructions: `Change n₂ to ${step3Mat.n.toFixed(2)} (${step3Mat.name}). What is the slope of its graph?`,
                 inputType: "number",
-                correctAnswer: 1.60,
+                correctAnswer: step3Mat.n,
                 tolerance: 0.05,
                 hints: [
                     "Hint 1: You should see the pattern by now. The slope depends directly on the index of refraction of the bottom material when the top is Air.",
-                    "Hint 2: The bottom material is Material X with n = 1.60.",
-                    "Hint 3: The slope is exactly 1.60."
+                    `Hint 2: The bottom material is ${step3Mat.name} with n = ${step3Mat.n.toFixed(2)}.`,
+                    `Hint 3: The slope is exactly ${step3Mat.n.toFixed(2)}.`
                 ]
             },
             {
-                title: "Step 4: The General Equation",
+                title: "Step 4: One More Material",
+                instructions: `Change n₂ to ${step4Mat.n.toFixed(2)} (${step4Mat.name}). Calculate the slope.`,
+                inputType: "number",
+                correctAnswer: step4Mat.n,
+                tolerance: 0.05,
+                hints: [
+                    "Hint 1: Apply the exact same logic as the previous steps.",
+                    `Hint 2: Look at the index of refraction for ${step4Mat.name}.`,
+                    `Hint 3: The slope is exactly ${step4Mat.n.toFixed(2)}.`
+                ]
+            },
+            {
+                title: "Step 5: The General Equation",
                 instructions: "Based on your slope data (m = n₂/n₁ = sin(θ₁)/sin(θ₂)), which equation universally matches the relationship between the indices of refraction and the angles?",
                 inputType: "select",
                 options: [
@@ -221,7 +258,7 @@
                 ]
             },
             {
-                title: "Step 5: Total Internal Reflection",
+                title: "Step 6: Total Internal Reflection",
                 instructions: "Change n₁ to 1.50 (Glass) and n₂ to 1.00 (Air). Slowly increase the incident angle (θ₁). At what exact angle does light NO LONGER pass through the interface (the refracted ray disappears)? This is the Critical Angle.",
                 inputType: "number",
                 correctAnswer: 41.8,
@@ -233,7 +270,7 @@
                 ]
             },
             {
-                title: "Step 6: Mystery Substance",
+                title: "Step 7: Mystery Substance",
                 instructions: "Change n₁ back to 1.00 (Air). Change n₂ to the 'Mystery Substance'. Take measurements of θ₁ and θ₂ using the protractor. Use Snell's Law to calculate the index of refraction (n) of this unique mystery substance.",
                 inputType: "number",
                 correctAnswer: parseFloat(mysteryN),
@@ -415,7 +452,7 @@
             if (Math.abs(sinTheta2) > 1.0) {
                 return null; // Total Internal Reflection
             }
-            return Math.asin(sinTheta2);
+            return Math.asin(sinTheta2); // Math.asin preserves the sign!
         }
 
         function draw() {
@@ -423,14 +460,24 @@
 
             // 1. Draw Mediums
             // Top Medium (Air/Glass)
-            ctx.fillStyle = n1 === 1.0 ? '#f8fafc' : '#e0f2fe'; // Air is whiteish, glass/water tinted
+            if (n1 === 1.0) ctx.fillStyle = '#f8fafc';
+            else if (n1 === 1.33) ctx.fillStyle = '#bae6fd'; // Water
+            else if (n1 === 1.47) ctx.fillStyle = '#fef08a'; // Oil
+            else if (n1 === 1.50) ctx.fillStyle = '#7dd3fc'; // Glass
+            else if (n1 === 1.60) ctx.fillStyle = '#38bdf8'; // Material X
+            else if (n1 === 1.77) ctx.fillStyle = '#c7d2fe'; // Sapphire
+            else if (n1 === 2.42) ctx.fillStyle = '#e2e8f0'; // Diamond
+            else ctx.fillStyle = '#e0f2fe'; // Default Fallback
             ctx.fillRect(0, 0, width, cy);
             
             // Bottom Medium
             if (n2 === 1.0) ctx.fillStyle = '#f8fafc';
             else if (n2 === 1.33) ctx.fillStyle = '#bae6fd'; // Water
+            else if (n2 === 1.47) ctx.fillStyle = '#fef08a'; // Oil
             else if (n2 === 1.50) ctx.fillStyle = '#7dd3fc'; // Glass
             else if (n2 === 1.60) ctx.fillStyle = '#38bdf8'; // Material X
+            else if (n2 === 1.77) ctx.fillStyle = '#c7d2fe'; // Sapphire
+            else if (n2 === 2.42) ctx.fillStyle = '#e2e8f0'; // Diamond
             else ctx.fillStyle = '#c4b5fd'; // Mystery (Purple tint)
             ctx.fillRect(0, cy, width, cy);
 
@@ -477,8 +524,9 @@
             if (theta2 !== null) {
                 ctx.beginPath();
                 ctx.moveTo(cx, cy);
-                // Refracted angle is relative to negative y-axis
-                const refrX = cx + width * Math.sin(theta2) * Math.sign(Math.sin(incidentAngle));
+                // The angle theta2 already contains the sign natively, no need to force multiply it
+                // This allows the refracted beam to cleanly traverse correctly through the quadrants!
+                const refrX = cx + width * Math.sin(theta2); 
                 const refrY = cy + height * Math.cos(theta2);
                 ctx.lineTo(refrX, refrY);
                 ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
