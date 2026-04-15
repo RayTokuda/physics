@@ -152,7 +152,7 @@
             x: cx + 150,
             y: cy - 150,
             angle: 0,
-            radius: 120,
+            radius: 180, // Increased from 120
             isDraggingCenter: false,
             isDraggingEdge: false
         };
@@ -588,7 +588,7 @@
             ctx.fillStyle = '#1e293b';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.font = '10px sans-serif';
+            ctx.font = '12px sans-serif'; // Increased font size
 
             for (let deg = 0; deg < 360; deg++) {
                 ctx.save();
@@ -598,7 +598,7 @@
                 if (deg % 10 === 0) {
                     // Major tick
                     ctx.moveTo(0, -protractor.radius);
-                    ctx.lineTo(0, -protractor.radius + 15);
+                    ctx.lineTo(0, -protractor.radius + 20); // Longer tick
                     ctx.lineWidth = 2;
                     
                     // Generate label based on dual orientation
@@ -616,17 +616,17 @@
                     }
                     
                     if (label !== "") {
-                        ctx.fillText(label, 0, -protractor.radius + 25);
+                        ctx.fillText(label, 0, -protractor.radius + 32); // Adjusted text placement
                     }
                 } else if (deg % 5 === 0) {
                     // Medium tick
                     ctx.moveTo(0, -protractor.radius);
-                    ctx.lineTo(0, -protractor.radius + 10);
+                    ctx.lineTo(0, -protractor.radius + 15); // Longer tick
                     ctx.lineWidth = 1.5;
                 } else {
                     // Minor tick
                     ctx.moveTo(0, -protractor.radius);
-                    ctx.lineTo(0, -protractor.radius + 5);
+                    ctx.lineTo(0, -protractor.radius + 8); // Longer tick
                     ctx.lineWidth = 0.5;
                 }
                 ctx.stroke();
