@@ -181,7 +181,7 @@
             { name: "Diamond", n: 2.42 }
         ];
         
-        // Shuffle the pool to pick 3 distinct materials
+        // Shuffle the pool to pick 4 distinct materials (for steps 2, 3, 4, and 6)
         for (let i = materialPool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [materialPool[i], materialPool[j]] = [materialPool[j], materialPool[i]];
@@ -190,6 +190,8 @@
         const step2Mat = materialPool[0];
         const step3Mat = materialPool[1];
         const step4Mat = materialPool[2];
+        const step6Mat = materialPool[3];
+        const step6CritAngle = (Math.asin(1.00 / step6Mat.n) * 180 / Math.PI).toFixed(1);
 
         const questions = [
             {
@@ -259,19 +261,19 @@
             },
             {
                 title: "Step 6: Total Internal Reflection",
-                instructions: "Change n₁ to 1.50 (Glass) and n₂ to 1.00 (Air). Slowly increase the incident angle (θ₁). At what exact angle does light NO LONGER pass through the interface (the refracted ray disappears)? This is the Critical Angle.",
+                instructions: `Change n₁ to ${step6Mat.n.toFixed(2)} (${step6Mat.name}) and n₂ to 1.00 (Air). Slowly increase the incident angle (θ₁). At what exact angle does light NO LONGER pass through the interface (the refracted ray disappears)? This is the Critical Angle.`,
                 inputType: "number",
-                correctAnswer: 41.8,
+                correctAnswer: parseFloat(step6CritAngle),
                 tolerance: 1.5,
                 hints: [
-                    "Hint 1: Make sure the top is Glass and bottom is Air. Drag the laser downwards toward the interface until the refracted ray in the bottom medium vanishes.",
+                    `Hint 1: Make sure the top is ${step6Mat.name} and bottom is Air. Drag the laser downwards toward the interface until the refracted ray in the bottom medium vanishes.`,
                     "Hint 2: The critical angle occurs when the refracted angle (θ₂) reaches exactly 90 degrees.",
-                    "Hint 3: Use Snell's Law: 1.50 · sin(θc) = 1.00 · sin(90°). Since sin(90°) = 1, θc = arcsin(1 / 1.50) which is approximately 41.8°."
+                    `Hint 3: Use Snell's Law: ${step6Mat.n.toFixed(2)} · sin(θc) = 1.00 · sin(90°). Since sin(90°) = 1, θc = arcsin(1 / ${step6Mat.n.toFixed(2)}) which is approximately ${step6CritAngle}°.`
                 ]
             },
             {
                 title: "Step 7: Mystery Substance",
-                instructions: "Change n₁ back to 1.00 (Air). Change n₂ to the 'Mystery Substance'. Take measurements of θ₁ and θ₂ using the protractor. Use Snell's Law to calculate the index of refraction (n) of this unique mystery substance.",
+                instructions: "Change n₁ back to 1.00 (Air). Change n₂ to the 'Mystery Substance'. Take measurements of θ₁ and θ₂ using the protractor. Use Snell's Law (n₁ · sin(θ₁) = n₂ · sin(θ₂)) to calculate the index of refraction (n) of this unique mystery substance.",
                 inputType: "number",
                 correctAnswer: parseFloat(mysteryN),
                 tolerance: 0.05,
