@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bending Light Virtual Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { touch-action: none; } /* Prevent scrolling while dragging on canvas */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Custom styled select */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right .7rem top 50%;
+            background-size: .65rem auto;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col">
+
+    <header class="bg-blue-900 text-white p-4 shadow-md flex justify-between items-center z-10">
+        <h1 class="text-2xl font-bold tracking-wide">Bending Light Virtual Lab</h1>
+        <div class="text-sm opacity-80" id="header-subtitle">Interactive Physics Simulation</div>
+    </header>
+
+    <main class="flex-grow flex flex-col lg:flex-row p-4 gap-6 max-w-screen-2xl mx-auto w-full relative">
+        
+        <!-- Confetti Canvas (Overlay) -->
+        <canvas id="confetti-canvas" class="absolute inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+        <!-- Left Column: Simulation Canvas -->
+        <div class="flex-grow flex flex-col items-center justify-start bg-white p-4 rounded-xl shadow-lg border border-slate-200">
+            <div class="flex w-full justify-between mb-4 gap-4">
+                <div class="flex-1 bg-slate-50 p-3 rounded border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Top Material (n₁)</label>
+                    <select id="mat1-select" class="w-full bg-white border border-slate-300 text-slate-700 py-2 px-3 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="flex-1 bg-slate-50 p-3 rounded border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Bottom Material (n₂)</label>
+                    <select id="mat2-select" class="w-full bg-white border border-slate-300 text-slate-700 py-2 px-3 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="relative rounded-lg overflow-hidden border-2 border-slate-800 shadow-inner" style="width: 600px; height: 600px;">
+                <canvas id="sim-canvas" width="600" height="600" class="cursor-crosshair w-full h-full"></canvas>
+                <div class="absolute bottom-2 left-2 bg-white/80 px-2 py-1 rounded text-xs font-mono pointer-events-none text-slate-600 border border-slate-300">
+                    Protractor: Drag center to move, drag edge to rotate.
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Lab Questions & Steps -->
+        <div class="w-full lg:w-[450px] flex flex-col gap-4">
+            
+            <div id="activity-panel" class="bg-white rounded-xl shadow-lg border border-slate-200 p-6 flex flex-col h-full relative overflow-hidden transition-all duration-300">
+                <div class="mb-4 flex justify-between items-end">
+                    <div>
+                        <h2 id="panel-title" class="text-xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 inline-block">Lab Activity</h2>
+                        <p class="text-sm text-slate-500 mt-2">Follow the instructions and enter your findings. Precision matters!</p>
+                    </div>
+                </div>
+
+                <!-- Reference Chart for Identification Mode -->
+                <div id="ref-chart-container" class="mb-4 bg-slate-50 border border-slate-200 rounded-lg p-3 hidden text-sm fade-in shadow-inner">
+                    <div class="font-bold text-slate-700 mb-2 uppercase tracking-wider text-xs border-b pb-1">Indices of Refraction Reference</div>
+                    <div id="ref-chart-grid" class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 font-mono">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div id="question-container" class="flex-grow flex flex-col gap-4 fade-in">
+                    <!-- Dynamic Question Content Inject Here -->
+                </div>
+
+                <div id="hint-container" class="mt-4 p-4 rounded-lg bg-orange-50 border border-orange-200 text-orange-800 text-sm hidden fade-in">
+                    <div class="font-bold flex items-center gap-2 mb-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                        Hint
+                    </div>
+                    <div id="hint-text"></div>
+                </div>
+
+                <button id="submit-btn" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors active:scale-95">
+                    Submit Answer
+                </button>
+            </div>
+
+            <!-- Win Screen (Hidden initially) -->
+            <div id="win-screen" class="hidden bg-white rounded-xl shadow-2xl border-2 border-green-500 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 id="win-message" class="text-2xl font-bold text-slate-800 mb-2">Excellent Work!</h2>
+                
+                <div class="bg-slate-50 w-full p-6 rounded-lg border border-slate-200 my-6 shadow-inner">
+                    <div class="text-5xl font-black text-blue-600 mb-1" id="final-score">20/15</div>
+                    <div class="text-sm font-bold text-slate-500 uppercase tracking-widest">Total Points</div>
+                    
+                    <div class="mt-6 pt-6 border-t border-slate-200">
+                        <div class="font-mono text-2xl font-bold text-slate-800 tracking-[0.2em]" id="verification-code">XYZ123</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider mt-1">Verification Code</div>
+                    </div>
+                </div>
+                
+                <div id="win-subtitle" class="text-xs text-slate-400 mb-6 font-semibold uppercase tracking-wider">Bending Light Virtual Lab</div>
+                
+                <p id="retry-message" class="text-sm text-slate-600 mb-4 hidden">You can do better! Would you like to try again to improve your score?</p>
+                <button id="retry-btn" class="hidden bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                    Try Again
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // ============================================================================
+        // CONFIGURATION TOGGLE - SET TO 'ORIGINAL' OR 'IDENTIFICATION'
+        // ============================================================================
+        const ACTIVITY_MODE = 'IDENTIFICATION'; 
+        
+        
+        // --- 1. CORE VARIABLES & STATE ---
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const cx = width / 2;
+        const cy = height / 2;
+
+        let n1 = 1.0;
+        let n2 = 1.33;
+        let isMysteryMedium2 = false; // Flags if the bottom medium is an unknown
+        
+        let incidentAngle = 45 * Math.PI / 180; // Default 45 degrees
+        let isDraggingLaser = false;
+
+        // Protractor State
+        let protractor = {
+            x: cx + 150,
+            y: cy - 150,
+            angle: 0,
+            radius: 180,
+            isDraggingCenter: false,
+            isDraggingEdge: false
+        };
+
+        // Material Data (Expanded for Identification Mode)
+        const ALL_MATERIALS = [
+            { name: "Air", n: 1.00, color: '#f8fafc' },
+            { name: "Ice", n: 1.31, color: '#e0f2fe' },
+            { name: "Water", n: 1.33, color: '#bae6fd' },
+            { name: "Fluorite", n: 1.43, color: '#ddd6fe' },
+            { name: "Vegetable Oil", n: 1.47, color: '#fef08a' },
+            { name: "Crown Glass", n: 1.52, color: '#93c5fd' },
+            { name: "Flint Glass", n: 1.66, color: '#cbd5e1' },
+            { name: "Sapphire", n: 1.77, color: '#c7d2fe' },
+            { name: "Zircon", n: 1.92, color: '#fed7aa' },
+            { name: "Diamond", n: 2.42, color: '#e2e8f0' }
+        ];
+
+        // Specific to Original Mode
+        const origMysteryN = parseFloat((Math.floor(Math.random() * 141) + 110) / 100).toFixed(2);
+
+        // Specific to Identify Mode
+        let identifyPool = [...ALL_MATERIALS].filter(m => m.name !== "Air"); // Exclude Air from mysteries
+        // Shuffle Pool
+        for (let i = identifyPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [identifyPool[i], identifyPool[j]] = [identifyPool[j], identifyPool[i]];
+        }
+        
+        const mystery1 = identifyPool[0];
+        const mystery2 = identifyPool[1];
+        const mystery3 = identifyPool[2];
+        const tirMat1 = identifyPool[3];
+        const tirMat2 = identifyPool[4];
+
+        // UI Elements
+        const mat1Select = document.getElementById('mat1-select');
+        const mat2Select = document.getElementById('mat2-select');
+        
+        function populateDropdowns() {
+            mat1Select.innerHTML = '';
+            mat2Select.innerHTML = '';
+
+            if (ACTIVITY_MODE === 'ORIGINAL') {
+                const standardOptions = [
+                    {val: "1.00", text: "Air (1.00)"}, {val: "1.33", text: "Water (1.33)"},
+                    {val: "1.47", text: "Vegetable Oil (1.47)"}, {val: "1.50", text: "Glass (1.50)"},
+                    {val: "1.60", text: "Material X (1.60)"}, {val: "1.77", text: "Sapphire (1.77)"},
+                    {val: "2.42", text: "Diamond (2.42)"}
+                ];
+                standardOptions.forEach(opt => {
+                    mat1Select.add(new Option(opt.text, opt.val));
+                    mat2Select.add(new Option(opt.text, opt.val));
+                });
+                mat2Select.add(new Option("Mystery Substance", "orig_mystery"));
+                mat2Select.value = "1.33";
+            } else {
+                // IDENTIFY MODE
+                ALL_MATERIALS.forEach(mat => {
+                    mat1Select.add(new Option(`${mat.name} (${mat.n.toFixed(2)})`, mat.n.toString()));
+                    mat2Select.add(new Option(`${mat.name} (${mat.n.toFixed(2)})`, mat.n.toString()));
+                });
+                
+                mat2Select.add(new Option("Mystery Substance 1", "id_mystery1"));
+                mat2Select.add(new Option("Mystery Substance 2", "id_mystery2"));
+                mat2Select.add(new Option("Mystery Substance 3", "id_mystery3"));
+                
+                mat2Select.value = "id_mystery1";
+                n2 = mystery1.n;
+                isMysteryMedium2 = true;
+            }
+        }
+
+        mat1Select.addEventListener('change', (e) => { n1 = parseFloat(e.target.value); draw(); });
+        mat2Select.addEventListener('change', (e) => { 
+            const val = e.target.value;
+            isMysteryMedium2 = false;
+
+            if (val === 'orig_mystery') {
+                n2 = parseFloat(origMysteryN);
+                isMysteryMedium2 = true;
+            } else if (val === 'id_mystery1') {
+                n2 = mystery1.n;
+                isMysteryMedium2 = true;
+            } else if (val === 'id_mystery2') {
+                n2 = mystery2.n;
+                isMysteryMedium2 = true;
+            } else if (val === 'id_mystery3') {
+                n2 = mystery3.n;
+                isMysteryMedium2 = true;
+            } else {
+                n2 = parseFloat(val);
+            }
+            draw(); 
+        });
+
+        // --- 2. LAB LOGIC & QUESTIONS ---
+        let currentQuestion = 0;
+        let corrections = 0;
+        let mistakesOnCurrent = 0;
+        let questions = [];
+
+        function buildQuestions() {
+            if (ACTIVITY_MODE === 'ORIGINAL') {
+                // Randomize materials for original steps 2, 3, 4, 6
+                const origPool = [
+                    { name: "Vegetable Oil", n: 1.47 }, { name: "Glass", n: 1.50 },
+                    { name: "Material X", n: 1.60 }, { name: "Sapphire", n: 1.77 }, { name: "Diamond", n: 2.42 }
+                ];
+                for (let i = origPool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [origPool[i], origPool[j]] = [origPool[j], origPool[i]];
+                }
+                const s2 = origPool[0], s3 = origPool[1], s4 = origPool[2], s6 = origPool[3];
+                const s6Crit = (Math.asin(1.00 / s6.n) * 180 / Math.PI).toFixed(1);
+
+                questions = [
+                    {
+                        title: "Step 1: Slopes & Indices",
+                        instructions: "Set n₁ to 1.00 (Air). Set n₂ to 1.33 (Water). Shine the laser at various angles. If you graph sin(θ₁) on the y-axis and sin(θ₂) on the x-axis, what is the exact slope of the line? (Measure angles relative to the normal line).",
+                        inputType: "number", correctAnswer: 1.33, tolerance: 0.05,
+                        hints: [
+                            "Hint 1: Graphing sin(θ₁) on the y-axis and sin(θ₂) on the x-axis gives a slope m = sin(θ₁)/sin(θ₂). Try setting the laser to a distinct angle, measuring the refracted angle, and calculating this ratio.",
+                            "Hint 2: Since n₁ is 1, the formula simplifies. The ratio sin(θ₁)/sin(θ₂) is directly equal to the index of refraction of the bottom material (n₂).",
+                            "Hint 3: The bottom material is water, which has an index of refraction of exactly 1.33. The slope is 1.33."
+                        ]
+                    },
+                    {
+                        title: "Step 2: Different Material",
+                        instructions: `Change n₂ to ${s2.n.toFixed(2)} (${s2.name}). What would be the slope of the sin(θ₁) vs sin(θ₂) graph for this material?`,
+                        inputType: "number", correctAnswer: s2.n, tolerance: 0.05,
+                        hints: ["Hint 1: Use the same method as before. Notice how the index of the bottom material relates to the slope.", "Hint 2: The slope of the graph is equal to n₂ / n₁.", `Hint 3: The slope is ${s2.n.toFixed(2)}.`]
+                    },
+                    {
+                        title: "Step 3: Keep Testing",
+                        instructions: `Change n₂ to ${s3.n.toFixed(2)} (${s3.name}). What is the slope of its graph?`,
+                        inputType: "number", correctAnswer: s3.n, tolerance: 0.05,
+                        hints: ["Hint 1: The slope depends directly on the index of refraction of the bottom material when the top is Air.", `Hint 2: The bottom material is ${s3.name}.`, `Hint 3: The slope is exactly ${s3.n.toFixed(2)}.`]
+                    },
+                    {
+                        title: "Step 4: One More Material",
+                        instructions: `Change n₂ to ${s4.n.toFixed(2)} (${s4.name}). Calculate the slope.`,
+                        inputType: "number", correctAnswer: s4.n, tolerance: 0.05,
+                        hints: ["Hint 1: Apply the exact same logic.", `Hint 2: Look at the index of refraction for ${s4.name}.`, `Hint 3: The slope is exactly ${s4.n.toFixed(2)}.`]
+                    },
+                    {
+                        title: "Step 5: The General Equation",
+                        instructions: "Based on your slope data (m = n₂/n₁ = sin(θ₁)/sin(θ₂)), which equation universally matches the relationship between the indices of refraction and the angles?",
+                        inputType: "select",
+                        options: [
+                            { text: "Select an equation...", value: "" }, { text: "n₁ / sin(θ₁) = n₂ / sin(θ₂)", value: "wrong1" },
+                            { text: "n₁ · sin(θ₁) = n₂ · sin(θ₂)", value: "correct" }, { text: "n₁ · sin(θ₂) = n₂ · sin(θ₁)", value: "wrong2" }
+                        ],
+                        correctAnswer: "correct",
+                        hints: ["Hint 1: If m = sin(θ₁)/sin(θ₂) and m = n₂/n₁, set them equal.", "Hint 2: Cross-multiply the equation to avoid fractions.", "Hint 3: The correct equation is Snell's Law: n₁ · sin(θ₁) = n₂ · sin(θ₂)."]
+                    },
+                    {
+                        title: "Step 6: Total Internal Reflection",
+                        instructions: `Change n₁ to ${s6.n.toFixed(2)} (${s6.name}) and n₂ to 1.00 (Air). Slowly increase the incident angle (θ₁). At what exact angle does light NO LONGER pass through the interface (the refracted ray disappears)? This is the Critical Angle.`,
+                        inputType: "number", correctAnswer: parseFloat(s6Crit), tolerance: 1.5,
+                        hints: [
+                            `Hint 1: Make sure the top is ${s6.name} and bottom is Air. Drag the laser downwards toward the interface until the refracted ray in the bottom medium vanishes.`,
+                            "Hint 2: The critical angle occurs when the refracted angle (θ₂) reaches exactly 90 degrees.",
+                            `Hint 3: Use Snell's Law: ${s6.n.toFixed(2)} · sin(θc) = 1.00 · sin(90°). θc = arcsin(1 / ${s6.n.toFixed(2)}) which is approximately ${s6Crit}°.`
+                        ]
+                    },
+                    {
+                        title: "Step 7: Mystery Substance",
+                        instructions: "Change n₁ back to 1.00 (Air). Change n₂ to the 'Mystery Substance'. Take measurements of θ₁ and θ₂ using the protractor. Use Snell's Law (n₁ · sin(θ₁) = n₂ · sin(θ₂)) to calculate the index of refraction (n) of this unique mystery substance.",
+                        inputType: "number", correctAnswer: parseFloat(origMysteryN), tolerance: 0.05,
+                        hints: [
+                            "Hint 1: Set n₁ to Air and n₂ to Mystery. Measure θ₁ and θ₂.",
+                            "Hint 2: Use Snell's Law: 1.00 · sin(θ₁) = n_mystery · sin(θ₂). Rearrange: n = sin(θ₁) / sin(θ₂).",
+                            `Hint 3: Based on precise calculations, the exact index of refraction is ${origMysteryN}.`
+                        ]
+                    }
+                ];
+
+            } else {
+                // IDENTIFICATION MODE QUESTIONS
+                const idOptions = [{text: "Select Substance...", value: ""}, ...ALL_MATERIALS.map(m => ({text: m.name, value: m.name}))];
+                const tir1Crit = (Math.asin(1.00 / tirMat1.n) * 180 / Math.PI).toFixed(1);
+                const tir2Crit = (Math.asin(1.00 / tirMat2.n) * 180 / Math.PI).toFixed(1);
+
+                questions = [
+                    {
+                        title: "Unknown 1",
+                        instructions: "Set Top Material to Air (1.00) and Bottom to 'Mystery Substance 1'. Use the protractor and Snell's Law (n₁·sinθ₁ = n₂·sinθ₂) to find its index of refraction. Match your calculated 'n' to the Reference Chart to identify the substance.",
+                        inputType: "select", options: idOptions, correctAnswer: mystery1.name,
+                        hints: [
+                            "Hint 1: Measure the incident angle (θ₁) and refracted angle (θ₂). Since n₁ is Air (1), the formula is simply n₂ = sin(θ₁) / sin(θ₂).",
+                            `Hint 2: Your calculation for n₂ should be approximately ${mystery1.n.toFixed(2)}.`,
+                            `Hint 3: Checking the reference chart, an index of ${mystery1.n.toFixed(2)} corresponds to ${mystery1.name}.`
+                        ]
+                    },
+                    {
+                        title: "Unknown 2",
+                        instructions: "Set Bottom Material to 'Mystery Substance 2'. Calculate its index of refraction and identify it from the chart.",
+                        inputType: "select", options: idOptions, correctAnswer: mystery2.name,
+                        hints: [
+                            "Hint 1: Use the same method. Find the ratio of sin(θ₁) to sin(θ₂).",
+                            `Hint 2: The calculated index is ${mystery2.n.toFixed(2)}.`,
+                            `Hint 3: Looking at the chart, this substance is ${mystery2.name}.`
+                        ]
+                    },
+                    {
+                        title: "Unknown 3",
+                        instructions: "Set Bottom Material to 'Mystery Substance 3'. Identify it.",
+                        inputType: "select", options: idOptions, correctAnswer: mystery3.name,
+                        hints: [
+                            "Hint 1: Take careful measurements with the protractor.",
+                            `Hint 2: The index calculates to ${mystery3.n.toFixed(2)}.`,
+                            `Hint 3: The substance is ${mystery3.name}.`
+                        ]
+                    },
+                    {
+                        title: "Critical Angle 1",
+                        instructions: `<b>Total Internal Reflection (TIR)</b> occurs when light traveling from a denser medium to a less dense medium hits the boundary at an angle where the refracted ray vanishes (θ₂ = 90°), reflecting entirely back inside.<br><br>Set the Top Material to <b>${tirMat1.name}</b> and the Bottom Material to <b>Air</b>. Move the laser to find the critical angle (θ₁) where TIR begins.`,
+                        inputType: "number", correctAnswer: parseFloat(tir1Crit), tolerance: 1.5,
+                        hints: [
+                            `Hint 1: Ensure Top is ${tirMat1.name} and Bottom is Air. Drag the laser downwards until the refracted ray disappears.`,
+                            `Hint 2: Mathematically, use Snell's Law: ${tirMat1.n} · sin(θc) = 1.00 · sin(90°).`,
+                            `Hint 3: θc = arcsin(1 / ${tirMat1.n}), which is approximately ${tir1Crit}°.`
+                        ]
+                    },
+                    {
+                        title: "Critical Angle 2",
+                        instructions: `Now find the critical angle for light traveling from <b>${tirMat2.name}</b> into <b>Air</b>.`,
+                        inputType: "number", correctAnswer: parseFloat(tir2Crit), tolerance: 1.5,
+                        hints: [
+                            `Hint 1: Change the Top Material to ${tirMat2.name} and Bottom to Air.`,
+                            `Hint 2: Set up the equation: ${tirMat2.n} · sin(θc) = 1.`,
+                            `Hint 3: θc = arcsin(1 / ${tirMat2.n}), which is approximately ${tir2Crit}°.`
+                        ]
+                    }
+                ];
+            }
+        }
+
+        function renderQuestion() {
+            const container = document.getElementById('question-container');
+            const q = questions[currentQuestion];
+            const hintContainer = document.getElementById('hint-container');
+            
+            hintContainer.classList.add('hidden');
+            mistakesOnCurrent = 0;
+
+            let inputHtml = '';
+            if (q.inputType === 'number') {
+                inputHtml = `<input type="number" step="0.01" id="answer-input" class="w-full border-2 border-slate-300 p-3 rounded-lg focus:border-blue-500 focus:outline-none text-lg font-mono text-center" placeholder="Enter numerical value...">`;
+            } else if (q.inputType === 'select') {
+                inputHtml = `<select id="answer-input" class="w-full border-2 border-slate-300 p-3 rounded-lg focus:border-blue-500 focus:outline-none text-lg font-mono">
+                    ${q.options.map(opt => `<option value="${opt.value}">${opt.text}</option>`).join('')}
+                </select>`;
+            }
+
+            container.innerHTML = `
+                <div class="text-xs font-bold text-blue-500 tracking-widest uppercase mb-1">Question ${currentQuestion + 1} of ${questions.length}</div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">${q.title}</h3>
+                <p class="text-slate-600 mb-4 leading-relaxed">${q.instructions}</p>
+                ${inputHtml}
+            `;
+        }
+
+        document.getElementById('submit-btn').addEventListener('click', () => {
+            const inputEl = document.getElementById('answer-input');
+            const val = inputEl.value;
+            const q = questions[currentQuestion];
+            const hintContainer = document.getElementById('hint-container');
+            const hintText = document.getElementById('hint-text');
+
+            if (val === '') return;
+
+            let isCorrect = false;
+
+            if (q.inputType === 'number') {
+                const numVal = parseFloat(val);
+                if (Math.abs(numVal - q.correctAnswer) <= q.tolerance) {
+                    isCorrect = true;
+                    // Mitigate error propagation by forcing the exact answer if within tolerance
+                    inputEl.value = q.correctAnswer;
+                }
+            } else if (q.inputType === 'select') {
+                if (val === q.correctAnswer) isCorrect = true;
+            }
+
+            if (isCorrect) {
+                inputEl.classList.remove('border-slate-300', 'border-red-500');
+                inputEl.classList.add('border-green-500', 'bg-green-50');
+                inputEl.disabled = true;
+                
+                setTimeout(() => {
+                    currentQuestion++;
+                    if (currentQuestion < questions.length) {
+                        renderQuestion();
+                    } else {
+                        showWinScreen();
+                    }
+                }, 800);
+            } else {
+                corrections++;
+                mistakesOnCurrent++;
+                
+                inputEl.classList.remove('border-slate-300');
+                inputEl.classList.add('border-red-500');
+                
+                // Shake animation
+                inputEl.style.transform = 'translateX(-5px)';
+                setTimeout(() => inputEl.style.transform = 'translateX(5px)', 50);
+                setTimeout(() => inputEl.style.transform = 'translateX(-5px)', 100);
+                setTimeout(() => inputEl.style.transform = 'translateX(0)', 150);
+
+                hintContainer.classList.remove('hidden');
+                
+                if (mistakesOnCurrent === 1) {
+                    hintText.innerHTML = q.hints[0];
+                } else if (mistakesOnCurrent === 2) {
+                    hintText.innerHTML = q.hints[1];
+                } else if (mistakesOnCurrent >= 3) {
+                    hintText.innerHTML = q.hints[2];
+                    if (mistakesOnCurrent > 3) {
+                        inputEl.value = q.correctAnswer;
+                        document.getElementById('submit-btn').click(); // Auto submit
+                    }
+                }
+            }
+        });
+
+        // --- 3. SCORING & WIN SCREEN ---
+        function generateMessage() {
+            const prefixes = ["Absolutely", "Positively", "Undeniably", "Simply", "Truly", "Remarkably", "Exceptionally", "Incredibly", "Astoundingly"];
+            const adjectives = ["phenomenal", "brilliant", "fantastic", "outstanding", "superb", "stellar", "magnificent", "splendid", "marvelous"];
+            const suffixes = ["work!", "job!", "performance!", "effort!"];
+            
+            const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const a = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const s = suffixes[Math.floor(Math.random() * suffixes.length)];
+            
+            return `${p} ${a} ${s}`;
+        }
+
+        function showWinScreen() {
+            document.getElementById('activity-panel').classList.add('hidden');
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+            winScreen.classList.add('fade-in');
+
+            // Calculate Score based exactly on corrections logic
+            let finalScore = 0;
+            let confettiRounds = 0;
+
+            if (corrections === 0) {
+                finalScore = 20; // 15 + 5 EC
+                confettiRounds = 3;
+            } else if (corrections === 1) {
+                finalScore = 19; // 15 + 4 EC
+                confettiRounds = 3;
+            } else if (corrections === 2) {
+                finalScore = 18; // 15 + 3 EC
+                confettiRounds = 2;
+            } else if (corrections === 3) {
+                finalScore = 17; // 15 + 2 EC
+                confettiRounds = 2;
+            } else if (corrections === 4) {
+                finalScore = 16; // 15 + 1 EC
+                confettiRounds = 2;
+            } else if (corrections >= 5 && corrections <= 10) {
+                finalScore = 15; // 15/15
+                confettiRounds = 1;
+            } else {
+                // decrease points below 100%
+                let penalty = corrections - 10;
+                finalScore = Math.max(0, 15 - penalty);
+                confettiRounds = 0;
+            }
+
+            document.getElementById('final-score').innerText = `${finalScore}/15`;
+            document.getElementById('win-message').innerText = generateMessage();
+            
+            // Unique Verification Code
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('verification-code').innerText = code;
+
+            if (finalScore < 12) { // Less than 80%
+                document.getElementById('retry-message').classList.remove('hidden');
+                document.getElementById('retry-btn').classList.remove('hidden');
+            }
+
+            triggerConfetti(confettiRounds);
+        }
+
+        document.getElementById('retry-btn').addEventListener('click', () => location.reload() );
+
+
+        // --- 4. SIMULATION DRAWING & PHYSICS ---
+        
+        function getRefractedAngle(theta1, n1, n2) {
+            const sinTheta2 = (n1 / n2) * Math.sin(theta1);
+            if (Math.abs(sinTheta2) > 1.0) return null; // Total Internal Reflection
+            return Math.asin(sinTheta2); // Math.asin preserves the sign!
+        }
+        
+        function getColorForMaterial(nValue, isMystery) {
+            if (isMystery) return '#c4b5fd'; // Uniform purple for all unknown mysteries
+            const mat = ALL_MATERIALS.find(m => Math.abs(m.n - nValue) < 0.01);
+            return mat ? mat.color : '#e0f2fe';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Draw Mediums
+            // Top Medium
+            ctx.fillStyle = getColorForMaterial(n1, false);
+            ctx.fillRect(0, 0, width, cy);
+            
+            // Bottom Medium
+            ctx.fillStyle = getColorForMaterial(n2, isMysteryMedium2);
+            ctx.fillRect(0, cy, width, cy);
+
+            // 2. Draw Normal Line
+            ctx.beginPath();
+            ctx.setLineDash([10, 10]);
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, height);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset
+
+            // 3. Calculate Rays
+            const laserDist = 250;
+            const lx = cx - laserDist * Math.sin(incidentAngle);
+            const ly = cy - laserDist * Math.cos(incidentAngle);
+            const theta2 = getRefractedAngle(incidentAngle, n1, n2);
+            
+            // Draw Incident Ray
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(cx, cy);
+            ctx.strokeStyle = '#ef4444'; // Red laser
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw Reflected Ray
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            const rx = cx + width * Math.sin(incidentAngle);
+            const ry = cy - height * Math.cos(incidentAngle);
+            ctx.lineTo(rx, ry);
+            ctx.strokeStyle = theta2 === null ? 'rgba(239, 68, 68, 1.0)' : 'rgba(239, 68, 68, 0.2)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw Refracted Ray
+            if (theta2 !== null) {
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                const refrX = cx + width * Math.sin(theta2); 
+                const refrY = cy + height * Math.cos(theta2);
+                ctx.lineTo(refrX, refrY);
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+
+            // 4. Draw Laser Pointer Body
+            ctx.save();
+            ctx.translate(lx, ly);
+            ctx.rotate(-incidentAngle);
+            
+            // Laser casing
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.roundRect(-20, -50, 40, 60, 5);
+            ctx.fill();
+            
+            // Laser tip
+            ctx.fillStyle = '#cbd5e1';
+            ctx.beginPath();
+            ctx.roundRect(-10, 10, 20, 15, 2);
+            ctx.fill();
+
+            // Laser button
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, -20, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+
+            // 5. Draw Protractor
+            drawProtractor();
+        }
+
+        function drawProtractor() {
+            ctx.save();
+            ctx.translate(protractor.x, protractor.y);
+            ctx.rotate(protractor.angle);
+
+            // Semi-transparent background
+            ctx.beginPath();
+            ctx.arc(0, 0, protractor.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#334155';
+            ctx.stroke();
+
+            // Center hole / drag point
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(51, 65, 85, 0.5)';
+            ctx.fill();
+            ctx.stroke();
+
+            // Tick marks
+            ctx.fillStyle = '#1e293b';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '12px sans-serif'; 
+
+            for (let deg = 0; deg < 360; deg++) {
+                ctx.save();
+                ctx.rotate(deg * Math.PI / 180);
+                
+                ctx.beginPath();
+                if (deg % 10 === 0) {
+                    // Major tick
+                    ctx.moveTo(0, -protractor.radius);
+                    ctx.lineTo(0, -protractor.radius + 20); 
+                    ctx.lineWidth = 2;
+                    
+                    let label = "";
+                    if (deg === 0 || deg === 180) {
+                        label = ""; 
+                    } else if (deg === 90 || deg === 270) {
+                        label = "90";
+                    } else if (deg > 0 && deg < 180) {
+                        label = (180 - deg).toString(); 
+                    } else {
+                        label = (360 - deg).toString(); 
+                    }
+                    
+                    if (label !== "") {
+                        ctx.fillText(label, 0, -protractor.radius + 32); 
+                    }
+                } else if (deg % 5 === 0) {
+                    ctx.moveTo(0, -protractor.radius);
+                    ctx.lineTo(0, -protractor.radius + 15); 
+                    ctx.lineWidth = 1.5;
+                } else {
+                    ctx.moveTo(0, -protractor.radius);
+                    ctx.lineTo(0, -protractor.radius + 8); 
+                    ctx.lineWidth = 0.5;
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Crosshairs
+            ctx.beginPath();
+            ctx.moveTo(-protractor.radius, 0);
+            ctx.lineTo(protractor.radius, 0);
+            ctx.moveTo(0, -protractor.radius);
+            ctx.lineTo(0, protractor.radius);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+            ctx.stroke();
+
+            // Rotation handle (outer ring area indicator)
+            ctx.beginPath();
+            ctx.arc(0, 0, protractor.radius - 5, 0, Math.PI * 2);
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- 5. INTERACTION LOGIC (MOUSE/TOUCH) ---
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function handlePointerDown(e) {
+            const pos = getMousePos(e);
+            const distToP = Math.hypot(pos.x - protractor.x, pos.y - protractor.y);
+            if (distToP <= 20) { protractor.isDraggingCenter = true; return; }
+            if (distToP > protractor.radius - 20 && distToP < protractor.radius + 20) { protractor.isDraggingEdge = true; return; }
+            
+            const lx = cx - 250 * Math.sin(incidentAngle);
+            const ly = cy - 250 * Math.cos(incidentAngle);
+            if (Math.hypot(pos.x - lx, pos.y - ly) <= 60 || pos.y < cy - 50) {
+                isDraggingLaser = true;
+                updateLaserAngle(pos.x, pos.y);
+            }
+        }
+
+        function handlePointerMove(e) {
+            const pos = getMousePos(e);
+            if (protractor.isDraggingCenter) {
+                protractor.x = pos.x; protractor.y = pos.y; draw();
+            } else if (protractor.isDraggingEdge) {
+                protractor.angle = Math.atan2(pos.y - protractor.y, pos.x - protractor.x); draw();
+            } else if (isDraggingLaser) {
+                updateLaserAngle(pos.x, pos.y);
+            } else {
+                const distToP = Math.hypot(pos.x - protractor.x, pos.y - protractor.y);
+                if (distToP <= 20) canvas.style.cursor = 'move';
+                else if (distToP > protractor.radius - 20 && distToP < protractor.radius + 20) canvas.style.cursor = 'grab';
+                else if (pos.y < cy) canvas.style.cursor = 'pointer';
+                else canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        function handlePointerUp() {
+            protractor.isDraggingCenter = false;
+            protractor.isDraggingEdge = false;
+            isDraggingLaser = false;
+            canvas.style.cursor = 'crosshair';
+        }
+
+        function updateLaserAngle(mx, my) {
+            if (my >= cy) my = cy - 1; 
+            const dx = cx - mx;
+            const dy = cy - my;
+            let ang = Math.atan2(dx, dy); 
+            const maxAng = 85 * Math.PI / 180;
+            if (ang > maxAng) ang = maxAng;
+            if (ang < -maxAng) ang = -maxAng;
+            incidentAngle = ang;
+            draw();
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e); });
+        window.addEventListener('touchend', handlePointerUp);
+
+        // --- 6. CONFETTI SYSTEM ---
+        const confCanvas = document.getElementById('confetti-canvas');
+        const confCtx = confCanvas.getContext('2d');
+        let particles = [];
+        let animationFrame;
+
+        function resizeConfettiCanvas() { confCanvas.width = window.innerWidth; confCanvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeConfettiCanvas);
+        resizeConfettiCanvas();
+
+        function triggerConfetti(rounds) {
+            if (rounds <= 0) return;
+            let currentRound = 0;
+            function fire() {
+                createParticles();
+                currentRound++;
+                if (currentRound < rounds) setTimeout(fire, 800);
+            }
+            fire();
+            renderConfetti();
+        }
+
+        function createParticles() {
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: window.innerWidth / 2, y: window.innerHeight,
+                    vx: (Math.random() - 0.5) * 20, vy: -(Math.random() * 15 + 15),
+                    size: Math.random() * 8 + 4, color: colors[Math.floor(Math.random() * colors.length)],
+                    rot: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.2
+                });
+            }
+        }
+
+        function renderConfetti() {
+            confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+            let active = false;
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.rot += p.rotSpeed;
+                if (p.y < confCanvas.height + 20) active = true;
+                confCtx.save();
+                confCtx.translate(p.x, p.y);
+                confCtx.rotate(p.rot);
+                confCtx.fillStyle = p.color;
+                confCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                confCtx.restore();
+            }
+            if (active) animationFrame = requestAnimationFrame(renderConfetti);
+            else { particles = []; cancelAnimationFrame(animationFrame); }
+        }
+
+        // --- 7. INITIALIZATION LOGIC ---
+        function init() {
+            populateDropdowns();
+            buildQuestions();
+            
+            // Adjust titles for Identify mode
+            if (ACTIVITY_MODE === 'IDENTIFICATION') {
+                document.getElementById('header-subtitle').innerText = "Unknown Substance Identification";
+                document.getElementById('win-subtitle').innerText = "Unknown Substance Identification";
+                document.getElementById('panel-title').innerText = "Identification Lab";
+                
+                // Show and populate Reference Chart
+                const chartContainer = document.getElementById('ref-chart-container');
+                const chartGrid = document.getElementById('ref-chart-grid');
+                chartContainer.classList.remove('hidden');
+                
+                // Sort for chart display
+                const sortedMats = [...ALL_MATERIALS].sort((a,b) => a.n - b.n);
+                chartGrid.innerHTML = '';
+                sortedMats.forEach(mat => {
+                    chartGrid.innerHTML += `
+                        <div class="flex justify-between border-b border-slate-200 pb-1">
+                            <span>${mat.name}</span>
+                            <span class="font-bold">${mat.n.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                document.getElementById('header-subtitle').innerText = "Interactive Physics Simulation";
+                document.getElementById('win-subtitle').innerText = "Bending Light Virtual Lab";
+                document.getElementById('ref-chart-container').classList.add('hidden');
+            }
+
+            renderQuestion();
+            draw();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
