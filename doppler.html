@@ -90,9 +90,11 @@
                 <div class="text-xs text-blue-400 font-mono" id="baseFreqDisplay">Base Frequency (f₀): -- Hz</div>
             </div>
         </div>
-        <button id="btnAudio" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2">
-            <span>🔈</span> Enable Audio Engine
-        </button>
+        <div class="flex gap-2">
+            <button id="btnAudio" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2">
+                <span>🔈</span> Enable Audio Engine
+            </button>
+        </div>
     </header>
 
     <!-- Main Content -->
@@ -360,6 +362,7 @@
             isUnknownMode: false,
             unknownSpeed: 0,
             highestUnlockedTab: 1,
+            globalCorrections: 0, // Track mistakes across the entire lab
             
             // Task Completion
             recGraphLocked: false,
@@ -368,6 +371,8 @@
             solvedRecB: false,
             solvedAppC: false,
             solvedAppD: false,
+            activeRecMystery: 'RecA',
+            activeAppMystery: 'AppC',
 
             // Audio Engine
             audioCtx: null,
@@ -464,6 +469,8 @@
             state.isUnknownMode = true;
             state.unknownSpeed = speed;
             state.carX = -100; 
+            if (runKey.startsWith('Rec')) state.activeRecMystery = runKey;
+            if (runKey.startsWith('App')) state.activeAppMystery = runKey;
             mainControls.classList.add('opacity-30', 'pointer-events-none');
             unknownBadge.classList.remove('hidden');
             unknownBadge.innerText = `Playing: ${title}`;
@@ -640,7 +647,11 @@
             if (v === 0) return state.baseFreq;
             
             let x_rel = state.carX - state.observerX;
-            let d = 20; 
+            
+            // Reduced 'd' (closest approach distance) from 20 down to 2.
+            // This prevents the high-speed 2D frequency drop off,
+            // making it act like the pure 1D textbook equation!
+            let d = 2; 
             let v_rad = v * (x_rel / Math.sqrt(x_rel * x_rel + d * d));
             return state.baseFreq * (state.c / (state.c + v_rad));
         }
@@ -772,8 +783,14 @@
                     }
                     
                     // Auto-start mystery runs when entering tabs
-                    if (t === 2 && !state.isUnknownMode) startUnknown(UNKNOWNS.RecA, 'RecA', 'Receding Mystery 1');
-                    if (t === 5 && !state.isUnknownMode) startUnknown(UNKNOWNS.AppC, 'AppC', 'Approaching Mystery 1');
+                    if (t === 2) {
+                        if (state.activeRecMystery === 'RecA') startUnknown(UNKNOWNS.RecA, 'RecA', 'Receding Mystery 1');
+                        else startUnknown(UNKNOWNS.RecB, 'RecB', 'Receding Mystery 2');
+                    }
+                    if (t === 5) {
+                        if (state.activeAppMystery === 'AppC') startUnknown(UNKNOWNS.AppC, 'AppC', 'Approaching Mystery 1');
+                        else startUnknown(UNKNOWNS.AppD, 'AppD', 'Approaching Mystery 2');
+                    }
                     
                     // Scroll active tab into view for mobile
                     activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -819,6 +836,7 @@
                     mainControls.classList.add('opacity-30', 'pointer-events-none');
                     unlockTab(2);
                 } else {
+                    state.globalCorrections++;
                     fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
                 }
             });
@@ -837,6 +855,7 @@
                     mainControls.classList.add('opacity-30', 'pointer-events-none');
                     unlockTab(5);
                 } else {
+                    state.globalCorrections++;
                     fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
                 }
             });
@@ -940,14 +959,16 @@
                         if (key.includes('Rec') && state.solvedRecA && state.solvedRecB) unlockTab(3);
                         if (key.includes('App') && state.solvedAppC && state.solvedAppD) unlockTab(6);
                         
-                        if (key === 'RecA' && !state.solvedRecB) {
-                            setTimeout(() => startUnknown(UNKNOWNS.RecB, 'RecB', 'Receding Mystery 2'), 1000);
+                        if (key === 'RecA') {
+                            state.activeRecMystery = 'RecB';
+                            if (!state.solvedRecB) setTimeout(() => startUnknown(UNKNOWNS.RecB, 'RecB', 'Receding Mystery 2'), 1000);
                         }
                         if (key === 'AppC' && !state.solvedAppD) {
                             setTimeout(() => startUnknown(UNKNOWNS.AppD, 'AppD', 'Approaching Mystery 2'), 1000);
                         }
 
                     } else {
+                        state.globalCorrections++;
                         // Check if graph data is bad and offer tailored feedback
                         let isGraphValid = validateGraph(key.includes('Rec') ? 'rec' : 'app').valid;
                         
@@ -1062,6 +1083,7 @@
                         if (type === 'app') unlockTab(7);
 
                     } else {
+                        state.globalCorrections++;
                         fb.className = "mt-3 text-sm font-bold p-3 rounded bg-red-900/50 border border-red-500/50 text-red-300 flex flex-col gap-2";
                         fb.innerHTML = `<span>❌ ${eq.fb}</span><button class="px-4 py-1.5 bg-red-700 hover:bg-red-600 rounded text-white self-start transition-colors" onclick="document.getElementById('${fbId}').classList.add('hidden')">Try Again</button>`;
                         
@@ -1086,7 +1108,6 @@
             pool: [],
             activeQuiz: [],
             currentQIdx: 0,
-            corrections: 0,
             hintState: 0,
             isLocked: false,
 
@@ -1107,7 +1128,7 @@
                     let f0 = Math.floor(Math.random() * 600) + 200; 
                     let v = Math.floor(Math.random() * 120) + 10;   
                     let c = 340;
-                    let type = i % 4; 
+                    let type = i % 3; 
                     
                     let q = { hints: [] };
 
@@ -1134,19 +1155,6 @@
                             "It is moving AWAY from you, meaning waves stretch out. The pitch should be LOWER.",
                             "Use the receding formula: f' = f₀ * [c / (c + v)]",
                             `Plug in the numbers: f' = ${f0} * [340 / (340 + ${v})]`
-                        ];
-                    } else if (type === 2) { // Math: Find Velocity (Given Approaching)
-                        let f_obs = Math.round(f0 * (c / (c - v)));
-                        let true_v = c - (f0 * c / f_obs);
-                        q.category = 'math';
-                        q.mathType = 'vel';
-                        q.text = `A car horn is normally <b>${f0} Hz</b>. As it speeds TOWARDS you, you measure the pitch at <b>${f_obs} Hz</b>. <br><br>How fast is the car moving in m/s? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
-                        q.type = 'number';
-                        q.answer = true_v;
-                        q.hints = [
-                            "You are trying to find 'v' from the approaching formula: f' = f₀ * [c / (c - v)]",
-                            "Rearranged for v, the formula is: v = c - (f₀ * c / f')",
-                            `Plug in the numbers: v = 340 - (${f0} * 340 / ${f_obs})`
                         ];
                     } else { // Conceptual
                         let isApp = Math.random() > 0.5;
@@ -1184,7 +1192,6 @@
                 this.activeQuiz = [...selectedMath, ...concPool.slice(0, 2)].sort(() => 0.5 - Math.random());
                 
                 this.currentQIdx = 0;
-                this.corrections = 0;
                 
                 document.getElementById('quizIntro').classList.add('hidden');
                 document.getElementById('quizActive').classList.remove('hidden');
@@ -1236,7 +1243,7 @@
                     textDiv.innerText = q.hints[this.hintState];
                     textDiv.classList.remove('hidden');
                     this.hintState++;
-                    this.corrections++; 
+                    state.globalCorrections++; 
                 }
                 
                 if (this.hintState >= q.hints.length) {
@@ -1281,7 +1288,7 @@
                     fb.innerText = "Correct! Well done.";
                     document.getElementById('btnNextQ').classList.remove('hidden');
                 } else {
-                    this.corrections++;
+                    state.globalCorrections++;
                     fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
                     
                     if (this.hintState >= 3) { 
@@ -1311,21 +1318,21 @@
                 let winScreen = document.getElementById('quizWinScreen');
                 winScreen.classList.remove('hidden');
 
-                let baseMax = 25;
                 let finalScore = 0;
                 let ecText = "";
+                let mistakes = state.globalCorrections;
                 
-                if (this.corrections === 0) { finalScore = 30; ecText = "+5 Extra Credit Points!"; }
-                else if (this.corrections === 1) { finalScore = 29; ecText = "+4 Extra Credit Points!"; }
-                else if (this.corrections === 2) { finalScore = 28; ecText = "+3 Extra Credit Points!"; }
-                else if (this.corrections === 3) { finalScore = 27; ecText = "+2 Extra Credit Points!"; }
-                else if (this.corrections === 4) { finalScore = 26; ecText = "+1 Extra Credit Point!"; }
-                else if (this.corrections <= 10) { finalScore = 25; }
-                else { finalScore = 25 - (this.corrections - 10); } 
+                if (mistakes === 0) { finalScore = 30; ecText = "+5 Extra Credit Points!"; }
+                else if (mistakes === 1) { finalScore = 29; ecText = "+4 Extra Credit Points!"; }
+                else if (mistakes === 2) { finalScore = 28; ecText = "+3 Extra Credit Points!"; }
+                else if (mistakes === 3) { finalScore = 27; ecText = "+2 Extra Credit Points!"; }
+                else if (mistakes === 4) { finalScore = 26; ecText = "+1 Extra Credit Point!"; }
+                else if (mistakes <= 10) { finalScore = 25; }
+                else { finalScore = 25 - (mistakes - 10); } 
                 
                 if (finalScore < 0) finalScore = 0;
 
-                document.getElementById('winScore').innerHTML = `${finalScore}</span><span class="text-3xl text-gray-500">/25`;
+                document.getElementById('winScore').innerText = finalScore;
                 document.getElementById('winEC').innerText = ecText;
 
                 let code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -1340,7 +1347,7 @@
                     : "Assessment Complete.";
                 
                 document.getElementById('winTitle').innerText = msg;
-                document.getElementById('winSubtitle').innerText = `You completed the lab with ${this.corrections} corrections/hints.`;
+                document.getElementById('winSubtitle').innerText = `You completed the lab with ${mistakes} corrections/hints.`;
 
                 let retryBtn = document.getElementById('btnRetryQuiz');
                 if (finalScore < 20) { 
