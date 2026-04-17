@@ -856,16 +856,19 @@
                 
                 state.chartDataReceding.sort((a, b) => a.x - b.x);
                 if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
             });
 
             document.getElementById('btnUndoRec').addEventListener('click', () => {
                 state.chartDataReceding.pop();
                 if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
             });
 
             document.getElementById('btnClearRec').addEventListener('click', () => {
-                state.chartDataReceding = [];
+                state.chartDataReceding.length = 0;
                 if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
             });
 
             // Approaching Data Record
@@ -883,16 +886,19 @@
                 
                 state.chartDataApproaching.sort((a, b) => a.x - b.x);
                 if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
             });
 
             document.getElementById('btnUndoApp').addEventListener('click', () => {
                 state.chartDataApproaching.pop();
                 if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
             });
 
             document.getElementById('btnClearApp').addEventListener('click', () => {
-                state.chartDataApproaching = [];
+                state.chartDataApproaching.length = 0;
                 if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
             });
 
             const buildUnknownRow = (containerId, title, colorCode, key) => {
