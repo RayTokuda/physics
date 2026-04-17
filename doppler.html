@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Doppler Effect Laboratory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        .wave-canvas {
+            background-color: #1e293b;
+            background-image: radial-gradient(#334155 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        
+        datalist {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 10px;
+            margin-top: 5px;
+        }
+        
+        datalist option {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        datalist option::before {
+            content: '';
+            display: block;
+            width: 2px;
+            height: 6px;
+            background-color: #4b5563;
+            margin-bottom: 2px;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        .tab-btn {
+            min-width: 120px;
+            transition: all 0.2s;
+        }
+        .tab-active {
+            background-color: #374151;
+            color: white;
+            border-top-color: #3b82f6;
+        }
+        .tab-inactive {
+            color: #9ca3af;
+            border-top-color: transparent;
+        }
+        .tab-inactive:hover { background-color: #1f2937; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 shadow-md flex justify-between items-center z-10 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-wide text-white leading-tight">Doppler Effect Laboratory</h1>
+                <div class="text-xs text-blue-400 font-mono" id="baseFreqDisplay">Base Frequency (f₀): -- Hz</div>
+            </div>
+        </div>
+        <button id="btnAudio" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2">
+            <span>🔈</span> Enable Audio Engine
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        
+        <!-- Left: Simulation Canvas -->
+        <section class="flex-1 relative flex flex-col p-4 z-0">
+            
+            <!-- Live Readouts -->
+            <div class="flex gap-4 mb-4">
+                <div class="bg-gray-800 border border-gray-700 p-4 rounded-xl flex-1 shadow flex justify-between items-center relative overflow-hidden">
+                    <div id="unknownBadge" class="absolute top-0 right-0 bg-purple-600 text-white text-xs px-3 py-1 rounded-bl-lg font-bold animate-pulse hidden z-10 shadow">Mystery Mode Active</div>
+                    <div>
+                        <div class="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">Race Car Speed</div>
+                        <div id="displaySpeed" class="text-3xl font-mono text-blue-400">0 m/s</div>
+                    </div>
+                </div>
+                <div class="bg-gray-800 border border-gray-700 p-4 rounded-xl flex-1 shadow">
+                    <div class="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">Observer Hears</div>
+                    <div id="displayFreq" class="text-3xl font-mono text-emerald-400">-- Hz</div>
+                </div>
+            </div>
+
+            <!-- The Canvas -->
+            <div class="relative flex-1 bg-gray-800 rounded-xl border border-gray-700 shadow-inner overflow-hidden mb-4">
+                <canvas id="simCanvas" class="w-full h-full wave-canvas"></canvas>
+            </div>
+            
+            <!-- Controls Overlay -->
+            <div id="mainControls" class="bg-gray-800 border border-gray-700 p-6 rounded-xl shadow transition-opacity duration-300">
+                <div class="flex justify-between items-end mb-4">
+                    <label class="font-bold text-lg text-white">Adjust Car Speed (v)</label>
+                    <div class="flex gap-2">
+                        <button id="btnSpeedDown" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold border border-gray-600">-</button>
+                        <button id="btnSpeedUp" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold border border-gray-600">+</button>
+                    </div>
+                </div>
+                <div class="relative w-full">
+                    <input type="range" id="speedSlider" min="0" max="250" step="1" value="0" list="tickmarks" class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <datalist id="tickmarks">
+                        <option value="0" label="0"></option>
+                        <option value="50" label="50"></option>
+                        <option value="100" label="100"></option>
+                        <option value="150" label="150"></option>
+                        <option value="200" label="200"></option>
+                        <option value="250" label="250"></option>
+                    </datalist>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right: Laboratory Activity Panel -->
+        <aside class="w-full lg:w-[500px] bg-gray-800 border-l border-gray-700 flex flex-col shadow-2xl z-20">
+            
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700 bg-gray-900 overflow-x-auto whitespace-nowrap flex-shrink-0 hide-scrollbar" id="tabContainer">
+                <button id="tabBtn1" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-active">1. Rec. Data</button>
+                <button id="tabBtn2" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">2. Rec. Test</button>
+                <button id="tabBtn3" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">3. Rec. Eq.</button>
+                <button id="tabBtn4" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">4. App. Data</button>
+                <button id="tabBtn5" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">5. App. Test</button>
+                <button id="tabBtn6" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">6. App. Eq.</button>
+                <button id="tabBtn7" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive">7. Quiz</button>
+            </div>
+
+            <div class="p-6 flex-1 overflow-y-auto">
+                
+                <!-- Tab 1: Receding Data Collection -->
+                <div id="tabContent1" class="block">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">📉 Receding Data</h2>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Adjust the speed of the car. Let it pass by, and record the lower <strong>receding</strong> frequency (when it is driving AWAY).
+                    </p>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <button id="btnRecordRec" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                            <span>📝</span> Record Point
+                        </button>
+                        <button id="btnUndoRec" class="px-3 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Undo Last Point">
+                            ↩️ Undo
+                        </button>
+                        <button id="btnClearRec" class="px-3 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Recollect Data (Clear All)">
+                            🗑️ Clear
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 mb-6 relative">
+                        <canvas id="chartReceding" width="400" height="280"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Receding Unknowns -->
+                <div id="tabContent2" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">❓ Receding Mystery Runs</h2>
+                    <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                        Watch the car pass and record the receding frequency. Then use the graph you just built to estimate the car's hidden speed.
+                    </p>
+
+                    <div id="unknownRecRuns" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button id="btnResetNormal2" class="mt-6 w-full py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 text-sm hidden btnResetNormal">Return to Manual Control</button>
+                </div>
+
+                <!-- Tab 3: Receding Equation -->
+                <div id="tabContent3" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">🧮 Receding Equation</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-500/50 p-3 rounded-lg mb-4 text-sm text-indigo-200 leading-relaxed">
+                        <strong>Variables:</strong> <br>
+                        • <strong>f₀ (Base Frequency):</strong> <span id="tab3BaseFreqDisplay">--</span> Hz. The actual pitch the car emits when perfectly still.<br>
+                        • <strong>c (Speed of Sound):</strong> The constant speed at which sound waves travel (340 m/s).<br>
+                        • <strong>v (Speed of Car):</strong> How fast the source is moving.
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Based on your graph, which equation correctly models the <strong>receding</strong> frequency? Select one and click Check.
+                    </p>
+                    <div id="eqContainerReceding" class="grid grid-cols-2 gap-2 mb-4"></div>
+                    <button id="btnCheckEqRec" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition-colors" disabled>Check Equation</button>
+                    <div id="fbEqRec" class="mt-3 text-sm font-bold hidden p-3 rounded"></div>
+                </div>
+
+                <!-- Tab 4: Approaching Data Collection -->
+                <div id="tabContent4" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">📈 Approaching Data</h2>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Now, adjust the speed and record the higher <strong>approaching</strong> frequency (when it is driving TOWARDS you).
+                    </p>
+                    
+                    <div class="flex gap-2 mb-6">
+                        <button id="btnRecordApp" class="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                            <span>📝</span> Record Point
+                        </button>
+                        <button id="btnUndoApp" class="px-3 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Undo Last Point">
+                            ↩️ Undo
+                        </button>
+                        <button id="btnClearApp" class="px-3 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Recollect Data (Clear All)">
+                            🗑️ Clear
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 mb-6 relative">
+                        <canvas id="chartApproaching" width="400" height="280"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Approaching Unknowns -->
+                <div id="tabContent5" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">❓ Approaching Mystery Runs</h2>
+                    <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                        Record the higher approaching frequency as it drives towards you, then use your new graph to estimate the hidden speed.
+                    </p>
+
+                    <div id="unknownAppRuns" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button id="btnResetNormal5" class="mt-6 w-full py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 text-sm hidden btnResetNormal">Return to Manual Control</button>
+                </div>
+
+                <!-- Tab 6: Approaching Equation -->
+                <div id="tabContent6" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">🧮 Approaching Equation</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-500/50 p-3 rounded-lg mb-4 text-sm text-indigo-200 leading-relaxed">
+                        <strong>Variables:</strong> <br>
+                        • <strong>f₀ (Base Frequency):</strong> <span id="tab6BaseFreqDisplay">--</span> Hz.<br>
+                        • <strong>c (Speed of Sound):</strong> 340 m/s.<br>
+                        • <strong>v (Speed of Car):</strong> Source velocity.
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Based on your approaching graph, which equation correctly models the <strong>approaching</strong> frequency? Select one and click Check.
+                    </p>
+                    <div id="eqContainerApproaching" class="grid grid-cols-2 gap-2 mb-4"></div>
+                    <button id="btnCheckEqApp" class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow transition-colors" disabled>Check Equation</button>
+                    <div id="fbEqApp" class="mt-3 text-sm font-bold hidden p-3 rounded"></div>
+                </div>
+
+                <!-- Tab 7: Summative Assessment -->
+                <div id="tabContent7" class="hidden flex-col h-full">
+                    
+                    <!-- Pre-Quiz State -->
+                    <div id="quizIntro" class="text-center py-10">
+                        <h2 class="text-2xl font-bold text-white mb-4">Final Assessment</h2>
+                        <p class="text-gray-300 mb-8 text-sm px-4 leading-relaxed">
+                            Test your knowledge! There are 4 questions (2 Conceptual, 2 Computational).<br>
+                            If you get stuck, hints are available, but doing it without hints will earn extra credit!
+                        </p>
+                        <button id="btnStartQuiz" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            Start Assessment
+                        </button>
+                    </div>
+
+                    <!-- Active Quiz State -->
+                    <div id="quizActive" class="hidden flex-col h-full">
+                        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                            <span class="text-gray-400 font-bold uppercase text-xs tracking-wider" id="quizProgress">Question 1 / 4</span>
+                        </div>
+                        
+                        <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-inner mb-4 flex-1">
+                            <p id="qText" class="text-lg text-white font-medium leading-relaxed mb-6"></p>
+                            
+                            <div id="qInputArea" class="flex flex-col gap-3">
+                                <!-- Dynamically populated based on question type -->
+                            </div>
+
+                            <div id="qFeedback" class="mt-4 text-sm font-bold p-3 rounded hidden"></div>
+                            
+                            <!-- Hint Section -->
+                            <div id="hintBox" class="mt-6 pt-4 border-t border-gray-800">
+                                <button id="btnHint" class="text-yellow-500 hover:text-yellow-400 text-sm font-bold flex items-center gap-1 transition-colors">
+                                    <span>💡</span> Need a hint?
+                                </button>
+                                <div id="hintText" class="text-sm text-yellow-200/80 mt-2 hidden italic border-l-2 border-yellow-500/50 pl-2"></div>
+                            </div>
+                        </div>
+
+                        <button id="btnNextQ" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg hidden">
+                            Next Question &rarr;
+                        </button>
+                    </div>
+
+                    <!-- Win Screen -->
+                    <div id="quizWinScreen" class="hidden text-center flex flex-col items-center justify-center h-full animate-fade-in py-10">
+                        <h2 class="text-3xl font-bold text-white mb-2" id="winTitle">Assessment Complete!</h2>
+                        <p class="text-gray-400 text-sm mb-6" id="winSubtitle">Calculating final score...</p>
+                        
+                        <div class="bg-gray-900 border-2 border-emerald-500 p-8 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] mb-6 w-full max-w-sm">
+                            <div class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Final Score</div>
+                            <div class="text-6xl font-black text-white mb-2">
+                                <span id="winScore">0</span><span class="text-3xl text-gray-500">/25</span>
+                            </div>
+                            <div class="text-emerald-400 text-sm font-bold" id="winEC"></div>
+                        </div>
+
+                        <div class="text-gray-500 text-[10px] uppercase tracking-widest mb-1">Verification Code</div>
+                        <div id="winCode" class="text-2xl font-mono text-gray-300 bg-gray-800 px-4 py-2 rounded border border-gray-700 tracking-widest mb-4">XXXXXX</div>
+                        
+                        <div class="text-gray-600 text-xs uppercase font-bold tracking-wider">Doppler Effect Laboratory</div>
+                        
+                        <button id="btnRetryQuiz" class="mt-8 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded shadow transition-colors hidden">
+                            Retry Assessment
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // --- Core Application State ---
+        const validFreqs = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+        
+        const state = {
+            baseFreq: validFreqs[Math.floor(Math.random() * validFreqs.length)],
+            c: 340,        // Speed of sound (m/s) 
+            currentSpeed: 0,
+            isUnknownMode: false,
+            unknownSpeed: 0,
+            
+            // Audio Engine
+            audioCtx: null,
+            oscSaw: null,
+            oscSub: null,
+            filter: null,
+            gainNode: null,
+            isAudioEnabled: false,
+
+            // Graphics
+            carX: 0,
+            observerX: 400,
+            waves: [],
+            lastTime: 0,
+
+            // Data
+            chartDataApproaching: [],
+            chartDataReceding: []
+        };
+
+        // Random Unknown Speeds (Avoid multiples of 50 to ensure they use the graph)
+        const genUnknownSpeed = () => {
+            let s = Math.floor(Math.random() * 190) + 30; // 30 to 220
+            if (s % 50 === 0) s += 15; // Shift off the tick marks
+            return s;
+        };
+
+        const UNKNOWNS = {
+            RecA: genUnknownSpeed(), RecB: genUnknownSpeed(),
+            AppC: genUnknownSpeed(), AppD: genUnknownSpeed()
+        };
+
+        // --- DOM Elements ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('speedSlider');
+        const btnSpeedDown = document.getElementById('btnSpeedDown');
+        const btnSpeedUp = document.getElementById('btnSpeedUp');
+        const displaySpeed = document.getElementById('displaySpeed');
+        const displayFreq = document.getElementById('displayFreq');
+        const mainControls = document.getElementById('mainControls');
+        const unknownBadge = document.getElementById('unknownBadge');
+        
+        let chartRec, chartApp; 
+
+        // --- Audio Engine ---
+        function toggleAudio() {
+            if (!state.audioCtx) {
+                state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                state.oscSaw = state.audioCtx.createOscillator();
+                state.oscSaw.type = 'sawtooth';
+                
+                state.oscSub = state.audioCtx.createOscillator();
+                state.oscSub.type = 'square';
+                
+                state.filter = state.audioCtx.createBiquadFilter();
+                state.filter.type = 'lowpass';
+                state.filter.frequency.value = state.baseFreq * 3; // Dynamic cut-off based on baseFreq
+                state.filter.Q.value = 1.0;
+
+                state.gainNode = state.audioCtx.createGain();
+                
+                state.oscSaw.connect(state.filter);
+                state.oscSub.connect(state.filter);
+                state.filter.connect(state.gainNode);
+                state.gainNode.connect(state.audioCtx.destination);
+                
+                state.gainNode.gain.value = 0;
+                state.oscSaw.start();
+                state.oscSub.start();
+            }
+            
+            if (state.audioCtx.state === 'suspended') {
+                state.audioCtx.resume();
+            }
+
+            state.isAudioEnabled = !state.isAudioEnabled;
+            const btn = document.getElementById('btnAudio');
+            
+            if(state.isAudioEnabled) {
+                btn.className = "px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2";
+                btn.innerHTML = "<span>🔇</span> Mute Audio";
+            } else {
+                btn.className = "px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2";
+                btn.innerHTML = "<span>🔈</span> Enable Audio Engine";
+                state.gainNode.gain.value = 0;
+            }
+        }
+        document.getElementById('btnAudio').addEventListener('click', toggleAudio);
+
+        // --- Unknown Runs Logic ---
+        const startUnknown = (speed, runKey, title) => {
+            state.isUnknownMode = true;
+            state.unknownSpeed = speed;
+            state.carX = -100; 
+            mainControls.classList.add('opacity-30', 'pointer-events-none');
+            unknownBadge.classList.remove('hidden');
+            unknownBadge.innerText = `Playing: ${title}`;
+            displaySpeed.innerText = "??? m/s";
+            document.querySelectorAll('.btnResetNormal').forEach(b => b.classList.remove('hidden'));
+        };
+
+        // --- Main Logic & UI Events ---
+        function init() {
+            document.getElementById('baseFreqDisplay').innerText = `Base Frequency (f₀): ${state.baseFreq} Hz`;
+            displayFreq.innerText = `${state.baseFreq} Hz`;
+            document.getElementById('tab3BaseFreqDisplay').innerText = state.baseFreq;
+            document.getElementById('tab6BaseFreqDisplay').innerText = state.baseFreq;
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            initCharts();
+            setupControls();
+            setupTabs();
+            setupActivities();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initCharts() {
+            const f0 = state.baseFreq;
+            
+            // Helper to generate clean, round axis bounds and tick steps
+            const getNiceScale = (rawMin, rawMax) => {
+                let range = rawMax - rawMin;
+                let step;
+                if (range > 400) step = 100;
+                else if (range > 200) step = 50;
+                else if (range > 100) step = 20;
+                else step = 10;
+
+                let min = Math.floor(rawMin / step) * step;
+                let max = Math.ceil(rawMax / step) * step;
+                return { min, max, step };
+            };
+
+            // Receding limits: Drops as speed increases
+            let rawRecMin = f0 * (340 / (340 + 250)) * 0.9;
+            let rawRecMax = f0 * 1.1;
+            let recScale = getNiceScale(rawRecMin, rawRecMax);
+            
+            // Approaching limits: Rises as speed increases
+            let rawAppMin = f0 * 0.9;
+            let rawAppMax = f0 * (340 / (340 - 250)) * 1.1;
+            let appScale = getNiceScale(rawAppMin, rawAppMax);
+
+            const recCtx = document.getElementById('chartReceding').getContext('2d');
+            chartRec = new Chart(recCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Receding (Hz)', data: state.chartDataReceding,
+                        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        pointRadius: 5, showLine: true, tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { 
+                            type: 'linear', title: { display: true, text: 'Car Speed (v) [m/s]', color: '#9ca3af' }, 
+                            min: 0, max: 250, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false, // Prevents skipping the 10 m/s ticks
+                                maxRotation: 0,
+                                callback: function(value) { return value % 50 === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % 50 === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        },
+                        y: { 
+                            title: { display: true, text: 'Receding Frequency (Hz)', color: '#9ca3af' }, 
+                            min: recScale.min, max: recScale.max, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                callback: function(value) { return value % (recScale.step >= 20 ? 20 : 10) === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % recScale.step === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+
+            const appCtx = document.getElementById('chartApproaching').getContext('2d');
+            chartApp = new Chart(appCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Approaching (Hz)', data: state.chartDataApproaching,
+                        borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.5)',
+                        pointRadius: 5, showLine: true, tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { 
+                            type: 'linear', title: { display: true, text: 'Car Speed (v) [m/s]', color: '#9ca3af' }, 
+                            min: 0, max: 250, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                maxRotation: 0,
+                                callback: function(value) { return value % 50 === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % 50 === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        },
+                        y: { 
+                            title: { display: true, text: 'Approaching Frequency (Hz)', color: '#9ca3af' }, 
+                            min: appScale.min, max: appScale.max, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                callback: function(value) { return value % (appScale.step >= 20 ? 20 : 10) === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % appScale.step === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+        }
+
+        function setupControls() {
+            const updateSpeedUI = (val) => {
+                if(state.isUnknownMode) return;
+                state.currentSpeed = Math.max(0, Math.min(250, parseInt(val)));
+                slider.value = state.currentSpeed;
+                displaySpeed.innerText = `${state.currentSpeed} m/s`;
+            };
+
+            slider.addEventListener('input', (e) => updateSpeedUI(e.target.value));
+            btnSpeedDown.addEventListener('click', () => updateSpeedUI(state.currentSpeed - 1));
+            btnSpeedUp.addEventListener('click', () => updateSpeedUI(state.currentSpeed + 1));
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            state.observerX = canvas.width / 2;
+            if(state.carX === 0) state.carX = -50;
+        }
+
+        function getHeardFrequency() {
+            let v = state.isUnknownMode ? state.unknownSpeed : state.currentSpeed;
+            if (v === 0) return state.baseFreq;
+            
+            let x_rel = state.carX - state.observerX;
+            let d = 20; 
+            let v_rad = v * (x_rel / Math.sqrt(x_rel * x_rel + d * d));
+            return state.baseFreq * (state.c / (state.c + v_rad));
+        }
+
+        function updateAudioAndReadouts() {
+            let f = getHeardFrequency();
+            displayFreq.innerText = `${Math.round(f)} Hz`;
+
+            if (state.isAudioEnabled && state.audioCtx) {
+                let dist = Math.abs(state.carX - state.observerX);
+                let maxDist = canvas.width * 0.8; 
+                let vol = Math.max(0, 1 - (dist / maxDist));
+                
+                if(state.filter) {
+                    state.filter.frequency.setTargetAtTime((state.baseFreq*1.5) + (vol * state.baseFreq*4), state.audioCtx.currentTime, 0.1);
+                }
+
+                state.gainNode.gain.value = vol * 0.3; 
+                
+                state.oscSaw.frequency.setTargetAtTime(f, state.audioCtx.currentTime, 0.02);
+                state.oscSub.frequency.setTargetAtTime(f / 2, state.audioCtx.currentTime, 0.02); 
+            }
+        }
+
+        // --- Game Loop ---
+        function gameLoop(timestamp) {
+            if (!state.lastTime) state.lastTime = timestamp;
+            let dt = (timestamp - state.lastTime) / 1000;
+            state.lastTime = timestamp;
+            if (dt > 0.1) dt = 0.1;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let v = state.isUnknownMode ? state.unknownSpeed : state.currentSpeed;
+            state.carX += v * dt;
+            if (state.carX > canvas.width + 100) state.carX = -100;
+
+            if (Math.random() < (10 * dt)) { 
+                state.waves.push({ x: state.carX, r: 0 });
+            }
+
+            // Road
+            ctx.fillStyle = '#374151';
+            ctx.fillRect(0, canvas.height/2 + 20, canvas.width, 40);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height/2 + 40);
+            ctx.lineTo(canvas.width, canvas.height/2 + 40);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Waves
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+            ctx.lineWidth = 2;
+            for (let i = state.waves.length - 1; i >= 0; i--) {
+                let w = state.waves[i];
+                w.r += state.c * dt; 
+                if (w.r > canvas.width) { state.waves.splice(i, 1); continue; }
+                ctx.beginPath(); ctx.arc(w.x, canvas.height/2 - 10, w.r, 0, Math.PI * 2); ctx.stroke();
+            }
+
+            // Observer
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath(); ctx.arc(state.observerX, canvas.height/2 + 60, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = '12px sans-serif';
+            ctx.fillText("Observer", state.observerX, canvas.height/2 + 85);
+
+            // Race Car Body
+            ctx.fillStyle = '#b91c1c'; 
+            ctx.beginPath();
+            ctx.moveTo(state.carX - 25, canvas.height/2);
+            ctx.lineTo(state.carX + 15, canvas.height/2);
+            ctx.lineTo(state.carX + 20, canvas.height/2 - 5);
+            ctx.lineTo(state.carX + 5, canvas.height/2 - 15);
+            ctx.lineTo(state.carX - 20, canvas.height/2 - 15);
+            ctx.fill();
+            
+            // Wheels
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.arc(state.carX - 15, canvas.height/2 + 5, 8, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(state.carX + 10, canvas.height/2 + 5, 8, 0, Math.PI*2); ctx.fill();
+
+            updateAudioAndReadouts();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Tab Management ---
+        function setupTabs() {
+            const tabs = [1, 2, 3, 4, 5, 6, 7];
+            tabs.forEach(t => {
+                document.getElementById(`tabBtn${t}`).addEventListener('click', () => {
+                    tabs.forEach(i => {
+                        let btn = document.getElementById(`tabBtn${i}`);
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('tab-inactive');
+                        document.getElementById(`tabContent${i}`).style.display = 'none';
+                    });
+                    
+                    let activeBtn = document.getElementById(`tabBtn${t}`);
+                    activeBtn.classList.remove('tab-inactive');
+                    activeBtn.classList.add('tab-active');
+                    
+                    document.getElementById(`tabContent${t}`).style.display = t===7 ? 'flex' : 'block';
+                    
+                    // Auto-start mystery runs when entering tabs
+                    if (t === 2 && !state.isUnknownMode) startUnknown(UNKNOWNS.RecA, 'RecA', 'Receding Mystery 1');
+                    if (t === 5 && !state.isUnknownMode) startUnknown(UNKNOWNS.AppC, 'AppC', 'Approaching Mystery 1');
+                    
+                    // Scroll active tab into view for mobile
+                    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                });
+            });
+        }
+
+        // --- Activities & Equations ---
+        function setupActivities() {
+            // Check if graph data is physically accurate (within 3 Hz to account for mid-transition records)
+            const checkGraphValidity = (type) => {
+                let data = type === 'rec' ? state.chartDataReceding : state.chartDataApproaching;
+                for (let pt of data) {
+                    let expected = type === 'rec' 
+                        ? state.baseFreq * (state.c / (state.c + pt.x))
+                        : state.baseFreq * (state.c / (state.c - pt.x));
+                    if (Math.abs(pt.y - expected) > 3) return false;
+                }
+                return true;
+            };
+
+            // Receding Data Record (Captures exact current frequency heard, allowing for student error)
+            document.getElementById('btnRecordRec').addEventListener('click', () => {
+                if(state.isUnknownMode) return;
+                let v = state.currentSpeed;
+                let f_current = Math.round(getHeardFrequency());
+                
+                let existingIdx = state.chartDataReceding.findIndex(d => d.x === v);
+                if (existingIdx !== -1) {
+                    state.chartDataReceding[existingIdx].y = f_current; // Overwrite if they try again at same speed
+                } else {
+                    state.chartDataReceding.push({x: v, y: f_current});
+                }
+                
+                state.chartDataReceding.sort((a, b) => a.x - b.x);
+                if(chartRec) chartRec.update();
+            });
+
+            document.getElementById('btnUndoRec').addEventListener('click', () => {
+                state.chartDataReceding.pop();
+                if(chartRec) chartRec.update();
+            });
+
+            document.getElementById('btnClearRec').addEventListener('click', () => {
+                state.chartDataReceding = [];
+                if(chartRec) chartRec.update();
+            });
+
+            // Approaching Data Record
+            document.getElementById('btnRecordApp').addEventListener('click', () => {
+                if(state.isUnknownMode) return;
+                let v = state.currentSpeed;
+                let f_current = Math.round(getHeardFrequency());
+                
+                let existingIdx = state.chartDataApproaching.findIndex(d => d.x === v);
+                if (existingIdx !== -1) {
+                    state.chartDataApproaching[existingIdx].y = f_current; // Overwrite
+                } else {
+                    state.chartDataApproaching.push({x: v, y: f_current});
+                }
+                
+                state.chartDataApproaching.sort((a, b) => a.x - b.x);
+                if(chartApp) chartApp.update();
+            });
+
+            document.getElementById('btnUndoApp').addEventListener('click', () => {
+                state.chartDataApproaching.pop();
+                if(chartApp) chartApp.update();
+            });
+
+            document.getElementById('btnClearApp').addEventListener('click', () => {
+                state.chartDataApproaching = [];
+                if(chartApp) chartApp.update();
+            });
+
+            const buildUnknownRow = (containerId, title, colorCode, key) => {
+                const div = document.createElement('div');
+                div.className = "bg-gray-900 border border-gray-700 rounded-lg p-4";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold text-${colorCode}-400">${title}</span>
+                        <button id="btnRun${key}" class="px-4 py-1.5 bg-${colorCode}-600 hover:bg-${colorCode}-500 rounded text-sm text-white font-bold transition-colors">Start Car</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="input${key}" placeholder="Estimated Speed (m/s)" class="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none focus:border-${colorCode}-500">
+                        <button id="btnCheck${key}" class="px-4 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold transition-colors">Check</button>
+                    </div>
+                    <div id="result${key}" class="mt-2 text-sm font-bold hidden leading-relaxed"></div>
+                `;
+                document.getElementById(containerId).appendChild(div);
+
+                document.getElementById(`btnRun${key}`).addEventListener('click', () => startUnknown(UNKNOWNS[key], key, title));
+                
+                document.getElementById(`btnCheck${key}`).addEventListener('click', () => {
+                    let guess = parseInt(document.getElementById(`input${key}`).value);
+                    let actual = UNKNOWNS[key];
+                    let resDiv = document.getElementById(`result${key}`);
+                    resDiv.classList.remove('hidden');
+                    
+                    if (isNaN(guess)) {
+                        resDiv.innerText = "Please enter a number."; resDiv.className = "mt-2 text-sm font-bold text-red-400";
+                        return;
+                    }
+                    if (Math.abs(guess - actual) <= 8) {
+                        resDiv.innerText = `✅ Correct! It was ${actual} m/s.`; resDiv.className = "mt-2 text-sm font-bold text-green-400";
+                    } else {
+                        // Check if graph data is bad and offer tailored feedback
+                        let isGraphValid = checkGraphValidity(key.includes('Rec') ? 'rec' : 'app');
+                        
+                        if (!isGraphValid) {
+                            resDiv.innerHTML = `❌ Incorrect guess. <strong>It looks like you recorded some wrong data points!</strong><br>Use the 'Undo' or 'Clear' buttons to edit your data points, wait for the car to be in the correct position, and remake your graph.`; 
+                        } else {
+                            resDiv.innerText = `❌ Not quite. Look closely at the graph to find the velocity that matches the frequency you heard.`; 
+                        }
+                        resDiv.className = "mt-2 text-sm font-bold text-red-400";
+                    }
+                });
+            };
+
+            buildUnknownRow('unknownRecRuns', 'Receding Mystery 1', 'purple', 'RecA');
+            buildUnknownRow('unknownRecRuns', 'Receding Mystery 2', 'purple', 'RecB');
+            buildUnknownRow('unknownAppRuns', 'Approaching Mystery 1', 'orange', 'AppC');
+            buildUnknownRow('unknownAppRuns', 'Approaching Mystery 2', 'orange', 'AppD');
+
+            document.querySelectorAll('.btnResetNormal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.isUnknownMode = false;
+                    mainControls.classList.remove('opacity-30', 'pointer-events-none');
+                    unknownBadge.classList.add('hidden');
+                    displaySpeed.innerText = `${state.currentSpeed} m/s`;
+                    document.querySelectorAll('.btnResetNormal').forEach(b => b.classList.add('hidden'));
+                });
+            });
+
+            // Distractor Equations Generation
+            const svgBase = `<svg viewBox="-5 -5 110 70" class="w-full h-full p-1"><polyline points="0,60 100,60" stroke="#4b5563" stroke-width="1"/><polyline points="0,0 0,60" stroke="#4b5563" stroke-width="1"/>`;
+            
+            const equations = [
+                { id: 'correct_rec', correct: 'rec', html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>c + v</div></span>`, svg: `${svgBase}<path d="M0,30 Q30,50 100,55" stroke="#3b82f6" fill="none" stroke-width="3"/></svg>`, fb: "<strong>Correct!</strong> Dividing by an increasingly larger number (c + v) creates a hyperbola that matches your receding data." },
+                { id: 'correct_app', correct: 'app', html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>c - v</div></span>`, svg: `${svgBase}<path d="M0,30 Q70,30 100,0" stroke="#f97316" fill="none" stroke-width="3"/></svg>`, fb: "<strong>Correct!</strong> Dividing by a smaller number (c - v) causes the frequency to sweep upwards, matching approaching data." },
+                { id: 'lin_down', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c - v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,30 100,60" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This creates a straight line, but your data is a curve. 'v' cannot be in the numerator." },
+                { id: 'lin_up', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c + v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,30 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This creates a straight line going UP. Check the shape of your data again." },
+                { id: 'hyperbola', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>v</div></span>`, svg: `${svgBase}<path d="M5,0 Q10,50 100,58" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "If v=0, you would divide by zero! A parked car still has a frequency (f₀)." },
+                { id: 'origin_lin', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,60 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "If v=0, this equation equals 0 Hz. But a stationary source still makes sound." },
+                { id: 'parabola', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> c <span class="text-[10px]">·</span> v²`, svg: `${svgBase}<path d="M0,60 Q70,60 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This is a parabola. The Doppler effect does not square the velocity." }
+            ];
+
+            let selectedEqRec = null;
+            let selectedEqApp = null;
+
+            const buildEqGrid = (targetId, type) => {
+                const container = document.getElementById(targetId);
+                container.innerHTML = '';
+                let pool = [...equations].sort(() => 0.5 - Math.random()).slice(0, 4); 
+                
+                if(!pool.find(e => e.correct === type)) {
+                    pool[0] = equations.find(e => e.correct === type);
+                    pool = pool.sort(() => 0.5 - Math.random());
+                }
+
+                if (type === 'rec') {
+                    selectedEqRec = null;
+                    document.getElementById('btnCheckEqRec').disabled = true;
+                    document.getElementById('fbEqRec').classList.add('hidden');
+                } else {
+                    selectedEqApp = null;
+                    document.getElementById('btnCheckEqApp').disabled = true;
+                    document.getElementById('fbEqApp').classList.add('hidden');
+                }
+
+                pool.forEach(eq => {
+                    const div = document.createElement('div');
+                    div.className = `bg-gray-900 border border-gray-700 rounded p-2 cursor-pointer hover:border-gray-400 transition-all eq-card-${type}`;
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="w-3 h-3 rounded-full border-2 border-gray-500 eq-radio-${type}"></div>
+                            <div class="flex-1 text-center font-serif text-gray-300 ml-1 scale-90">${eq.html}</div>
+                        </div>
+                        <div class="w-full h-12 bg-gray-800 rounded border border-gray-700">${eq.svg}</div>
+                    `;
+                    div.addEventListener('click', () => {
+                        document.querySelectorAll(`.eq-radio-${type}`).forEach(el => el.className = `w-3 h-3 rounded-full border-2 border-gray-500 eq-radio-${type}`);
+                        div.querySelector(`.eq-radio-${type}`).className = `w-3 h-3 rounded-full border-2 bg-blue-500 border-blue-300 eq-radio-${type}`;
+                        
+                        if(type === 'rec') {
+                            selectedEqRec = eq;
+                            document.getElementById('btnCheckEqRec').disabled = false;
+                        } else {
+                            selectedEqApp = eq;
+                            document.getElementById('btnCheckEqApp').disabled = false;
+                        }
+                    });
+                    container.appendChild(div);
+                });
+            };
+
+            const setupEqCheck = (type, btnId, fbId, containerId) => {
+                document.getElementById(btnId).addEventListener('click', () => {
+                    let eq = type === 'rec' ? selectedEqRec : selectedEqApp;
+                    if (!eq) return;
+
+                    let fb = document.getElementById(fbId);
+                    fb.classList.remove('hidden');
+
+                    if (eq.correct === type) {
+                        fb.className = "mt-3 text-sm font-bold p-3 rounded bg-green-900/50 border border-green-500/50 text-green-300";
+                        fb.innerHTML = eq.fb;
+                        document.getElementById(btnId).classList.add('hidden');
+                    } else {
+                        fb.className = "mt-3 text-sm font-bold p-3 rounded bg-red-900/50 border border-red-500/50 text-red-300 flex flex-col gap-2";
+                        fb.innerHTML = `<span>❌ ${eq.fb}</span><button class="px-4 py-1.5 bg-red-700 hover:bg-red-600 rounded text-white self-start transition-colors" onclick="document.getElementById('${fbId}').classList.add('hidden')">Try Again</button>`;
+                        
+                        // Shuffle options on failure
+                        document.querySelector(`#${fbId} button`).addEventListener('click', () => {
+                            buildEqGrid(containerId, type);
+                        });
+                    }
+                });
+            };
+
+            buildEqGrid('eqContainerReceding', 'rec');
+            buildEqGrid('eqContainerApproaching', 'app');
+            
+            setupEqCheck('rec', 'btnCheckEqRec', 'fbEqRec', 'eqContainerReceding');
+            setupEqCheck('app', 'btnCheckEqApp', 'fbEqApp', 'eqContainerApproaching');
+            
+            QuizManager.init();
+        }
+
+        // --- Quiz Generation & Management Engine ---
+        const QuizManager = {
+            pool: [],
+            activeQuiz: [],
+            currentQIdx: 0,
+            corrections: 0,
+            hintState: 0,
+            isLocked: false,
+
+            init() {
+                this.generatePool();
+                document.getElementById('btnStartQuiz').addEventListener('click', () => this.startQuiz());
+                document.getElementById('btnNextQ').addEventListener('click', () => this.nextQuestion());
+                document.getElementById('btnHint').addEventListener('click', () => this.showHint());
+                document.getElementById('btnRetryQuiz').addEventListener('click', () => {
+                    document.getElementById('quizWinScreen').classList.add('hidden');
+                    this.startQuiz();
+                });
+            },
+
+            generatePool() {
+                this.pool = [];
+                for(let i=0; i<150; i++) {
+                    let f0 = Math.floor(Math.random() * 600) + 200; 
+                    let v = Math.floor(Math.random() * 120) + 10;   
+                    let c = 340;
+                    let type = i % 4; 
+                    
+                    let q = { hints: [] };
+
+                    if (type === 0) { // Math: Approaching
+                        let exact = f0 * (c / (c - v));
+                        q.category = 'math';
+                        q.text = `An ambulance siren emits a frequency of <b>${f0} Hz</b>. It is driving <b>TOWARDS</b> you at <b>${v} m/s</b>. <br><br>What frequency do you hear? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
+                        q.type = 'number';
+                        q.answer = exact;
+                        q.hints = [
+                            "Since it is moving TOWARDS you, the waves are compressed. The pitch should be HIGHER than the base frequency.",
+                            "Use the approaching formula: f' = f₀ * [c / (c - v)]",
+                            `Plug in the numbers: f' = ${f0} * [340 / (340 - ${v})]`
+                        ];
+                    } else if (type === 1) { // Math: Receding
+                        let exact = f0 * (c / (c + v));
+                        q.category = 'math';
+                        q.text = `A train whistle blows at <b>${f0} Hz</b>. It just passed you and is moving <b>AWAY</b> at <b>${v} m/s</b>. <br><br>Calculate the observed frequency. <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
+                        q.type = 'number';
+                        q.answer = exact;
+                        q.hints = [
+                            "It is moving AWAY from you, meaning waves stretch out. The pitch should be LOWER.",
+                            "Use the receding formula: f' = f₀ * [c / (c + v)]",
+                            `Plug in the numbers: f' = ${f0} * [340 / (340 + ${v})]`
+                        ];
+                    } else if (type === 2) { // Math: Find Velocity (Given Approaching)
+                        let f_obs = Math.round(f0 * (c / (c - v)));
+                        let true_v = c - (f0 * c / f_obs);
+                        q.category = 'math';
+                        q.text = `A car horn is normally <b>${f0} Hz</b>. As it speeds TOWARDS you, you measure the pitch at <b>${f_obs} Hz</b>. <br><br>How fast is the car moving in m/s? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
+                        q.type = 'number';
+                        q.answer = true_v;
+                        q.hints = [
+                            "You are trying to find 'v' from the approaching formula: f' = f₀ * [c / (c - v)]",
+                            "Rearranged for v, the formula is: v = c - (f₀ * c / f')",
+                            `Plug in the numbers: v = 340 - (${f0} * 340 / ${f_obs})`
+                        ];
+                    } else { // Conceptual
+                        let isApp = Math.random() > 0.5;
+                        let offset = Math.floor(Math.random() * 50) + 20;
+                        let f_obs = isApp ? f0 + offset : f0 - offset;
+                        q.category = 'concept';
+                        q.text = `You measure a sound wave at <b>${f_obs} Hz</b>. You look up the engine specifications and see it natively emits sound at <b>${f0} Hz</b>. <br><br>Based on this data, what is the object doing?`;
+                        q.type = 'mc';
+                        q.options = ["Moving Towards You", "Moving Away From You", "Standing Still"];
+                        q.answer = isApp ? "Moving Towards You" : "Moving Away From You";
+                        q.hints = [
+                            "Compare the two numbers. Is the frequency you hear higher or lower than the native frequency?",
+                            isApp ? "The observed frequency is HIGHER." : "The observed frequency is LOWER.",
+                            isApp ? "Higher frequencies mean compressed waves, which happen when moving towards you." : "Lower frequencies mean stretched waves, which happen when moving away."
+                        ];
+                    }
+                    this.pool.push(q);
+                }
+            },
+
+            startQuiz() {
+                let mathPool = this.pool.filter(q => q.category === 'math').sort(() => 0.5 - Math.random());
+                let concPool = this.pool.filter(q => q.category === 'concept').sort(() => 0.5 - Math.random());
+                
+                // Exactly 2 computation, 2 conceptual
+                this.activeQuiz = [...mathPool.slice(0, 2), ...concPool.slice(0, 2)].sort(() => 0.5 - Math.random());
+                
+                this.currentQIdx = 0;
+                this.corrections = 0;
+                
+                document.getElementById('quizIntro').classList.add('hidden');
+                document.getElementById('quizActive').classList.remove('hidden');
+                document.getElementById('quizActive').classList.add('flex');
+                
+                this.loadQuestion();
+            },
+
+            loadQuestion() {
+                this.hintState = 0;
+                this.isLocked = false;
+                document.getElementById('hintText').classList.add('hidden');
+                document.getElementById('qFeedback').classList.add('hidden');
+                document.getElementById('btnNextQ').classList.add('hidden');
+                document.getElementById('btnHint').classList.remove('hidden');
+                
+                let q = this.activeQuiz[this.currentQIdx];
+                document.getElementById('quizProgress').innerText = `Question ${this.currentQIdx + 1} / 4`;
+                document.getElementById('qText').innerHTML = q.text;
+
+                let area = document.getElementById('qInputArea');
+                area.innerHTML = '';
+
+                if (q.type === 'number') {
+                    area.innerHTML = `
+                        <div class="flex gap-2">
+                            <input type="number" id="quizNumInput" placeholder="Enter number..." class="flex-1 bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white outline-none focus:border-blue-500 font-mono text-lg">
+                            <button id="quizSubmitBtn" class="px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors">Submit</button>
+                        </div>
+                    `;
+                    document.getElementById('quizSubmitBtn').addEventListener('click', () => this.checkAnswer());
+                } else {
+                    q.options.forEach(opt => {
+                        let btn = document.createElement('button');
+                        btn.className = "w-full py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded font-bold text-gray-300 transition-colors text-left px-4";
+                        btn.innerText = opt;
+                        btn.addEventListener('click', () => this.checkAnswer(opt, btn));
+                        area.appendChild(btn);
+                    });
+                }
+            },
+
+            showHint() {
+                if (this.isLocked) return;
+                let q = this.activeQuiz[this.currentQIdx];
+                let textDiv = document.getElementById('hintText');
+                
+                if (this.hintState < q.hints.length) {
+                    textDiv.innerText = q.hints[this.hintState];
+                    textDiv.classList.remove('hidden');
+                    this.hintState++;
+                    this.corrections++; 
+                }
+                
+                if (this.hintState >= q.hints.length) {
+                    document.getElementById('btnHint').classList.add('hidden');
+                }
+            },
+
+            checkAnswer(val = null, btnEl = null) {
+                if (this.isLocked) return;
+                let q = this.activeQuiz[this.currentQIdx];
+                let fb = document.getElementById('qFeedback');
+                fb.classList.remove('hidden');
+
+                let isCorrect = false;
+
+                if (q.type === 'number') {
+                    let inputEl = document.getElementById('quizNumInput');
+                    let guess = parseFloat(inputEl.value);
+                    if (isNaN(guess)) {
+                        fb.className = "mt-4 p-3 rounded text-sm font-bold bg-gray-800 text-yellow-400 border border-yellow-600";
+                        fb.innerText = "Please enter a valid number.";
+                        return;
+                    }
+
+                    if (Math.abs(guess - q.answer) <= (Math.abs(q.answer) * 0.02 + 0.1)) {
+                        isCorrect = true;
+                        inputEl.value = q.answer.toFixed(1); 
+                        inputEl.classList.add('border-green-500', 'bg-green-900/30');
+                    }
+                } else {
+                    if (val === q.answer) {
+                        isCorrect = true;
+                        btnEl.classList.add('bg-green-600', 'border-green-500', 'text-white');
+                    } else {
+                        btnEl.classList.add('bg-red-900/50', 'border-red-500');
+                    }
+                }
+
+                if (isCorrect) {
+                    this.isLocked = true;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-green-900/50 border border-green-500/50 text-green-300";
+                    fb.innerText = "Correct! Well done.";
+                    document.getElementById('btnNextQ').classList.remove('hidden');
+                } else {
+                    this.corrections++;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
+                    
+                    if (this.hintState >= 3) { 
+                        this.isLocked = true;
+                        fb.innerHTML = `Incorrect. The exact answer is <b>${q.type==='number' ? q.answer.toFixed(2) : q.answer}</b>.`;
+                        if(q.type==='number') document.getElementById('quizNumInput').value = q.answer.toFixed(2);
+                        document.getElementById('btnNextQ').classList.remove('hidden');
+                    } else {
+                        fb.innerText = "Incorrect. Try checking the hints!";
+                    }
+                }
+            },
+
+            nextQuestion() {
+                this.currentQIdx++;
+                if (this.currentQIdx >= this.activeQuiz.length) {
+                    this.endQuiz();
+                } else {
+                    this.loadQuestion();
+                }
+            },
+
+            endQuiz() {
+                document.getElementById('quizActive').classList.add('hidden');
+                document.getElementById('quizActive').classList.remove('flex');
+                
+                let winScreen = document.getElementById('quizWinScreen');
+                winScreen.classList.remove('hidden');
+
+                let baseMax = 25;
+                let finalScore = 0;
+                let ecText = "";
+                
+                if (this.corrections === 0) { finalScore = 30; ecText = "+5 Extra Credit Points!"; }
+                else if (this.corrections === 1) { finalScore = 29; ecText = "+4 Extra Credit Points!"; }
+                else if (this.corrections === 2) { finalScore = 28; ecText = "+3 Extra Credit Points!"; }
+                else if (this.corrections === 3) { finalScore = 27; ecText = "+2 Extra Credit Points!"; }
+                else if (this.corrections === 4) { finalScore = 26; ecText = "+1 Extra Credit Point!"; }
+                else if (this.corrections <= 10) { finalScore = 25; }
+                else { finalScore = 25 - (this.corrections - 10); } 
+                
+                if (finalScore < 0) finalScore = 0;
+
+                document.getElementById('winScore').innerHTML = `${finalScore}</span><span class="text-3xl text-gray-500">/25`;
+                document.getElementById('winEC').innerText = ecText;
+
+                let code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                document.getElementById('winCode').innerText = code;
+
+                const adjs = ["Spectacular", "Amazing", "Stellar", "Incredible", "Outstanding", "Phenomenal", "Brilliant", "Fantastic", "Superb", "Marvelous"];
+                const nouns = ["Performance", "Job", "Work", "Effort", "Achievement", "Success", "Execution", "Display", "Result", "Mastery"];
+                const puncts = ["!", "!!", "!!!"];
+                
+                let msg = finalScore >= 20 
+                    ? `${adjs[Math.floor(Math.random()*10)]} ${nouns[Math.floor(Math.random()*10)]}${puncts[Math.floor(Math.random()*3)]}`
+                    : "Assessment Complete.";
+                
+                document.getElementById('winTitle').innerText = msg;
+                document.getElementById('winSubtitle').innerText = `You completed the lab with ${this.corrections} corrections/hints.`;
+
+                let retryBtn = document.getElementById('btnRetryQuiz');
+                if (finalScore < 20) { 
+                    document.getElementById('winTitle').innerText = "Keep Trying!";
+                    document.getElementById('winEC').className = "text-yellow-400 text-sm font-bold";
+                    document.getElementById('winEC').innerText = "Try again to get a passing score!";
+                    retryBtn.classList.remove('hidden');
+                } else {
+                    retryBtn.classList.add('hidden');
+                    let duration = finalScore > 25 ? 3000 : (finalScore === 25 ? 1000 : 0);
+                    if (duration > 0) {
+                        let end = Date.now() + duration;
+                        (function frame() {
+                            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#3b82f6'] });
+                            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#10b981', '#3b82f6'] });
+                            if (Date.now() < end) requestAnimationFrame(frame);
+                        }());
+                    }
+                }
+            }
+        };
+
+        window.onload = init;
+    </script>
+</body>
+</html>
