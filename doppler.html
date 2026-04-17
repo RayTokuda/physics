@@ -1108,6 +1108,7 @@
                     if (type === 0) { // Math: Approaching
                         let exact = f0 * (c / (c - v));
                         q.category = 'math';
+                        q.mathType = 'app';
                         q.text = `An ambulance siren emits a frequency of <b>${f0} Hz</b>. It is driving <b>TOWARDS</b> you at <b>${v} m/s</b>. <br><br>What frequency do you hear? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
                         q.type = 'number';
                         q.answer = exact;
@@ -1119,6 +1120,7 @@
                     } else if (type === 1) { // Math: Receding
                         let exact = f0 * (c / (c + v));
                         q.category = 'math';
+                        q.mathType = 'rec';
                         q.text = `A train whistle blows at <b>${f0} Hz</b>. It just passed you and is moving <b>AWAY</b> at <b>${v} m/s</b>. <br><br>Calculate the observed frequency. <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
                         q.type = 'number';
                         q.answer = exact;
@@ -1131,6 +1133,7 @@
                         let f_obs = Math.round(f0 * (c / (c - v)));
                         let true_v = c - (f0 * c / f_obs);
                         q.category = 'math';
+                        q.mathType = 'vel';
                         q.text = `A car horn is normally <b>${f0} Hz</b>. As it speeds TOWARDS you, you measure the pitch at <b>${f_obs} Hz</b>. <br><br>How fast is the car moving in m/s? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
                         q.type = 'number';
                         q.answer = true_v;
@@ -1162,8 +1165,17 @@
                 let mathPool = this.pool.filter(q => q.category === 'math').sort(() => 0.5 - Math.random());
                 let concPool = this.pool.filter(q => q.category === 'concept').sort(() => 0.5 - Math.random());
                 
+                // Select 2 computational questions of DIFFERENT types
+                let selectedMath = [mathPool[0]];
+                for (let i = 1; i < mathPool.length; i++) {
+                    if (mathPool[i].mathType !== selectedMath[0].mathType) {
+                        selectedMath.push(mathPool[i]);
+                        break;
+                    }
+                }
+                
                 // Exactly 2 computation, 2 conceptual
-                this.activeQuiz = [...mathPool.slice(0, 2), ...concPool.slice(0, 2)].sort(() => 0.5 - Math.random());
+                this.activeQuiz = [...selectedMath, ...concPool.slice(0, 2)].sort(() => 0.5 - Math.random());
                 
                 this.currentQIdx = 0;
                 this.corrections = 0;
