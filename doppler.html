@@ -724,6 +724,15 @@
                     
                     document.getElementById(`tabContent${t}`).style.display = t===7 ? 'flex' : 'block';
                     
+                    // Return to manual control if navigating back to data collection tabs
+                    if ((t === 1 || t === 4) && state.isUnknownMode) {
+                        state.isUnknownMode = false;
+                        mainControls.classList.remove('opacity-30', 'pointer-events-none');
+                        unknownBadge.classList.add('hidden');
+                        displaySpeed.innerText = `${state.currentSpeed} m/s`;
+                        document.querySelectorAll('.btnResetNormal').forEach(b => b.classList.add('hidden'));
+                    }
+                    
                     // Auto-start mystery runs when entering tabs
                     if (t === 2 && !state.isUnknownMode) startUnknown(UNKNOWNS.RecA, 'RecA', 'Receding Mystery 1');
                     if (t === 5 && !state.isUnknownMode) startUnknown(UNKNOWNS.AppC, 'AppC', 'Approaching Mystery 1');
