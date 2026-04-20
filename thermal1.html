@@ -42,13 +42,13 @@
     </header>
 
     <!-- Win Screen Overlay -->
-    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500">
+    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500 overflow-y-auto">
         <i class="ph ph-medal text-7xl text-yellow-500 mb-4 drop-shadow-md"></i>
         <h2 id="congratsMessage" class="text-3xl font-bold text-slate-800 mb-2">Excellent Work!</h2>
         <div class="bg-brand-50 p-6 rounded-xl border border-brand-200 shadow-inner my-6">
             <p class="text-sm text-slate-500 uppercase font-semibold mb-1">Final Score</p>
             <div class="text-6xl font-black text-brand-600 flex justify-center items-baseline gap-1">
-                <span id="finalScoreVal">18</span><span class="text-2xl text-brand-400">/ 18</span>
+                <span id="finalScoreVal">25</span><span class="text-2xl text-brand-400">/ 25</span>
             </div>
             <p id="ecMessage" class="text-sm text-green-600 font-medium mt-2"></p>
         </div>
@@ -81,8 +81,8 @@
         <div class="lg:col-span-4 flex flex-col gap-6">
             <div class="glass-panel rounded-xl border border-slate-200 overflow-hidden flex flex-col">
                 <div class="flex border-b border-slate-200 bg-slate-50 px-2 pt-2">
-                    <button id="tab-calorimeter" class="px-4 py-2 text-sm tab-active rounded-t-lg">1. Calorimeter</button>
-                    <button id="tab-graph" class="px-4 py-2 text-sm tab-inactive rounded-t-lg opacity-50 cursor-not-allowed">2. Q vs ΔT Mode</button>
+                    <button id="tab-calorimeter" onclick="switchMode('calorimeter')" class="px-4 py-2 text-sm tab-active rounded-t-lg">1. Calorimeter</button>
+                    <button id="tab-graph" onclick="if(appState.step >= 4) switchMode('graph')" class="px-4 py-2 text-sm tab-inactive rounded-t-lg opacity-50 cursor-not-allowed">2. Q vs ΔT Mode</button>
                 </div>
 
                 <!-- Setup Calorimeter -->
@@ -125,9 +125,12 @@
 
             <!-- LMS Wizard -->
             <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col flex-1 relative">
-                <!-- Loading Overlay for Graph Mode -->
-                <div id="wzBlocker" class="hidden absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
-                    <div class="text-center font-bold text-indigo-800 animate-pulse"><i class="ph ph-hourglass-high text-3xl mb-2 block mx-auto"></i> Run the simulation first!</div>
+                <!-- Loading Overlay for Graph Mode (Now a clickable button to prevent lockouts) -->
+                <div id="wzBlocker" class="hidden absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl transition-all">
+                    <button id="wzBlockerBtn" onclick="startGraphSimulation()" class="text-center font-bold text-white bg-indigo-600 hover:bg-indigo-700 animate-pulse px-6 py-4 rounded-xl shadow-lg flex flex-col items-center transition cursor-pointer border-2 border-indigo-400">
+                        <i class="ph ph-fire text-4xl mb-2"></i> 
+                        <span>Click Here to Run Experiment 2<br>(Graph Simulation)</span>
+                    </button>
                 </div>
 
                 <div class="flex justify-between items-end border-b pb-2 mb-4">
@@ -193,9 +196,11 @@
             iron: { name: "Iron", c: 0.450, color: '#64748b' },
             copper: { name: "Copper", c: 0.385, color: '#ea580c' }
         };
-        let isRunning = false, simInterval, qInterval, trialCount = 0;
+        let isRunning = false, simInterval = null, qInterval = null, trialCount = 0;
         let currentMode = 'calorimeter';
         let appState = { step: 1, variantIndex: 0, subQ: 0, mistakes: 0, totalMistakes: 0 };
+        let graphSimComplete = false;
+        let mathJaxPromise = Promise.resolve();
 
         // --- CHARTS ---
         const ctxSim = document.getElementById('simChart').getContext('2d');
@@ -224,10 +229,18 @@
             document.getElementById('timeContainer').classList.toggle('hidden', mode !== 'calorimeter');
             document.getElementById('graphTitle').innerHTML = mode === 'calorimeter' ? '<i class="ph ph-chart-line-up"></i> Real-time Thermal Analysis' : '<i class="ph ph-trend-up"></i> Q vs ΔT Analysis (Constant Mass = 1g)';
             
-            if (mode === 'calorimeter') simChart.update();
+            document.getElementById('tab-calorimeter').className = mode === 'calorimeter' ? "px-4 py-2 text-sm tab-active rounded-t-lg" : "px-4 py-2 text-sm tab-inactive rounded-t-lg";
+            document.getElementById('tab-graph').className = mode === 'graph' ? "px-4 py-2 text-sm tab-active rounded-t-lg" : "px-4 py-2 text-sm tab-inactive rounded-t-lg";
+
+            if (mode === 'calorimeter') {
+                document.getElementById('wzBlocker').classList.add('hidden'); // Guarantee it is hidden in Calorimeter mode
+                simChart.update();
+            }
             if (mode === 'graph') {
                 qChart.update();
-                document.getElementById('wzBlocker').classList.remove('hidden'); // Force sim run
+                if (!graphSimComplete) {
+                    document.getElementById('wzBlocker').classList.remove('hidden'); // Force sim run
+                }
             }
         }
 
@@ -282,8 +295,20 @@
         }
 
         function startGraphSimulation() {
+            if (graphSimComplete || qInterval) return; // Prevent double execution
+            
             document.getElementById('btnRunGraphSim').disabled = true;
             document.getElementById('btnRunGraphSim').classList.add('opacity-50');
+            
+            // Visual feedback on the blocker button that the simulation is running
+            const blockerBtn = document.getElementById('wzBlockerBtn');
+            if (blockerBtn) {
+                blockerBtn.innerHTML = `<i class="ph ph-hourglass-high text-4xl mb-2 animate-spin"></i><span>Simulation Running...<br>Please wait.</span>`;
+                blockerBtn.classList.remove('hover:bg-indigo-700', 'cursor-pointer');
+                blockerBtn.classList.add('bg-indigo-800', 'cursor-wait');
+                blockerBtn.onclick = null;
+            }
+
             qChart.data.datasets.forEach(ds => ds.data = [{x:0, y:0}]);
             let currentQ = 0; 
             qInterval = setInterval(() => {
@@ -294,10 +319,12 @@
                     ds.data.push({ x: currentQ / c, y: currentQ }); 
                 });
                 qChart.update('none');
+                
                 if (currentQ >= 40) {
                     clearInterval(qInterval);
-                    document.getElementById('wzBlocker').classList.add('hidden'); 
+                    document.getElementById('wzBlocker').classList.add('hidden'); // Unlock wizard
                     document.getElementById('btnRunGraphSim').innerText = "Simulation Complete";
+                    graphSimComplete = true;
                 }
             }, 50);
         }
@@ -310,32 +337,32 @@
                     [ // V0
                         { q:"Which direction does thermal energy flow?", o:["Hot to Cold", "Cold to Hot", "It depends on the mass of the objects", "It moves back and forth equally", "Cold energy moves to the hot object"], a:"Hot to Cold", f:{"Cold to Hot":{h:"Hot objects cool down. Energy leaves them.",nx:1}, "It depends on the mass of the objects":{h:"Always high to low temperature, regardless of mass.",nx:2}, "It moves back and forth equally":{h:"There is a net flow in one direction.",nx:1}, "Cold energy moves to the hot object":{h:"Cold is just the absence of heat.",nx:2}} },
                         { q:"Which is experimental evidence for this?", o:["Final temp is between initial temps", "Water changed color", "Mass increased", "Temperature kept rising forever", "The graph lines crossed each other"], a:"Final temp is between initial temps", f:{"Water changed color":{h:"Temp changed, not color.",nx:1}, "Mass increased":{h:"Conservation of mass.",nx:2}, "Temperature kept rising forever":{h:"It reached equilibrium.",nx:1}, "The graph lines crossed each other":{h:"They merged, they didn't cross.",nx:2}} },
-                        { q:"Reasoning: Why does 'Final temp is between initial temps' prove 'Hot to Cold'?", o:["Heat leaving hot water equals heat entering cold water, forcing a middle ground", "Heat is created in the middle", "Cold objects absorb mass", "Thermometers are naturally attracted to the middle", "Water naturally wants to be 50 degrees"], a:"Heat leaving hot water equals heat entering cold water, forcing a middle ground", f:{"Heat is created in the middle":{h:"Energy is conserved, not created.",nx:1}, "Cold objects absorb mass":{h:"Only energy moves, not mass.",nx:2}, "Thermometers are naturally attracted to the middle":{h:"It's thermodynamics, not the tool.",nx:1}, "Water naturally wants to be 50 degrees":{h:"It depends on starting temps.",nx:2}} }
+                        { q:"Reasoning: Why does 'Final temp is between initial temps' prove 'Hot to Cold'?", o:["Because the hot water cooled down and the cold water warmed up, indicating heat only flowed from the hotter object to the colder one", "Heat is created in the middle", "Cold objects absorb mass", "Thermometers are naturally attracted to the middle", "Water naturally wants to be 50 degrees"], a:"Because the hot water cooled down and the cold water warmed up, indicating heat only flowed from the hotter object to the colder one", f:{"Heat is created in the middle":{h:"Energy is conserved, not created.",nx:1}, "Cold objects absorb mass":{h:"Only energy moves, not mass.",nx:2}, "Thermometers are naturally attracted to the middle":{h:"It's thermodynamics, not the tool.",nx:1}, "Water naturally wants to be 50 degrees":{h:"It depends on starting temps.",nx:2}} }
                     ],
                     [ // V1
                         { q:"The hot water <select class='inline-select'><option>...</option><option>loses</option><option>gains</option><option>destroys</option><option>creates</option></select> heat.", a:"loses", t:"select", f:{"gains":{h:"Hot water's temp dropped.",nx:2}, "destroys":{h:"Energy cannot be destroyed.",nx:0}, "creates":{h:"Energy cannot be created.",nx:0}} },
                         { q:"Evidence: The ΔT for the hot water in the table is...", o:["Negative", "Positive", "Zero", "Infinite", "Undefined"], a:"Negative", f:{"Positive":{h:"50 - 80 = -30.",nx:2}, "Zero":{h:"It definitely changed.",nx:0}, "Infinite":{h:"It was a finite number.",nx:2}, "Undefined":{h:"We have a clear numerical value.",nx:0}} },
-                        { q:"Reasoning: Why does 'Negative ΔT' prove it 'loses' heat?", o:["Negative change means final is less than initial, indicating energy left", "Negative means absolute zero", "Negative numbers don't exist in physics", "It means the thermometer broke", "Negative indicates it gained coldness"], a:"Negative change means final is less than initial, indicating energy left", f:{"Negative means absolute zero":{h:"It just means Final < Initial.",nx:2}, "Negative numbers don't exist in physics":{h:"They indicate direction of flow.",nx:0}, "It means the thermometer broke":{h:"It's valid data.",nx:2}, "Negative indicates it gained coldness":{h:"There is no 'cold' energy.",nx:0}} }
+                        { q:"Reasoning: Why does 'Negative ΔT' prove it 'loses' heat?", o:["A negative change means the final temperature is lower than the initial, meaning the water's internal thermal energy decreased", "Negative means absolute zero", "Negative numbers don't exist in physics", "It means the thermometer broke", "Negative indicates it gained coldness"], a:"A negative change means the final temperature is lower than the initial, meaning the water's internal thermal energy decreased", f:{"Negative means absolute zero":{h:"It just means Final < Initial.",nx:2}, "Negative numbers don't exist in physics":{h:"They indicate direction of flow.",nx:0}, "It means the thermometer broke":{h:"It's valid data.",nx:2}, "Negative indicates it gained coldness":{h:"There is no 'cold' energy.",nx:0}} }
                     ],
                     [ // V2
                         { q:"Thermal transfer stops when...", o:["Temperatures are equal", "Masses are equal", "Time runs out", "The water boils", "One object absorbs all the heat"], a:"Temperatures are equal", f:{"Masses are equal":{h:"It's about thermal state.",nx:3}, "Time runs out":{h:"Nature doesn't have a timer.",nx:1}, "The water boils":{h:"We are far below 100C.",nx:3}, "One object absorbs all the heat":{h:"They share it until balanced.",nx:1}} },
                         { q:"Evidence: At the end of the simulation, the graph lines...", o:["Merge into a flat horizontal line", "Cross each other", "Go straight up", "Disappear completely", "Form a circle"], a:"Merge into a flat horizontal line", f:{"Cross each other":{h:"They flatline together.",nx:3}, "Go straight up":{h:"That would mean infinite temp.",nx:1}, "Disappear completely":{h:"The data is still there.",nx:3}, "Form a circle":{h:"It's a time-series graph.",nx:1}} },
-                        { q:"Reasoning: Why does a 'flat horizontal line' prove transfer 'stops'?", o:["Horizontal means no temperature change over time, indicating net transfer ceased", "Horizontal means infinite heat", "The graph ran out of ink", "Horizontal means water is freezing", "It proves the simulator crashed"], a:"Horizontal means no temperature change over time, indicating net transfer ceased", f:{"Horizontal means infinite heat":{h:"It means zero change.",nx:3}, "The graph ran out of ink":{h:"It's a digital graph.",nx:1}, "Horizontal means water is freezing":{h:"Temp is well above 0C.",nx:3}, "It proves the simulator crashed":{h:"The simulation finished its task.",nx:1}} }
+                        { q:"Reasoning: Why does a 'flat horizontal line' prove transfer 'stops'?", o:["Horizontal means the temperatures stop changing, meaning net thermal energy is no longer flowing between them", "Horizontal means infinite heat", "The graph ran out of ink", "Horizontal means water is freezing", "It proves the simulator crashed"], a:"Horizontal means the temperatures stop changing, meaning net thermal energy is no longer flowing between them", f:{"Horizontal means infinite heat":{h:"It means zero change.",nx:3}, "The graph ran out of ink":{h:"It's a digital graph.",nx:1}, "Horizontal means water is freezing":{h:"Temp is well above 0C.",nx:3}, "It proves the simulator crashed":{h:"The simulation finished its task.",nx:1}} }
                     ],
                     [ // V3
                         { q:"Because masses/materials are identical, heat gained equals heat ____.", a:"lost", t:"text", f:{"created":{h:"Cannot be created.",nx:4}, "destroyed":{h:"Cannot be destroyed.",nx:2}, "doubled":{h:"Energy is conserved.",nx:4}, "halved":{h:"It transfers 1:1.",nx:2}} },
                         { q:"Evidence: Compare the ΔT values. They are...", o:["Equal but opposite signs", "Identical positive values", "Completely unrelated numbers", "Both exactly zero", "One is twice the other"], a:"Equal but opposite signs", f:{"Identical positive values":{h:"One cooled, one heated.",nx:4}, "Completely unrelated numbers":{h:"Look closely, they share a magnitude.",nx:2}, "Both exactly zero":{h:"They both changed.",nx:4}, "One is twice the other":{h:"Masses are identical here.",nx:2}} },
-                        { q:"Reasoning: Why does 'Equal but opposite ΔT' prove 'heat gained = heat lost'?", o:["Same mass + same material means equal energy exchange produces equal magnitude temp swings", "Temp doesn't relate to heat", "It's just a coincidence", "Opposite signs cancel heat out completely", "Water always changes by 30 degrees"], a:"Same mass + same material means equal energy exchange produces equal magnitude temp swings", f:{"Temp doesn't relate to heat":{h:"They are directly related.",nx:4}, "It's just a coincidence":{h:"It's a law of physics.",nx:2}, "Opposite signs cancel heat out completely":{h:"It indicates transfer direction.",nx:4}, "Water always changes by 30 degrees":{h:"Only in this specific setup.",nx:2}} }
+                        { q:"Reasoning: Why does 'Equal but opposite ΔT' prove 'heat gained = heat lost'?", o:["Since both are 100g of water, identical temperature changes physically show that every Joule leaving one exactly entered the other", "Temp doesn't relate to heat", "It's just a coincidence", "Opposite signs cancel heat out completely", "Water always changes by 30 degrees"], a:"Since both are 100g of water, identical temperature changes physically show that every Joule leaving one exactly entered the other", f:{"Temp doesn't relate to heat":{h:"They are directly related.",nx:4}, "It's just a coincidence":{h:"It's a law of physics.",nx:2}, "Opposite signs cancel heat out completely":{h:"It indicates transfer direction.",nx:4}, "Water always changes by 30 degrees":{h:"Only in this specific setup.",nx:2}} }
                     ],
                     [ // V4
                         { q:"At equilibrium, the final temp is the...", o:["Average of the two", "Sum of the two", "Difference of the two", "Product of the two", "Exact temperature of the room"], a:"Average of the two", f:{"Sum of the two":{h:"20 + 80 != 100°C water.",nx:5}, "Difference of the two":{h:"80 - 20 = 60. Final is 50.",nx:3}, "Product of the two":{h:"20 * 80 is way too high.",nx:5}, "Exact temperature of the room":{h:"It's a perfectly insulated closed system.",nx:3}} },
                         { q:"Evidence: Mixing 20 and 80 gave a final temp of...", a:"50", t:"text", num:true, f:{"100":{h:"Check Tf column.",nx:5}, "60":{h:"Look at the final temp.",nx:3}, "0":{h:"It didn't freeze.",nx:5}, "40":{h:"Check the average.",nx:3}} },
-                        { q:"Reasoning: Why is it exactly the 'Average'?", o:["Equal masses of the same substance have identical thermal capacities, meeting exactly in the middle", "Heat prefers the middle", "All systems always average out regardless of mass", "Water is magically drawn to 50C", "The simulator is hardcoded to output 50"], a:"Equal masses of the same substance have identical thermal capacities, meeting exactly in the middle", f:{"Heat prefers the middle":{h:"It's driven by thermal capacity math.",nx:5}, "All systems always average out regardless of mass":{h:"Mass changes this entirely (see Step 2).",nx:3}, "Water is magically drawn to 50C":{h:"No magic, just math.",nx:5}, "The simulator is hardcoded to output 50":{h:"Change the inputs and see!",nx:3}} }
+                        { q:"Reasoning: Why is it exactly the 'Average'?", o:["Equal masses of the exact same material exchange equal energy for equal temperature changes, so they mathematically meet perfectly in the middle", "Heat prefers the middle", "All systems always average out regardless of mass", "Water is magically drawn to 50C", "The simulator is hardcoded to output 50"], a:"Equal masses of the exact same material exchange equal energy for equal temperature changes, so they mathematically meet perfectly in the middle", f:{"Heat prefers the middle":{h:"It's driven by thermal capacity math.",nx:5}, "All systems always average out regardless of mass":{h:"Mass changes this entirely (see Step 2).",nx:3}, "Water is magically drawn to 50C":{h:"No magic, just math.",nx:5}, "The simulator is hardcoded to output 50":{h:"Change the inputs and see!",nx:3}} }
                     ],
                     [ // V5
                         { q:"True or False: Energy was destroyed.", o:["True","False", "Only half of it was destroyed", "It turned into mass", "It leaked out into space"], a:"False", f:{"True":{h:"Energy is conserved.",nx:0}, "Only half of it was destroyed":{h:"None of it was destroyed.",nx:4}, "It turned into mass":{h:"This isn't a nuclear reaction.",nx:0}, "It leaked out into space":{h:"The system is perfectly insulated.",nx:4}} },
                         { q:"Evidence: The amount of heat leaving the hot water exactly matches the heat...", o:["Entering the cold water", "Leaking to the room", "Destroyed by the friction", "Turned into light", "Absorbed by the glass panel"], a:"Entering the cold water", f:{"Leaking to the room":{h:"We used perfect insulation.",nx:0}, "Destroyed by the friction":{h:"No friction here.",nx:4}, "Turned into light":{h:"No light is emitted.",nx:0}, "Absorbed by the glass panel":{h:"It's a theoretical closed system.",nx:4}} },
-                        { q:"Reasoning: Why does this prove energy wasn't destroyed?", o:["The law of conservation of energy states energy cannot be created or destroyed, only transferred", "Energy is a myth", "Water is immune to energy loss", "The room was too cold to destroy it", "Because the simulation says so"], a:"The law of conservation of energy states energy cannot be created or destroyed, only transferred", f:{"Energy is a myth":{h:"It is a fundamental physical property.",nx:0}, "Water is immune to energy loss":{h:"Any material conserves energy in a closed system.",nx:4}, "The room was too cold to destroy it":{h:"Temperature doesn't destroy energy.",nx:0}, "Because the simulation says so":{h:"The simulation follows physical laws.",nx:4}} }
+                        { q:"Reasoning: Why does this prove energy wasn't destroyed?", o:["Because both 100g water samples had identical 30°C magnitude changes, the experiment physically shows all the heat leaving one was fully absorbed by the other", "Energy is a myth", "Water is immune to energy loss", "The room was too cold to destroy it", "Because the simulation says so"], a:"Because both 100g water samples had identical 30°C magnitude changes, the experiment physically shows all the heat leaving one was fully absorbed by the other", f:{"Energy is a myth":{h:"It is a fundamental physical property.",nx:0}, "Water is immune to energy loss":{h:"Any material conserves energy in a closed system.",nx:4}, "The room was too cold to destroy it":{h:"Temperature doesn't destroy energy.",nx:0}, "Because the simulation says so":{h:"The simulation follows physical laws.",nx:4}} }
                     ]
                 ]
             },
@@ -418,9 +445,9 @@
                         { q:"Reasoning: Why does '41.8 Joules' prove it requires 'MORE heat'?", o:["Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", "It doesn't", "41.8 is smaller than 3.8", "Water is a liquid", "Copper is broken"], a:"Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", f:{"It doesn't":{h:"41.8 > 3.8.",nx:1}, "41.8 is smaller than 3.8":{h:"Check your math.",nx:2}, "Water is a liquid":{h:"State of matter isn't the primary reason here.",nx:1}, "Copper is broken":{h:"Real physics.",nx:2}} }
                     ],
                     [ // V1
-                        { q:"Slope = Rise/Run = Q / ΔT. Since mass is 1g, the slope is exactly equal to...", o:["Specific Heat (c)", "Final Temp", "Initial Mass", "Time", "Friction"], a:"Specific Heat (c)", f:{"Final Temp":{h:"Represents energy per degree.",nx:2}, "Initial Mass":{h:"Mass is already 1g.",nx:3}, "Time":{h:"Time is not on these axes.",nx:2}, "Friction":{h:"No movement here.",nx:3}} },
+                        { q:"Slope = Rise/Run = Q / ΔT. Since mass is 1g, the slope is exactly equal to its...", o:["Thermal Resistance", "Final Temp", "Initial Mass", "Time", "Friction"], a:"Thermal Resistance", f:{"Final Temp":{h:"Represents energy per degree.",nx:2}, "Initial Mass":{h:"Mass is already 1g.",nx:3}, "Time":{h:"Time is not on these axes.",nx:2}, "Friction":{h:"No movement here.",nx:3}} },
                         { q:"Evidence: The line with the highest slope on the graph is...", o:["Blue (Water)", "Orange (Copper)", "Purple (Plastic)", "Gray (Iron)", "Silver (Aluminum)"], a:"Blue (Water)", f:{"Orange (Copper)":{h:"Orange is bottom.",nx:2}, "Purple (Plastic)":{h:"It's in the middle.",nx:3}, "Gray (Iron)":{h:"Near the bottom.",nx:2}, "Silver (Aluminum)":{h:"Middle-bottom.",nx:3}} },
-                        { q:"Reasoning: Why does 'Blue (Water)' prove it has the highest 'Specific Heat'?", o:["Water is the best thermal insulator because a steep slope means large energy input causes minimal temperature change", "Blue is a cool color", "Water is heavy", "Water boils easily", "It doesn't"], a:"Water is the best thermal insulator because a steep slope means large energy input causes minimal temperature change", f:{"Blue is a cool color":{h:"Stick to math.",nx:2}, "Water is heavy":{h:"Mass is 1g for all.",nx:3}, "Water boils easily":{h:"It actually resists boiling.",nx:2}, "It doesn't":{h:"Highest slope = highest c.",nx:3}} }
+                        { q:"Reasoning: Why does 'Blue (Water)' prove it has the highest 'Thermal Resistance'?", o:["A steep slope means a massive amount of heat energy (Y) is required to cause even a tiny temperature change (X)", "Blue is a cool color", "Water is heavy", "Water boils easily", "It doesn't"], a:"A steep slope means a massive amount of heat energy (Y) is required to cause even a tiny temperature change (X)", f:{"Blue is a cool color":{h:"Stick to math.",nx:2}, "Water is heavy":{h:"Mass is 1g for all.",nx:3}, "Water boils easily":{h:"It actually resists boiling.",nx:2}, "It doesn't":{h:"Highest slope = highest resistance.",nx:3}} }
                     ],
                     [ // V2
                         { q:"The units of slope on this graph are...", o:["Joules / °C", "°C / Joules", "Joules / gram", "Grams / °C", "Watts"], a:"Joules / °C", f:{"°C / Joules":{h:"Rise (Y) over Run (X).",nx:3}, "Joules / gram":{h:"X axis is Temp.",nx:4}, "Grams / °C":{h:"Y axis is Joules.",nx:3}, "Watts":{h:"Watts is energy over time.",nx:4}} },
@@ -433,7 +460,7 @@
                         { q:"Reasoning: Why does '16.7J vs 8.97J' prove Plastic stores 'More'?", o:["Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", "16.7 is smaller", "Aluminum is heavier", "Plastic is fake", "They are the same"], a:"Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", f:{"16.7 is smaller":{h:"16.7 > 8.97",nx:4}, "Aluminum is heavier":{h:"Both are 1g.",nx:5}, "Plastic is fake":{h:"It's a real thermal material.",nx:4}, "They are the same":{h:"Numbers are different.",nx:5}} }
                     ],
                     [ // V4
-                        { q:"Copper has the lowest specific heat. This means it...", o:["Heats up the fastest", "Heats up the slowest", "Never heats up", "Turns into a gas", "Is identical to water"], a:"Heats up the fastest", f:{"Heats up the slowest":{h:"Takes almost no energy to change.",nx:5}, "Never heats up":{h:"It heats up immediately.",nx:0}, "Turns into a gas":{h:"Not at these temps.",nx:5}, "Is identical to water":{h:"It is the opposite.",nx:0}} },
+                        { q:"Copper has the lowest thermal resistance. This means it...", o:["Heats up the fastest", "Heats up the slowest", "Never heats up", "Turns into a gas", "Is identical to water"], a:"Heats up the fastest", f:{"Heats up the slowest":{h:"Takes almost no energy to change.",nx:5}, "Never heats up":{h:"It heats up immediately.",nx:0}, "Turns into a gas":{h:"Not at these temps.",nx:5}, "Is identical to water":{h:"It is the opposite.",nx:0}} },
                         { q:"Evidence: Adding just 4 Joules to Copper shoots its ΔT past...", a:"10", t:"text", num:true, f:{"5":{h:"Look at orange line Y=4.",nx:5}, "0":{h:"It moved right.",nx:0}, "100":{h:"Not that far.",nx:5}} },
                         { q:"Reasoning: Why does shooting 'past 10' prove it 'heats up fastest'?", o:["The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", "Copper is a metal", "It absorbs water", "It repels heat", "It is broken"], a:"The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", f:{"Copper is a metal":{h:"True, but low slope is the mathematical reason.",nx:5}, "It absorbs water":{h:"It's solid.",nx:0}, "It repels heat":{h:"It absorbs it easily.",nx:5}, "It is broken":{h:"It's physics.",nx:0}} }
                     ],
@@ -450,7 +477,7 @@
                     [ // V0
                         { q:"Based on the linear graphs, how is heat energy ($q$) related to temperature change ($\\Delta T$) and the slope ($c$)?", o:["$q = c \\times \\Delta T$", "$q = c / \\Delta T$", "$q = \\Delta T / c$", "$q = c + \\Delta T$", "$q = c - \\Delta T$"], a:"$q = c \\times \\Delta T$", f:{"$q = c / \\Delta T$":{h:"Y (q) = slope (c) * X (ΔT).",nx:1}, "$q = \\Delta T / c$":{h:"Multiply slope by X.",nx:2}, "$q = c + \\Delta T$":{h:"It's a multiplicative relationship.",nx:1}, "$q = c - \\Delta T$":{h:"No subtraction.",nx:2}} },
                         { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:1}, "4.18":{h:"Multiply them.",nx:2}, "0":{h:"It required energy.",nx:1}} },
-                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:1}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:2}, "Because the graph is a curve":{h:"It is a straight line.",nx:1}, "It is a coincidence":{h:"It's mathematical proof.",nx:2}} }
+                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:1}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:2}, "Because the graph is a curve":{h:"It is a straight line.",nx:1}, "It is a coincidence":{h:"It's mathematical proof.",nx:2}} }
                     ],
                     // Repeating logic for V1-V5 to satisfy robust engine needs
                     [ // V1
@@ -484,34 +511,34 @@
                 title: "Deduce Model: Adding Mass", setup: "The equation $q = c \\times \\Delta T$ only works for exactly 1 gram. We know that changing mass alters everything.",
                 v: [
                     [ // V0
-                        { q:"Where should mass ($m$) go to complete the equation for ANY amount of substance?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:1}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:2}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:1}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:2}} },
-                        { q:"Evidence: In Step 2, doubling the mass of water from 100g to 200g caused the required energy for the same temp change to...", o:["Double (2x)", "Halve (0.5x)", "Quadruple (4x)", "Stay the same", "Drop to zero"], a:"Double (2x)", f:{"Halve (0.5x)":{h:"Bigger pools need MORE heat.",nx:1}, "Quadruple (4x)":{h:"It's a 1:1 linear ratio.",nx:2}, "Stay the same":{h:"Mass changes the requirement.",nx:1}, "Drop to zero":{h:"Energy is always needed.",nx:2}} },
-                        { q:"Reasoning: Why does this evidence mean mass ($m$) must be multiplied in the equation?", o:["Since energy scales directly and proportionally with mass, mass must be multiplied as a numerator", "Because heavier things sink in water", "Because division would make the energy increase", "Because mass cancels out the temperature", "It is arbitrary"], a:"Since energy scales directly and proportionally with mass, mass must be multiplied as a numerator", f:{"Because heavier things sink in water":{h:"Irrelevant to thermal math.",nx:1}, "Because division would make the energy increase":{h:"Division by a larger mass would DECREASE energy.",nx:2}, "Because mass cancels out the temperature":{h:"Nothing cancels.",nx:1}, "It is arbitrary":{h:"It perfectly models physics.",nx:2}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:1}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:2}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:1}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:2}} },
+                        { q:"Evidence: What experimental evidence from Step 2 supports this placement of mass?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:1}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:2}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:1}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:2}} },
+                        { q:"Reasoning: Why does this evidence mean mass ($m$) belongs as a multiplier in the equation?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:1}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:2}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:1}, "It is just arbitrary":{h:"It perfectly models physics.",nx:2}} }
                     ],
                     [ // V1
-                        { q:"If we isolate Specific Heat ($c$) from our new equation $q = m \\times c \\times \\Delta T$, we get:", o:["$c = q / (m \\times \\Delta T)$", "$c = (m \\times \\Delta T) / q$", "$c = q \\times m \\times \\Delta T$", "$c = q - m - \\Delta T$", "$c = m / q$"], a:"$c = q / (m \\times \\Delta T)$", f:{"$c = (m \\times \\Delta T) / q$":{h:"Divide $q$ by the other variables.",nx:2}, "$c = q \\times m \\times \\Delta T$":{h:"Reverse the multiplication.",nx:3}, "$c = q - m - \\Delta T$":{h:"No subtraction.",nx:2}, "$c = m / q$":{h:"Missing ΔT.",nx:3}} },
-                        { q:"Evidence: This division gives Specific Heat ($c$) the final scientific units of:", o:["Joules / (g * °C)", "Joules * g * °C", "Grams / Joule", "°C / Joules", "Watts"], a:"Joules / (g * °C)", f:{"Joules * g * °C":{h:"We divided them, not multiplied.",nx:2}, "Grams / Joule":{h:"Joules ($q$) is on top.",nx:3}, "°C / Joules":{h:"Joules ($q$) is on top.",nx:2}, "Watts":{h:"Energy over time.",nx:3}} },
-                        { q:"Reasoning: Why does 'Joules / (g * °C)' make perfect conceptual sense?", o:["It literally translates to 'The Energy (J) needed per Gram (g) per Degree (°C)'", "It is a random assortment of letters", "It means Grams are more important than Joules", "It proves water is the best", "It cancels out energy"], a:"It literally translates to 'The Energy (J) needed per Gram (g) per Degree (°C)'", f:{"It is a random assortment of letters":{h:"Units mirror the algebra exactly.",nx:2}, "It means Grams are more important than Joules":{h:"All are equally balanced.",nx:3}, "It proves water is the best":{h:"It applies to all materials.",nx:2}, "It cancels out energy":{h:"It defines energy efficiency.",nx:3}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:2}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:3}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:2}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:3}} },
+                        { q:"Evidence: Which experimental observation correctly proves mass acts as a multiplier?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:2}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:3}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:2}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:3}} },
+                        { q:"Reasoning: How does this justify mass being a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:2}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:3}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:2}, "It is just arbitrary":{h:"It perfectly models physics.",nx:3}} }
                     ],
                     [ // V2
-                        { q:"Finally, apply the law of Conservation of Energy to our model: $q_{gained} = -q_{lost}$", o:["$m_A c_A \\Delta T_A = -(m_B c_B \\Delta T_B)$", "$m_A c_A = m_B c_B$", "$\\Delta T_A = -\\Delta T_B$", "$q_A + q_B = 100$", "$m_A = -m_B$"], a:"$m_A c_A \\Delta T_A = -(m_B c_B \\Delta T_B)$", f:{"$m_A c_A = m_B c_B$":{h:"You forgot Temp change.",nx:3}, "$\\Delta T_A = -\\Delta T_B$":{h:"You forgot mass and specific heat.",nx:4}, "$q_A + q_B = 100$":{h:"Total is conserved, not 100.",nx:3}, "$m_A = -m_B$":{h:"Mass can't be negative.",nx:4}} },
-                        { q:"Evidence: This complete model allows us to calculate an unknown if we know...", o:["The other 5 variables", "Only mass", "Only temperature", "Nothing", "The color of the materials"], a:"The other 5 variables", f:{"Only mass":{h:"Algebra needs all but 1 variable.",nx:3}, "Only temperature":{h:"Need mass and c.",nx:4}, "Nothing":{h:"Can't solve without data.",nx:3}, "The color of the materials":{h:"Irrelevant.",nx:4}} },
-                        { q:"Reasoning: Why is this final expanded equation so powerful?", o:["It represents a complete computational model capable of predicting the final thermal equilibrium of ANY closed system", "It isn't powerful", "It generates free energy", "It destroys mass", "It only works on computers"], a:"It represents a complete computational model capable of predicting the final thermal equilibrium of ANY closed system", f:{"It isn't powerful":{h:"It's the foundation of thermodynamics.",nx:3}, "It generates free energy":{h:"Energy is conserved, never free.",nx:4}, "It destroys mass":{h:"Mass is conserved.",nx:3}, "It only works on computers":{h:"It works in the real physical world.",nx:4}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:3}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:4}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:3}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:4}} },
+                        { q:"Evidence: In Step 2, what physical evidence supported adding mass as a multiplier?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:3}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:4}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:3}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:4}} },
+                        { q:"Reasoning: Why does halving the temperature change mathematically place mass as a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:3}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:4}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:3}, "It is just arbitrary":{h:"It perfectly models physics.",nx:4}} }
                     ],
                     [ // V3
-                        { q:"Where should mass ($m$) go to complete the equation for ANY amount of substance?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:4}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:5}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:4}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:5}} },
-                        { q:"Evidence: In Step 2, doubling the mass of water from 100g to 200g caused the required energy for the same temp change to...", o:["Double (2x)", "Halve (0.5x)", "Quadruple (4x)", "Stay the same", "Drop to zero"], a:"Double (2x)", f:{"Halve (0.5x)":{h:"Bigger pools need MORE heat.",nx:4}, "Quadruple (4x)":{h:"It's a 1:1 linear ratio.",nx:5}, "Stay the same":{h:"Mass changes the requirement.",nx:4}, "Drop to zero":{h:"Energy is always needed.",nx:5}} },
-                        { q:"Reasoning: Why does this evidence mean mass ($m$) must be multiplied in the equation?", o:["Since energy scales directly and proportionally with mass, mass must be multiplied as a numerator", "Because heavier things sink in water", "Because division would make the energy increase", "Because mass cancels out the temperature", "It is arbitrary"], a:"Since energy scales directly and proportionally with mass, mass must be multiplied as a numerator", f:{"Because heavier things sink in water":{h:"Irrelevant to thermal math.",nx:4}, "Because division would make the energy increase":{h:"Division by a larger mass would DECREASE energy.",nx:5}, "Because mass cancels out the temperature":{h:"Nothing cancels.",nx:4}, "It is arbitrary":{h:"It perfectly models physics.",nx:5}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:4}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:5}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:4}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:5}} },
+                        { q:"Evidence: What experimental observation proves mass acts directly on the energy requirement?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:4}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:5}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:4}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:5}} },
+                        { q:"Reasoning: Why does this evidence force mass to be multiplied?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:4}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:5}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:4}, "It is just arbitrary":{h:"It perfectly models physics.",nx:5}} }
                     ],
                     [ // V4
-                        { q:"If we isolate Specific Heat ($c$) from our new equation $q = m \\times c \\times \\Delta T$, we get:", o:["$c = q / (m \\times \\Delta T)$", "$c = (m \\times \\Delta T) / q$", "$c = q \\times m \\times \\Delta T$", "$c = q - m - \\Delta T$", "$c = m / q$"], a:"$c = q / (m \\times \\Delta T)$", f:{"$c = (m \\times \\Delta T) / q$":{h:"Divide $q$ by the other variables.",nx:5}, "$c = q \\times m \\times \\Delta T$":{h:"Reverse the multiplication.",nx:0}, "$c = q - m - \\Delta T$":{h:"No subtraction.",nx:5}, "$c = m / q$":{h:"Missing ΔT.",nx:0}} },
-                        { q:"Evidence: This division gives Specific Heat ($c$) the final scientific units of:", o:["Joules / (g * °C)", "Joules * g * °C", "Grams / Joule", "°C / Joules", "Watts"], a:"Joules / (g * °C)", f:{"Joules * g * °C":{h:"We divided them, not multiplied.",nx:5}, "Grams / Joule":{h:"Joules ($q$) is on top.",nx:0}, "°C / Joules":{h:"Joules ($q$) is on top.",nx:5}, "Watts":{h:"Energy over time.",nx:0}} },
-                        { q:"Reasoning: Why does 'Joules / (g * °C)' make perfect conceptual sense?", o:["It literally translates to 'The Energy (J) needed per Gram (g) per Degree (°C)'", "It is a random assortment of letters", "It means Grams are more important than Joules", "It proves water is the best", "It cancels out energy"], a:"It literally translates to 'The Energy (J) needed per Gram (g) per Degree (°C)'", f:{"It is a random assortment of letters":{h:"Units mirror the algebra exactly.",nx:5}, "It means Grams are more important than Joules":{h:"All are equally balanced.",nx:0}, "It proves water is the best":{h:"It applies to all materials.",nx:5}, "It cancels out energy":{h:"It defines energy efficiency.",nx:0}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:5}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:0}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:5}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:0}} },
+                        { q:"Evidence: Think back to Step 2. What physical evidence supported this model?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:5}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:0}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:5}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:0}} },
+                        { q:"Reasoning: Why does doubling mass and halving temp change mean mass is a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:5}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:0}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:5}, "It is just arbitrary":{h:"It perfectly models physics.",nx:0}} }
                     ],
                     [ // V5
-                        { q:"Finally, apply the law of Conservation of Energy to our model: $q_{gained} = -q_{lost}$", o:["$m_A c_A \\Delta T_A = -(m_B c_B \\Delta T_B)$", "$m_A c_A = m_B c_B$", "$\\Delta T_A = -\\Delta T_B$", "$q_A + q_B = 100$", "$m_A = -m_B$"], a:"$m_A c_A \\Delta T_A = -(m_B c_B \\Delta T_B)$", f:{"$m_A c_A = m_B c_B$":{h:"You forgot Temp change.",nx:0}, "$\\Delta T_A = -\\Delta T_B$":{h:"You forgot mass and specific heat.",nx:1}, "$q_A + q_B = 100$":{h:"Total is conserved, not 100.",nx:0}, "$m_A = -m_B$":{h:"Mass can't be negative.",nx:1}} },
-                        { q:"Evidence: This complete model allows us to calculate an unknown if we know...", o:["The other 5 variables", "Only mass", "Only temperature", "Nothing", "The color of the materials"], a:"The other 5 variables", f:{"Only mass":{h:"Algebra needs all but 1 variable.",nx:0}, "Only temperature":{h:"Need mass and c.",nx:1}, "Nothing":{h:"Can't solve without data.",nx:0}, "The color of the materials":{h:"Irrelevant.",nx:1}} },
-                        { q:"Reasoning: Why is this final expanded equation so powerful?", o:["It represents a complete computational model capable of predicting the final thermal equilibrium of ANY closed system", "It isn't powerful", "It generates free energy", "It destroys mass", "It only works on computers"], a:"It represents a complete computational model capable of predicting the final thermal equilibrium of ANY closed system", f:{"It isn't powerful":{h:"It's the foundation of thermodynamics.",nx:0}, "It generates free energy":{h:"Energy is conserved, never free.",nx:1}, "It destroys mass":{h:"Mass is conserved.",nx:0}, "It only works on computers":{h:"It works in the real physical world.",nx:1}} }
+                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:0}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:1}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:0}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:1}} },
+                        { q:"Evidence: Which experimental result proves mass acts to scale up the required energy?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:0}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:1}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:0}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:1}} },
+                        { q:"Reasoning: How does this specific evidence mathematically justify mass as a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:0}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:1}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:0}, "It is just arbitrary":{h:"It perfectly models physics.",nx:1}} }
                     ]
                 ]
             }
@@ -577,14 +604,19 @@
             } else if (sqData.t === 'select') {
                 inputsDiv.innerHTML = `<p class="text-xs text-slate-500 italic">Select correct options in the text above.</p>`;
             } else {
-                sqData.o.forEach(opt => {
-                    inputsDiv.innerHTML += `<label class="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer"><input type="radio" name="qAns" value="${opt}"> <span>${opt}</span></label>`;
+                sqData.o.forEach((opt, idx) => {
+                    // Storing the array index directly bypasses ALL HTML string-encoding issues when parsing math
+                    inputsDiv.innerHTML += `<label class="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer"><input type="radio" name="qAns" value="${idx}"> <span class="math-content">${opt}</span></label>`;
                 });
             }
             
-            if (window.MathJax && MathJax.typesetPromise) {
-                MathJax.typesetPromise().catch(err => console.error('MathJax Error:', err));
-            }
+            // Safe synchronous rendering for MathJax
+            mathJaxPromise = mathJaxPromise.then(() => {
+                if (window.MathJax && MathJax.typesetPromise) {
+                    return MathJax.typesetPromise();
+                }
+            }).catch(err => console.error('MathJax Error:', err));
+            
             appState.mistakes = 0; 
             
             document.getElementById('btnSubmit').classList.remove('hidden');
@@ -599,7 +631,12 @@
             if (sqData.t === 'text') {
                 uAns = document.getElementById('qAns').value.trim();
                 if(sqData.num) {
-                    if (Math.abs(parseFloat(uAns) - parseFloat(sqData.a)) <= 0.2) { isCorrect = true; document.getElementById('qAns').value = sqData.a; }
+                    let parsedAns = parseFloat(uAns);
+                    let parsedExpected = parseFloat(sqData.a);
+                    if (!isNaN(parsedAns) && Math.abs(parsedAns - parsedExpected) <= 0.2) { 
+                        isCorrect = true; 
+                        document.getElementById('qAns').value = sqData.a; 
+                    }
                 } else {
                     if (uAns.toLowerCase() === sqData.a.toLowerCase()) isCorrect = true;
                 }
@@ -609,7 +646,8 @@
             } else {
                 let chk = document.querySelector('input[name="qAns"]:checked');
                 if(!chk) return;
-                uAns = chk.value;
+                // Grab the exact raw string from the array via the radio's index
+                uAns = sqData.o[parseInt(chk.value)];
                 if(uAns === sqData.a) isCorrect = true;
             }
 
@@ -642,6 +680,9 @@
         }
 
         function nextSubQuestion() {
+            document.getElementById('btnNextSub').disabled = true; // prevent double clicks
+            setTimeout(() => { document.getElementById('btnNextSub').disabled = false; }, 500);
+
             const V = QB[appState.step - 1].v[appState.variantIndex];
             appState.subQ++;
             if (appState.subQ < V.length) {
@@ -664,27 +705,44 @@
 
         // --- GAMIFICATION & WIN LOGIC ---
         function triggerWin() {
-            let m = appState.totalMistakes;
-            let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
-            let baseScore = m > 10 ? Math.max(0, 18 - (m - 10)) : 18;
-            let finalScore = baseScore + ec;
+            try {
+                let m = appState.totalMistakes;
+                let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
+                let baseScore = m > 10 ? Math.max(0, 25 - (m - 10)) : 25;
+                let finalScore = baseScore + ec;
 
-            const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
-            const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
-            
-            document.getElementById('winScreen').classList.remove('hidden');
-            document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
-            document.getElementById('finalScoreVal').innerText = finalScore;
-            document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
-            
-            if(ec > 0) document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
-            if(baseScore < 15) { // Below ~80%
-                document.getElementById('tryAgainBtn').classList.remove('hidden');
-                document.getElementById('ecMessage').innerHTML = `<span class="text-red-500 font-normal">Errors made: ${m}</span>`;
+                const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
+                const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
+                
+                document.getElementById('winScreen').classList.remove('hidden');
+                document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
+                document.getElementById('finalScoreVal').innerText = finalScore;
+                document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+                
+                if(ec > 0) {
+                    document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
+                } else {
+                    document.getElementById('ecMessage').innerText = ``;
+                }
+                
+                if(baseScore < 20) { // Below ~80%
+                    document.getElementById('tryAgainBtn').classList.remove('hidden');
+                    document.getElementById('ecMessage').innerHTML += `<br><span class="text-red-500 font-normal">Errors made: ${m}</span>`;
+                }
+
+                let rounds = finalScore >= 25 ? 3 : 0;
+                if (typeof window.confetti === 'function') {
+                    for(let i=0; i<rounds; i++) {
+                        setTimeout(() => {
+                            try {
+                                window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] });
+                            } catch(e) {}
+                        }, i * 800);
+                    }
+                }
+            } catch (e) {
+                console.error("Win Screen Error: ", e);
             }
-
-            let rounds = finalScore > 18 ? 3 : (finalScore === 18 ? 1 : 0);
-            for(let i=0; i<rounds; i++) setTimeout(() => confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] }), i * 800);
         }
 
         // Init
