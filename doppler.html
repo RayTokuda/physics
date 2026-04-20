@@ -3,734 +3,1374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thermal Energy Transfer Model (HS-PS3-1)</title>
-    <!-- Tailwind CSS for styling -->
+    <title>The Doppler Effect Laboratory</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for graphical analysis -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <!-- Canvas Confetti -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- MathJax -->
-    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
-
-    <script>
-        tailwind.config = { theme: { extend: { colors: { brand: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a'} } } } }
-    </script>
     <style>
-        body { font-family: 'Inter', system-ui, sans-serif; }
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .wave-canvas {
+            background-color: #1e293b;
+            background-image: radial-gradient(#334155 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        
+        datalist {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 10px;
+            margin-top: 5px;
+        }
+        
+        datalist option {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        datalist option::before {
+            content: '';
+            display: block;
+            width: 2px;
+            height: 6px;
+            background-color: #4b5563;
+            margin-bottom: 2px;
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-        .tab-active { border-bottom: 2px solid #0d9488; color: #0d9488; font-weight: 600; }
-        .tab-inactive { color: #64748b; font-weight: 500; cursor: pointer; }
-        select.inline-select { appearance: none; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 0.25rem; padding: 0.1rem 1.5rem 0.1rem 0.5rem; margin: 0 0.25rem; font-weight: 600; color: #0f172a; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.25rem center; background-repeat: no-repeat; background-size: 1.2em 1.2em; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+
+        .tab-btn {
+            min-width: 120px;
+            transition: all 0.2s;
+        }
+        .tab-active {
+            background-color: #374151;
+            color: white;
+            border-top-color: #3b82f6;
+        }
+        .tab-inactive {
+            color: #9ca3af;
+            border-top-color: transparent;
+        }
+        .tab-inactive:hover:not(.locked) { background-color: #1f2937; }
+        
+        .locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
+<body class="bg-gray-900 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-brand-900 text-white shadow-md relative z-10">
-        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold flex items-center gap-2"><i class="ph ph-thermometer-hot text-3xl"></i> Thermal Energy Transfer Model</h1>
-                <p class="text-brand-100 text-sm mt-1">NGSS HS-PS3-1 Computational Modeling</p>
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 shadow-md flex justify-between items-center z-10 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
             </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-wide text-white leading-tight">Doppler Effect Laboratory</h1>
+                <div class="text-xs text-blue-400 font-mono" id="baseFreqDisplay">Base Frequency (f₀): -- Hz</div>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="btnAudio" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2">
+                <span>🔈</span> Enable Audio Engine
+            </button>
         </div>
     </header>
 
-    <!-- Win Screen Overlay -->
-    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500 overflow-y-auto">
-        <i class="ph ph-medal text-7xl text-yellow-500 mb-4 drop-shadow-md"></i>
-        <h2 id="congratsMessage" class="text-3xl font-bold text-slate-800 mb-2">Excellent Work!</h2>
-        <div class="bg-brand-50 p-6 rounded-xl border border-brand-200 shadow-inner my-6">
-            <p class="text-sm text-slate-500 uppercase font-semibold mb-1">Final Score</p>
-            <div class="text-6xl font-black text-brand-600 flex justify-center items-baseline gap-1">
-                <span id="finalScoreVal">25</span><span class="text-2xl text-brand-400">/ 25</span>
-            </div>
-            <p id="ecMessage" class="text-sm text-green-600 font-medium mt-2"></p>
-        </div>
-        <div class="text-sm text-slate-500 space-y-1">
-            <p class="font-bold text-slate-700">Thermal Energy Transfer Model (HS-PS3-1)</p>
-            <p>Verification Code: <span id="verifyCode" class="font-mono bg-slate-200 px-2 py-1 rounded text-slate-800 tracking-wider"></span></p>
-            <p class="text-xs mt-4 italic text-slate-400">Take a screenshot of this panel to turn in for credit.</p>
-        </div>
-        <button id="tryAgainBtn" onclick="location.reload()" class="hidden mt-6 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-6 rounded transition">Try Again to Improve Score</button>
-    </div>
-
-    <!-- Explicit Teaching Panel (Fired after Step 4) -->
-    <div id="teachingPanel" class="hidden fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-8 border-t-8 border-brand-500">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ph ph-lightbulb text-yellow-500 text-3xl"></i> Concept Unlocked: Specific Heat</h2>
-            <div class="text-slate-700 space-y-4 text-lg">
-                <p>Based on your graphical analysis, you have deduced a fundamental property of matter.</p>
-                <div class="bg-brand-50 p-4 rounded-lg border border-brand-200 font-medium text-brand-900">
-                    The amount of energy 1 gram of a substance can store before rising 1°C in temperature is called its <strong>Specific Heat Capacity ($c$)</strong>.
-                </div>
-                <p>It is exactly equal to the <strong>slope</strong> of the $Q$ vs $\Delta T$ graph you just created!</p>
-            </div>
-            <button onclick="closeTeachingPanel()" class="mt-8 w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-lg transition">I Understand. Let's Build the Math Model!</button>
-        </div>
-    </div>
-
-    <main class="max-w-7xl mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6 relative flex-1">
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         
-        <!-- Left Column -->
-        <div class="lg:col-span-4 flex flex-col gap-6">
-            <div class="glass-panel rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-                <div class="flex border-b border-slate-200 bg-slate-50 px-2 pt-2">
-                    <button id="tab-calorimeter" onclick="switchMode('calorimeter')" class="px-4 py-2 text-sm tab-active rounded-t-lg">1. Calorimeter</button>
-                    <button id="tab-graph" onclick="if(appState.step >= 4) switchMode('graph')" class="px-4 py-2 text-sm tab-inactive rounded-t-lg opacity-50 cursor-not-allowed">2. Q vs ΔT Mode</button>
+        <!-- Left: Simulation Canvas -->
+        <section class="flex-1 relative flex flex-col p-4 z-0">
+            
+            <!-- Live Readouts -->
+            <div class="flex gap-4 mb-4">
+                <div class="bg-gray-800 border border-gray-700 p-4 rounded-xl flex-1 shadow flex justify-between items-center relative overflow-hidden">
+                    <div id="unknownBadge" class="absolute top-0 right-0 bg-purple-600 text-white text-xs px-3 py-1 rounded-bl-lg font-bold animate-pulse hidden z-10 shadow">Mystery Mode Active</div>
+                    <div>
+                        <div class="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">Race Car Speed</div>
+                        <div id="displaySpeed" class="text-3xl font-mono text-blue-400">0 m/s</div>
+                    </div>
                 </div>
-
-                <!-- Setup Calorimeter -->
-                <div id="setup-calorimeter" class="p-5">
-                    <div class="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                        <h3 class="font-medium text-blue-800 flex items-center gap-1 mb-2"><i class="ph ph-drop"></i> Main Bath (Water)</h3>
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            <div><label class="block text-slate-600 mb-1">Mass (g)</label><input type="number" id="massA" value="100" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
-                            <div><label class="block text-slate-600 mb-1">Init Temp (°C)</label><input type="number" id="tempA" value="20" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
-                        </div>
-                    </div>
-                    <div class="mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
-                        <h3 class="font-medium text-orange-800 flex items-center gap-1 mb-2"><i class="ph ph-cube"></i> Added Substance</h3>
-                        <div class="mb-3 text-sm">
-                            <label class="block text-slate-600 mb-1">Material</label>
-                            <select id="materialB" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white">
-                                <option value="water" selected>Water</option><option value="plastic">Plastic</option>
-                                <option value="aluminum">Aluminum</option><option value="iron">Iron</option><option value="copper">Copper</option>
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            <div><label class="block text-slate-600 mb-1">Mass (g)</label><input type="number" id="massB" value="100" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
-                            <div><label class="block text-slate-600 mb-1">Init Temp (°C)</label><input type="number" id="tempB" value="80" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
-                        </div>
-                    </div>
-                    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm"><input type="checkbox" id="insulation" checked class="rounded text-brand-600"> <label>Perfect Insulation</label></div>
-                    <button onclick="startSimulation()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded transition flex justify-center items-center gap-2"><i class="ph ph-play-circle text-lg"></i> Run Model</button>
-                </div>
-
-                <!-- Setup Graph -->
-                <div id="setup-graph" class="p-5 hidden">
-                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-4 text-sm text-indigo-900 space-y-2">
-                        <p><strong>Experiment 2:</strong> 1-Gram Samples.</p>
-                        <p>We will apply heat energy ($Q$) at a constant rate to exactly <strong>1 gram</strong> of each material, starting at 0°C.</p>
-                        <p>The graph will track how their temperatures change ($\Delta T$) as more energy is forced into them.</p>
-                    </div>
-                    <button id="btnRunGraphSim" onclick="startGraphSimulation()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded transition flex justify-center items-center gap-2 shadow-lg"><i class="ph ph-fire text-xl"></i> Inject Heat Energy (Run Sim)</button>
+                <div class="bg-gray-800 border border-gray-700 p-4 rounded-xl flex-1 shadow">
+                    <div class="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">Observer Hears</div>
+                    <div id="displayFreq" class="text-3xl font-mono text-emerald-400">-- Hz</div>
                 </div>
             </div>
 
-            <!-- LMS Wizard -->
-            <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col flex-1 relative">
-                <!-- Loading Overlay for Graph Mode -->
-                <div id="wzBlocker" class="hidden absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
-                    <div class="text-center font-bold text-indigo-800 animate-pulse"><i class="ph ph-hourglass-high text-3xl mb-2 block mx-auto"></i> Run the simulation first!</div>
+            <!-- The Canvas -->
+            <div class="relative flex-1 bg-gray-800 rounded-xl border border-gray-700 shadow-inner overflow-hidden mb-4">
+                <canvas id="simCanvas" class="w-full h-full wave-canvas"></canvas>
+            </div>
+            
+            <!-- Controls Overlay -->
+            <div id="mainControls" class="bg-gray-800 border border-gray-700 p-6 rounded-xl shadow transition-opacity duration-300">
+                <div class="flex justify-between items-end mb-4">
+                    <label class="font-bold text-lg text-white">Adjust Car Speed (v)</label>
+                    <div class="flex gap-2">
+                        <button id="btnSpeedDown" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold border border-gray-600">-</button>
+                        <button id="btnSpeedUp" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-white font-bold border border-gray-600">+</button>
+                    </div>
                 </div>
+                <div class="relative w-full">
+                    <input type="range" id="speedSlider" min="0" max="250" step="1" value="0" list="tickmarks" class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    <datalist id="tickmarks">
+                        <option value="0" label="0"></option>
+                        <option value="50" label="50"></option>
+                        <option value="100" label="100"></option>
+                        <option value="150" label="150"></option>
+                        <option value="200" label="200"></option>
+                        <option value="250" label="250"></option>
+                    </datalist>
+                </div>
+            </div>
+        </section>
 
-                <div class="flex justify-between items-end border-b pb-2 mb-4">
-                    <h2 class="text-lg font-semibold flex items-center gap-2 text-brand-900"><i class="ph ph-graduation-cap"></i> Analysis Step <span id="stepDisplay">1</span> of 6</h2>
-                    <span id="phaseDisplay" class="text-xs font-bold uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-1 rounded">Part A: Concept</span>
-                </div>
+        <!-- Right: Laboratory Activity Panel -->
+        <aside class="w-full lg:w-[500px] bg-gray-800 border-l border-gray-700 flex flex-col shadow-2xl z-20">
+            
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700 bg-gray-900 overflow-x-auto whitespace-nowrap flex-shrink-0 hide-scrollbar" id="tabContainer">
+                <button id="tabBtn1" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-active">1. Rec. Data</button>
+                <button id="tabBtn2" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 2. Rec. Test</button>
+                <button id="tabBtn3" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 3. Rec. Eq.</button>
+                <button id="tabBtn4" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 4. App. Data</button>
+                <button id="tabBtn5" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 5. App. Test</button>
+                <button id="tabBtn6" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 6. App. Eq.</button>
+                <button id="tabBtn7" class="tab-btn px-4 py-3 text-xs font-bold border-t-2 tab-inactive locked">🔒 7. Quiz</button>
+            </div>
+
+            <div class="p-6 flex-1 overflow-y-auto">
                 
-                <div id="wizardContent" class="flex-1 flex flex-col">
-                    <h3 id="wzTitle" class="font-bold text-slate-700 mb-2 text-sm uppercase tracking-wider">Loading...</h3>
-                    <div id="wzSetup" class="text-sm bg-slate-100 p-3 rounded-md mb-3 border border-slate-200 text-slate-700"></div>
+                <!-- Tab 1: Receding Data Collection -->
+                <div id="tabContent1" class="block">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">📉 Receding Data</h2>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Adjust the speed of the car. Let it pass by, and record the lower <strong>receding</strong> frequency (when it is driving AWAY).
+                    </p>
                     
-                    <!-- Dynamic Context Box (Concept/Evidence Supported) -->
-                    <div id="wzContext" class="mb-3 empty:hidden"></div>
-                    
-                    <div class="bg-white border border-brand-200 rounded-md p-4 shadow-sm mb-4">
-                        <p id="wzQuestion" class="text-sm font-medium mb-3 text-slate-800"></p>
-                        <div id="wzInputs" class="text-sm space-y-2"></div>
+                    <div class="flex gap-2 mb-6" id="recControls">
+                        <button id="btnRecordRec" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                            <span>📝</span> Record Point
+                        </button>
+                        <button id="btnUndoRec" class="px-3 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Undo Last Point">
+                            ↩️ Undo
+                        </button>
+                        <button id="btnClearRec" class="px-3 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Recollect Data (Clear All)">
+                            🗑️ Clear
+                        </button>
                     </div>
-                    <div id="wzFeedback" class="hidden p-3 rounded-md text-sm mb-4 border transition-all"></div>
+
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 mb-6 relative">
+                        <canvas id="chartReceding" width="400" height="280"></canvas>
+                    </div>
+                    
+                    <button id="btnCheckGraphRec" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                        <span>🔍</span> Check Graph Shape
+                    </button>
+                    <div id="fbGraphRec" class="mt-4 hidden p-3 rounded text-sm font-bold"></div>
                 </div>
 
-                <div class="flex gap-2 mt-auto">
-                    <button id="btnSubmit" onclick="checkAnswer()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded transition shadow">Submit Answer</button>
-                    <button id="btnNextSub" onclick="nextSubQuestion()" class="hidden flex-1 bg-brand-500 hover:bg-brand-600 text-white font-medium py-2 px-4 rounded transition shadow">Continue <i class="ph ph-arrow-right inline"></i></button>
-                </div>
-            </div>
-        </div>
+                <!-- Tab 2: Receding Unknowns -->
+                <div id="tabContent2" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">❓ Receding Mystery Runs</h2>
+                    <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                        Watch the car pass and record the receding frequency. Then use the graph you just built to estimate the car's hidden speed. Manual control is locked!
+                    </p>
 
-        <!-- Right Column -->
-        <div class="lg:col-span-8 flex flex-col gap-6">
-            <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col h-[400px]">
-                <div class="flex justify-between items-end mb-2 border-b pb-2">
-                    <h2 id="graphTitle" class="text-lg font-semibold flex items-center gap-2"><i class="ph ph-chart-line-up"></i> Real-time Thermal Analysis</h2>
-                    <div id="timeContainer" class="text-sm font-mono bg-slate-100 px-3 py-1 rounded shadow-inner">Time: <span id="timeDisplay">0.0</span>s</div>
+                    <div id="unknownRecRuns" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
-                <div class="flex-1 w-full relative">
-                    <div id="simChartWrapper" class="absolute inset-0"><canvas id="simChart"></canvas></div>
-                    <div id="qChartWrapper" class="absolute inset-0 hidden"><canvas id="qChart"></canvas></div>
-                </div>
-            </div>
 
-            <div id="dataTablePanel" class="glass-panel rounded-xl p-0 border border-slate-200 overflow-hidden">
-                <div class="p-3 border-b bg-slate-50"><h2 class="text-md font-semibold flex items-center gap-2"><i class="ph ph-table"></i> Experimental Log</h2></div>
-                <div class="overflow-x-auto max-h-[250px]">
-                    <table class="w-full text-sm text-left whitespace-nowrap">
-                        <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b sticky top-0 shadow-sm">
-                            <tr><th class="px-3 py-2">Tr</th><th class="px-3 py-2">Sub B</th><th class="px-3 py-2">M<sub>A</sub></th><th class="px-3 py-2">T<sub>iA</sub></th><th class="px-3 py-2">M<sub>B</sub></th><th class="px-3 py-2">T<sub>iB</sub></th><th class="px-3 py-2 bg-brand-50">T<sub>f</sub></th><th class="px-3 py-2 bg-indigo-50">ΔT<sub>A</sub></th><th class="px-3 py-2 bg-indigo-50">ΔT<sub>B</sub></th></tr>
-                        </thead>
-                        <tbody id="dataTableBody" class="divide-y divide-slate-200"><tr id="emptyRow"><td colspan="9" class="px-4 py-8 text-center text-slate-400 italic">Run the simulation to log data.</td></tr></tbody>
-                    </table>
+                <!-- Tab 3: Receding Equation -->
+                <div id="tabContent3" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">🧮 Receding Equation</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-500/50 p-3 rounded-lg mb-4 text-sm text-indigo-200 leading-relaxed">
+                        <strong>Variables:</strong> <br>
+                        • <strong>f₀ (Base Frequency):</strong> <span id="tab3BaseFreqDisplay">--</span> Hz. The actual pitch the car emits when perfectly still.<br>
+                        • <strong>c (Speed of Sound):</strong> The constant speed at which sound waves travel (340 m/s).<br>
+                        • <strong>v (Speed of Car):</strong> How fast the source is moving.
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Based on your graph, which equation correctly models the <strong>receding</strong> frequency? Select one and click Check.
+                    </p>
+                    <div id="eqContainerReceding" class="grid grid-cols-2 gap-2 mb-4"></div>
+                    <button id="btnCheckEqRec" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition-colors opacity-50 cursor-not-allowed" disabled>Check Equation</button>
+                    <div id="fbEqRec" class="mt-3 text-sm font-bold hidden p-3 rounded"></div>
                 </div>
+
+                <!-- Tab 4: Approaching Data Collection -->
+                <div id="tabContent4" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">📈 Approaching Data</h2>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Now, adjust the speed and record the higher <strong>approaching</strong> frequency (when it is driving TOWARDS you).
+                    </p>
+                    
+                    <div class="flex gap-2 mb-6" id="appControls">
+                        <button id="btnRecordApp" class="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                            <span>📝</span> Record Point
+                        </button>
+                        <button id="btnUndoApp" class="px-3 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Undo Last Point">
+                            ↩️ Undo
+                        </button>
+                        <button id="btnClearApp" class="px-3 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg shadow transition-all flex justify-center items-center" title="Recollect Data (Clear All)">
+                            🗑️ Clear
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 mb-6 relative">
+                        <canvas id="chartApproaching" width="400" height="400"></canvas>
+                    </div>
+                    
+                    <button id="btnCheckGraphApp" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg shadow-lg transition-all flex justify-center items-center gap-2">
+                        <span>🔍</span> Check Graph Shape
+                    </button>
+                    <div id="fbGraphApp" class="mt-4 hidden p-3 rounded text-sm font-bold"></div>
+                </div>
+
+                <!-- Tab 5: Approaching Unknowns -->
+                <div id="tabContent5" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">❓ Approaching Mystery Runs</h2>
+                    <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                        Record the higher approaching frequency as it drives towards you, then use your new graph to estimate the hidden speed. Manual control is locked!
+                    </p>
+
+                    <div id="unknownAppRuns" class="space-y-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Tab 6: Approaching Equation -->
+                <div id="tabContent6" class="hidden">
+                    <h2 class="text-xl font-bold text-white mb-3 flex items-center gap-2">🧮 Approaching Equation</h2>
+                    <div class="bg-indigo-900/50 border border-indigo-500/50 p-3 rounded-lg mb-4 text-sm text-indigo-200 leading-relaxed">
+                        <strong>Variables:</strong> <br>
+                        • <strong>f₀ (Base Frequency):</strong> <span id="tab6BaseFreqDisplay">--</span> Hz.<br>
+                        • <strong>c (Speed of Sound):</strong> 340 m/s.<br>
+                        • <strong>v (Speed of Car):</strong> Source velocity.
+                    </div>
+                    <p class="text-sm text-gray-300 mb-4 leading-relaxed">
+                        Based on your approaching graph, which equation correctly models the <strong>approaching</strong> frequency? Select one and click Check.
+                    </p>
+                    <div id="eqContainerApproaching" class="grid grid-cols-2 gap-2 mb-4"></div>
+                    <button id="btnCheckEqApp" class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow transition-colors opacity-50 cursor-not-allowed" disabled>Check Equation</button>
+                    <div id="fbEqApp" class="mt-3 text-sm font-bold hidden p-3 rounded"></div>
+                </div>
+
+                <!-- Tab 7: Summative Assessment -->
+                <div id="tabContent7" class="hidden flex-col h-full">
+                    
+                    <!-- Pre-Quiz State -->
+                    <div id="quizIntro" class="text-center py-10">
+                        <h2 class="text-2xl font-bold text-white mb-4">Final Assessment</h2>
+                        <p class="text-gray-300 mb-8 text-sm px-4 leading-relaxed">
+                            Test your knowledge! There are 4 questions (2 Conceptual, 2 Computational).<br>
+                            If you get stuck, hints are available, but doing it without hints will earn extra credit!
+                        </p>
+                        <button id="btnStartQuiz" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            Start Assessment
+                        </button>
+                    </div>
+
+                    <!-- Active Quiz State -->
+                    <div id="quizActive" class="hidden flex-col h-full">
+                        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                            <span class="text-gray-400 font-bold uppercase text-xs tracking-wider" id="quizProgress">Question 1 / 4</span>
+                        </div>
+                        
+                        <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-inner mb-4 flex-1">
+                            <p id="qText" class="text-lg text-white font-medium leading-relaxed mb-6"></p>
+                            
+                            <div id="qInputArea" class="flex flex-col gap-3">
+                                <!-- Dynamically populated based on question type -->
+                            </div>
+
+                            <div id="qFeedback" class="mt-4 text-sm font-bold p-3 rounded hidden"></div>
+                            
+                            <!-- Hint Section -->
+                            <div id="hintBox" class="mt-6 pt-4 border-t border-gray-800">
+                                <button id="btnHint" class="text-yellow-500 hover:text-yellow-400 text-sm font-bold flex items-center gap-1 transition-colors">
+                                    <span>💡</span> Need a hint?
+                                </button>
+                                <div id="hintText" class="text-sm text-yellow-200/80 mt-2 hidden italic border-l-2 border-yellow-500/50 pl-2"></div>
+                            </div>
+                        </div>
+
+                        <button id="btnNextQ" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg hidden">
+                            Next Question &rarr;
+                        </button>
+                    </div>
+
+                    <!-- Win Screen -->
+                    <div id="quizWinScreen" class="hidden text-center flex flex-col items-center justify-center h-full animate-fade-in py-10">
+                        <h2 class="text-3xl font-bold text-white mb-2" id="winTitle">Assessment Complete!</h2>
+                        <p class="text-gray-400 text-sm mb-6" id="winSubtitle">Calculating final score...</p>
+                        
+                        <div class="bg-gray-900 border-2 border-emerald-500 p-8 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.3)] mb-6 w-full max-w-sm">
+                            <div class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-2">Final Score</div>
+                            <div class="text-6xl font-black text-white mb-2">
+                                <span id="winScore">0</span><span class="text-3xl text-gray-500">/25</span>
+                            </div>
+                            <div class="text-emerald-400 text-sm font-bold" id="winEC"></div>
+                        </div>
+
+                        <div class="text-gray-500 text-[10px] uppercase tracking-widest mb-1">Verification Code</div>
+                        <div id="winCode" class="text-2xl font-mono text-gray-300 bg-gray-800 px-4 py-2 rounded border border-gray-700 tracking-widest mb-4">XXXXXX</div>
+                        
+                        <div class="text-gray-600 text-xs uppercase font-bold tracking-wider">Doppler Effect Laboratory</div>
+                        
+                        <button id="btnRetryQuiz" class="mt-8 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded shadow transition-colors hidden">
+                            Retry Assessment
+                        </button>
+                    </div>
+
+                </div>
+
             </div>
-        </div>
+        </aside>
     </main>
 
-    <!-- Logistics & Brain -->
     <script>
-        // --- DATA & PHYSICS ---
-        const MATERIALS = {
-            water: { name: "Water", c: 4.184, color: '#2563eb' },
-            plastic: { name: "Plastic", c: 1.67, color: '#8b5cf6' },
-            aluminum: { name: "Aluminum", c: 0.897, color: '#94a3b8' },
-            iron: { name: "Iron", c: 0.450, color: '#64748b' },
-            copper: { name: "Copper", c: 0.385, color: '#ea580c' }
+        // --- Core Application State ---
+        const validFreqs = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+        
+        const state = {
+            baseFreq: validFreqs[Math.floor(Math.random() * validFreqs.length)],
+            c: 340,        // Speed of sound (m/s) 
+            currentSpeed: 0,
+            isUnknownMode: false,
+            unknownSpeed: 0,
+            highestUnlockedTab: 1,
+            globalCorrections: 0, // Track mistakes across the entire lab
+            
+            // Task Completion
+            recGraphLocked: false,
+            appGraphLocked: false,
+            solvedRecA: false,
+            solvedRecB: false,
+            solvedAppC: false,
+            solvedAppD: false,
+            activeRecMystery: 'RecA',
+            activeAppMystery: 'AppC',
+
+            // Audio Engine
+            audioCtx: null,
+            oscSaw: null,
+            oscSub: null,
+            filter: null,
+            gainNode: null,
+            isAudioEnabled: false,
+
+            // Graphics
+            carX: 0,
+            observerX: 400,
+            waves: [],
+            lastTime: 0,
+
+            // Data
+            chartDataApproaching: [],
+            chartDataReceding: []
         };
-        let isRunning = false, simInterval, qInterval, trialCount = 0;
-        let currentMode = 'calorimeter';
-        let appState = { step: 1, variantIndex: 0, subQ: 0, mistakes: 0, totalMistakes: 0 };
-        let graphSimComplete = false;
-        let mathJaxPromise = Promise.resolve();
 
-        // --- CHARTS ---
-        const ctxSim = document.getElementById('simChart').getContext('2d');
-        const simChart = new Chart(ctxSim, {
-            type: 'line', data: { labels: [0], datasets: [ { label: 'Bath Temp', borderColor: MATERIALS.water.color, data: [20], tension: 0.2, pointRadius: 0 }, { label: 'Added Sub Temp', borderColor: MATERIALS.water.color, data: [80], tension: 0.2, pointRadius: 0 } ]},
-            options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Temperature (°C)' } } } }
-        });
+        // Random Unknown Speeds (Avoid multiples of 50 to ensure they use the graph)
+        const genUnknownSpeed = () => {
+            let s = Math.floor(Math.random() * 190) + 30; // 30 to 220
+            if (s % 50 === 0) s += 15; // Shift off the tick marks
+            return s;
+        };
 
-        const ctxQ = document.getElementById('qChart').getContext('2d');
-        const qChart = new Chart(ctxQ, {
-            type: 'line',
-            data: { datasets: Object.keys(MATERIALS).map(k => ({ label: MATERIALS[k].name, borderColor: MATERIALS[k].color, backgroundColor: MATERIALS[k].color, data: [{x:0, y:0}], borderWidth: 2, pointRadius: 2, tension: 0 }))},
-            options: { responsive: true, maintainAspectRatio: false, animation: false,
-                plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ΔT=${ctx.parsed.x.toFixed(1)}°C, Q=${ctx.parsed.y.toFixed(1)}J` } } },
-                scales: { x: { type: 'linear', min: 0, max: 20, title: { display: true, font: {weight: 'bold'}, text: 'Change in Temperature (ΔT in °C)' } }, y: { min: 0, max: 40, title: { display: true, font: {weight: 'bold'}, text: 'Heat Energy Added (Q in Joules)' } } }
-            }
-        });
+        const UNKNOWNS = {
+            RecA: genUnknownSpeed(), RecB: genUnknownSpeed(),
+            AppC: genUnknownSpeed(), AppD: genUnknownSpeed()
+        };
 
-        function switchMode(mode) {
-            currentMode = mode;
-            document.getElementById('setup-calorimeter').classList.toggle('hidden', mode !== 'calorimeter');
-            document.getElementById('setup-graph').classList.toggle('hidden', mode !== 'graph');
-            document.getElementById('dataTablePanel').classList.toggle('hidden', mode !== 'calorimeter');
-            document.getElementById('simChartWrapper').classList.toggle('hidden', mode !== 'calorimeter');
-            document.getElementById('qChartWrapper').classList.toggle('hidden', mode !== 'graph');
-            document.getElementById('timeContainer').classList.toggle('hidden', mode !== 'calorimeter');
-            document.getElementById('graphTitle').innerHTML = mode === 'calorimeter' ? '<i class="ph ph-chart-line-up"></i> Real-time Thermal Analysis' : '<i class="ph ph-trend-up"></i> Q vs ΔT Analysis (Constant Mass = 1g)';
-            
-            document.getElementById('tab-calorimeter').className = mode === 'calorimeter' ? "px-4 py-2 text-sm tab-active rounded-t-lg" : "px-4 py-2 text-sm tab-inactive rounded-t-lg";
-            document.getElementById('tab-graph').className = mode === 'graph' ? "px-4 py-2 text-sm tab-active rounded-t-lg" : "px-4 py-2 text-sm tab-inactive rounded-t-lg";
+        // --- DOM Elements ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('speedSlider');
+        const btnSpeedDown = document.getElementById('btnSpeedDown');
+        const btnSpeedUp = document.getElementById('btnSpeedUp');
+        const displaySpeed = document.getElementById('displaySpeed');
+        const displayFreq = document.getElementById('displayFreq');
+        const mainControls = document.getElementById('mainControls');
+        const unknownBadge = document.getElementById('unknownBadge');
+        
+        let chartRec, chartApp; 
 
-            if (mode === 'calorimeter') simChart.update();
-            if (mode === 'graph') {
-                qChart.update();
-                if (!graphSimComplete) {
-                    document.getElementById('wzBlocker').classList.remove('hidden'); // Force sim run
-                }
-            }
-        }
-
-        function updateChartBounds() {
-            if(currentMode !== 'calorimeter') return;
-            const tA = parseFloat(document.getElementById('tempA').value), tB = parseFloat(document.getElementById('tempB').value);
-            simChart.options.scales.y.suggestedMax = Math.max(tA, tB) + 10;
-            simChart.options.scales.y.suggestedMin = Math.min(tA, tB, 20) - 10;
-            simChart.update();
-        }
-        ['tempA', 'tempB'].forEach(id => document.getElementById(id).addEventListener('change', updateChartBounds));
-
-        // --- SIMULATIONS ---
-        function startSimulation() {
-            clearInterval(simInterval);
-            const mA = parseFloat(document.getElementById('massA').value), initTa = parseFloat(document.getElementById('tempA').value);
-            const matBKey = document.getElementById('materialB').value, mB = parseFloat(document.getElementById('massB').value), initTb = parseFloat(document.getElementById('tempB').value);
-            const isInsulated = document.getElementById('insulation').checked, cA = MATERIALS['water'].c, cB = MATERIALS[matBKey].c;
-            
-            let simTime = 0, currentTempA = initTa, currentTempB = initTb;
-            simChart.data.labels = [0]; simChart.data.datasets[0].data = [currentTempA]; simChart.data.datasets[1].data = [currentTempB];
-            simChart.data.datasets[1].label = `${MATERIALS[matBKey].name} Temp (°C)`; simChart.data.datasets[1].borderColor = MATERIALS[matBKey].color;
-            updateChartBounds();
-            
-            const k = 5.0, env = isInsulated ? 0 : 0.05, dt = 0.5;
-            simInterval = setInterval(() => {
-                simTime += dt;
-                let heatFlow = k * (currentTempA - currentTempB);
-                let dTa = -heatFlow / (mA * cA) * dt, dTb = heatFlow / (mB * cB) * dt;
-                if (!isInsulated) { dTa -= (env * (currentTempA - 20) / (mA * cA)) * dt; dTb -= (env * (currentTempB - 20) / (mB * cB)) * dt; }
-                currentTempA += dTa; currentTempB += dTb;
-
-                if (simTime % 1 === 0) {
-                    simChart.data.labels.push(simTime.toFixed(1)); simChart.data.datasets[0].data.push(currentTempA.toFixed(2)); simChart.data.datasets[1].data.push(currentTempB.toFixed(2));
-                    simChart.update('none'); document.getElementById('timeDisplay').innerText = simTime.toFixed(1);
-                }
-                if (Math.abs(currentTempA - currentTempB) < 0.05 || simTime > 300) {
-                    clearInterval(simInterval);
-                    saveData(mA, initTa, matBKey, mB, initTb, currentTempA, currentTempB);
-                }
-            }, 50);
-        }
-
-        function saveData(mA, iA, mK, mB, iB, fA, fB) {
-            trialCount++;
-            const finalT = (fA + fB) / 2, dT_A = finalT - iA, dT_B = finalT - iB;
-            if(document.getElementById('emptyRow')) document.getElementById('emptyRow').remove();
-            const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 border-b";
-            const fmt = v => v > 0 ? `<span class="text-blue-600">+${v.toFixed(1)}</span>` : `<span class="text-red-600">${v.toFixed(1)}</span>`;
-            tr.innerHTML = `<td class="px-3 py-2">${trialCount}</td><td class="px-3 py-2 font-bold" style="color:${MATERIALS[mK].color}">${MATERIALS[mK].name}</td><td class="px-3 py-2">${mA}</td><td class="px-3 py-2">${iA}</td><td class="px-3 py-2">${mB}</td><td class="px-3 py-2">${iB}</td><td class="px-3 py-2 font-bold bg-brand-50">${finalT.toFixed(1)}</td><td class="px-3 py-2 bg-indigo-50 font-mono">${fmt(dT_A)}</td><td class="px-3 py-2 bg-indigo-50 font-mono">${fmt(dT_B)}</td>`;
-            document.getElementById('dataTableBody').insertBefore(tr, document.getElementById('dataTableBody').firstChild);
-        }
-
-        function startGraphSimulation() {
-            document.getElementById('btnRunGraphSim').disabled = true;
-            document.getElementById('btnRunGraphSim').classList.add('opacity-50');
-            qChart.data.datasets.forEach(ds => ds.data = [{x:0, y:0}]);
-            let currentQ = 0; 
-            qInterval = setInterval(() => {
-                currentQ += 1; 
-                qChart.data.datasets.forEach(ds => {
-                    let matKey = Object.keys(MATERIALS).find(k => MATERIALS[k].name === ds.label);
-                    let c = MATERIALS[matKey].c;
-                    ds.data.push({ x: currentQ / c, y: currentQ }); 
-                });
-                qChart.update('none');
-                if (currentQ >= 40) {
-                    clearInterval(qInterval);
-                    document.getElementById('wzBlocker').classList.add('hidden'); 
-                    document.getElementById('btnRunGraphSim').innerText = "Simulation Complete";
-                    graphSimComplete = true;
-                }
-            }, 50);
-        }
-
-        // --- 3-PART LMS DATA STRUCTURE (Concept, Evidence, Reasoning) ---
-        const QB = [
-            { // STEP 1
-                title: "Equilibrium", setup: "Mix 100g Water (20°C) with 100g Water (80°C).",
-                v: [
-                    [ // V0
-                        { q:"Which direction does thermal energy flow?", o:["Hot to Cold", "Cold to Hot", "It depends on the mass of the objects", "It moves back and forth equally", "Cold energy moves to the hot object"], a:"Hot to Cold", f:{"Cold to Hot":{h:"Hot objects cool down. Energy leaves them.",nx:1}, "It depends on the mass of the objects":{h:"Always high to low temperature, regardless of mass.",nx:2}, "It moves back and forth equally":{h:"There is a net flow in one direction.",nx:1}, "Cold energy moves to the hot object":{h:"Cold is just the absence of heat.",nx:2}} },
-                        { q:"Which is experimental evidence for this?", o:["Final temp is between initial temps", "Water changed color", "Mass increased", "Temperature kept rising forever", "The graph lines crossed each other"], a:"Final temp is between initial temps", f:{"Water changed color":{h:"Temp changed, not color.",nx:1}, "Mass increased":{h:"Conservation of mass.",nx:2}, "Temperature kept rising forever":{h:"It reached equilibrium.",nx:1}, "The graph lines crossed each other":{h:"They merged, they didn't cross.",nx:2}} },
-                        { q:"Reasoning: Why does 'Final temp is between initial temps' prove 'Hot to Cold'?", o:["Because the hot water cooled down and the cold water warmed up, indicating heat only flowed from the hotter object to the colder one", "Heat is created in the middle", "Cold objects absorb mass", "Thermometers are naturally attracted to the middle", "Water naturally wants to be 50 degrees"], a:"Because the hot water cooled down and the cold water warmed up, indicating heat only flowed from the hotter object to the colder one", f:{"Heat is created in the middle":{h:"Energy is conserved, not created.",nx:1}, "Cold objects absorb mass":{h:"Only energy moves, not mass.",nx:2}, "Thermometers are naturally attracted to the middle":{h:"It's thermodynamics, not the tool.",nx:1}, "Water naturally wants to be 50 degrees":{h:"It depends on starting temps.",nx:2}} }
-                    ],
-                    [ // V1
-                        { q:"The hot water <select class='inline-select'><option>...</option><option>loses</option><option>gains</option><option>destroys</option><option>creates</option></select> heat.", a:"loses", t:"select", f:{"gains":{h:"Hot water's temp dropped.",nx:2}, "destroys":{h:"Energy cannot be destroyed.",nx:0}, "creates":{h:"Energy cannot be created.",nx:0}} },
-                        { q:"Evidence: The ΔT for the hot water in the table is...", o:["Negative", "Positive", "Zero", "Infinite", "Undefined"], a:"Negative", f:{"Positive":{h:"50 - 80 = -30.",nx:2}, "Zero":{h:"It definitely changed.",nx:0}, "Infinite":{h:"It was a finite number.",nx:2}, "Undefined":{h:"We have a clear numerical value.",nx:0}} },
-                        { q:"Reasoning: Why does 'Negative ΔT' prove it 'loses' heat?", o:["A negative change means the final temperature is lower than the initial, meaning the water's internal thermal energy decreased", "Negative means absolute zero", "Negative numbers don't exist in physics", "It means the thermometer broke", "Negative indicates it gained coldness"], a:"A negative change means the final temperature is lower than the initial, meaning the water's internal thermal energy decreased", f:{"Negative means absolute zero":{h:"It just means Final < Initial.",nx:2}, "Negative numbers don't exist in physics":{h:"They indicate direction of flow.",nx:0}, "It means the thermometer broke":{h:"It's valid data.",nx:2}, "Negative indicates it gained coldness":{h:"There is no 'cold' energy.",nx:0}} }
-                    ],
-                    [ // V2
-                        { q:"Thermal transfer stops when...", o:["Temperatures are equal", "Masses are equal", "Time runs out", "The water boils", "One object absorbs all the heat"], a:"Temperatures are equal", f:{"Masses are equal":{h:"It's about thermal state.",nx:3}, "Time runs out":{h:"Nature doesn't have a timer.",nx:1}, "The water boils":{h:"We are far below 100C.",nx:3}, "One object absorbs all the heat":{h:"They share it until balanced.",nx:1}} },
-                        { q:"Evidence: At the end of the simulation, the graph lines...", o:["Merge into a flat horizontal line", "Cross each other", "Go straight up", "Disappear completely", "Form a circle"], a:"Merge into a flat horizontal line", f:{"Cross each other":{h:"They flatline together.",nx:3}, "Go straight up":{h:"That would mean infinite temp.",nx:1}, "Disappear completely":{h:"The data is still there.",nx:3}, "Form a circle":{h:"It's a time-series graph.",nx:1}} },
-                        { q:"Reasoning: Why does a 'flat horizontal line' prove transfer 'stops'?", o:["Horizontal means the temperatures stop changing, meaning net thermal energy is no longer flowing between them", "Horizontal means infinite heat", "The graph ran out of ink", "Horizontal means water is freezing", "It proves the simulator crashed"], a:"Horizontal means the temperatures stop changing, meaning net thermal energy is no longer flowing between them", f:{"Horizontal means infinite heat":{h:"It means zero change.",nx:3}, "The graph ran out of ink":{h:"It's a digital graph.",nx:1}, "Horizontal means water is freezing":{h:"Temp is well above 0C.",nx:3}, "It proves the simulator crashed":{h:"The simulation finished its task.",nx:1}} }
-                    ],
-                    [ // V3
-                        { q:"Because masses/materials are identical, heat gained equals heat ____.", a:"lost", t:"text", f:{"created":{h:"Cannot be created.",nx:4}, "destroyed":{h:"Cannot be destroyed.",nx:2}, "doubled":{h:"Energy is conserved.",nx:4}, "halved":{h:"It transfers 1:1.",nx:2}} },
-                        { q:"Evidence: Compare the ΔT values. They are...", o:["Equal but opposite signs", "Identical positive values", "Completely unrelated numbers", "Both exactly zero", "One is twice the other"], a:"Equal but opposite signs", f:{"Identical positive values":{h:"One cooled, one heated.",nx:4}, "Completely unrelated numbers":{h:"Look closely, they share a magnitude.",nx:2}, "Both exactly zero":{h:"They both changed.",nx:4}, "One is twice the other":{h:"Masses are identical here.",nx:2}} },
-                        { q:"Reasoning: Why does 'Equal but opposite ΔT' prove 'heat gained = heat lost'?", o:["Since both are 100g of water, identical temperature changes physically show that every Joule leaving one exactly entered the other", "Temp doesn't relate to heat", "It's just a coincidence", "Opposite signs cancel heat out completely", "Water always changes by 30 degrees"], a:"Since both are 100g of water, identical temperature changes physically show that every Joule leaving one exactly entered the other", f:{"Temp doesn't relate to heat":{h:"They are directly related.",nx:4}, "It's just a coincidence":{h:"It's a law of physics.",nx:2}, "Opposite signs cancel heat out completely":{h:"It indicates transfer direction.",nx:4}, "Water always changes by 30 degrees":{h:"Only in this specific setup.",nx:2}} }
-                    ],
-                    [ // V4
-                        { q:"At equilibrium, the final temp is the...", o:["Average of the two", "Sum of the two", "Difference of the two", "Product of the two", "Exact temperature of the room"], a:"Average of the two", f:{"Sum of the two":{h:"20 + 80 != 100°C water.",nx:5}, "Difference of the two":{h:"80 - 20 = 60. Final is 50.",nx:3}, "Product of the two":{h:"20 * 80 is way too high.",nx:5}, "Exact temperature of the room":{h:"It's a perfectly insulated closed system.",nx:3}} },
-                        { q:"Evidence: Mixing 20 and 80 gave a final temp of...", a:"50", t:"text", num:true, f:{"100":{h:"Check Tf column.",nx:5}, "60":{h:"Look at the final temp.",nx:3}, "0":{h:"It didn't freeze.",nx:5}, "40":{h:"Check the average.",nx:3}} },
-                        { q:"Reasoning: Why is it exactly the 'Average'?", o:["Equal masses of the exact same material exchange equal energy for equal temperature changes, so they mathematically meet perfectly in the middle", "Heat prefers the middle", "All systems always average out regardless of mass", "Water is magically drawn to 50C", "The simulator is hardcoded to output 50"], a:"Equal masses of the exact same material exchange equal energy for equal temperature changes, so they mathematically meet perfectly in the middle", f:{"Heat prefers the middle":{h:"It's driven by thermal capacity math.",nx:5}, "All systems always average out regardless of mass":{h:"Mass changes this entirely (see Step 2).",nx:3}, "Water is magically drawn to 50C":{h:"No magic, just math.",nx:5}, "The simulator is hardcoded to output 50":{h:"Change the inputs and see!",nx:3}} }
-                    ],
-                    [ // V5
-                        { q:"True or False: Energy was destroyed.", o:["True","False", "Only half of it was destroyed", "It turned into mass", "It leaked out into space"], a:"False", f:{"True":{h:"Energy is conserved.",nx:0}, "Only half of it was destroyed":{h:"None of it was destroyed.",nx:4}, "It turned into mass":{h:"This isn't a nuclear reaction.",nx:0}, "It leaked out into space":{h:"The system is perfectly insulated.",nx:4}} },
-                        { q:"Evidence: The amount of heat leaving the hot water exactly matches the heat...", o:["Entering the cold water", "Leaking to the room", "Destroyed by the friction", "Turned into light", "Absorbed by the glass panel"], a:"Entering the cold water", f:{"Leaking to the room":{h:"We used perfect insulation.",nx:0}, "Destroyed by the friction":{h:"No friction here.",nx:4}, "Turned into light":{h:"No light is emitted.",nx:0}, "Absorbed by the glass panel":{h:"It's a theoretical closed system.",nx:4}} },
-                        { q:"Reasoning: Why does this prove energy wasn't destroyed?", o:["Because both 100g water samples had identical 30°C magnitude changes, the experiment physically shows all the heat leaving one was fully absorbed by the other", "Energy is a myth", "Water is immune to energy loss", "The room was too cold to destroy it", "Because the simulation says so"], a:"Because both 100g water samples had identical 30°C magnitude changes, the experiment physically shows all the heat leaving one was fully absorbed by the other", f:{"Energy is a myth":{h:"It is a fundamental physical property.",nx:0}, "Water is immune to energy loss":{h:"Any material conserves energy in a closed system.",nx:4}, "The room was too cold to destroy it":{h:"Temperature doesn't destroy energy.",nx:0}, "Because the simulation says so":{h:"The simulation follows physical laws.",nx:4}} }
-                    ]
-                ]
-            },
-            { // STEP 2
-                title: "Role of Mass", setup: "Mix 200g Water (20°C) with 100g Water (80°C).",
-                v: [
-                    [ // V0
-                        { q:"The more matter present, the _____ energy is required to change its temp by 1°C.", a:"more", t:"text", f:{"less":{h:"Swimming pool vs cup of tea.",nx:1}, "same":{h:"Mass makes a big difference.",nx:2}, "zero":{h:"Energy is always required.",nx:1}} },
-                        { q:"Evidence: The 200g sample had ____ the ΔT of the 100g sample.", o:["Half", "Double", "Exactly equal to", "Triple", "One-quarter"], a:"Half", f:{"Double":{h:"200g water barely changed (+20), 100g changed wildly (-40).",nx:1}, "Exactly equal to":{h:"Look at the data table ΔT.",nx:2}, "Triple":{h:"It was smaller, not larger.",nx:1}, "One-quarter":{h:"Check the exact math ratio.",nx:2}} },
-                        { q:"Reasoning: Why does 'Half the ΔT' prove 'more energy is required'?", o:["The 200g requires twice the total energy to change by the same amount, so identical energy causes half the change", "Larger things naturally repel heat", "Water gets denser when there is more of it", "The heavy water crushed the heat", "The 100g sample evaporated"], a:"The 200g requires twice the total energy to change by the same amount, so identical energy causes half the change", f:{"Larger things naturally repel heat":{h:"It's about capacity, not repulsion.",nx:1}, "Water gets denser when there is more of it":{h:"Density is constant.",nx:2}, "The heavy water crushed the heat":{h:"Heat isn't a physical object.",nx:1}, "The 100g sample evaporated":{h:"It's sealed below boiling point.",nx:2}} }
-                    ],
-                    [ // V1
-                        { q:"Increasing mass causes ΔT to <select class='inline-select'><option>...</option><option>increase</option><option>decrease</option><option>multiply</option><option>vanish</option></select>.", a:"decrease", t:"select", f:{"increase":{h:"More mass resists change.",nx:2}, "multiply":{h:"It shrinks, it doesn't grow.",nx:3}, "vanish":{h:"It still changes a little bit.",nx:2}} },
-                        { q:"Evidence: The final equilibrium temp was closer to...", o:["20°C", "80°C", "50°C", "0°C", "100°C"], a:"20°C", f:{"80°C":{h:"The 200g water (20°C) dominated.",nx:2}, "50°C":{h:"That only happens if masses are equal.",nx:3}, "0°C":{h:"It didn't freeze.",nx:2}, "100°C":{h:"It cooled down from 80.",nx:3}} },
-                        { q:"Reasoning: Why does 'Closer to 20°C' prove mass decreases ΔT?", o:["The larger mass absorbs more energy per degree, pulling the equilibrium temperature toward itself", "Cold water is heavier", "20 is a stronger number than 80", "The room cooled it down to 20", "Water wants to be 20 degrees"], a:"The larger mass absorbs more energy per degree, pulling the equilibrium temperature toward itself", f:{"Cold water is heavier":{h:"It's thermal capacity, not density.",nx:2}, "20 is a stronger number than 80":{h:"Math doesn't have 'stronger' numbers.",nx:3}, "The room cooled it down to 20":{h:"It's perfectly insulated.",nx:2}, "Water wants to be 20 degrees":{h:"It has no preference.",nx:3}} }
-                    ],
-                    [ // V2
-                        { q:"Mass and ΔT are...", o:["Inversely proportional", "Directly proportional", "Exponentially related", "Completely unrelated", "Logarithmic"], a:"Inversely proportional", f:{"Directly proportional":{h:"As mass UP, ΔT DOWN.",nx:3}, "Exponentially related":{h:"It's a simple linear inverse relationship.",nx:4}, "Completely unrelated":{h:"They are heavily related.",nx:3}, "Logarithmic":{h:"It's simple division.",nx:4}} },
-                        { q:"Evidence: If mass A is 2x mass B, then ΔT_A is...", o:["0.5x ΔT_B", "2x ΔT_B", "Equal to ΔT_B", "4x ΔT_B", "0x ΔT_B"], a:"0.5x ΔT_B", f:{"2x ΔT_B":{h:"Double mass = half temp change.",nx:3}, "Equal to ΔT_B":{h:"They are different.",nx:4}, "4x ΔT_B":{h:"It goes down, not up.",nx:3}, "0x ΔT_B":{h:"It still changes somewhat.",nx:4}} },
-                        { q:"Reasoning: Why does this math prove 'Inversely proportional'?", o:["The product of mass and delta T must remain constant to balance the energy equation", "Math is random", "They cancel each other out to zero", "Because two times half is two", "Because water is a special liquid"], a:"The product of mass and delta T must remain constant to balance the energy equation", f:{"Math is random":{h:"Physics follows rules.",nx:3}, "They cancel each other out to zero":{h:"They multiply to a constant, not zero.",nx:4}, "Because two times half is two":{h:"Two times half is one.",nx:3}, "Because water is a special liquid":{h:"This applies to all materials.",nx:4}} }
-                    ],
-                    [ // V3
-                        { q:"A larger mass acts as a larger 'thermal sink', meaning its ΔT is...", o:["Smaller", "Larger", "Infinite", "Zero", "Negative forever"], a:"Smaller", f:{"Larger":{h:"It absorbs heat without rising much.",nx:4}, "Infinite":{h:"It's a measurable small number.",nx:5}, "Zero":{h:"It still rises a little.",nx:4}, "Negative forever":{h:"It reaches an equilibrium point.",nx:5}} },
-                        { q:"Evidence: 200g water ΔT was ~+20, while 100g water ΔT was...", a:"-40", t:"text", num:true, f:{"-20":{h:"It lost twice as much temp.",nx:4}, "0":{h:"It definitely dropped.",nx:5}, "40":{h:"It went DOWN, so it's negative.",nx:4}, "20":{h:"Check the table.",nx:5}} },
-                        { q:"Reasoning: Why does this prove the 'thermal sink' concept?", o:["The energy lost by 100g (-40*100) is entirely absorbed by the 200g (+20*200) with less temperature swing", "Water destroys energy", "The 200g water is immune to heat", "The 100g water generated extra heat", "The simulation is biased toward 200g"], a:"The energy lost by 100g (-40*100) is entirely absorbed by the 200g (+20*200) with less temperature swing", f:{"Water destroys energy":{h:"Conservation law applies.",nx:4}, "The 200g water is immune to heat":{h:"It still went up 20 degrees.",nx:5}, "The 100g water generated extra heat":{h:"It only had its starting heat.",nx:4}, "The simulation is biased toward 200g":{h:"It follows pure math.",nx:5}} }
-                    ],
-                    [ // V4
-                        { q:"If you halved the mass of the cold water, its ΔT would...", o:["Double", "Halve", "Stay the same", "Quadruple", "Drop to zero"], a:"Double", f:{"Halve":{h:"Less mass = wilder swings.",nx:5}, "Stay the same":{h:"Mass matters significantly.",nx:0}, "Quadruple":{h:"It's a 1:1 inverse ratio.",nx:5}, "Drop to zero":{h:"It would swing wildly.",nx:0}} },
-                        { q:"Evidence: 100g water changes temp ____ as much as 200g water.", a:"twice", t:"text", f:{"half":{h:"Look at data rows. -40 magnitude vs +20 magnitude.",nx:5}, "same":{h:"Look at data rows.",nx:0}, "triple":{h:"Check the math: 40 / 20.",nx:5}} },
-                        { q:"Reasoning: Why does 'changing twice as much' prove this?", o:["Less matter means less total thermal capacity, causing the temperature to swing more wildly for the same energy", "It doesn't", "Less matter means it evaporates", "Small things attract more energy", "Because 100 is half of 200"], a:"Less matter means less total thermal capacity, causing the temperature to swing more wildly for the same energy", f:{"It doesn't":{h:"It proves it perfectly.",nx:5}, "Less matter means it evaporates":{h:"No phase change here.",nx:0}, "Small things attract more energy":{h:"They get the exact same energy.",nx:5}, "Because 100 is half of 200":{h:"Yes, but the physical reason is thermal capacity.",nx:0}} }
-                    ],
-                    [ // V5
-                        { q:"Total energy gained by 200g water equals energy lost by 100g water.", o:["True","False", "Only at night", "Depends on the material", "Sometimes"], a:"True", f:{"False":{h:"Conservation always applies in closed systems.",nx:0}, "Only at night":{h:"Physics works 24/7.",nx:1}, "Depends on the material":{h:"Conservation is universal.",nx:0}, "Sometimes":{h:"Always.",nx:1}} },
-                        { q:"Evidence: Even though energy exchange was equal, temperatures weren't because...", o:["Masses were different", "Materials were different", "The room was hot", "One was boiling", "Water is unpredictable"], a:"Masses were different", f:{"Materials were different":{h:"Both were water.",nx:0}, "The room was hot":{h:"Perfect insulation.",nx:1}, "One was boiling":{h:"Max temp was 80.",nx:0}, "Water is unpredictable":{h:"It's very predictable.",nx:1}} },
-                        { q:"Reasoning: Why do different masses cause different temps if energy is equal?", o:["Energy distributes across available mass; more mass means less energy per molecule, resulting in smaller temp rise", "Magic", "Heavy water sinks to the bottom", "Energy hides in the extra mass", "Because 200 is bigger than 100"], a:"Energy distributes across available mass; more mass means less energy per molecule, resulting in smaller temp rise", f:{"Magic":{h:"It's thermodynamics.",nx:0}, "Heavy water sinks to the bottom":{h:"It's about molecular energy distribution.",nx:1}, "Energy hides in the extra mass":{h:"It's evenly distributed, causing a lower average rise.",nx:0}, "Because 200 is bigger than 100":{h:"True, but look for the molecular reason.",nx:1}} }
-                    ]
-                ]
-            },
-            { // STEP 3 (No "specific heat" term yet)
-                title: "Role of Material", setup: "Mix 100g Water (20°C) with 100g Copper (80°C).",
-                v: [
-                    [ // V0
-                        { q:"Even with identical masses, why are the ΔT values so different?", o:["Different materials resist temperature changes differently", "Copper lost more total heat than Water gained", "Water absorbed cold energy from the room", "The masses weren't actually equal", "Thermometers don't work well on metal"], a:"Different materials resist temperature changes differently", f:{"Copper lost more total heat than Water gained":{h:"Heat lost must = heat gained in a closed system.",nx:1},"Water absorbed cold energy from the room":{h:"It's perfectly insulated.",nx:2},"The masses weren't actually equal":{h:"They were both 100g.",nx:1},"Thermometers don't work well on metal":{h:"Assume perfect tools.",nx:2}} },
-                        { q:"Evidence: Water's temperature...", o:["Barely increased", "Increased just as much as Copper dropped", "Decreased", "Shot past 80°C", "Didn't move at all"], a:"Barely increased", f:{"Increased just as much as Copper dropped":{h:"Blue line barely moved compared to orange.",nx:1}, "Decreased":{h:"It absorbed heat, so it went up.",nx:2}, "Shot past 80°C":{h:"It stopped around 25°C.",nx:1}, "Didn't move at all":{h:"It moved a few degrees.",nx:2}} },
-                        { q:"Reasoning: Why does this prove different materials have different thermal resistance?", o:["For the exact same energy transfer, Copper's temperature swung by ~55°C while Water only changed by ~5°C", "Because water is a liquid and copper is a solid", "Metals naturally attract more heat from the air", "Copper's mass is heavier than water's mass", "It doesn't prove anything"], a:"For the exact same energy transfer, Copper's temperature swung by ~55°C while Water only changed by ~5°C", f:{"Because water is a liquid and copper is a solid":{h:"It's about their atomic properties, not just state.",nx:1}, "Metals naturally attract more heat from the air":{h:"System is insulated.",nx:2}, "Copper's mass is heavier than water's mass":{h:"Both were 100g.",nx:1}, "It doesn't prove anything":{h:"It proves they handle heat differently.",nx:2}} }
-                    ],
-                    [ // V1
-                        { q:"Copper requires <select class='inline-select'><option>...</option><option>less</option><option>more</option><option>infinite</option><option>zero</option></select> energy to change temp than water.", a:"less", t:"select", f:{"more":{h:"It takes very little heat to crash its temp.",nx:2}, "infinite":{h:"It changed temp very easily.",nx:3}, "zero":{h:"It still takes some energy.",nx:2}} },
-                        { q:"Evidence: Copper's ΔT magnitude was roughly...", o:["10x larger than Water's", "Equal to Water's", "10x smaller than Water's", "Infinite", "Zero"], a:"10x larger than Water's", f:{"Equal to Water's":{h:"Check ΔT columns. ~55 vs ~5.",nx:2}, "10x smaller than Water's":{h:"It dropped ~55, water rose ~5.",nx:3}, "Infinite":{h:"It's a finite number.",nx:2}, "Zero":{h:"It swung wildly.",nx:3}} },
-                        { q:"Reasoning: Why does a '10x larger ΔT' prove it requires 'less' energy?", o:["Since identical energy caused a 10x larger swing, Copper must need 1/10th the energy to move 1 degree", "It means copper generates its own heat", "Because copper is a metal", "It doesn't", "Copper is broken"], a:"Since identical energy caused a 10x larger swing, Copper must need 1/10th the energy to move 1 degree", f:{"It means copper generates its own heat":{h:"No new energy was created.",nx:2}, "Because copper is a metal":{h:"Look for the mathematical reason.",nx:3}, "It doesn't":{h:"Math proves it.",nx:2}, "Copper is broken":{h:"This is real physics.",nx:3}} }
-                    ],
-                    [ // V2
-                        { q:"Which material acts more like a 'thermal sponge' (resists temperature change)?", o:["Water", "Copper", "They are identical", "Neither resists heat", "Air"], a:"Water", f:{"Copper":{h:"Copper's temp changed wildly. Water's was stable.",nx:3}, "They are identical":{h:"Look at the graph.",nx:4}, "Neither resists heat":{h:"Water resisted it very well.",nx:3}, "Air":{h:"Air isn't in this simulation.",nx:4}} },
-                        { q:"Evidence: Water had a much _____ ΔT compared to Copper.", a:"smaller", t:"text", f:{"larger":{h:"Blue column in table.",nx:3}, "equal":{h:"They were vastly different.",nx:4}, "zero":{h:"It did change a bit.",nx:3}} },
-                        { q:"Reasoning: Why does a 'smaller ΔT' mean it 'resists' change?", o:["It absorbed the massive amount of heat dumped by the Copper, but its temperature barely budged", "It repelled the heat back into the copper", "Water evaporates to stay cool", "Water is magic", "It means it didn't absorb any heat"], a:"It absorbed the massive amount of heat dumped by the Copper, but its temperature barely budged", f:{"It repelled the heat back into the copper":{h:"Heat only flows one way here.",nx:3}, "Water evaporates to stay cool":{h:"We are well below boiling.",nx:4}, "Water is magic":{h:"It's physics.",nx:3}, "It means it didn't absorb any heat":{h:"It absorbed all the heat copper lost.",nx:4}} }
-                    ],
-                    [ // V3
-                        { q:"A material's resistance to temp change is an 'intensive' property.", o:["True", "False", "Only for metals", "Only for liquids", "Sometimes"], a:"True", f:{"False":{h:"It depends on the material type, not the amount.",nx:4}, "Only for metals":{h:"It applies to all matter.",nx:5}, "Only for liquids":{h:"It applies to solids too.",nx:4}, "Sometimes":{h:"Always.",nx:5}} },
-                        { q:"Evidence: We controlled for mass (100g) and heat exchange, so the only difference left to cause the wild temps was...", o:["Material type", "Initial Temp", "The room temperature", "The time of day", "The insulation"], a:"Material type", f:{"Initial Temp":{h:"Initial temp dictates direction, not capacity.",nx:4}, "The room temperature":{h:"System is insulated.",nx:5}, "The time of day":{h:"Irrelevant to physics.",nx:4}, "The insulation":{h:"Insulation was identical.",nx:5}} },
-                        { q:"Reasoning: Why does 'Material type' prove it is 'intensive'?", o:["Intensive properties depend solely on the atomic makeup of the substance, completely independent of how much mass is present", "Intensive means strong", "Because materials are intense", "It proves it is extensive", "It doesn't"], a:"Intensive properties depend solely on the atomic makeup of the substance, completely independent of how much mass is present", f:{"Intensive means strong":{h:"Intensive means independent of mass.",nx:4}, "Because materials are intense":{h:"Scientific definition, not emotional.",nx:5}, "It proves it is extensive":{h:"Extensive depends on mass.",nx:4}, "It doesn't":{h:"It perfectly aligns with the definition.",nx:5}} }
-                    ],
-                    [ // V4
-                        { q:"If you used Plastic instead of Copper, the final temp would be...", o:["Closer to 50°C", "Even closer to 20°C", "Exactly 100°C", "Exactly 0°C", "It would explode"], a:"Closer to 50°C", f:{"Even closer to 20°C":{h:"Plastic fights back more than copper.",nx:5}, "Exactly 100°C":{h:"Impossible.",nx:0}, "Exactly 0°C":{h:"Impossible.",nx:5}, "It would explode":{h:"No chemical reactions here.",nx:0}} },
-                        { q:"Evidence: The ΔT for plastic is...", o:["Smaller than Copper's", "Larger than Copper's", "Equal to Copper's", "Zero", "Infinite"], a:"Smaller than Copper's", f:{"Larger than Copper's":{h:"Run a trial with plastic.",nx:5}, "Equal to Copper's":{h:"They are different materials.",nx:0}, "Zero":{h:"It still changes.",nx:5}, "Infinite":{h:"Finite change.",nx:0}} },
-                        { q:"Reasoning: Why does a 'smaller ΔT' make the final temp 'closer to 50'?", o:["Plastic has a higher thermal resistance than copper, so it requires a larger temperature shift from the water to reach equilibrium", "Plastic is fake", "Plastic generates heat", "Plastic absorbs water", "It doesn't"], a:"Plastic has a higher thermal resistance than copper, so it requires a larger temperature shift from the water to reach equilibrium", f:{"Plastic is fake":{h:"It's a real thermal material.",nx:5}, "Plastic generates heat":{h:"No new heat.",nx:0}, "Plastic absorbs water":{h:"It's a solid block.",nx:5}, "It doesn't":{h:"Math proves it.",nx:0}} }
-                    ],
-                    [ // V5
-                        { q:"Different materials have different thermal ____.", a:"capacities", t:"text", f:{"colors":{h:"We care about heat.",nx:0}, "masses":{h:"We kept mass equal.",nx:1}, "temps":{h:"We controlled for that.",nx:0}} },
-                        { q:"Evidence: Every material in the dropdown results in a different...", o:["Final Equilibrium Temp", "Conservation of Energy Law", "Starting Mass", "Room Temperature", "Graph color only"], a:"Final Equilibrium Temp", f:{"Conservation of Energy Law":{h:"Always conserved.",nx:0}, "Starting Mass":{h:"Mass was locked at 100.",nx:1}, "Room Temperature":{h:"Room is always 20.",nx:0}, "Graph color only":{h:"The math changes too.",nx:1}} },
-                        { q:"Reasoning: Why do different 'Final Temps' prove different 'thermal capacities'?", o:["Since mass and total energy are identical, the only variable left dictating the final resting temperature is the material's unique atomic structure", "The simulation is randomized", "Because the computer said so", "Materials change their own mass", "It doesn't prove anything"], a:"Since mass and total energy are identical, the only variable left dictating the final resting temperature is the material's unique atomic structure", f:{"The simulation is randomized":{h:"Physics math is deterministic.",nx:0}, "Because the computer said so":{h:"Follow the physical logic.",nx:1}, "Materials change their own mass":{h:"Mass is conserved.",nx:0}, "It doesn't prove anything":{h:"It proves the core concept of thermal capacity.",nx:1}} }
-                    ]
-                ]
-            },
-            { // STEP 4 (Graph Mode & Specific Heat intro)
-                title: "Graphical Analysis", setup: "Review the Q vs ΔT Graph. We apply energy (Q) to 1g samples. (Run the simulation if empty).",
-                v: [
-                    [ // V0
-                        { q:"Water has a much higher slope than copper. This mathematically means...", o:["A 1°C change in water requires MORE heat energy than copper", "A 1°C change in water requires LESS heat energy", "Water heats up faster", "Copper stores more energy", "They require the same energy"], a:"A 1°C change in water requires MORE heat energy than copper", f:{"A 1°C change in water requires LESS heat energy":{h:"Water is higher on the Y (Joules) axis.",nx:1}, "Water heats up faster":{h:"Higher slope = slower to heat up.",nx:2}, "Copper stores more energy":{h:"Lower Y axis = less energy stored.",nx:1}, "They require the same energy":{h:"Lines have different slopes.",nx:2}} },
-                        { q:"Evidence: At ΔT=10, Copper absorbed ~3.8J. Water absorbed...", o:["~41.8 Joules", "~10 Joules", "~2 Joules", "~100 Joules", "~0 Joules"], a:"~41.8 Joules", f:{"~10 Joules":{h:"Check blue line at X=10.",nx:1}, "~2 Joules":{h:"Check blue line at X=10.",nx:2}, "~100 Joules":{h:"Too high.",nx:1}, "~0 Joules":{h:"It absorbed heat.",nx:2}} },
-                        { q:"Reasoning: Why does '41.8 Joules' prove it requires 'MORE heat'?", o:["Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", "It doesn't", "41.8 is smaller than 3.8", "Water is a liquid", "Copper is broken"], a:"Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", f:{"It doesn't":{h:"41.8 > 3.8.",nx:1}, "41.8 is smaller than 3.8":{h:"Check your math.",nx:2}, "Water is a liquid":{h:"State of matter isn't the primary reason here.",nx:1}, "Copper is broken":{h:"Real physics.",nx:2}} }
-                    ],
-                    [ // V1
-                        { q:"Slope = Rise/Run = Q / ΔT. Since mass is 1g, the slope is exactly equal to its...", o:["Thermal Resistance", "Final Temp", "Initial Mass", "Time", "Friction"], a:"Thermal Resistance", f:{"Final Temp":{h:"Represents energy per degree.",nx:2}, "Initial Mass":{h:"Mass is already 1g.",nx:3}, "Time":{h:"Time is not on these axes.",nx:2}, "Friction":{h:"No movement here.",nx:3}} },
-                        { q:"Evidence: The line with the highest slope on the graph is...", o:["Blue (Water)", "Orange (Copper)", "Purple (Plastic)", "Gray (Iron)", "Silver (Aluminum)"], a:"Blue (Water)", f:{"Orange (Copper)":{h:"Orange is bottom.",nx:2}, "Purple (Plastic)":{h:"It's in the middle.",nx:3}, "Gray (Iron)":{h:"Near the bottom.",nx:2}, "Silver (Aluminum)":{h:"Middle-bottom.",nx:3}} },
-                        { q:"Reasoning: Why does 'Blue (Water)' prove it has the highest 'Thermal Resistance'?", o:["A steep slope means a massive amount of heat energy (Y) is required to cause even a tiny temperature change (X)", "Blue is a cool color", "Water is heavy", "Water boils easily", "It doesn't"], a:"A steep slope means a massive amount of heat energy (Y) is required to cause even a tiny temperature change (X)", f:{"Blue is a cool color":{h:"Stick to math.",nx:2}, "Water is heavy":{h:"Mass is 1g for all.",nx:3}, "Water boils easily":{h:"It actually resists boiling.",nx:2}, "It doesn't":{h:"Highest slope = highest resistance.",nx:3}} }
-                    ],
-                    [ // V2
-                        { q:"The units of slope on this graph are...", o:["Joules / °C", "°C / Joules", "Joules / gram", "Grams / °C", "Watts"], a:"Joules / °C", f:{"°C / Joules":{h:"Rise (Y) over Run (X).",nx:3}, "Joules / gram":{h:"X axis is Temp.",nx:4}, "Grams / °C":{h:"Y axis is Joules.",nx:3}, "Watts":{h:"Watts is energy over time.",nx:4}} },
-                        { q:"Evidence: To reach $\\Delta T = 5$, Iron needs roughly...", a:"2.25", t:"text", num:true, f:{"5":{h:"X=5 on Iron line.",nx:3}, "10":{h:"Look lower.",nx:4}, "0":{h:"It takes some energy.",nx:3}} },
-                        { q:"Reasoning: Why does '2.25 Joules' prove the 'Joules / °C' unit?", o:["The slope mathematically calculates the total Joules of energy required to force a 1 degree Celsius change", "It is magic", "Because Iron is magnetic", "2.25 is a fraction", "It proves nothing"], a:"The slope mathematically calculates the total Joules of energy required to force a 1 degree Celsius change", f:{"It is magic":{h:"It is math.",nx:3}, "Because Iron is magnetic":{h:"Irrelevant to heat.",nx:4}, "2.25 is a fraction":{h:"Focus on the units.",nx:3}, "It proves nothing":{h:"It proves the unit conversion.",nx:4}} }
-                    ],
-                    [ // V3
-                        { q:"Plastic stores _____ heat than Aluminum but _____ than Water.", o:["More, Less", "Less, More", "Equal, Equal", "More, More", "Less, Less"], a:"More, Less", f:{"Less, More":{h:"Higher line = more heat stored.",nx:4}, "Equal, Equal":{h:"Lines have different slopes.",nx:5}, "More, More":{h:"Water is highest.",nx:4}, "Less, Less":{h:"Aluminum is lower.",nx:5}} },
-                        { q:"Evidence: At X=10, Plastic is at ~16.7J. Aluminum is at...", a:"8.97", t:"text", num:true, f:{"10":{h:"Hover Al at X=10.",nx:4}, "20":{h:"Too high.",nx:5}, "0":{h:"Look at the line.",nx:4}} },
-                        { q:"Reasoning: Why does '16.7J vs 8.97J' prove Plastic stores 'More'?", o:["Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", "16.7 is smaller", "Aluminum is heavier", "Plastic is fake", "They are the same"], a:"Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", f:{"16.7 is smaller":{h:"16.7 > 8.97",nx:4}, "Aluminum is heavier":{h:"Both are 1g.",nx:5}, "Plastic is fake":{h:"It's a real thermal material.",nx:4}, "They are the same":{h:"Numbers are different.",nx:5}} }
-                    ],
-                    [ // V4
-                        { q:"Copper has the lowest thermal resistance. This means it...", o:["Heats up the fastest", "Heats up the slowest", "Never heats up", "Turns into a gas", "Is identical to water"], a:"Heats up the fastest", f:{"Heats up the slowest":{h:"Takes almost no energy to change.",nx:5}, "Never heats up":{h:"It heats up immediately.",nx:0}, "Turns into a gas":{h:"Not at these temps.",nx:5}, "Is identical to water":{h:"It is the opposite.",nx:0}} },
-                        { q:"Evidence: Adding just 4 Joules to Copper shoots its ΔT past...", a:"10", t:"text", num:true, f:{"5":{h:"Look at orange line Y=4.",nx:5}, "0":{h:"It moved right.",nx:0}, "100":{h:"Not that far.",nx:5}} },
-                        { q:"Reasoning: Why does shooting 'past 10' prove it 'heats up fastest'?", o:["The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", "Copper is a metal", "It absorbs water", "It repels heat", "It is broken"], a:"The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", f:{"Copper is a metal":{h:"True, but low slope is the mathematical reason.",nx:5}, "It absorbs water":{h:"It's solid.",nx:0}, "It repels heat":{h:"It absorbs it easily.",nx:5}, "It is broken":{h:"It's physics.",nx:0}} }
-                    ],
-                    [ // V5
-                        { q:"If a line was purely horizontal (Slope = 0), what would it mean?", o:["It requires 0 energy to change temp", "It requires infinite energy", "It is impossible", "It is water", "It is freezing"], a:"It requires 0 energy to change temp", f:{"It requires infinite energy":{h:"Y (Joules) doesn't go up.",nx:0}, "It is impossible":{h:"True, but what would it mathematically mean?",nx:1}, "It is water":{h:"Water has highest slope.",nx:0}, "It is freezing":{h:"Temp is changing.",nx:1}} },
-                        { q:"Evidence: All 5 physical matter lines on the graph have slopes greater than...", a:"0", t:"text", num:true, f:{"1":{h:"Copper's is 0.385.",nx:0}, "10":{h:"Most are under 5.",nx:1}, "100":{h:"Way too high.",nx:0}} },
-                        { q:"Reasoning: Why are all slopes 'greater than 0'?", o:["All physical matter requires some amount of energy to change temperature due to the law of conservation of energy", "Zero doesn't exist", "Because math says so", "Simulation bug", "They are all liquids"], a:"All physical matter requires some amount of energy to change temperature due to the law of conservation of energy", f:{"Zero doesn't exist":{h:"It does, just not here.",nx:0}, "Because math says so":{h:"Look for physical reason.",nx:1}, "Simulation bug":{h:"It is correct.",nx:0}, "They are all liquids":{h:"Most are solids.",nx:1}} }
-                    ]
-                ]
-            },
-            { // STEP 5: Deduce Model: Q and ΔT
-                title: "Deduce Model: Heat and Temp", setup: "Review the Q vs ΔT graph. For a 1g sample, we found the slope ($c$) is constant.",
-                v: [
-                    [ // V0
-                        { q:"Based on the linear graphs, how is heat energy ($q$) related to temperature change ($\\Delta T$) and the slope ($c$)?", o:["$q = c \\times \\Delta T$", "$q = c / \\Delta T$", "$q = \\Delta T / c$", "$q = c + \\Delta T$", "$q = c - \\Delta T$"], a:"$q = c \\times \\Delta T$", f:{"$q = c / \\Delta T$":{h:"Y (q) = slope (c) * X (ΔT).",nx:1}, "$q = \\Delta T / c$":{h:"Multiply slope by X.",nx:2}, "$q = c + \\Delta T$":{h:"It's a multiplicative relationship.",nx:1}, "$q = c - \\Delta T$":{h:"No subtraction.",nx:2}} },
-                        { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:1}, "4.18":{h:"Multiply them.",nx:2}, "0":{h:"It required energy.",nx:1}} },
-                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:1}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:2}, "Because the graph is a curve":{h:"It is a straight line.",nx:1}, "It is a coincidence":{h:"It's mathematical proof.",nx:2}} }
-                    ],
-                    // Repeating logic for V1-V5 to satisfy robust engine needs
-                    [ // V1
-                        { q:"If you know the slope ($c$) and the Joules applied ($q$), how do you find $\\Delta T$?", o:["$\\Delta T = q / c$", "$\\Delta T = q \\times c$", "$\\Delta T = c / q$", "$\\Delta T = q + c$", "$\\Delta T = q - c$"], a:"$\\Delta T = q / c$", f:{"$\\Delta T = q \\times c$":{h:"Algebra: divide $q$ by $c$.",nx:2}, "$\\Delta T = c / q$":{h:"Flip it.",nx:3}, "$\\Delta T = q + c$":{h:"No addition.",nx:2}, "$\\Delta T = q - c$":{h:"No subtraction.",nx:3}} },
-                        { q:"Evidence: If $q=16.7$ and $c=1.67$ (Plastic), what is $\\Delta T$?", a:"10", t:"text", num:true, f:{"16.7":{h:"Divide q by c.",nx:2}, "1.67":{h:"Divide 16.7 by 1.67.",nx:3}, "0":{h:"Do the math.",nx:2}} },
-                        { q:"Reasoning: Why does this algebraic manipulation work?", o:["Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", "It only works for plastic", "You just guess", "The graph bends to fit", "Math is an illusion"], a:"Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", f:{"It only works for plastic":{h:"It works for all.",nx:2}, "You just guess":{h:"It's strict algebra.",nx:3}, "The graph bends to fit":{h:"Lines are perfectly straight.",nx:2}, "Math is an illusion":{h:"It is reality.",nx:3}} }
-                    ],
-                    [ // V2
-                        { q:"The specific heat ($c$) is essentially a conversion factor between...", o:["Thermal Energy and Temperature Change", "Mass and Volume", "Time and Heat", "Friction and Temperature", "Water and Copper"], a:"Thermal Energy and Temperature Change", f:{"Mass and Volume":{h:"Look at the axes of the graph.",nx:3}, "Time and Heat":{h:"Time is not an axis here.",nx:4}, "Friction and Temperature":{h:"No friction.",nx:3}, "Water and Copper":{h:"It applies to all materials.",nx:4}} },
-                        { q:"Evidence: Without $c$, we wouldn't know how many Joules it takes to...", o:["Move 1 gram by 1 degree", "Melt the material", "Weigh the material", "Freeze the water", "Stop the clock"], a:"Move 1 gram by 1 degree", f:{"Melt the material":{h:"No phase changes here.",nx:3}, "Weigh the material":{h:"Mass is already 1g.",nx:4}, "Freeze the water":{h:"We are heating it.",nx:3}, "Stop the clock":{h:"Not about time.",nx:4}} },
-                        { q:"Reasoning: Why is $c$ the ultimate conversion factor?", o:["Because $c$ literally defines the 'cost' in Joules to buy 1 degree of temperature for that specific material", "Because $c$ means 'constant'", "Because it cancels out mass", "Because it is always 4.18", "It isn't"], a:"Because $c$ literally defines the 'cost' in Joules to buy 1 degree of temperature for that specific material", f:{"Because $c$ means 'constant'":{h:"It stands for capacity.",nx:3}, "Because it cancels out mass":{h:"It interacts with mass.",nx:4}, "Because it is always 4.18":{h:"Only for water.",nx:3}, "It isn't":{h:"It mathematically is.",nx:4}} }
-                    ],
-                    [ // V3
-                        { q:"In $q = c \\times \\Delta T$, what happens to $q$ if $\\Delta T$ is doubled?", o:["$q$ doubles", "$q$ halves", "$q$ stays the same", "$q$ quadruples", "$q$ becomes zero"], a:"$q$ doubles", f:{"$q$ halves":{h:"They are directly proportional.",nx:4}, "$q$ stays the same":{h:"It must change.",nx:5}, "$q$ quadruples":{h:"It's a linear 1:1 relationship.",nx:4}, "$q$ becomes zero":{h:"Energy is required.",nx:5}} },
-                        { q:"Evidence: On the Water line, $\\Delta T = 5$ is ~20.9J. What is $\\Delta T = 10$?", a:"41.8", t:"text", num:true, f:{"20.9":{h:"Double 20.9.",nx:4}, "10":{h:"Look at Y axis.",nx:5}, "0":{h:"Do the math.",nx:4}} },
-                        { q:"Reasoning: Why does $q$ double?", o:["A linear direct relationship means whatever multiplier you apply to X must also apply to Y", "Because water is magic", "Because it's a curve", "It is random", "Because mass doubled"], a:"A linear direct relationship means whatever multiplier you apply to X must also apply to Y", f:{"Because water is magic":{h:"Math.",nx:4}, "Because it's a curve":{h:"It's a straight line.",nx:5}, "It is random":{h:"Highly predictable.",nx:4}, "Because mass doubled":{h:"Mass is locked at 1g.",nx:5}} }
-                    ],
-                    [ // V4
-                        { q:"Based on the linear graphs, how is heat energy ($q$) related to temperature change ($\\Delta T$) and the slope ($c$)?", o:["$q = c \\times \\Delta T$", "$q = c / \\Delta T$", "$q = \\Delta T / c$", "$q = c + \\Delta T$", "$q = c - \\Delta T$"], a:"$q = c \\times \\Delta T$", f:{"$q = c / \\Delta T$":{h:"Y (q) = slope (c) * X (ΔT).",nx:5}, "$q = \\Delta T / c$":{h:"Multiply slope by X.",nx:0}, "$q = c + \\Delta T$":{h:"It's a multiplicative relationship.",nx:5}, "$q = c - \\Delta T$":{h:"No subtraction.",nx:0}} },
-                        { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:5}, "4.18":{h:"Multiply them.",nx:0}, "0":{h:"It required energy.",nx:5}} },
-                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:5}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:0}, "Because the graph is a curve":{h:"It is a straight line.",nx:5}, "It is a coincidence":{h:"It's mathematical proof.",nx:0}} }
-                    ],
-                    [ // V5
-                        { q:"If you know the slope ($c$) and the Joules applied ($q$), how do you find $\\Delta T$?", o:["$\\Delta T = q / c$", "$\\Delta T = q \\times c$", "$\\Delta T = c / q$", "$\\Delta T = q + c$", "$\\Delta T = q - c$"], a:"$\\Delta T = q / c$", f:{"$\\Delta T = q \\times c$":{h:"Algebra: divide $q$ by $c$.",nx:0}, "$\\Delta T = c / q$":{h:"Flip it.",nx:1}, "$\\Delta T = q + c$":{h:"No addition.",nx:0}, "$\\Delta T = q - c$":{h:"No subtraction.",nx:1}} },
-                        { q:"Evidence: If $q=16.7$ and $c=1.67$ (Plastic), what is $\\Delta T$?", a:"10", t:"text", num:true, f:{"16.7":{h:"Divide q by c.",nx:0}, "1.67":{h:"Divide 16.7 by 1.67.",nx:1}, "0":{h:"Do the math.",nx:0}} },
-                        { q:"Reasoning: Why does this algebraic manipulation work?", o:["Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", "It only works for plastic", "You just guess", "The graph bends to fit", "Math is an illusion"], a:"Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", f:{"It only works for plastic":{h:"It works for all.",nx:0}, "You just guess":{h:"It's strict algebra.",nx:1}, "The graph bends to fit":{h:"Lines are perfectly straight.",nx:0}, "Math is an illusion":{h:"It is reality.",nx:1}} }
-                    ]
-                ]
-            },
-            { // STEP 6: Deduce Model: Adding Mass
-                title: "Deduce Model: Adding Mass", setup: "The equation $q = c \\times \\Delta T$ only works for exactly 1 gram. We know that changing mass alters everything.",
-                v: [
-                    [ // V0
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:1}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:2}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:1}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:2}} },
-                        { q:"Evidence: What experimental evidence from Step 2 supports this placement of mass?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:1}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:2}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:1}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:2}} },
-                        { q:"Reasoning: Why does this evidence mean mass ($m$) belongs as a multiplier in the equation?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:1}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:2}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:1}, "It is just arbitrary":{h:"It perfectly models physics.",nx:2}} }
-                    ],
-                    [ // V1
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:2}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:3}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:2}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:3}} },
-                        { q:"Evidence: Which experimental observation correctly proves mass acts as a multiplier?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:2}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:3}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:2}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:3}} },
-                        { q:"Reasoning: How does this justify mass being a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:2}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:3}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:2}, "It is just arbitrary":{h:"It perfectly models physics.",nx:3}} }
-                    ],
-                    [ // V2
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:3}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:4}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:3}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:4}} },
-                        { q:"Evidence: In Step 2, what physical evidence supported adding mass as a multiplier?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:3}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:4}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:3}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:4}} },
-                        { q:"Reasoning: Why does halving the temperature change mathematically place mass as a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:3}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:4}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:3}, "It is just arbitrary":{h:"It perfectly models physics.",nx:4}} }
-                    ],
-                    [ // V3
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:4}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:5}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:4}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:5}} },
-                        { q:"Evidence: What experimental observation proves mass acts directly on the energy requirement?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:4}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:5}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:4}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:5}} },
-                        { q:"Reasoning: Why does this evidence force mass to be multiplied?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:4}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:5}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:4}, "It is just arbitrary":{h:"It perfectly models physics.",nx:5}} }
-                    ],
-                    [ // V4
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:5}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:0}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:5}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:0}} },
-                        { q:"Evidence: Think back to Step 2. What physical evidence supported this model?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:5}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:0}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:5}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:0}} },
-                        { q:"Reasoning: Why does doubling mass and halving temp change mean mass is a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:5}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:0}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:5}, "It is just arbitrary":{h:"It perfectly models physics.",nx:0}} }
-                    ],
-                    [ // V5
-                        { q:"Mass should also go in this equation. Where should it go?", o:["$q = m \\times c \\times \\Delta T$", "$q = (c \\times \\Delta T) / m$", "$q = m + c + \\Delta T$", "$q = m / (c \\times \\Delta T)$", "$q = c \\times \\Delta T - m$"], a:"$q = m \\times c \\times \\Delta T$", f:{"$q = (c \\times \\Delta T) / m$":{h:"More mass = MORE energy. Division would reduce it.",nx:0}, "$q = m + c + \\Delta T$":{h:"It's multiplicative.",nx:1}, "$q = m / (c \\times \\Delta T)$":{h:"Flipped.",nx:0}, "$q = c \\times \\Delta T - m$":{h:"No subtraction.",nx:1}} },
-                        { q:"Evidence: Which experimental result proves mass acts to scale up the required energy?", o:["When we doubled the mass, the temperature change was halved for the same energy transfer", "When we doubled the mass, the temperature change doubled", "Mass didn't affect the temperature change", "Larger masses absorbed no energy", "Smaller masses cooled down faster"], a:"When we doubled the mass, the temperature change was halved for the same energy transfer", f:{"When we doubled the mass, the temperature change doubled":{h:"Check your memory of Step 2: 200g water changed less than 100g water.",nx:0}, "Mass didn't affect the temperature change":{h:"Mass changed the outcome significantly.",nx:1}, "Larger masses absorbed no energy":{h:"They absorbed the same energy.",nx:0}, "Smaller masses cooled down faster":{h:"True, but look for the specific mathematical relationship.",nx:1}} },
-                        { q:"Reasoning: How does this specific evidence mathematically justify mass as a multiplier?", o:["Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", "Because mass cancels out the specific heat", "Because dividing by mass would increase the energy", "Because temperature doesn't depend on mass", "It is just arbitrary"], a:"Because for a 10 degree temperature change, more mass would require proportionally more energy ($q$)", f:{"Because mass cancels out the specific heat":{h:"Nothing cancels out.",nx:0}, "Because dividing by mass would increase the energy":{h:"Division by a larger mass would DECREASE energy.",nx:1}, "Because temperature doesn't depend on mass":{h:"It heavily depends on mass.",nx:0}, "It is just arbitrary":{h:"It perfectly models physics.",nx:1}} }
-                    ]
-                ]
-            }
-        ];
-
-        function loadQuestion() {
-            const S = QB[appState.step - 1];
-            document.getElementById('stepDisplay').innerText = appState.step;
-            document.getElementById('wzTitle').innerText = S.title;
-            document.getElementById('wzSetup').innerHTML = S.setup;
-            
-            // Auto-configure simulation to match the question setup
-            if (appState.step === 1) {
-                document.getElementById('massA').value = 100; document.getElementById('tempA').value = 20;
-                document.getElementById('materialB').value = 'water'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
-            } else if (appState.step === 2) {
-                document.getElementById('massA').value = 200; document.getElementById('tempA').value = 20;
-                document.getElementById('materialB').value = 'water'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
-            } else if (appState.step === 3) {
-                document.getElementById('massA').value = 100; document.getElementById('tempA').value = 20;
-                document.getElementById('materialB').value = 'copper'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
-            }
-
-            if(appState.step === 4 || appState.step === 5) {
-                document.getElementById('tab-graph').classList.remove('opacity-50', 'cursor-not-allowed');
-                switchMode('graph');
-            } else if (appState.step === 6) {
-                switchMode('calorimeter'); // Bring back to main simulator for final model wrap up
-            } else if (appState.step < 4) {
-                switchMode('calorimeter');
-            }
-
-            appState.variantIndex = Math.floor(Math.random() * 6);
-            appState.subQ = 0;
-            renderSubQ();
-        }
-
-        function getCleanAnswer(vIdx, subIdx) {
-            return QB[appState.step - 1].v[vIdx][subIdx].a.replace(/\|/g, " and ");
-        }
-
-        function renderSubQ() {
-            const V = QB[appState.step - 1].v[appState.variantIndex];
-            const sqData = V[appState.subQ];
-            
-            // Build dynamic Context Box
-            let ctxHtml = "";
-            if (appState.subQ === 1) {
-                ctxHtml = `<div class="bg-blue-50 text-blue-900 p-3 text-sm border-l-4 border-blue-500 rounded"><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Concept Supported:</strong><br> ${getCleanAnswer(appState.variantIndex, 0)}</div>`;
-            } else if (appState.subQ === 2) {
-                ctxHtml = `<div class="bg-blue-50 text-blue-900 p-3 text-sm border-l-4 border-blue-500 rounded space-y-2"><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Concept Supported:</strong><br> ${getCleanAnswer(appState.variantIndex, 0)}<br><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Experimental Evidence:</strong><br> ${getCleanAnswer(appState.variantIndex, 1)}</div>`;
-            }
-            document.getElementById('wzContext').innerHTML = ctxHtml;
-
-            document.getElementById('phaseDisplay').innerText = appState.subQ === 0 ? "Part A: Concept" : (appState.subQ === 1 ? "Part B: Evidence" : "Part C: Reasoning");
-            document.getElementById('wzQuestion').innerHTML = sqData.q;
-            document.getElementById('wzFeedback').className = "hidden p-3 rounded-md text-sm mb-4 border transition-all";
-            
-            const inputsDiv = document.getElementById('wzInputs'); inputsDiv.innerHTML = '';
-
-            if (sqData.t === 'text') {
-                inputsDiv.innerHTML = `<input type="text" id="qAns" class="w-full border-slate-300 rounded p-2 border focus:ring-brand-500">`;
-            } else if (sqData.t === 'select') {
-                inputsDiv.innerHTML = `<p class="text-xs text-slate-500 italic">Select correct options in the text above.</p>`;
-            } else {
-                sqData.o.forEach((opt, idx) => {
-                    // Storing the array index directly bypasses ALL HTML string-encoding issues when parsing math
-                    inputsDiv.innerHTML += `<label class="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer"><input type="radio" name="qAns" value="${idx}"> <span class="math-content">${opt}</span></label>`;
-                });
-            }
-            
-            // Safe synchronous rendering for MathJax
-            mathJaxPromise = mathJaxPromise.then(() => {
-                if (window.MathJax && MathJax.typesetPromise) {
-                    return MathJax.typesetPromise();
-                }
-            }).catch(err => console.error('MathJax Error:', err));
-            
-            appState.mistakes = 0; 
-            
-            document.getElementById('btnSubmit').classList.remove('hidden');
-            document.getElementById('btnNextSub').classList.add('hidden');
-        }
-
-        function checkAnswer() {
-            const V = QB[appState.step - 1].v[appState.variantIndex];
-            const sqData = V[appState.subQ];
-            let isCorrect = false, uAns = "";
-
-            if (sqData.t === 'text') {
-                uAns = document.getElementById('qAns').value.trim();
-                if(sqData.num) {
-                    let parsedAns = parseFloat(uAns);
-                    let parsedExpected = parseFloat(sqData.a);
-                    if (!isNaN(parsedAns) && Math.abs(parsedAns - parsedExpected) <= 0.2) { 
-                        isCorrect = true; 
-                        document.getElementById('qAns').value = sqData.a; 
-                    }
-                } else {
-                    if (uAns.toLowerCase() === sqData.a.toLowerCase()) isCorrect = true;
-                }
-            } else if (sqData.t === 'select') {
-                let sels = document.querySelectorAll('.inline-select'), ans = sqData.a.split('|');
-                isCorrect = true; sels.forEach((s, i) => { if(s.value !== ans[i]) isCorrect = false; uAns = s.value; });
-            } else {
-                let chk = document.querySelector('input[name="qAns"]:checked');
-                if(!chk) return;
-                // Grab the exact raw string from the array via the radio's index
-                uAns = sqData.o[parseInt(chk.value)];
-                if(uAns === sqData.a) isCorrect = true;
-            }
-
-            const fb = document.getElementById('wzFeedback');
-            fb.classList.remove('hidden', 'bg-red-50', 'border-red-200', 'text-red-800', 'bg-green-50', 'border-green-200', 'text-green-800');
-
-            if (isCorrect) {
-                fb.classList.add('bg-green-50', 'border-green-200', 'text-green-800');
-                fb.innerHTML = `<p class="font-bold"><i class="ph ph-check-circle"></i> Correct!</p>`;
-                document.getElementById('btnSubmit').classList.add('hidden');
-                document.getElementById('btnNextSub').classList.remove('hidden');
-            } else {
-                appState.mistakes++; appState.totalMistakes++;
-                fb.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+        // --- Audio Engine ---
+        function toggleAudio() {
+            if (!state.audioCtx) {
+                state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
-                if (appState.mistakes >= 3) {
-                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-warning-circle"></i> Moving on.</p><p>Answer: <strong>${sqData.a.replace(/\|/g, " and ")}</strong>.</p>`;
-                    document.getElementById('btnSubmit').classList.add('hidden');
-                    document.getElementById('btnNextSub').classList.remove('hidden');
-                } else {
-                    let feedbackObj = sqData.f[uAns] || Object.values(sqData.f)[0]; 
-                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-x-circle"></i> Not quite.</p><p class="mt-1 font-medium italic text-slate-600">Hint: ${feedbackObj.h}</p><p class="mt-2 text-xs">Try this variation...</p>`;
+                state.oscSaw = state.audioCtx.createOscillator();
+                state.oscSaw.type = 'sawtooth';
+                
+                state.oscSub = state.audioCtx.createOscillator();
+                state.oscSub.type = 'square';
+                
+                state.filter = state.audioCtx.createBiquadFilter();
+                state.filter.type = 'lowpass';
+                state.filter.frequency.value = state.baseFreq * 3; // Dynamic cut-off based on baseFreq
+                state.filter.Q.value = 1.0;
+
+                state.gainNode = state.audioCtx.createGain();
+                
+                state.oscSaw.connect(state.filter);
+                state.oscSub.connect(state.filter);
+                state.filter.connect(state.gainNode);
+                state.gainNode.connect(state.audioCtx.destination);
+                
+                state.gainNode.gain.value = 0;
+                state.oscSaw.start();
+                state.oscSub.start();
+            }
+            
+            if (state.audioCtx.state === 'suspended') {
+                state.audioCtx.resume();
+            }
+
+            state.isAudioEnabled = !state.isAudioEnabled;
+            const btn = document.getElementById('btnAudio');
+            
+            if(state.isAudioEnabled) {
+                btn.className = "px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2";
+                btn.innerHTML = "<span>🔇</span> Mute Audio";
+            } else {
+                btn.className = "px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-colors flex items-center gap-2";
+                btn.innerHTML = "<span>🔈</span> Enable Audio Engine";
+                state.gainNode.gain.value = 0;
+            }
+        }
+        document.getElementById('btnAudio').addEventListener('click', toggleAudio);
+
+        // --- Unknown Runs Logic ---
+        const startUnknown = (speed, runKey, title) => {
+            state.isUnknownMode = true;
+            state.unknownSpeed = speed;
+            state.carX = -100; 
+            if (runKey.startsWith('Rec')) state.activeRecMystery = runKey;
+            if (runKey.startsWith('App')) state.activeAppMystery = runKey;
+            mainControls.classList.add('opacity-30', 'pointer-events-none');
+            unknownBadge.classList.remove('hidden');
+            unknownBadge.innerText = `Playing: ${title}`;
+            displaySpeed.innerText = "??? m/s";
+            document.querySelectorAll('.btnResetNormal').forEach(b => b.classList.remove('hidden'));
+        };
+
+        // --- Main Logic & UI Events ---
+        function init() {
+            document.getElementById('baseFreqDisplay').innerText = `Base Frequency (f₀): ${state.baseFreq} Hz`;
+            displayFreq.innerText = `${state.baseFreq} Hz`;
+            document.getElementById('tab3BaseFreqDisplay').innerText = state.baseFreq;
+            document.getElementById('tab6BaseFreqDisplay').innerText = state.baseFreq;
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            initCharts();
+            setupControls();
+            setupTabs();
+            setupActivities();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initCharts() {
+            const f0 = state.baseFreq;
+            
+            // Helper to generate clean, round axis bounds and tick steps
+            const getNiceScale = (rawMin, rawMax) => {
+                let range = rawMax - rawMin;
+                let step;
+                if (range > 400) step = 100;
+                else if (range > 200) step = 50;
+                else if (range > 100) step = 20;
+                else step = 10;
+
+                let min = Math.floor(rawMin / step) * step;
+                let max = Math.ceil(rawMax / step) * step;
+                return { min, max, step };
+            };
+
+            // Receding limits: Drops as speed increases
+            let rawRecMin = f0 * (340 / (340 + 250)) * 0.9;
+            let rawRecMax = f0 * 1.1;
+            let recScale = getNiceScale(rawRecMin, rawRecMax);
+            
+            // Approaching limits: Rises as speed increases
+            let rawAppMin = f0 * 0.9;
+            let rawAppMax = f0 * (340 / (340 - 250)) * 1.1;
+            let appScale = getNiceScale(rawAppMin, rawAppMax);
+
+            const recCtx = document.getElementById('chartReceding').getContext('2d');
+            chartRec = new Chart(recCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Receding (Hz)', data: state.chartDataReceding,
+                        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        pointRadius: 5, showLine: true, tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { 
+                            type: 'linear', title: { display: true, text: 'Car Speed (v) [m/s]', color: '#9ca3af' }, 
+                            min: 0, max: 250, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false, // Prevents skipping the 10 m/s ticks
+                                maxRotation: 0,
+                                callback: function(value) { return value % 50 === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % 50 === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        },
+                        y: { 
+                            title: { display: true, text: 'Receding Frequency (Hz)', color: '#9ca3af' }, 
+                            min: recScale.min, max: recScale.max, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                callback: function(value) { return value % (recScale.step >= 20 ? 20 : 10) === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % recScale.step === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+
+            const appCtx = document.getElementById('chartApproaching').getContext('2d');
+            chartApp = new Chart(appCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Approaching (Hz)', data: state.chartDataApproaching,
+                        borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.5)',
+                        pointRadius: 5, showLine: true, tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { 
+                            type: 'linear', title: { display: true, text: 'Car Speed (v) [m/s]', color: '#9ca3af' }, 
+                            min: 0, max: 250, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                maxRotation: 0,
+                                callback: function(value) { return value % 50 === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % 50 === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        },
+                        y: { 
+                            title: { display: true, text: 'Approaching Frequency (Hz)', color: '#9ca3af' }, 
+                            min: appScale.min, max: appScale.max, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                stepSize: 10,
+                                autoSkip: false,
+                                callback: function(value) { return value % (appScale.step >= 20 ? 20 : 10) === 0 ? value : ''; }
+                            }, 
+                            grid: { 
+                                color: (ctx) => (ctx.tick && ctx.tick.value % appScale.step === 0) ? '#374151' : 'transparent',
+                                tickColor: '#4b5563',
+                                drawTicks: true
+                            } 
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+        }
+
+        function setupControls() {
+            const updateSpeedUI = (val) => {
+                if(state.isUnknownMode) return;
+                state.currentSpeed = Math.max(0, Math.min(250, parseInt(val)));
+                slider.value = state.currentSpeed;
+                displaySpeed.innerText = `${state.currentSpeed} m/s`;
+            };
+
+            slider.addEventListener('input', (e) => updateSpeedUI(e.target.value));
+            btnSpeedDown.addEventListener('click', () => updateSpeedUI(state.currentSpeed - 1));
+            btnSpeedUp.addEventListener('click', () => updateSpeedUI(state.currentSpeed + 1));
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            state.observerX = canvas.width / 2;
+            if(state.carX === 0) state.carX = -50;
+        }
+
+        function getHeardFrequency() {
+            let v = state.isUnknownMode ? state.unknownSpeed : state.currentSpeed;
+            if (v === 0) return state.baseFreq;
+            
+            let x_rel = state.carX - state.observerX;
+            
+            // Reduced 'd' (closest approach distance) from 20 down to 2.
+            // This prevents the high-speed 2D frequency drop off,
+            // making it act like the pure 1D textbook equation!
+            let d = 2; 
+            let v_rad = v * (x_rel / Math.sqrt(x_rel * x_rel + d * d));
+            return state.baseFreq * (state.c / (state.c + v_rad));
+        }
+
+        function updateAudioAndReadouts() {
+            let f = getHeardFrequency();
+            displayFreq.innerText = `${Math.round(f)} Hz`;
+
+            if (state.isAudioEnabled && state.audioCtx) {
+                let dist = Math.abs(state.carX - state.observerX);
+                let maxDist = canvas.width * 0.8; 
+                let vol = Math.max(0, 1 - (dist / maxDist));
+                
+                if(state.filter) {
+                    state.filter.frequency.setTargetAtTime((state.baseFreq*1.5) + (vol * state.baseFreq*4), state.audioCtx.currentTime, 0.1);
+                }
+
+                state.gainNode.gain.value = vol * 0.3; 
+                
+                state.oscSaw.frequency.setTargetAtTime(f, state.audioCtx.currentTime, 0.02);
+                state.oscSub.frequency.setTargetAtTime(f / 2, state.audioCtx.currentTime, 0.02); 
+            }
+        }
+
+        // --- Game Loop ---
+        function gameLoop(timestamp) {
+            if (!state.lastTime) state.lastTime = timestamp;
+            let dt = (timestamp - state.lastTime) / 1000;
+            state.lastTime = timestamp;
+            if (dt > 0.1) dt = 0.1;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let v = state.isUnknownMode ? state.unknownSpeed : state.currentSpeed;
+            state.carX += v * dt;
+            if (state.carX > canvas.width + 100) state.carX = -100;
+
+            if (Math.random() < (10 * dt)) { 
+                state.waves.push({ x: state.carX, r: 0 });
+            }
+
+            // Road
+            ctx.fillStyle = '#374151';
+            ctx.fillRect(0, canvas.height/2 + 20, canvas.width, 40);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height/2 + 40);
+            ctx.lineTo(canvas.width, canvas.height/2 + 40);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Waves
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+            ctx.lineWidth = 2;
+            for (let i = state.waves.length - 1; i >= 0; i--) {
+                let w = state.waves[i];
+                w.r += state.c * dt; 
+                if (w.r > canvas.width) { state.waves.splice(i, 1); continue; }
+                ctx.beginPath(); ctx.arc(w.x, canvas.height/2 - 10, w.r, 0, Math.PI * 2); ctx.stroke();
+            }
+
+            // Observer
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath(); ctx.arc(state.observerX, canvas.height/2 + 60, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = '12px sans-serif';
+            ctx.fillText("Observer", state.observerX, canvas.height/2 + 85);
+
+            // Race Car Body
+            ctx.fillStyle = '#b91c1c'; 
+            ctx.beginPath();
+            ctx.moveTo(state.carX - 25, canvas.height/2);
+            ctx.lineTo(state.carX + 15, canvas.height/2);
+            ctx.lineTo(state.carX + 20, canvas.height/2 - 5);
+            ctx.lineTo(state.carX + 5, canvas.height/2 - 15);
+            ctx.lineTo(state.carX - 20, canvas.height/2 - 15);
+            ctx.fill();
+            
+            // Wheels
+            ctx.fillStyle = '#111';
+            ctx.beginPath(); ctx.arc(state.carX - 15, canvas.height/2 + 5, 8, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(state.carX + 10, canvas.height/2 + 5, 8, 0, Math.PI*2); ctx.fill();
+
+            updateAudioAndReadouts();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Tab Management & Unlocking ---
+        const unlockTab = (t) => {
+            if (t > state.highestUnlockedTab) state.highestUnlockedTab = t;
+            let btn = document.getElementById(`tabBtn${t}`);
+            btn.classList.remove('locked');
+            btn.innerHTML = btn.innerHTML.replace('🔒 ', '');
+        };
+
+        function setupTabs() {
+            const tabs = [1, 2, 3, 4, 5, 6, 7];
+            tabs.forEach(t => {
+                document.getElementById(`tabBtn${t}`).addEventListener('click', () => {
+                    // Prevent clicking locked tabs
+                    if (t > state.highestUnlockedTab) return;
+
+                    tabs.forEach(i => {
+                        let btn = document.getElementById(`tabBtn${i}`);
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('tab-inactive');
+                        document.getElementById(`tabContent${i}`).style.display = 'none';
+                    });
                     
-                    appState.variantIndex = feedbackObj.nx;
-                    setTimeout(() => renderSubQ(), 2000); 
-                    document.getElementById('btnSubmit').disabled = true;
-                    setTimeout(() => document.getElementById('btnSubmit').disabled = false, 2000);
-                }
-            }
+                    let activeBtn = document.getElementById(`tabBtn${t}`);
+                    activeBtn.classList.remove('tab-inactive');
+                    activeBtn.classList.add('tab-active');
+                    
+                    document.getElementById(`tabContent${t}`).style.display = t===7 ? 'flex' : 'block';
+                    
+                    // Handle manual control locks based on graph completion state
+                    if (t === 1 || t === 4) {
+                        if (state.isUnknownMode) {
+                            state.isUnknownMode = false;
+                            unknownBadge.classList.add('hidden');
+                            displaySpeed.innerText = `${state.currentSpeed} m/s`;
+                        }
+                        
+                        if ((t === 1 && state.recGraphLocked) || (t === 4 && state.appGraphLocked)) {
+                            mainControls.classList.add('opacity-30', 'pointer-events-none');
+                        } else {
+                            mainControls.classList.remove('opacity-30', 'pointer-events-none');
+                        }
+                    }
+                    
+                    // Auto-start mystery runs when entering tabs
+                    if (t === 2) {
+                        if (state.activeRecMystery === 'RecA') startUnknown(UNKNOWNS.RecA, 'RecA', 'Receding Mystery 1');
+                        else startUnknown(UNKNOWNS.RecB, 'RecB', 'Receding Mystery 2');
+                    }
+                    if (t === 5) {
+                        if (state.activeAppMystery === 'AppC') startUnknown(UNKNOWNS.AppC, 'AppC', 'Approaching Mystery 1');
+                        else startUnknown(UNKNOWNS.AppD, 'AppD', 'Approaching Mystery 2');
+                    }
+                    
+                    // Scroll active tab into view for mobile
+                    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                });
+            });
         }
 
-        function nextSubQuestion() {
-            document.getElementById('btnNextSub').disabled = true; // prevent double clicks
-            setTimeout(() => { document.getElementById('btnNextSub').disabled = false; }, 500);
-
-            const V = QB[appState.step - 1].v[appState.variantIndex];
-            appState.subQ++;
-            if (appState.subQ < V.length) {
-                renderSubQ();
-            } else {
-                if (appState.step === 4) {
-                    document.getElementById('teachingPanel').classList.remove('hidden');
-                } else if (appState.step < 6) { // Now stops at step 6
-                    appState.step++; loadQuestion();
-                } else {
-                    triggerWin();
-                }
-            }
-        }
-
-        function closeTeachingPanel() {
-            document.getElementById('teachingPanel').classList.add('hidden');
-            appState.step++; loadQuestion(); // Will load step 5
-        }
-
-        // --- GAMIFICATION & WIN LOGIC ---
-        function triggerWin() {
-            try {
-                let m = appState.totalMistakes;
-                let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
-                let baseScore = m > 10 ? Math.max(0, 25 - (m - 10)) : 25;
-                let finalScore = baseScore + ec;
-
-                const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
-                const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
+        // --- Activities & Equations ---
+        function setupActivities() {
+            // Graph Validation Engine
+            const validateGraph = (type) => {
+                let data = type === 'rec' ? state.chartDataReceding : state.chartDataApproaching;
                 
-                document.getElementById('winScreen').classList.remove('hidden');
-                document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
-                document.getElementById('finalScoreVal').innerText = finalScore;
-                document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+                if (data.length < 5) return {valid: false, msg: "❌ Not enough points. Record at least 5 data points to form a clear graph."};
+                if (!data.find(pt => pt.x === 0)) return {valid: false, msg: "❌ Missing baseline. Make sure to record the frequency when the car is perfectly still (0 m/s)."};
+                if (data[data.length-1].x < 150) return {valid: false, msg: "❌ Missing high speeds. Record some data at higher speeds (at least 150 m/s) to see the curve shape."};
                 
-                if(ec > 0) {
-                    document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
-                } else {
-                    document.getElementById('ecMessage').innerText = ``;
-                }
-                
-                if(baseScore < 20) { // Below ~80%
-                    document.getElementById('tryAgainBtn').classList.remove('hidden');
-                    document.getElementById('ecMessage').innerHTML += `<br><span class="text-red-500 font-normal">Errors made: ${m}</span>`;
-                }
+                for (let pt of data) {
+                    let expected = type === 'rec' 
+                        ? state.baseFreq * (state.c / (state.c + pt.x))
+                        : state.baseFreq * (state.c / (state.c - pt.x));
+                    
+                    let tolerance = pt.x >= 240 ? 8 : 3;
 
-                let rounds = finalScore >= 25 ? 3 : 0;
-                if (typeof window.confetti === 'function') {
-                    for(let i=0; i<rounds; i++) {
-                        setTimeout(() => {
-                            try {
-                                window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] });
-                            } catch(e) {}
-                        }, i * 800);
+                    if (Math.abs(pt.y - expected) > tolerance) {
+                        return {valid: false, msg: `❌ Inaccurate point at ${pt.x} m/s. Did you record the frequency while the car was transitioning? Ensure you record only the fully <strong>${type==='rec'?'receding':'approaching'}</strong> frequency. Undo or clear and try again.`};
                     }
                 }
-            } catch (e) {
-                console.error("Win Screen Error: ", e);
-            }
+                return {valid: true, msg: "✅ Graph is correct! The shape accurately models the physics. This graph is now locked in. Proceed to the next tab."};
+            };
+
+            // Check Receding Graph Button
+            document.getElementById('btnCheckGraphRec').addEventListener('click', () => {
+                let res = validateGraph('rec');
+                let fb = document.getElementById('fbGraphRec');
+                fb.classList.remove('hidden');
+                fb.innerHTML = res.msg;
+                if (res.valid) {
+                    state.recGraphLocked = true;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-green-900/50 border border-green-500/50 text-green-300";
+                    document.getElementById('btnCheckGraphRec').classList.add('opacity-50', 'pointer-events-none');
+                    document.getElementById('recControls').classList.add('opacity-30', 'pointer-events-none');
+                    mainControls.classList.add('opacity-30', 'pointer-events-none');
+                    unlockTab(2);
+                } else {
+                    state.globalCorrections++;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
+                }
+            });
+
+            // Check Approaching Graph Button
+            document.getElementById('btnCheckGraphApp').addEventListener('click', () => {
+                let res = validateGraph('app');
+                let fb = document.getElementById('fbGraphApp');
+                fb.classList.remove('hidden');
+                fb.innerHTML = res.msg;
+                if (res.valid) {
+                    state.appGraphLocked = true;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-green-900/50 border border-green-500/50 text-green-300";
+                    document.getElementById('btnCheckGraphApp').classList.add('opacity-50', 'pointer-events-none');
+                    document.getElementById('appControls').classList.add('opacity-30', 'pointer-events-none');
+                    mainControls.classList.add('opacity-30', 'pointer-events-none');
+                    unlockTab(5);
+                } else {
+                    state.globalCorrections++;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
+                }
+            });
+
+            // Receding Data Record
+            document.getElementById('btnRecordRec').addEventListener('click', () => {
+                if(state.isUnknownMode) return;
+                let v = state.currentSpeed;
+                let f_current = Math.round(getHeardFrequency());
+                
+                let existingIdx = state.chartDataReceding.findIndex(d => d.x === v);
+                if (existingIdx !== -1) {
+                    state.chartDataReceding[existingIdx].y = f_current; 
+                } else {
+                    state.chartDataReceding.push({x: v, y: f_current});
+                }
+                
+                state.chartDataReceding.sort((a, b) => a.x - b.x);
+                if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
+            });
+
+            document.getElementById('btnUndoRec').addEventListener('click', () => {
+                state.chartDataReceding.pop();
+                if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
+            });
+
+            document.getElementById('btnClearRec').addEventListener('click', () => {
+                state.chartDataReceding.length = 0;
+                if(chartRec) chartRec.update();
+                document.getElementById('fbGraphRec').classList.add('hidden');
+            });
+
+            // Approaching Data Record
+            document.getElementById('btnRecordApp').addEventListener('click', () => {
+                if(state.isUnknownMode) return;
+                let v = state.currentSpeed;
+                let f_current = Math.round(getHeardFrequency());
+                
+                let existingIdx = state.chartDataApproaching.findIndex(d => d.x === v);
+                if (existingIdx !== -1) {
+                    state.chartDataApproaching[existingIdx].y = f_current; 
+                } else {
+                    state.chartDataApproaching.push({x: v, y: f_current});
+                }
+                
+                state.chartDataApproaching.sort((a, b) => a.x - b.x);
+                if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
+            });
+
+            document.getElementById('btnUndoApp').addEventListener('click', () => {
+                state.chartDataApproaching.pop();
+                if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
+            });
+
+            document.getElementById('btnClearApp').addEventListener('click', () => {
+                state.chartDataApproaching.length = 0;
+                if(chartApp) chartApp.update();
+                document.getElementById('fbGraphApp').classList.add('hidden');
+            });
+
+            const buildUnknownRow = (containerId, title, colorCode, key) => {
+                const div = document.createElement('div');
+                div.className = "bg-gray-900 border border-gray-700 rounded-lg p-4";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold text-${colorCode}-400">${title}</span>
+                        <button id="btnRun${key}" class="px-4 py-1.5 bg-${colorCode}-600 hover:bg-${colorCode}-500 rounded text-sm text-white font-bold transition-colors">Start Car</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="input${key}" placeholder="Estimated Speed (m/s)" class="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white outline-none focus:border-${colorCode}-500">
+                        <button id="btnCheck${key}" class="px-4 bg-gray-700 hover:bg-gray-600 text-white rounded font-bold transition-colors">Check</button>
+                    </div>
+                    <div id="result${key}" class="mt-2 text-sm font-bold hidden leading-relaxed"></div>
+                `;
+                document.getElementById(containerId).appendChild(div);
+
+                document.getElementById(`btnRun${key}`).addEventListener('click', () => startUnknown(UNKNOWNS[key], key, title));
+                
+                document.getElementById(`btnCheck${key}`).addEventListener('click', () => {
+                    let guess = parseInt(document.getElementById(`input${key}`).value);
+                    let actual = UNKNOWNS[key];
+                    let resDiv = document.getElementById(`result${key}`);
+                    resDiv.classList.remove('hidden');
+                    
+                    if (isNaN(guess)) {
+                        resDiv.innerText = "Please enter a number."; resDiv.className = "mt-2 text-sm font-bold text-red-400";
+                        return;
+                    }
+                    if (Math.abs(guess - actual) <= 8) {
+                        resDiv.innerText = `✅ Correct! It was ${actual} m/s.`; 
+                        resDiv.className = "mt-2 text-sm font-bold text-green-400";
+                        document.getElementById(`btnCheck${key}`).classList.add('opacity-50', 'pointer-events-none');
+                        document.getElementById(`input${key}`).disabled = true;
+                        
+                        // Mark as solved and unlock next tab if applicable
+                        state[`solved${key}`] = true;
+                        if (key.includes('Rec') && state.solvedRecA && state.solvedRecB) unlockTab(3);
+                        if (key.includes('App') && state.solvedAppC && state.solvedAppD) unlockTab(6);
+                        
+                        if (key === 'RecA') {
+                            state.activeRecMystery = 'RecB';
+                            if (!state.solvedRecB) setTimeout(() => startUnknown(UNKNOWNS.RecB, 'RecB', 'Receding Mystery 2'), 1000);
+                        }
+                        if (key === 'AppC' && !state.solvedAppD) {
+                            setTimeout(() => startUnknown(UNKNOWNS.AppD, 'AppD', 'Approaching Mystery 2'), 1000);
+                        }
+
+                    } else {
+                        state.globalCorrections++;
+                        // Check if graph data is bad and offer tailored feedback
+                        let isGraphValid = validateGraph(key.includes('Rec') ? 'rec' : 'app').valid;
+                        
+                        if (!isGraphValid) {
+                            resDiv.innerHTML = `❌ Incorrect guess. <strong>It looks like you recorded some wrong data points!</strong><br>Use the 'Undo' or 'Clear' buttons to edit your data points, wait for the car to be in the correct position, and remake your graph.`; 
+                        } else {
+                            resDiv.innerText = `❌ Not quite. Look closely at the graph to find the velocity that matches the frequency you heard.`; 
+                        }
+                        resDiv.className = "mt-2 text-sm font-bold text-red-400";
+                    }
+                });
+            };
+
+            buildUnknownRow('unknownRecRuns', 'Receding Mystery 1', 'purple', 'RecA');
+            buildUnknownRow('unknownRecRuns', 'Receding Mystery 2', 'purple', 'RecB');
+            buildUnknownRow('unknownAppRuns', 'Approaching Mystery 1', 'orange', 'AppC');
+            buildUnknownRow('unknownAppRuns', 'Approaching Mystery 2', 'orange', 'AppD');
+
+            document.querySelectorAll('.btnResetNormal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.isUnknownMode = false;
+                    mainControls.classList.remove('opacity-30', 'pointer-events-none');
+                    unknownBadge.classList.add('hidden');
+                    displaySpeed.innerText = `${state.currentSpeed} m/s`;
+                    document.querySelectorAll('.btnResetNormal').forEach(b => b.classList.add('hidden'));
+                });
+            });
+
+            // Distractor Equations Generation
+            const svgBase = `<svg viewBox="-5 -5 110 70" class="w-full h-full p-1"><polyline points="0,60 100,60" stroke="#4b5563" stroke-width="1"/><polyline points="0,0 0,60" stroke="#4b5563" stroke-width="1"/>`;
+            
+            const equations = [
+                { id: 'correct_rec', correct: 'rec', html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>c + v</div></span>`, svg: `${svgBase}<path d="M0,30 Q30,50 100,55" stroke="#3b82f6" fill="none" stroke-width="3"/></svg>`, fb: "<strong>Correct!</strong> Dividing by an increasingly larger number (c + v) creates a hyperbola that matches your receding data. Proceed to the next tab." },
+                { id: 'correct_app', correct: 'app', html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>c - v</div></span>`, svg: `${svgBase}<path d="M0,30 Q70,30 100,0" stroke="#f97316" fill="none" stroke-width="3"/></svg>`, fb: "<strong>Correct!</strong> Dividing by a smaller number (c - v) causes the frequency to sweep upwards, matching approaching data. Proceed to the Final Assessment!" },
+                { id: 'lin_down', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c - v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,30 100,60" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This creates a straight line, but your data is a curve. 'v' cannot be in the numerator." },
+                { id: 'lin_up', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c + v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,30 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This creates a straight line going UP. Check the shape of your data again." },
+                { id: 'hyperbola', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">c</div><div>v</div></span>`, svg: `${svgBase}<path d="M5,0 Q10,50 100,58" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "If v=0, you would divide by zero! A parked car still has a frequency (f₀)." },
+                { id: 'origin_lin', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> <span class="inline-block align-middle text-center text-xs"><div class="border-b border-gray-400">v</div><div>c</div></span>`, svg: `${svgBase}<polyline points="0,60 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "If v=0, this equation equals 0 Hz. But a stationary source still makes sound." },
+                { id: 'parabola', correct: false, html: `f' = f₀ <span class="text-[10px]">·</span> c <span class="text-[10px]">·</span> v²`, svg: `${svgBase}<path d="M0,60 Q70,60 100,0" stroke="#a855f7" fill="none" stroke-width="3"/></svg>`, fb: "This is a parabola. The Doppler effect does not square the velocity." }
+            ];
+
+            let selectedEqRec = null;
+            let selectedEqApp = null;
+
+            const buildEqGrid = (targetId, type) => {
+                const container = document.getElementById(targetId);
+                container.innerHTML = '';
+                let pool = [...equations].sort(() => 0.5 - Math.random()).slice(0, 4); 
+                
+                if(!pool.find(e => e.correct === type)) {
+                    pool[0] = equations.find(e => e.correct === type);
+                    pool = pool.sort(() => 0.5 - Math.random());
+                }
+
+                if (type === 'rec') {
+                    selectedEqRec = null;
+                    document.getElementById('btnCheckEqRec').disabled = true;
+                    document.getElementById('btnCheckEqRec').classList.add('opacity-50', 'cursor-not-allowed');
+                    document.getElementById('fbEqRec').classList.add('hidden');
+                } else {
+                    selectedEqApp = null;
+                    document.getElementById('btnCheckEqApp').disabled = true;
+                    document.getElementById('btnCheckEqApp').classList.add('opacity-50', 'cursor-not-allowed');
+                    document.getElementById('fbEqApp').classList.add('hidden');
+                }
+
+                pool.forEach(eq => {
+                    const div = document.createElement('div');
+                    div.className = `bg-gray-900 border border-gray-700 rounded p-2 cursor-pointer hover:border-gray-400 transition-all eq-card-${type}`;
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="w-3 h-3 rounded-full border-2 border-gray-500 eq-radio-${type}"></div>
+                            <div class="flex-1 text-center font-serif text-gray-300 ml-1 scale-90">${eq.html}</div>
+                        </div>
+                        <div class="w-full h-12 bg-gray-800 rounded border border-gray-700">${eq.svg}</div>
+                    `;
+                    div.addEventListener('click', () => {
+                        document.querySelectorAll(`.eq-radio-${type}`).forEach(el => el.className = `w-3 h-3 rounded-full border-2 border-gray-500 eq-radio-${type}`);
+                        div.querySelector(`.eq-radio-${type}`).className = `w-3 h-3 rounded-full border-2 bg-blue-500 border-blue-300 eq-radio-${type}`;
+                        
+                        if(type === 'rec') {
+                            selectedEqRec = eq;
+                            let btn = document.getElementById('btnCheckEqRec');
+                            btn.disabled = false;
+                            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        } else {
+                            selectedEqApp = eq;
+                            let btn = document.getElementById('btnCheckEqApp');
+                            btn.disabled = false;
+                            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                    });
+                    container.appendChild(div);
+                });
+            };
+
+            const setupEqCheck = (type, btnId, fbId, containerId) => {
+                document.getElementById(btnId).addEventListener('click', () => {
+                    let eq = type === 'rec' ? selectedEqRec : selectedEqApp;
+                    if (!eq) return;
+
+                    let fb = document.getElementById(fbId);
+                    fb.classList.remove('hidden');
+
+                    if (eq.correct === type) {
+                        fb.className = "mt-3 text-sm font-bold p-3 rounded bg-green-900/50 border border-green-500/50 text-green-300";
+                        fb.innerHTML = eq.fb;
+                        document.getElementById(btnId).classList.add('hidden');
+                        
+                        // Unlock next phase
+                        if (type === 'rec') unlockTab(4);
+                        if (type === 'app') unlockTab(7);
+
+                    } else {
+                        state.globalCorrections++;
+                        fb.className = "mt-3 text-sm font-bold p-3 rounded bg-red-900/50 border border-red-500/50 text-red-300 flex flex-col gap-2";
+                        fb.innerHTML = `<span>❌ ${eq.fb}</span><button class="px-4 py-1.5 bg-red-700 hover:bg-red-600 rounded text-white self-start transition-colors" onclick="document.getElementById('${fbId}').classList.add('hidden')">Try Again</button>`;
+                        
+                        document.querySelector(`#${fbId} button`).addEventListener('click', () => {
+                            buildEqGrid(containerId, type);
+                        });
+                    }
+                });
+            };
+
+            buildEqGrid('eqContainerReceding', 'rec');
+            buildEqGrid('eqContainerApproaching', 'app');
+            
+            setupEqCheck('rec', 'btnCheckEqRec', 'fbEqRec', 'eqContainerReceding');
+            setupEqCheck('app', 'btnCheckEqApp', 'fbEqApp', 'eqContainerApproaching');
+            
+            QuizManager.init();
         }
 
-        // Init
-        window.addEventListener('load', () => {
-            loadQuestion();
-        });
+        // --- Quiz Generation & Management Engine ---
+        const QuizManager = {
+            pool: [],
+            activeQuiz: [],
+            currentQIdx: 0,
+            hintState: 0,
+            isLocked: false,
 
+            init() {
+                this.generatePool();
+                document.getElementById('btnStartQuiz').addEventListener('click', () => this.startQuiz());
+                document.getElementById('btnNextQ').addEventListener('click', () => this.nextQuestion());
+                document.getElementById('btnHint').addEventListener('click', () => this.showHint());
+                document.getElementById('btnRetryQuiz').addEventListener('click', () => {
+                    document.getElementById('quizWinScreen').classList.add('hidden');
+                    this.startQuiz();
+                });
+            },
+
+            generatePool() {
+                this.pool = [];
+                for(let i=0; i<150; i++) {
+                    let f0 = Math.floor(Math.random() * 600) + 200; 
+                    let v = Math.floor(Math.random() * 120) + 10;   
+                    let c = 340;
+                    let type = i % 3; 
+                    
+                    let q = { hints: [] };
+
+                    if (type === 0) { // Math: Approaching
+                        let exact = f0 * (c / (c - v));
+                        q.category = 'math';
+                        q.mathType = 'app';
+                        q.text = `An ambulance siren emits a frequency of <b>${f0} Hz</b>. It is driving <b>TOWARDS</b> you at <b>${v} m/s</b>. <br><br>What frequency do you hear? <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
+                        q.type = 'number';
+                        q.answer = exact;
+                        q.hints = [
+                            "Since it is moving TOWARDS you, the waves are compressed. The pitch should be HIGHER than the base frequency.",
+                            "Use the approaching formula: f' = f₀ * [c / (c - v)]",
+                            `Plug in the numbers: f' = ${f0} * [340 / (340 - ${v})]`
+                        ];
+                    } else if (type === 1) { // Math: Receding
+                        let exact = f0 * (c / (c + v));
+                        q.category = 'math';
+                        q.mathType = 'rec';
+                        q.text = `A train whistle blows at <b>${f0} Hz</b>. It just passed you and is moving <b>AWAY</b> at <b>${v} m/s</b>. <br><br>Calculate the observed frequency. <span class="text-xs text-yellow-400 font-bold block mt-3">(Note: Use speed of sound c = 340 m/s)</span>`;
+                        q.type = 'number';
+                        q.answer = exact;
+                        q.hints = [
+                            "It is moving AWAY from you, meaning waves stretch out. The pitch should be LOWER.",
+                            "Use the receding formula: f' = f₀ * [c / (c + v)]",
+                            `Plug in the numbers: f' = ${f0} * [340 / (340 + ${v})]`
+                        ];
+                    } else { // Conceptual
+                        let isApp = Math.random() > 0.5;
+                        let offset = Math.floor(Math.random() * 50) + 20;
+                        let f_obs = isApp ? f0 + offset : f0 - offset;
+                        q.category = 'concept';
+                        q.text = `You measure a sound wave at <b>${f_obs} Hz</b>. You look up the engine specifications and see it natively emits sound at <b>${f0} Hz</b>. <br><br>Based on this data, what is the object doing?`;
+                        q.type = 'mc';
+                        q.options = ["Moving Towards You", "Moving Away From You", "Standing Still"];
+                        q.answer = isApp ? "Moving Towards You" : "Moving Away From You";
+                        q.hints = [
+                            "Compare the two numbers. Is the frequency you hear higher or lower than the native frequency?",
+                            isApp ? "The observed frequency is HIGHER." : "The observed frequency is LOWER.",
+                            isApp ? "Higher frequencies mean compressed waves, which happen when moving towards you." : "Lower frequencies mean stretched waves, which happen when moving away."
+                        ];
+                    }
+                    this.pool.push(q);
+                }
+            },
+
+            startQuiz() {
+                let mathPool = this.pool.filter(q => q.category === 'math').sort(() => 0.5 - Math.random());
+                let concPool = this.pool.filter(q => q.category === 'concept').sort(() => 0.5 - Math.random());
+                
+                // Select 2 computational questions of DIFFERENT types
+                let selectedMath = [mathPool[0]];
+                for (let i = 1; i < mathPool.length; i++) {
+                    if (mathPool[i].mathType !== selectedMath[0].mathType) {
+                        selectedMath.push(mathPool[i]);
+                        break;
+                    }
+                }
+                
+                // Exactly 2 computation, 2 conceptual
+                this.activeQuiz = [...selectedMath, ...concPool.slice(0, 2)].sort(() => 0.5 - Math.random());
+                
+                this.currentQIdx = 0;
+                
+                document.getElementById('quizIntro').classList.add('hidden');
+                document.getElementById('quizActive').classList.remove('hidden');
+                document.getElementById('quizActive').classList.add('flex');
+                
+                this.loadQuestion();
+            },
+
+            loadQuestion() {
+                this.hintState = 0;
+                this.isLocked = false;
+                document.getElementById('hintText').classList.add('hidden');
+                document.getElementById('qFeedback').classList.add('hidden');
+                document.getElementById('btnNextQ').classList.add('hidden');
+                document.getElementById('btnHint').classList.remove('hidden');
+                
+                let q = this.activeQuiz[this.currentQIdx];
+                document.getElementById('quizProgress').innerText = `Question ${this.currentQIdx + 1} / 4`;
+                document.getElementById('qText').innerHTML = q.text;
+
+                let area = document.getElementById('qInputArea');
+                area.innerHTML = '';
+
+                if (q.type === 'number') {
+                    area.innerHTML = `
+                        <div class="flex gap-2">
+                            <input type="number" id="quizNumInput" placeholder="Enter number..." class="flex-1 bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white outline-none focus:border-blue-500 font-mono text-lg">
+                            <button id="quizSubmitBtn" class="px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors">Submit</button>
+                        </div>
+                    `;
+                    document.getElementById('quizSubmitBtn').addEventListener('click', () => this.checkAnswer());
+                } else {
+                    q.options.forEach(opt => {
+                        let btn = document.createElement('button');
+                        btn.className = "w-full py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded font-bold text-gray-300 transition-colors text-left px-4";
+                        btn.innerText = opt;
+                        btn.addEventListener('click', () => this.checkAnswer(opt, btn));
+                        area.appendChild(btn);
+                    });
+                }
+            },
+
+            showHint() {
+                if (this.isLocked) return;
+                let q = this.activeQuiz[this.currentQIdx];
+                let textDiv = document.getElementById('hintText');
+                
+                if (this.hintState < q.hints.length) {
+                    textDiv.innerText = q.hints[this.hintState];
+                    textDiv.classList.remove('hidden');
+                    this.hintState++;
+                    state.globalCorrections++; 
+                }
+                
+                if (this.hintState >= q.hints.length) {
+                    document.getElementById('btnHint').classList.add('hidden');
+                }
+            },
+
+            checkAnswer(val = null, btnEl = null) {
+                if (this.isLocked) return;
+                let q = this.activeQuiz[this.currentQIdx];
+                let fb = document.getElementById('qFeedback');
+                fb.classList.remove('hidden');
+
+                let isCorrect = false;
+
+                if (q.type === 'number') {
+                    let inputEl = document.getElementById('quizNumInput');
+                    let guess = parseFloat(inputEl.value);
+                    if (isNaN(guess)) {
+                        fb.className = "mt-4 p-3 rounded text-sm font-bold bg-gray-800 text-yellow-400 border border-yellow-600";
+                        fb.innerText = "Please enter a valid number.";
+                        return;
+                    }
+
+                    if (Math.abs(guess - q.answer) <= (Math.abs(q.answer) * 0.02 + 0.1)) {
+                        isCorrect = true;
+                        inputEl.value = q.answer.toFixed(1); 
+                        inputEl.classList.add('border-green-500', 'bg-green-900/30');
+                    }
+                } else {
+                    if (val === q.answer) {
+                        isCorrect = true;
+                        btnEl.classList.add('bg-green-600', 'border-green-500', 'text-white');
+                    } else {
+                        btnEl.classList.add('bg-red-900/50', 'border-red-500');
+                    }
+                }
+
+                if (isCorrect) {
+                    this.isLocked = true;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-green-900/50 border border-green-500/50 text-green-300";
+                    fb.innerText = "Correct! Well done.";
+                    document.getElementById('btnNextQ').classList.remove('hidden');
+                } else {
+                    state.globalCorrections++;
+                    fb.className = "mt-4 p-3 rounded text-sm font-bold bg-red-900/50 border border-red-500/50 text-red-300";
+                    
+                    if (this.hintState >= 3) { 
+                        this.isLocked = true;
+                        fb.innerHTML = `Incorrect. The exact answer is <b>${q.type==='number' ? q.answer.toFixed(2) : q.answer}</b>.`;
+                        if(q.type==='number') document.getElementById('quizNumInput').value = q.answer.toFixed(2);
+                        document.getElementById('btnNextQ').classList.remove('hidden');
+                    } else {
+                        fb.innerText = "Incorrect. Try checking the hints!";
+                    }
+                }
+            },
+
+            nextQuestion() {
+                this.currentQIdx++;
+                if (this.currentQIdx >= this.activeQuiz.length) {
+                    this.endQuiz();
+                } else {
+                    this.loadQuestion();
+                }
+            },
+
+            endQuiz() {
+                document.getElementById('quizActive').classList.add('hidden');
+                document.getElementById('quizActive').classList.remove('flex');
+                
+                let winScreen = document.getElementById('quizWinScreen');
+                winScreen.classList.remove('hidden');
+
+                let finalScore = 0;
+                let ecText = "";
+                let mistakes = state.globalCorrections;
+                
+                if (mistakes === 0) { finalScore = 30; ecText = "+5 Extra Credit Points!"; }
+                else if (mistakes === 1) { finalScore = 29; ecText = "+4 Extra Credit Points!"; }
+                else if (mistakes === 2) { finalScore = 28; ecText = "+3 Extra Credit Points!"; }
+                else if (mistakes === 3) { finalScore = 27; ecText = "+2 Extra Credit Points!"; }
+                else if (mistakes === 4) { finalScore = 26; ecText = "+1 Extra Credit Point!"; }
+                else if (mistakes <= 10) { finalScore = 25; }
+                else { finalScore = 25 - (mistakes - 10); } 
+                
+                if (finalScore < 0) finalScore = 0;
+
+                document.getElementById('winScore').innerText = finalScore;
+                document.getElementById('winEC').innerText = ecText;
+
+                let code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                document.getElementById('winCode').innerText = code;
+
+                const adjs = ["Spectacular", "Amazing", "Stellar", "Incredible", "Outstanding", "Phenomenal", "Brilliant", "Fantastic", "Superb", "Marvelous"];
+                const nouns = ["Performance", "Job", "Work", "Effort", "Achievement", "Success", "Execution", "Display", "Result", "Mastery"];
+                const puncts = ["!", "!!", "!!!"];
+                
+                let msg = finalScore >= 20 
+                    ? `${adjs[Math.floor(Math.random()*10)]} ${nouns[Math.floor(Math.random()*10)]}${puncts[Math.floor(Math.random()*3)]}`
+                    : "Assessment Complete.";
+                
+                document.getElementById('winTitle').innerText = msg;
+                document.getElementById('winSubtitle').innerText = `You completed the lab with ${mistakes} corrections/hints.`;
+
+                let retryBtn = document.getElementById('btnRetryQuiz');
+                if (finalScore < 20) { 
+                    document.getElementById('winTitle').innerText = "Keep Trying!";
+                    document.getElementById('winEC').className = "text-yellow-400 text-sm font-bold";
+                    document.getElementById('winEC').innerText = "Try again to get a passing score!";
+                    retryBtn.classList.remove('hidden');
+                } else {
+                    retryBtn.classList.add('hidden');
+                    let duration = finalScore > 25 ? 3000 : (finalScore === 25 ? 1000 : 0);
+                    if (duration > 0) {
+                        let end = Date.now() + duration;
+                        (function frame() {
+                            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#3b82f6'] });
+                            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#10b981', '#3b82f6'] });
+                            if (Date.now() < end) requestAnimationFrame(frame);
+                        }());
+                    }
+                }
+            }
+        };
+
+        window.onload = init;
     </script>
 </body>
 </html>
