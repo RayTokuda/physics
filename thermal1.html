@@ -125,7 +125,7 @@
 
             <!-- LMS Wizard -->
             <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col flex-1 relative">
-                <!-- Loading Overlay for Graph Mode (Now a clickable button to prevent lockouts) -->
+                <!-- Loading Overlay for Graph Mode -->
                 <div id="wzBlocker" class="hidden absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl transition-all">
                     <button id="wzBlockerBtn" onclick="startGraphSimulation()" class="text-center font-bold text-white bg-indigo-600 hover:bg-indigo-700 animate-pulse px-6 py-4 rounded-xl shadow-lg flex flex-col items-center transition cursor-pointer border-2 border-indigo-400">
                         <i class="ph ph-fire text-4xl mb-2"></i> 
@@ -142,7 +142,7 @@
                     <h3 id="wzTitle" class="font-bold text-slate-700 mb-2 text-sm uppercase tracking-wider">Loading...</h3>
                     <div id="wzSetup" class="text-sm bg-slate-100 p-3 rounded-md mb-3 border border-slate-200 text-slate-700"></div>
                     
-                    <!-- Dynamic Context Box (Concept/Evidence Supported) -->
+                    <!-- Dynamic Context Box -->
                     <div id="wzContext" class="mb-3 empty:hidden"></div>
                     
                     <div class="bg-white border border-brand-200 rounded-md p-4 shadow-sm mb-4">
@@ -155,6 +155,7 @@
                 <div class="flex gap-2 mt-auto">
                     <button id="btnSubmit" onclick="checkAnswer()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded transition shadow">Submit Answer</button>
                     <button id="btnNextSub" onclick="nextSubQuestion()" class="hidden flex-1 bg-brand-500 hover:bg-brand-600 text-white font-medium py-2 px-4 rounded transition shadow">Continue <i class="ph ph-arrow-right inline"></i></button>
+                    <button id="btnTryAlt" onclick="loadAlternativeQuestion()" class="hidden flex-1 bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded transition shadow"><i class="ph ph-arrows-clockwise inline"></i> Try Alternative Question</button>
                 </div>
             </div>
         </div>
@@ -233,13 +234,13 @@
             document.getElementById('tab-graph').className = mode === 'graph' ? "px-4 py-2 text-sm tab-active rounded-t-lg" : "px-4 py-2 text-sm tab-inactive rounded-t-lg";
 
             if (mode === 'calorimeter') {
-                document.getElementById('wzBlocker').classList.add('hidden'); // Guarantee it is hidden in Calorimeter mode
+                document.getElementById('wzBlocker').classList.add('hidden'); 
                 simChart.update();
             }
             if (mode === 'graph') {
                 qChart.update();
                 if (!graphSimComplete) {
-                    document.getElementById('wzBlocker').classList.remove('hidden'); // Force sim run
+                    document.getElementById('wzBlocker').classList.remove('hidden'); 
                 }
             }
         }
@@ -295,12 +296,11 @@
         }
 
         function startGraphSimulation() {
-            if (graphSimComplete || qInterval) return; // Prevent double execution
+            if (graphSimComplete || qInterval) return; 
             
             document.getElementById('btnRunGraphSim').disabled = true;
             document.getElementById('btnRunGraphSim').classList.add('opacity-50');
             
-            // Visual feedback on the blocker button that the simulation is running
             const blockerBtn = document.getElementById('wzBlockerBtn');
             if (blockerBtn) {
                 blockerBtn.innerHTML = `<i class="ph ph-hourglass-high text-4xl mb-2 animate-spin"></i><span>Simulation Running...<br>Please wait.</span>`;
@@ -322,7 +322,7 @@
                 
                 if (currentQ >= 40) {
                     clearInterval(qInterval);
-                    document.getElementById('wzBlocker').classList.add('hidden'); // Unlock wizard
+                    document.getElementById('wzBlocker').classList.add('hidden'); 
                     document.getElementById('btnRunGraphSim').innerText = "Simulation Complete";
                     graphSimComplete = true;
                 }
@@ -475,35 +475,34 @@
                 title: "Deduce Model: Heat and Temp", setup: "Review the Q vs ΔT graph. For a 1g sample, we found the slope ($c$) is constant.",
                 v: [
                     [ // V0
-                        { q:"Based on the linear graphs, how is heat energy ($q$) related to temperature change ($\\Delta T$) and the slope ($c$)?", o:["$q = c \\times \\Delta T$", "$q = c / \\Delta T$", "$q = \\Delta T / c$", "$q = c + \\Delta T$", "$q = c - \\Delta T$"], a:"$q = c \\times \\Delta T$", f:{"$q = c / \\Delta T$":{h:"Y (q) = slope (c) * X (ΔT).",nx:1}, "$q = \\Delta T / c$":{h:"Multiply slope by X.",nx:2}, "$q = c + \\Delta T$":{h:"It's a multiplicative relationship.",nx:1}, "$q = c - \\Delta T$":{h:"No subtraction.",nx:2}} },
-                        { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:1}, "4.18":{h:"Multiply them.",nx:2}, "0":{h:"It required energy.",nx:1}} },
-                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:1}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:2}, "Because the graph is a curve":{h:"It is a straight line.",nx:1}, "It is a coincidence":{h:"It's mathematical proof.",nx:2}} }
+                        { q:"The equation of a straight line starting at zero is $y = mx$. In our thermal graph, what does the $y$-axis represent?", o:["Heat Energy ($q$)", "Temperature Change ($\\Delta T$)", "Specific Heat ($c$)", "Mass ($m$)", "Time"], a:"Heat Energy ($q$)", f:{"Temperature Change ($\\Delta T$)":{h:"Look at the vertical axis labels.",nx:1}, "Specific Heat ($c$)":{h:"That represents the slope ($m$).",nx:2}, "Mass ($m$)":{h:"Mass is a constant 1g.",nx:1}, "Time":{h:"Time isn't on the graph.",nx:2}} },
+                        { q:"Evidence: If $y=q$, $x=\\Delta T$, and slope $m=c$, the formula is $q = c \\times \\Delta T$. At a slope ($c$) of ~4.18 (Water), a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Multiply slope by X.",nx:1}, "4.18":{h:"Multiply slope by X.",nx:2}, "0":{h:"It required energy.",nx:1}} },
+                        { q:"Reasoning: Why does $q = c \\times \\Delta T$ perfectly match the mathematical equation of a line ($y = mx$)?", o:["Because Heat ($q$) rises proportionally to Temperature Change ($\\Delta T$) at a constant rate defined by the material's specific slope ($c$)", "Because heat curves exponentially", "Because the specific heat constantly changes", "Because mass is divided by temperature", "It is just a coincidence"], a:"Because Heat ($q$) rises proportionally to Temperature Change ($\\Delta T$) at a constant rate defined by the material's specific slope ($c$)", f:{"Because heat curves exponentially":{h:"The graphs are perfectly straight lines.",nx:1}, "Because the specific heat constantly changes":{h:"The slope is completely constant.",nx:2}, "Because mass is divided by temperature":{h:"There is no division in $y=mx$.",nx:1}, "It is just a coincidence":{h:"It's mathematical proof.",nx:2}} }
                     ],
-                    // Repeating logic for V1-V5 to satisfy robust engine needs
                     [ // V1
-                        { q:"If you know the slope ($c$) and the Joules applied ($q$), how do you find $\\Delta T$?", o:["$\\Delta T = q / c$", "$\\Delta T = q \\times c$", "$\\Delta T = c / q$", "$\\Delta T = q + c$", "$\\Delta T = q - c$"], a:"$\\Delta T = q / c$", f:{"$\\Delta T = q \\times c$":{h:"Algebra: divide $q$ by $c$.",nx:2}, "$\\Delta T = c / q$":{h:"Flip it.",nx:3}, "$\\Delta T = q + c$":{h:"No addition.",nx:2}, "$\\Delta T = q - c$":{h:"No subtraction.",nx:3}} },
-                        { q:"Evidence: If $q=16.7$ and $c=1.67$ (Plastic), what is $\\Delta T$?", a:"10", t:"text", num:true, f:{"16.7":{h:"Divide q by c.",nx:2}, "1.67":{h:"Divide 16.7 by 1.67.",nx:3}, "0":{h:"Do the math.",nx:2}} },
-                        { q:"Reasoning: Why does this algebraic manipulation work?", o:["Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", "It only works for plastic", "You just guess", "The graph bends to fit", "Math is an illusion"], a:"Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", f:{"It only works for plastic":{h:"It works for all.",nx:2}, "You just guess":{h:"It's strict algebra.",nx:3}, "The graph bends to fit":{h:"Lines are perfectly straight.",nx:2}, "Math is an illusion":{h:"It is reality.",nx:3}} }
+                        { q:"In the slope-intercept equation $y = mx$, which variable from our experiment represents the $x$-axis?", o:["Temperature Change ($\\Delta T$)", "Heat Energy ($q$)", "Specific Heat ($c$)", "Mass ($m$)", "Time"], a:"Temperature Change ($\\Delta T$)", f:{"Heat Energy ($q$)":{h:"That's the y-axis.",nx:2}, "Specific Heat ($c$)":{h:"That represents the slope.",nx:3}, "Mass ($m$)":{h:"Mass is constant 1g.",nx:2}, "Time":{h:"Time is not an axis here.",nx:3}} },
+                        { q:"Evidence: Using the line equation $q = c \\times \\Delta T$, if $c=0.45$ (Iron) and $\\Delta T=10$, what is $q$?", a:"4.5", t:"text", num:true, f:{"10":{h:"Multiply slope by X.",nx:2}, "0.45":{h:"Multiply them.",nx:3}, "0":{h:"It required energy.",nx:2}} },
+                        { q:"Reasoning: How does the straight line on the graph prove the formula $q = c \\times \\Delta T$?", o:["A constant linear slope ($c$) proves that every additional degree of $\\Delta T$ requires the exact same additional amount of Heat ($q$)", "It proves that specific heat drops as it gets hotter", "It proves heat is unrelated to temp", "It proves energy is destroyed", "It proves that metals curve"], a:"A constant linear slope ($c$) proves that every additional degree of $\\Delta T$ requires the exact same additional amount of Heat ($q$)", f:{"It proves that specific heat drops as it gets hotter":{h:"The slope is constant, it doesn't drop.",nx:2}, "It proves heat is unrelated to temp":{h:"They are directly related.",nx:3}, "It proves energy is destroyed":{h:"Energy is conserved.",nx:2}, "It proves that metals curve":{h:"The lines are straight.",nx:3}} }
                     ],
                     [ // V2
-                        { q:"The specific heat ($c$) is essentially a conversion factor between...", o:["Thermal Energy and Temperature Change", "Mass and Volume", "Time and Heat", "Friction and Temperature", "Water and Copper"], a:"Thermal Energy and Temperature Change", f:{"Mass and Volume":{h:"Look at the axes of the graph.",nx:3}, "Time and Heat":{h:"Time is not an axis here.",nx:4}, "Friction and Temperature":{h:"No friction.",nx:3}, "Water and Copper":{h:"It applies to all materials.",nx:4}} },
-                        { q:"Evidence: Without $c$, we wouldn't know how many Joules it takes to...", o:["Move 1 gram by 1 degree", "Melt the material", "Weigh the material", "Freeze the water", "Stop the clock"], a:"Move 1 gram by 1 degree", f:{"Melt the material":{h:"No phase changes here.",nx:3}, "Weigh the material":{h:"Mass is already 1g.",nx:4}, "Freeze the water":{h:"We are heating it.",nx:3}, "Stop the clock":{h:"Not about time.",nx:4}} },
-                        { q:"Reasoning: Why is $c$ the ultimate conversion factor?", o:["Because $c$ literally defines the 'cost' in Joules to buy 1 degree of temperature for that specific material", "Because $c$ means 'constant'", "Because it cancels out mass", "Because it is always 4.18", "It isn't"], a:"Because $c$ literally defines the 'cost' in Joules to buy 1 degree of temperature for that specific material", f:{"Because $c$ means 'constant'":{h:"It stands for capacity.",nx:3}, "Because it cancels out mass":{h:"It interacts with mass.",nx:4}, "Because it is always 4.18":{h:"Only for water.",nx:3}, "It isn't":{h:"It mathematically is.",nx:4}} }
+                        { q:"In the linear equation $y = mx$, what does the constant slope '$m$' represent in our thermal model?", o:["Specific Heat ($c$)", "Heat Energy ($q$)", "Temperature Change ($\\Delta T$)", "Mass ($m$)", "Time"], a:"Specific Heat ($c$)", f:{"Heat Energy ($q$)":{h:"That's the y-axis.",nx:3}, "Temperature Change ($\\Delta T$)":{h:"That's the x-axis.",nx:4}, "Mass ($m$)":{h:"Mass is locked at 1g.",nx:3}, "Time":{h:"Not an axis here.",nx:4}} },
+                        { q:"Evidence: According to the linear model $q = c \\times \\Delta T$, for a material with $c=0.897$ (Aluminum), a $\\Delta T$ of 10°C requires how much energy ($q$)?", a:"8.97", t:"text", num:true, f:{"10":{h:"Multiply slope by X.",nx:3}, "0.897":{h:"Multiply them.",nx:4}, "0":{h:"It requires energy.",nx:3}} },
+                        { q:"Reasoning: Why does the slope represent Specific Heat ($c$)?", o:["Because the slope dictates exactly how many Joules of energy ($y$) must be added to force a 1 degree shift in temperature ($x$)", "Because slope means speed", "Because Specific Heat is measured in degrees", "Because it is on the x-axis", "Because it measures time"], a:"Because the slope dictates exactly how many Joules of energy ($y$) must be added to force a 1 degree shift in temperature ($x$)", f:{"Because slope means speed":{h:"It means rate of energy transfer per degree.",nx:3}, "Because Specific Heat is measured in degrees":{h:"It's measured in Joules per degree.",nx:4}, "Because it is on the x-axis":{h:"It is the multiplier, not an axis.",nx:3}, "Because it measures time":{h:"Time is irrelevant here.",nx:4}} }
                     ],
                     [ // V3
-                        { q:"In $q = c \\times \\Delta T$, what happens to $q$ if $\\Delta T$ is doubled?", o:["$q$ doubles", "$q$ halves", "$q$ stays the same", "$q$ quadruples", "$q$ becomes zero"], a:"$q$ doubles", f:{"$q$ halves":{h:"They are directly proportional.",nx:4}, "$q$ stays the same":{h:"It must change.",nx:5}, "$q$ quadruples":{h:"It's a linear 1:1 relationship.",nx:4}, "$q$ becomes zero":{h:"Energy is required.",nx:5}} },
-                        { q:"Evidence: On the Water line, $\\Delta T = 5$ is ~20.9J. What is $\\Delta T = 10$?", a:"41.8", t:"text", num:true, f:{"20.9":{h:"Double 20.9.",nx:4}, "10":{h:"Look at Y axis.",nx:5}, "0":{h:"Do the math.",nx:4}} },
-                        { q:"Reasoning: Why does $q$ double?", o:["A linear direct relationship means whatever multiplier you apply to X must also apply to Y", "Because water is magic", "Because it's a curve", "It is random", "Because mass doubled"], a:"A linear direct relationship means whatever multiplier you apply to X must also apply to Y", f:{"Because water is magic":{h:"Math.",nx:4}, "Because it's a curve":{h:"It's a straight line.",nx:5}, "It is random":{h:"Highly predictable.",nx:4}, "Because mass doubled":{h:"Mass is locked at 1g.",nx:5}} }
+                        { q:"Because all the graphs are straight lines starting at zero, the mathematical relationship between $q$ and $\\Delta T$ must be...", o:["Directly proportional ($q = c \\times \\Delta T$)", "Inversely proportional", "Exponential", "Logarithmic", "Random"], a:"Directly proportional ($q = c \\times \\Delta T$)", f:{"Inversely proportional":{h:"They rise together, not opposite.",nx:4}, "Exponential":{h:"Exponential lines curve.",nx:5}, "Logarithmic":{h:"Logarithmic lines curve.",nx:4}, "Random":{h:"They form perfect straight lines.",nx:5}} },
+                        { q:"Evidence: Using $q = c \\times \\Delta T$, if Copper has a slope of $c=0.385$, what is $q$ when $\\Delta T=20$?", a:"7.7", t:"text", num:true, f:{"20":{h:"Multiply 20 by the slope.",nx:4}, "0.385":{h:"Multiply them.",nx:5}, "0":{h:"Energy is needed.",nx:4}} },
+                        { q:"Reasoning: What does 'directly proportional' mean for $q$ and $\\Delta T$?", o:["As the temperature change doubles, the required heat energy also exactly doubles, forming a straight line", "As temperature goes up, heat goes down", "The slope changes as it gets hotter", "It forms a parabola", "Temperature is squared"], a:"As the temperature change doubles, the required heat energy also exactly doubles, forming a straight line", f:{"As temperature goes up, heat goes down":{h:"That would be inverse.",nx:4}, "The slope changes as it gets hotter":{h:"The slope remains constant.",nx:5}, "It forms a parabola":{h:"It forms a straight line.",nx:4}, "Temperature is squared":{h:"It is a linear relationship.",nx:5}} }
                     ],
                     [ // V4
-                        { q:"Based on the linear graphs, how is heat energy ($q$) related to temperature change ($\\Delta T$) and the slope ($c$)?", o:["$q = c \\times \\Delta T$", "$q = c / \\Delta T$", "$q = \\Delta T / c$", "$q = c + \\Delta T$", "$q = c - \\Delta T$"], a:"$q = c \\times \\Delta T$", f:{"$q = c / \\Delta T$":{h:"Y (q) = slope (c) * X (ΔT).",nx:5}, "$q = \\Delta T / c$":{h:"Multiply slope by X.",nx:0}, "$q = c + \\Delta T$":{h:"It's a multiplicative relationship.",nx:5}, "$q = c - \\Delta T$":{h:"No subtraction.",nx:0}} },
-                        { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:5}, "4.18":{h:"Multiply them.",nx:0}, "0":{h:"It required energy.",nx:5}} },
-                        { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:5}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:0}, "Because the graph is a curve":{h:"It is a straight line.",nx:5}, "It is a coincidence":{h:"It's mathematical proof.",nx:0}} }
+                        { q:"If we write the equation for our experimental lines as $y = mx$, we substitute the variables to get...", o:["$q = c \\times \\Delta T$", "$\\Delta T = c \\times q$", "$c = q \\times \\Delta T$", "$q = \\Delta T / c$", "$c = \\Delta T + q$"], a:"$q = c \\times \\Delta T$", f:{"$\\Delta T = c \\times q$":{h:"Y is q, not $\\Delta T$.",nx:5}, "$c = q \\times \\Delta T$":{h:"Y is q, not c.",nx:0}, "$q = \\Delta T / c$":{h:"It is a multiplication.",nx:5}, "$c = \\Delta T + q$":{h:"There is no addition.",nx:0}} },
+                        { q:"Evidence: Based on this linear formula, if you apply $q=41.8$ Joules to a material with $c=4.18$ (Water), what is the resulting $\\Delta T$?", a:"10", t:"text", num:true, f:{"41.8":{h:"Divide Y by slope to find X.",nx:5}, "4.18":{h:"Divide 41.8 by 4.18.",nx:0}, "0":{h:"Math check.",nx:5}} },
+                        { q:"Reasoning: Why is $q = c \\times \\Delta T$ the correct direct translation of $y = mx$?", o:["Because $q$ is plotted on the $y$-axis, $\\Delta T$ is on the $x$-axis, and the constant slope is specific heat $c$", "Because $q$ is the slope", "Because $\\Delta T$ is on the $y$-axis", "Because it requires mass", "It doesn't translate"], a:"Because $q$ is plotted on the $y$-axis, $\\Delta T$ is on the $x$-axis, and the constant slope is specific heat $c$", f:{"Because $q$ is the slope":{h:"$c$ is the slope.",nx:5}, "Because $\\Delta T$ is on the $y$-axis":{h:"$q$ is on the y-axis.",nx:0}, "Because it requires mass":{h:"Mass is a locked 1g constant here.",nx:5}, "It doesn't translate":{h:"It translates perfectly.",nx:0}} }
                     ],
                     [ // V5
-                        { q:"If you know the slope ($c$) and the Joules applied ($q$), how do you find $\\Delta T$?", o:["$\\Delta T = q / c$", "$\\Delta T = q \\times c$", "$\\Delta T = c / q$", "$\\Delta T = q + c$", "$\\Delta T = q - c$"], a:"$\\Delta T = q / c$", f:{"$\\Delta T = q \\times c$":{h:"Algebra: divide $q$ by $c$.",nx:0}, "$\\Delta T = c / q$":{h:"Flip it.",nx:1}, "$\\Delta T = q + c$":{h:"No addition.",nx:0}, "$\\Delta T = q - c$":{h:"No subtraction.",nx:1}} },
-                        { q:"Evidence: If $q=16.7$ and $c=1.67$ (Plastic), what is $\\Delta T$?", a:"10", t:"text", num:true, f:{"16.7":{h:"Divide q by c.",nx:0}, "1.67":{h:"Divide 16.7 by 1.67.",nx:1}, "0":{h:"Do the math.",nx:0}} },
-                        { q:"Reasoning: Why does this algebraic manipulation work?", o:["Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", "It only works for plastic", "You just guess", "The graph bends to fit", "Math is an illusion"], a:"Rearranging $q = c \\times \\Delta T$ using basic algebra allows us to isolate any unknown variable", f:{"It only works for plastic":{h:"It works for all.",nx:0}, "You just guess":{h:"It's strict algebra.",nx:1}, "The graph bends to fit":{h:"Lines are perfectly straight.",nx:0}, "Math is an illusion":{h:"It is reality.",nx:1}} }
+                        { q:"The equation $q = c \\times \\Delta T$ is the slope-intercept form for all given graphs. What is the $y$-intercept ($b$) in this experiment?", o:["Zero (0)", "One (1)", "$c$", "$\\Delta T$", "$q$"], a:"Zero (0)", f:{"One (1)":{h:"Look at where the lines start.",nx:0}, "$c$":{h:"$c$ is the slope, not intercept.",nx:1}, "$\\Delta T$":{h:"That is the x-axis.",nx:0}, "$q$":{h:"That is the y-axis.",nx:1}} },
+                        { q:"Evidence: Look at the graph. When $\\Delta T$ is $0$, the Heat Energy ($q$) applied is exactly...", a:"0", t:"text", num:true, f:{"10":{h:"Look at the origin (bottom left).",nx:0}, "1":{h:"It starts at absolute zero.",nx:1}} },
+                        { q:"Reasoning: Why does a $y$-intercept of 0 make physical sense for $q = c \\times \\Delta T$?", o:["If you apply zero Joules of heat energy, the temperature will not change at all", "Because things start cold", "Because math always starts at zero", "Because specific heat is zero", "Because matter has zero mass"], a:"If you apply zero Joules of heat energy, the temperature will not change at all", f:{"Because things start cold":{h:"It's about zero energy input = zero change.",nx:0}, "Because math always starts at zero":{h:"Math lines can start anywhere.",nx:1}, "Because specific heat is zero":{h:"Specific heat is greater than zero.",nx:0}, "Because matter has zero mass":{h:"Mass is 1g.",nx:1}} }
                     ]
                 ]
             },
@@ -604,9 +603,15 @@
             } else if (sqData.t === 'select') {
                 inputsDiv.innerHTML = `<p class="text-xs text-slate-500 italic">Select correct options in the text above.</p>`;
             } else {
-                sqData.o.forEach((opt, idx) => {
-                    // Storing the array index directly bypasses ALL HTML string-encoding issues when parsing math
-                    inputsDiv.innerHTML += `<label class="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer"><input type="radio" name="qAns" value="${idx}"> <span class="math-content">${opt}</span></label>`;
+                // SHUFFLE OPTIONS
+                let shuffled = sqData.o.map((opt, idx) => ({ t: opt, i: idx }));
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                shuffled.forEach(opt => {
+                    // Storing the original array index directly bypasses HTML string-encoding issues when parsing math
+                    inputsDiv.innerHTML += `<label class="flex items-start gap-2 p-3 border rounded hover:bg-slate-50 cursor-pointer shadow-sm mb-2 leading-tight"><input type="radio" name="qAns" value="${opt.i}" class="mt-1"> <span class="math-content">${opt.t}</span></label>`;
                 });
             }
             
@@ -621,6 +626,7 @@
             
             document.getElementById('btnSubmit').classList.remove('hidden');
             document.getElementById('btnNextSub').classList.add('hidden');
+            document.getElementById('btnTryAlt').classList.add('hidden');
         }
 
         function checkAnswer() {
@@ -646,7 +652,7 @@
             } else {
                 let chk = document.querySelector('input[name="qAns"]:checked');
                 if(!chk) return;
-                // Grab the exact raw string from the array via the radio's index
+                // Grab the exact raw string from the array via the radio's original index
                 uAns = sqData.o[parseInt(chk.value)];
                 if(uAns === sqData.a) isCorrect = true;
             }
@@ -656,7 +662,7 @@
 
             if (isCorrect) {
                 fb.classList.add('bg-green-50', 'border-green-200', 'text-green-800');
-                fb.innerHTML = `<p class="font-bold"><i class="ph ph-check-circle"></i> Correct!</p>`;
+                fb.innerHTML = `<div class="flex items-center gap-2"><i class="ph ph-check-circle text-2xl"></i><p class="font-bold text-lg">Correct!</p></div>`;
                 document.getElementById('btnSubmit').classList.add('hidden');
                 document.getElementById('btnNextSub').classList.remove('hidden');
             } else {
@@ -664,19 +670,44 @@
                 fb.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
                 
                 if (appState.mistakes >= 3) {
-                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-warning-circle"></i> Moving on.</p><p>Answer: <strong>${sqData.a.replace(/\|/g, " and ")}</strong>.</p>`;
+                    fb.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="ph ph-warning-circle text-2xl text-red-600 mt-0.5"></i>
+                            <div>
+                                <p class="font-bold text-base text-red-800 mb-1">Moving on.</p>
+                                <p class="text-sm text-slate-700">The correct answer is: <strong>${sqData.a.replace(/\|/g, " and ")}</strong>.</p>
+                            </div>
+                        </div>`;
                     document.getElementById('btnSubmit').classList.add('hidden');
                     document.getElementById('btnNextSub').classList.remove('hidden');
                 } else {
                     let feedbackObj = sqData.f[uAns] || Object.values(sqData.f)[0]; 
-                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-x-circle"></i> Not quite.</p><p class="mt-1 font-medium italic text-slate-600">Hint: ${feedbackObj.h}</p><p class="mt-2 text-xs">Try this variation...</p>`;
+                    
+                    // Improved Pedagogical Feedback UI
+                    fb.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="ph ph-x-circle text-2xl text-red-600 mt-0.5"></i>
+                            <div class="flex-1">
+                                <p class="font-bold text-base text-red-800 mb-2">Let's rethink that.</p>
+                                <div class="bg-white rounded border border-red-200 p-3 text-sm text-slate-700 shadow-sm">
+                                    <span class="font-bold text-red-700 uppercase text-[10px] tracking-wider block mb-1">Why this is incorrect:</span>
+                                    ${feedbackObj.h}
+                                </div>
+                                <p class="mt-3 text-[11px] font-bold uppercase tracking-wider text-amber-600 flex items-center gap-1">
+                                    <i class="ph ph-hand-pointing text-sm"></i> Click 'Try Alternative Question' below when ready.
+                                </p>
+                            </div>
+                        </div>`;
                     
                     appState.variantIndex = feedbackObj.nx;
-                    setTimeout(() => renderSubQ(), 2000); 
-                    document.getElementById('btnSubmit').disabled = true;
-                    setTimeout(() => document.getElementById('btnSubmit').disabled = false, 2000);
+                    document.getElementById('btnSubmit').classList.add('hidden');
+                    document.getElementById('btnTryAlt').classList.remove('hidden');
                 }
             }
+        }
+
+        function loadAlternativeQuestion() {
+            renderSubQ();
         }
 
         function nextSubQuestion() {
