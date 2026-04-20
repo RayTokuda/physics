@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Energy Transfer Model (HS-PS3-1)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for graphical analysis -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- MathJax -->
+    <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };</script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+
+    <script>
+        tailwind.config = { theme: { extend: { colors: { brand: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a'} } } } }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .tab-active { border-bottom: 2px solid #0d9488; color: #0d9488; font-weight: 600; }
+        .tab-inactive { color: #64748b; font-weight: 500; cursor: pointer; }
+        select.inline-select { appearance: none; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 0.25rem; padding: 0.1rem 1.5rem 0.1rem 0.5rem; margin: 0 0.25rem; font-weight: 600; color: #0f172a; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.25rem center; background-repeat: no-repeat; background-size: 1.2em 1.2em; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
+
+    <header class="bg-brand-900 text-white shadow-md relative z-10">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2"><i class="ph ph-thermometer-hot text-3xl"></i> Thermal Energy Transfer Model</h1>
+                <p class="text-brand-100 text-sm mt-1">NGSS HS-PS3-1 Computational Modeling</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Win Screen Overlay -->
+    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500">
+        <i class="ph ph-medal text-7xl text-yellow-500 mb-4 drop-shadow-md"></i>
+        <h2 id="congratsMessage" class="text-3xl font-bold text-slate-800 mb-2">Excellent Work!</h2>
+        <div class="bg-brand-50 p-6 rounded-xl border border-brand-200 shadow-inner my-6">
+            <p class="text-sm text-slate-500 uppercase font-semibold mb-1">Final Score</p>
+            <div class="text-6xl font-black text-brand-600 flex justify-center items-baseline gap-1">
+                <span id="finalScoreVal">15</span><span class="text-2xl text-brand-400">/ 15</span>
+            </div>
+            <p id="ecMessage" class="text-sm text-green-600 font-medium mt-2"></p>
+        </div>
+        <div class="text-sm text-slate-500 space-y-1">
+            <p class="font-bold text-slate-700">Thermal Energy Transfer Model (HS-PS3-1)</p>
+            <p>Verification Code: <span id="verifyCode" class="font-mono bg-slate-200 px-2 py-1 rounded text-slate-800 tracking-wider"></span></p>
+            <p class="text-xs mt-4 italic text-slate-400">Take a screenshot of this panel to turn in for credit.</p>
+        </div>
+        <button id="tryAgainBtn" onclick="location.reload()" class="hidden mt-6 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-6 rounded transition">Try Again to Improve Score</button>
+    </div>
+
+    <!-- Explicit Teaching Panel (Fired after Step 4) -->
+    <div id="teachingPanel" class="hidden fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-8 border-t-8 border-brand-500">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ph ph-lightbulb text-yellow-500 text-3xl"></i> Concept Unlocked: Specific Heat</h2>
+            <div class="text-slate-700 space-y-4 text-lg">
+                <p>Based on your graphical analysis, you have deduced a fundamental property of matter.</p>
+                <div class="bg-brand-50 p-4 rounded-lg border border-brand-200 font-medium text-brand-900">
+                    The amount of energy 1 gram of a substance can store before rising 1°C in temperature is called its <strong>Specific Heat Capacity ($c$)</strong>.
+                </div>
+                <p>It is exactly equal to the <strong>slope</strong> of the $Q$ vs $\Delta T$ graph you just created!</p>
+            </div>
+            <button onclick="closeTeachingPanel()" class="mt-8 w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-lg transition">I Understand. Let's Build the Math Model!</button>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6 relative flex-1">
+        
+        <!-- Left Column -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            <div class="glass-panel rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+                <div class="flex border-b border-slate-200 bg-slate-50 px-2 pt-2">
+                    <button id="tab-calorimeter" class="px-4 py-2 text-sm tab-active rounded-t-lg">1. Calorimeter</button>
+                    <button id="tab-graph" class="px-4 py-2 text-sm tab-inactive rounded-t-lg opacity-50 cursor-not-allowed">2. Q vs ΔT Mode</button>
+                </div>
+
+                <!-- Setup Calorimeter -->
+                <div id="setup-calorimeter" class="p-5">
+                    <div class="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <h3 class="font-medium text-blue-800 flex items-center gap-1 mb-2"><i class="ph ph-drop"></i> Main Bath (Water)</h3>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div><label class="block text-slate-600 mb-1">Mass (g)</label><input type="number" id="massA" value="100" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
+                            <div><label class="block text-slate-600 mb-1">Init Temp (°C)</label><input type="number" id="tempA" value="20" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
+                        <h3 class="font-medium text-orange-800 flex items-center gap-1 mb-2"><i class="ph ph-cube"></i> Added Substance</h3>
+                        <div class="mb-3 text-sm">
+                            <label class="block text-slate-600 mb-1">Material</label>
+                            <select id="materialB" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white">
+                                <option value="water" selected>Water</option><option value="plastic">Plastic</option>
+                                <option value="aluminum">Aluminum</option><option value="iron">Iron</option><option value="copper">Copper</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div><label class="block text-slate-600 mb-1">Mass (g)</label><input type="number" id="massB" value="100" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
+                            <div><label class="block text-slate-600 mb-1">Init Temp (°C)</label><input type="number" id="tempB" value="80" class="w-full rounded border-slate-300 shadow-sm p-1.5 bg-white"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2 text-sm"><input type="checkbox" id="insulation" checked class="rounded text-brand-600"> <label>Perfect Insulation</label></div>
+                    <button onclick="startSimulation()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded transition flex justify-center items-center gap-2"><i class="ph ph-play-circle text-lg"></i> Run Model</button>
+                </div>
+
+                <!-- Setup Graph -->
+                <div id="setup-graph" class="p-5 hidden">
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-4 text-sm text-indigo-900 space-y-2">
+                        <p><strong>Experiment 2:</strong> 1-Gram Samples.</p>
+                        <p>We will apply heat energy ($Q$) at a constant rate to exactly <strong>1 gram</strong> of each material, starting at 0°C.</p>
+                        <p>The graph will track how their temperatures change ($\Delta T$) as more energy is forced into them.</p>
+                    </div>
+                    <button id="btnRunGraphSim" onclick="startGraphSimulation()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded transition flex justify-center items-center gap-2 shadow-lg"><i class="ph ph-fire text-xl"></i> Inject Heat Energy (Run Sim)</button>
+                </div>
+            </div>
+
+            <!-- LMS Wizard -->
+            <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col flex-1 relative">
+                <!-- Loading Overlay for Graph Mode -->
+                <div id="wzBlocker" class="hidden absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
+                    <div class="text-center font-bold text-indigo-800 animate-pulse"><i class="ph ph-hourglass-high text-3xl mb-2 block mx-auto"></i> Run the simulation first!</div>
+                </div>
+
+                <div class="flex justify-between items-end border-b pb-2 mb-4">
+                    <h2 class="text-lg font-semibold flex items-center gap-2 text-brand-900"><i class="ph ph-graduation-cap"></i> Analysis Step <span id="stepDisplay">1</span> of 5</h2>
+                    <span id="phaseDisplay" class="text-xs font-bold uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-1 rounded">Part A: Concept</span>
+                </div>
+                
+                <div id="wizardContent" class="flex-1 flex flex-col">
+                    <h3 id="wzTitle" class="font-bold text-slate-700 mb-2 text-sm uppercase tracking-wider">Loading...</h3>
+                    <div id="wzSetup" class="text-sm bg-slate-100 p-3 rounded-md mb-3 border border-slate-200 text-slate-700"></div>
+                    
+                    <!-- Dynamic Context Box (Concept/Evidence Supported) -->
+                    <div id="wzContext" class="mb-3 empty:hidden"></div>
+                    
+                    <div class="bg-white border border-brand-200 rounded-md p-4 shadow-sm mb-4">
+                        <p id="wzQuestion" class="text-sm font-medium mb-3 text-slate-800"></p>
+                        <div id="wzInputs" class="text-sm space-y-2"></div>
+                    </div>
+                    <div id="wzFeedback" class="hidden p-3 rounded-md text-sm mb-4 border transition-all"></div>
+                </div>
+
+                <div class="flex gap-2 mt-auto">
+                    <button id="btnSubmit" onclick="checkAnswer()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded transition shadow">Submit Answer</button>
+                    <button id="btnNextSub" onclick="nextSubQuestion()" class="hidden flex-1 bg-brand-500 hover:bg-brand-600 text-white font-medium py-2 px-4 rounded transition shadow">Continue <i class="ph ph-arrow-right inline"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+            <div class="glass-panel rounded-xl p-5 border border-slate-200 flex flex-col h-[400px]">
+                <div class="flex justify-between items-end mb-2 border-b pb-2">
+                    <h2 id="graphTitle" class="text-lg font-semibold flex items-center gap-2"><i class="ph ph-chart-line-up"></i> Real-time Thermal Analysis</h2>
+                    <div id="timeContainer" class="text-sm font-mono bg-slate-100 px-3 py-1 rounded shadow-inner">Time: <span id="timeDisplay">0.0</span>s</div>
+                </div>
+                <div class="flex-1 w-full relative">
+                    <div id="simChartWrapper" class="absolute inset-0"><canvas id="simChart"></canvas></div>
+                    <div id="qChartWrapper" class="absolute inset-0 hidden"><canvas id="qChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="dataTablePanel" class="glass-panel rounded-xl p-0 border border-slate-200 overflow-hidden">
+                <div class="p-3 border-b bg-slate-50"><h2 class="text-md font-semibold flex items-center gap-2"><i class="ph ph-table"></i> Experimental Log</h2></div>
+                <div class="overflow-x-auto max-h-[250px]">
+                    <table class="w-full text-sm text-left whitespace-nowrap">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-100 border-b sticky top-0 shadow-sm">
+                            <tr><th class="px-3 py-2">Tr</th><th class="px-3 py-2">Sub B</th><th class="px-3 py-2">M<sub>A</sub></th><th class="px-3 py-2">T<sub>iA</sub></th><th class="px-3 py-2">M<sub>B</sub></th><th class="px-3 py-2">T<sub>iB</sub></th><th class="px-3 py-2 bg-brand-50">T<sub>f</sub></th><th class="px-3 py-2 bg-indigo-50">ΔT<sub>A</sub></th><th class="px-3 py-2 bg-indigo-50">ΔT<sub>B</sub></th></tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="divide-y divide-slate-200"><tr id="emptyRow"><td colspan="9" class="px-4 py-8 text-center text-slate-400 italic">Run the simulation to log data.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Logistics & Brain -->
+    <script>
+        // --- DATA & PHYSICS ---
+        const MATERIALS = {
+            water: { name: "Water", c: 4.184, color: '#2563eb' },
+            plastic: { name: "Plastic", c: 1.67, color: '#8b5cf6' },
+            aluminum: { name: "Aluminum", c: 0.897, color: '#94a3b8' },
+            iron: { name: "Iron", c: 0.450, color: '#64748b' },
+            copper: { name: "Copper", c: 0.385, color: '#ea580c' }
+        };
+        let isRunning = false, simInterval, qInterval, trialCount = 0;
+        let currentMode = 'calorimeter';
+        let appState = { step: 1, variantIndex: 0, subQ: 0, mistakes: 0, totalMistakes: 0 };
+
+        // --- CHARTS ---
+        const ctxSim = document.getElementById('simChart').getContext('2d');
+        const simChart = new Chart(ctxSim, {
+            type: 'line', data: { labels: [0], datasets: [ { label: 'Bath Temp', borderColor: MATERIALS.water.color, data: [20], tension: 0.2, pointRadius: 0 }, { label: 'Added Sub Temp', borderColor: MATERIALS.water.color, data: [80], tension: 0.2, pointRadius: 0 } ]},
+            options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false }, scales: { x: { title: { display: true, text: 'Time (s)' } }, y: { title: { display: true, text: 'Temperature (°C)' } } } }
+        });
+
+        const ctxQ = document.getElementById('qChart').getContext('2d');
+        const qChart = new Chart(ctxQ, {
+            type: 'line',
+            data: { datasets: Object.keys(MATERIALS).map(k => ({ label: MATERIALS[k].name, borderColor: MATERIALS[k].color, backgroundColor: MATERIALS[k].color, data: [{x:0, y:0}], borderWidth: 2, pointRadius: 2, tension: 0 }))},
+            options: { responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ΔT=${ctx.parsed.x.toFixed(1)}°C, Q=${ctx.parsed.y.toFixed(1)}J` } } },
+                scales: { x: { type: 'linear', min: 0, max: 20, title: { display: true, font: {weight: 'bold'}, text: 'Change in Temperature (ΔT in °C)' } }, y: { min: 0, max: 40, title: { display: true, font: {weight: 'bold'}, text: 'Heat Energy Added (Q in Joules)' } } }
+            }
+        });
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('setup-calorimeter').classList.toggle('hidden', mode !== 'calorimeter');
+            document.getElementById('setup-graph').classList.toggle('hidden', mode !== 'graph');
+            document.getElementById('dataTablePanel').classList.toggle('hidden', mode !== 'calorimeter');
+            document.getElementById('simChartWrapper').classList.toggle('hidden', mode !== 'calorimeter');
+            document.getElementById('qChartWrapper').classList.toggle('hidden', mode !== 'graph');
+            document.getElementById('timeContainer').classList.toggle('hidden', mode !== 'calorimeter');
+            document.getElementById('graphTitle').innerHTML = mode === 'calorimeter' ? '<i class="ph ph-chart-line-up"></i> Real-time Thermal Analysis' : '<i class="ph ph-trend-up"></i> Q vs ΔT Analysis (Constant Mass = 1g)';
+            
+            if (mode === 'calorimeter') simChart.update();
+            if (mode === 'graph') {
+                qChart.update();
+                document.getElementById('wzBlocker').classList.remove('hidden'); // Force sim run
+            }
+        }
+
+        function updateChartBounds() {
+            if(currentMode !== 'calorimeter') return;
+            const tA = parseFloat(document.getElementById('tempA').value), tB = parseFloat(document.getElementById('tempB').value);
+            simChart.options.scales.y.suggestedMax = Math.max(tA, tB) + 10;
+            simChart.options.scales.y.suggestedMin = Math.min(tA, tB, 20) - 10;
+            simChart.update();
+        }
+        ['tempA', 'tempB'].forEach(id => document.getElementById(id).addEventListener('change', updateChartBounds));
+
+        // --- SIMULATIONS ---
+        function startSimulation() {
+            clearInterval(simInterval);
+            const mA = parseFloat(document.getElementById('massA').value), initTa = parseFloat(document.getElementById('tempA').value);
+            const matBKey = document.getElementById('materialB').value, mB = parseFloat(document.getElementById('massB').value), initTb = parseFloat(document.getElementById('tempB').value);
+            const isInsulated = document.getElementById('insulation').checked, cA = MATERIALS['water'].c, cB = MATERIALS[matBKey].c;
+            
+            let simTime = 0, currentTempA = initTa, currentTempB = initTb;
+            simChart.data.labels = [0]; simChart.data.datasets[0].data = [currentTempA]; simChart.data.datasets[1].data = [currentTempB];
+            simChart.data.datasets[1].label = `${MATERIALS[matBKey].name} Temp (°C)`; simChart.data.datasets[1].borderColor = MATERIALS[matBKey].color;
+            updateChartBounds();
+            
+            const k = 5.0, env = isInsulated ? 0 : 0.05, dt = 0.5;
+            simInterval = setInterval(() => {
+                simTime += dt;
+                let heatFlow = k * (currentTempA - currentTempB);
+                let dTa = -heatFlow / (mA * cA) * dt, dTb = heatFlow / (mB * cB) * dt;
+                if (!isInsulated) { dTa -= (env * (currentTempA - 20) / (mA * cA)) * dt; dTb -= (env * (currentTempB - 20) / (mB * cB)) * dt; }
+                currentTempA += dTa; currentTempB += dTb;
+
+                if (simTime % 1 === 0) {
+                    simChart.data.labels.push(simTime.toFixed(1)); simChart.data.datasets[0].data.push(currentTempA.toFixed(2)); simChart.data.datasets[1].data.push(currentTempB.toFixed(2));
+                    simChart.update('none'); document.getElementById('timeDisplay').innerText = simTime.toFixed(1);
+                }
+                if (Math.abs(currentTempA - currentTempB) < 0.05 || simTime > 300) {
+                    clearInterval(simInterval);
+                    saveData(mA, initTa, matBKey, mB, initTb, currentTempA, currentTempB);
+                }
+            }, 50);
+        }
+
+        function saveData(mA, iA, mK, mB, iB, fA, fB) {
+            trialCount++;
+            const finalT = (fA + fB) / 2, dT_A = finalT - iA, dT_B = finalT - iB;
+            if(document.getElementById('emptyRow')) document.getElementById('emptyRow').remove();
+            const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 border-b";
+            const fmt = v => v > 0 ? `<span class="text-blue-600">+${v.toFixed(1)}</span>` : `<span class="text-red-600">${v.toFixed(1)}</span>`;
+            tr.innerHTML = `<td class="px-3 py-2">${trialCount}</td><td class="px-3 py-2 font-bold" style="color:${MATERIALS[mK].color}">${MATERIALS[mK].name}</td><td class="px-3 py-2">${mA}</td><td class="px-3 py-2">${iA}</td><td class="px-3 py-2">${mB}</td><td class="px-3 py-2">${iB}</td><td class="px-3 py-2 font-bold bg-brand-50">${finalT.toFixed(1)}</td><td class="px-3 py-2 bg-indigo-50 font-mono">${fmt(dT_A)}</td><td class="px-3 py-2 bg-indigo-50 font-mono">${fmt(dT_B)}</td>`;
+            document.getElementById('dataTableBody').insertBefore(tr, document.getElementById('dataTableBody').firstChild);
+        }
+
+        function startGraphSimulation() {
+            document.getElementById('btnRunGraphSim').disabled = true;
+            document.getElementById('btnRunGraphSim').classList.add('opacity-50');
+            qChart.data.datasets.forEach(ds => ds.data = [{x:0, y:0}]);
+            let currentQ = 0; 
+            qInterval = setInterval(() => {
+                currentQ += 1; 
+                qChart.data.datasets.forEach(ds => {
+                    let matKey = Object.keys(MATERIALS).find(k => MATERIALS[k].name === ds.label);
+                    let c = MATERIALS[matKey].c;
+                    ds.data.push({ x: currentQ / c, y: currentQ }); 
+                });
+                qChart.update('none');
+                if (currentQ >= 40) {
+                    clearInterval(qInterval);
+                    document.getElementById('wzBlocker').classList.add('hidden'); 
+                    document.getElementById('btnRunGraphSim').innerText = "Simulation Complete";
+                }
+            }, 50);
+        }
+
+        // --- 3-PART LMS DATA STRUCTURE (Concept, Evidence, Reasoning) ---
+        const QB = [
+            { // STEP 1
+                title: "Equilibrium", setup: "Mix 100g Water (20°C) with 100g Water (80°C).",
+                v: [
+                    [ // V0
+                        { q:"Which direction does thermal energy flow?", o:["Hot to Cold", "Cold to Hot", "Depends"], a:"Hot to Cold", f:{"Cold to Hot":{h:"Hot objects cool down. Energy leaves them.",nx:1}, "Depends":{h:"Always high to low.",nx:2}} },
+                        { q:"Which is experimental evidence for this?", o:["Final temp is between initial temps", "Water changed color", "Mass increased"], a:"Final temp is between initial temps", f:{"Water changed color":{h:"Temp changed, not color.",nx:1}, "Mass increased":{h:"Conservation of mass.",nx:2}} },
+                        { q:"Reasoning: Why does 'Final temp is between initial temps' prove 'Hot to Cold'?", o:["Heat leaving hot water equals heat entering cold water, forcing a middle ground", "Heat is created in the middle"], a:"Heat leaving hot water equals heat entering cold water, forcing a middle ground", f:{"Heat is created":{h:"Energy is conserved, not created.",nx:1}} }
+                    ],
+                    [ // V1
+                        { q:"The hot water <select class='inline-select'><option>...</option><option>loses</option><option>gains</option></select> heat.", a:"loses", t:"select", f:{"gains":{h:"Hot water's temp dropped.",nx:2}} },
+                        { q:"Evidence: The ΔT for the hot water in the table is...", o:["Negative", "Positive", "Zero"], a:"Negative", f:{"Positive":{h:"50 - 80 = -30.",nx:2}, "Zero":{h:"It changed.",nx:0}} },
+                        { q:"Reasoning: Why does 'Negative ΔT' prove it 'loses' heat?", o:["Negative change means final is less than initial, indicating energy left", "Negative means absolute zero"], a:"Negative change means final is less than initial, indicating energy left", f:{"absolute zero":{h:"It just means Final < Initial.",nx:2}} }
+                    ],
+                    [ // V2
+                        { q:"Thermal transfer stops when...", o:["Temperatures are equal", "Masses are equal"], a:"Temperatures are equal", f:{"Masses are equal":{h:"It's about thermal state.",nx:3}} },
+                        { q:"Evidence: At the end of the simulation, the graph lines...", o:["Merge into a flat horizontal line", "Cross each other"], a:"Merge into a flat horizontal line", f:{"Cross each other":{h:"They flatline together.",nx:3}} },
+                        { q:"Reasoning: Why does a 'flat horizontal line' prove transfer 'stops'?", o:["Horizontal means no temperature change over time, indicating net transfer ceased", "Horizontal means infinite heat"], a:"Horizontal means no temperature change over time, indicating net transfer ceased", f:{"infinite":{h:"It means zero change.",nx:3}} }
+                    ],
+                    [ // V3
+                        { q:"Because masses/materials are identical, heat gained equals heat ____.", a:"lost", t:"text", f:{"created":{h:"Cannot be created.",nx:4}} },
+                        { q:"Evidence: Compare the ΔT values. They are...", o:["Equal but opposite signs", "Identical positive values"], a:"Equal but opposite signs", f:{"Identical positive":{h:"One cooled, one heated.",nx:4}} },
+                        { q:"Reasoning: Why does 'Equal but opposite ΔT' prove 'heat gained = heat lost'?", o:["Same mass + same material means equal energy exchange produces equal magnitude temp swings", "Temp doesn't relate to heat"], a:"Same mass + same material means equal energy exchange produces equal magnitude temp swings", f:{"doesn't relate":{h:"They are directly related.",nx:4}} }
+                    ],
+                    [ // V4
+                        { q:"At equilibrium, the final temp is the...", o:["Average of the two", "Sum of the two"], a:"Average of the two", f:{"Sum":{h:"20 + 80 != 100°C water.",nx:5}} },
+                        { q:"Evidence: Mixing 20 and 80 gave a final temp of...", a:"50", t:"text", num:true, f:{"100":{h:"Check Tf column.",nx:5}} },
+                        { q:"Reasoning: Why is it exactly the 'Average'?", o:["Equal masses of the same substance have identical thermal capacities, meeting exactly in the middle", "Heat prefers the middle"], a:"Equal masses of the same substance have identical thermal capacities, meeting exactly in the middle", f:{"prefers":{h:"It's driven by thermal capacity math.",nx:5}} }
+                    ],
+                    [ // V5
+                        { q:"True or False: Energy was destroyed.", o:["True","False"], a:"False", f:{"True":{h:"Energy is conserved.",nx:0}} },
+                        { q:"Evidence: The amount of heat leaving the hot water exactly matches the heat...", o:["Entering the cold water", "Leaking to the room"], a:"Entering the cold water", f:{"Leaking":{h:"We used perfect insulation.",nx:0}} },
+                        { q:"Reasoning: Why does this prove energy wasn't destroyed?", o:["The law of conservation of energy states energy cannot be created or destroyed, only transferred", "Energy is a myth"], a:"The law of conservation of energy states energy cannot be created or destroyed, only transferred", f:{"myth":{h:"It is a fundamental law.",nx:0}} }
+                    ]
+                ]
+            },
+            { // STEP 2
+                title: "Role of Mass", setup: "Mix 200g Water (20°C) with 100g Water (80°C).",
+                v: [
+                    [ // V0
+                        { q:"The more matter present, the _____ energy is required to change its temp by 1°C.", a:"more", t:"text", f:{"less":{h:"Swimming pool vs cup of tea.",nx:1}} },
+                        { q:"Evidence: The 200g sample had ____ the ΔT of the 100g sample.", o:["Half", "Double"], a:"Half", f:{"Double":{h:"200g water barely changed.",nx:1}} },
+                        { q:"Reasoning: Why does 'Half the ΔT' prove 'more energy is required'?", o:["The 200g requires twice the total energy to change by the same amount, so identical energy causes half the change", "Larger things naturally repel heat"], a:"The 200g requires twice the total energy to change by the same amount, so identical energy causes half the change", f:{"repel":{h:"It's about capacity, not repulsion.",nx:1}} }
+                    ],
+                    [ // V1
+                        { q:"Increasing mass causes ΔT to <select class='inline-select'><option>...</option><option>increase</option><option>decrease</option></select>.", a:"decrease", t:"select", f:{"increase":{h:"More mass resists change.",nx:2}} },
+                        { q:"Evidence: The final equilibrium temp was closer to...", o:["20°C", "80°C"], a:"20°C", f:{"80°C":{h:"The 200g water (20°C) dominated.",nx:2}} },
+                        { q:"Reasoning: Why does 'Closer to 20°C' prove mass decreases ΔT?", o:["The larger mass absorbs more energy per degree, pulling the equilibrium temperature toward itself", "Cold water is heavier"], a:"The larger mass absorbs more energy per degree, pulling the equilibrium temperature toward itself", f:{"heavier":{h:"It's thermal capacity, not density.",nx:2}} }
+                    ],
+                    [ // V2
+                        { q:"Mass and ΔT are...", o:["Inversely proportional", "Directly proportional"], a:"Inversely proportional", f:{"Directly":{h:"As mass UP, ΔT DOWN.",nx:3}} },
+                        { q:"Evidence: If mass A is 2x mass B, then ΔT_A is...", o:["0.5x ΔT_B", "2x ΔT_B"], a:"0.5x ΔT_B", f:{"2x":{h:"Double mass = half temp change.",nx:3}} },
+                        { q:"Reasoning: Why does this math prove 'Inversely proportional'?", o:["The product of mass and delta T must remain constant to balance the energy equation", "Math is random"], a:"The product of mass and delta T must remain constant to balance the energy equation", f:{"random":{h:"Physics follows rules.",nx:3}} }
+                    ],
+                    [ // V3
+                        { q:"A larger mass acts as a larger 'thermal sink', meaning its ΔT is...", o:["Smaller", "Larger"], a:"Smaller", f:{"Larger":{h:"It absorbs heat without rising much.",nx:4}} },
+                        { q:"Evidence: 200g water ΔT was ~+20, while 100g water ΔT was...", a:"-40", t:"text", num:true, f:{"-20":{h:"It lost twice as much temp.",nx:4}} },
+                        { q:"Reasoning: Why does this prove the 'thermal sink' concept?", o:["The energy lost by 100g (-40*100) is entirely absorbed by the 200g (+20*200) with less temperature swing", "Water destroys energy"], a:"The energy lost by 100g (-40*100) is entirely absorbed by the 200g (+20*200) with less temperature swing", f:{"destroys":{h:"Conservation law applies.",nx:4}} }
+                    ],
+                    [ // V4
+                        { q:"If you halved the mass of the cold water, its ΔT would...", o:["Double", "Halve"], a:"Double", f:{"Halve":{h:"Less mass = wilder swings.",nx:5}} },
+                        { q:"Evidence: 100g water changes temp ____ as much as 200g water.", a:"twice", t:"text", f:{"half":{h:"Look at data rows.",nx:5}} },
+                        { q:"Reasoning: Why does 'changing twice as much' prove this?", o:["Less matter means less total thermal capacity, causing the temperature to swing more wildly for the same energy", "It doesn't"], a:"Less matter means less total thermal capacity, causing the temperature to swing more wildly for the same energy", f:{"doesn't":{h:"It proves it perfectly.",nx:5}} }
+                    ],
+                    [ // V5
+                        { q:"Total energy gained by 200g water equals energy lost by 100g water.", o:["True","False"], a:"True", f:{"False":{h:"Conservation always applies.",nx:0}} },
+                        { q:"Evidence: Even though energy was equal, temperatures weren't because...", o:["Masses were different", "Materials were different"], a:"Masses were different", f:{"Materials":{h:"Both water.",nx:0}} },
+                        { q:"Reasoning: Why do different masses cause different temps if energy is equal?", o:["Energy distributes across available mass; more mass means less energy per molecule, resulting in smaller temp rise", "Magic"], a:"Energy distributes across available mass; more mass means less energy per molecule, resulting in smaller temp rise", f:{"Magic":{h:"It's thermodynamics.",nx:0}} }
+                    ]
+                ]
+            },
+            { // STEP 3
+                title: "Role of Material", setup: "Mix 100g Water (20°C) with 100g Copper (80°C).",
+                v: [
+                    [ // V0
+                        { q:"Even with equal masses, why are the ΔT values different?", o:["Different heat capacities", "Copper lost more heat"], a:"Different heat capacities", f:{"Copper lost more heat":{h:"Heat lost = gained.",nx:1}} },
+                        { q:"Evidence: Copper's temp dropped dramatically, while Water's temp...", o:["Barely increased", "Increased just as much"], a:"Barely increased", f:{"Increased just as much":{h:"Blue line barely moved.",nx:1}} },
+                        { q:"Reasoning: Why does Water 'barely increasing' prove different capacities?", o:["Water requires much more energy per gram to change its temperature, making it a stronger thermal sink", "Water is wet"], a:"Water requires much more energy per gram to change its temperature, making it a stronger thermal sink", f:{"wet":{h:"Stick to thermodynamics.",nx:1}} }
+                    ],
+                    [ // V1
+                        { q:"Copper requires <select class='inline-select'><option>...</option><option>less</option><option>more</option></select> energy to change temp than water.", a:"less", t:"select", f:{"more":{h:"It takes very little heat to crash its temp.",nx:2}} },
+                        { q:"Evidence: Copper's ΔT magnitude was roughly...", o:["10x larger than Water's", "Equal to Water's"], a:"10x larger than Water's", f:{"Equal":{h:"Check ΔT columns.",nx:2}} },
+                        { q:"Reasoning: Why does a '10x larger ΔT' prove it requires 'less' energy?", o:["Because copper's specific heat is ~1/10th of water's, identical energy causes 10x the temperature change", "It doesn't"], a:"Because copper's specific heat is ~1/10th of water's, identical energy causes 10x the temperature change", f:{"doesn't":{h:"It does. Math proves it.",nx:2}} }
+                    ],
+                    [ // V2
+                        { q:"Which material resists temperature change better?", o:["Water", "Copper"], a:"Water", f:{"Copper":{h:"Water was stable.",nx:3}} },
+                        { q:"Evidence: Water had a much _____ ΔT compared to Copper.", a:"smaller", t:"text", f:{"larger":{h:"Blue column.",nx:3}} },
+                        { q:"Reasoning: Why does a 'smaller ΔT' mean it 'resists' change?", o:["Materials with higher specific heat capacities absorb more energy without significantly raising their temperature", "It repels heat"], a:"Materials with higher specific heat capacities absorb more energy without significantly raising their temperature", f:{"repels":{h:"It absorbs, not repels.",nx:3}} }
+                    ],
+                    [ // V3
+                        { q:"Specific heat capacity (c) is an intensive property.", o:["True", "False"], a:"True", f:{"False":{h:"Depends on type, not amount.",nx:4}} },
+                        { q:"Evidence: We controlled for mass (100g) and heat (q_lost=q_gained), so the only difference left was...", o:["Material type", "Initial Temp"], a:"Material type", f:{"Initial Temp":{h:"Flow rate, not total capacity.",nx:4}} },
+                        { q:"Reasoning: Why does 'Material type' prove it is 'intensive'?", o:["Intensive properties depend only on the substance's chemical composition, not the amount of matter", "Intensive means strong"], a:"Intensive properties depend only on the substance's chemical composition, not the amount of matter", f:{"strong":{h:"Intensive = independent of mass.",nx:4}} }
+                    ],
+                    [ // V4
+                        { q:"If you used Plastic instead of Copper, the final temp would be...", o:["Closer to 50°C", "Even closer to 20°C"], a:"Closer to 50°C", f:{"Even closer":{h:"Plastic has higher c, fights back more.",nx:5}} },
+                        { q:"Evidence: The ΔT for plastic is...", o:["Smaller than Copper's", "Larger than Copper's"], a:"Smaller than Copper's", f:{"Larger":{h:"Run a trial.",nx:5}} },
+                        { q:"Reasoning: Why does a 'smaller ΔT' make the final temp 'closer to 50'?", o:["Plastic has a higher specific heat than copper, so it absorbs the heat with less of a temperature swing", "Plastic is fake"], a:"Plastic has a higher specific heat than copper, so it absorbs the heat with less of a temperature swing", f:{"fake":{h:"It's a real thermal material.",nx:5}} }
+                    ],
+                    [ // V5
+                        { q:"Different materials have different specific ____ capacities.", a:"heat", t:"text", f:{"temp":{h:"Starts with H.",nx:0}} },
+                        { q:"Evidence: Every material in the dropdown results in a different...", o:["Final Equilibrium Temp", "Conservation of Energy"], a:"Final Equilibrium Temp", f:{"Conservation":{h:"Always conserved.",nx:0}} },
+                        { q:"Reasoning: Why do different 'Final Temps' prove different 'specific heat'?", o:["The unique atomic structure of each element dictates how effectively it stores thermal energy, shifting the equilibrium point", "The simulation is randomized"], a:"The unique atomic structure of each element dictates how effectively it stores thermal energy, shifting the equilibrium point", f:{"randomized":{h:"Physics math is deterministic.",nx:0}} }
+                    ]
+                ]
+            },
+            { // STEP 4 (Graph Mode - 3 Part Questions)
+                title: "Graphical Analysis", setup: "Review the Q vs ΔT Graph. (Run the simulation if empty).",
+                v: [
+                    [ // V0
+                        { q:"Water has a much higher slope than copper. This mathematically means...", o:["A 1°C change in water requires MORE heat energy than copper", "A 1°C change in water requires LESS heat energy"], a:"A 1°C change in water requires MORE heat energy than copper", f:{"LESS":{h:"Water is higher on the Y (Joules) axis.",nx:1}} },
+                        { q:"Evidence: At ΔT=10, Copper absorbed ~3.8J. Water absorbed...", o:["~41.8 Joules", "~10 Joules"], a:"~41.8 Joules", f:{"~10":{h:"Check blue line at X=10.",nx:1}} },
+                        { q:"Reasoning: Why does '41.8 Joules' prove it requires 'MORE heat'?", o:["Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", "It doesn't"], a:"Water's higher slope indicates it acts as a larger thermal sponge, storing more energy per degree of rise", f:{"doesn't":{h:"41.8 > 3.8.",nx:1}} }
+                    ],
+                    [ // V1
+                        { q:"Slope = Rise/Run = Q / ΔT. Since mass is 1g, the slope is exactly equal to...", o:["Specific Heat (c)", "Final Temp"], a:"Specific Heat (c)", f:{"Final Temp":{h:"Represents energy per degree.",nx:2}} },
+                        { q:"Evidence: The line with the highest slope on the graph is...", o:["Blue (Water)", "Orange (Copper)"], a:"Blue (Water)", f:{"Orange":{h:"Orange is bottom.",nx:2}} },
+                        { q:"Reasoning: Why does 'Blue (Water)' prove it has the highest 'Specific Heat'?", o:["Water is the best thermal insulator because a steep slope means large energy input causes minimal temperature change", "Blue is a cool color"], a:"Water is the best thermal insulator because a steep slope means large energy input causes minimal temperature change", f:{"color":{h:"Stick to math.",nx:2}} }
+                    ],
+                    [ // V2
+                        { q:"The units of slope on this graph are...", o:["Joules / °C", "°C / Joules"], a:"Joules / °C", f:{"°C / Joules":{h:"Rise (Y) over Run (X).",nx:3}} },
+                        { q:"Evidence: To reach $\\Delta T = 5$, Iron needs roughly...", a:"2.25", t:"text", num:true, f:{"5":{h:"X=5 on Iron line.",nx:3}} },
+                        { q:"Reasoning: Why does '2.25 Joules' prove the 'Joules / °C' unit?", o:["The slope directly calculates the energy (Joules) required to raise 1 gram of the substance by 1 degree Celsius", "It is magic"], a:"The slope directly calculates the energy (Joules) required to raise 1 gram of the substance by 1 degree Celsius", f:{"magic":{h:"It is math.",nx:3}} }
+                    ],
+                    [ // V3
+                        { q:"Plastic stores _____ heat than Aluminum but _____ than Water.", o:["More, Less", "Less, More"], a:"More, Less", f:{"Less, More":{h:"Higher line = more heat stored.",nx:4}} },
+                        { q:"Evidence: At X=10, Plastic is at ~16.7J. Aluminum is at...", a:"8.97", t:"text", num:true, f:{"10":{h:"Hover Al at X=10.",nx:4}} },
+                        { q:"Reasoning: Why does '16.7J vs 8.97J' prove Plastic stores 'More'?", o:["Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", "16.7 is smaller"], a:"Because it sits higher on the Y-axis, plastic requires more thermal energy input to achieve the same temperature change", f:{"smaller":{h:"16.7 > 8.97",nx:4}} }
+                    ],
+                    [ // V4
+                        { q:"Copper has the lowest specific heat. This means it...", o:["Heats up the fastest", "Heats up the slowest"], a:"Heats up the fastest", f:{"slowest":{h:"Takes almost no energy to change.",nx:5}} },
+                        { q:"Evidence: Adding just 4 Joules to Copper shoots its ΔT past...", a:"10", t:"text", num:true, f:{"5":{h:"Look at orange line Y=4.",nx:5}} },
+                        { q:"Reasoning: Why does shooting 'past 10' prove it 'heats up fastest'?", o:["The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", "Copper is a metal"], a:"The extremely low slope means very little energy is required to cause rapid, extreme temperature increases", f:{"metal":{h:"True, but low slope is the mathematical reason.",nx:5}} }
+                    ],
+                    [ // V5
+                        { q:"If a line was purely horizontal (Slope = 0), what would it mean?", o:["It requires 0 energy to change temp", "It requires infinite energy"], a:"It requires 0 energy to change temp", f:{"infinite":{h:"Y (Joules) doesn't go up.",nx:0}} },
+                        { q:"Evidence: All 5 physical matter lines on the graph have slopes greater than...", a:"0", t:"text", num:true, f:{"1":{h:"Copper's is 0.385.",nx:0}} },
+                        { q:"Reasoning: Why are all slopes 'greater than 0'?", o:["All physical matter requires some amount of energy to change temperature due to the law of conservation of energy", "Zero doesn't exist"], a:"All physical matter requires some amount of energy to change temperature due to the law of conservation of energy", f:{"Zero doesn't exist":{h:"It does, just not here.",nx:0}} }
+                    ]
+                ]
+            },
+            { // STEP 5
+                title: "Deduce Model", setup: "Combine mass (m), specific heat (c), and ΔT.",
+                v: [
+                    [ // V0
+                        { q:"Formula: $q =$ <select class='inline-select'><option>...</option><option>m</option><option>T</option></select> $\\times$ <select class='inline-select'><option>...</option><option>c</option><option>q</option></select> $\\times \\Delta T$", a:"m|c", t:"select", f:{"T|c":{h:"m and c.",nx:1}} },
+                        { q:"Evidence: This equation shows $q$ is directly proportional to...", o:["All three variables", "Only mass"], a:"All three variables", f:{"Only mass":{h:"If any go up, q goes up.",nx:1}} },
+                        { q:"Reasoning: Why does the formula prove 'All three variables'?", o:["Heat energy linearly depends on the amount of matter, its specific resistance to change, and the desired temp shift", "It is arbitrary"], a:"Heat energy linearly depends on the amount of matter, its specific resistance to change, and the desired temp shift", f:{"arbitrary":{h:"It perfectly models physical reality.",nx:1}} }
+                    ],
+                    [ // V1
+                        { q:"Because energy is conserved: $q_{gained} = $", o:["$-q_{lost}$", "$q_{lost}$"], a:"$-q_{lost}$", f:{"$q_{lost}$":{h:"Lost energy is mathematically negative.",nx:2}} },
+                        { q:"Evidence: If Water A gains 500J, Water B must have...", o:["Lost 500J (-500J)", "Gained 500J"], a:"Lost 500J (-500J)", f:{"Gained":{h:"Closed system.",nx:2}} },
+                        { q:"Reasoning: Why does 'Losing 500J' prove the negative sign is needed?", o:["The negative sign is mathematically necessary to balance the equation representing an isolated closed system", "Math is hard"], a:"The negative sign is mathematically necessary to balance the equation representing an isolated closed system", f:{"hard":{h:"It's required for balance.",nx:2}} }
+                    ],
+                    [ // V2
+                        { q:"Substitute into conservation: $(m_A c_A \\Delta T_A) = -($ <select class='inline-select'><option>...</option><option>m_B</option><option>T_A</option></select> $c_B \\Delta T_B)$", a:"m_B", t:"select", f:{"T_A":{h:"Right side is B.",nx:3}} },
+                        { q:"Evidence: This allows us to calculate an unknown if we know...", o:["The other 5 variables", "Only mass"], a:"The other 5 variables", f:{"Only mass":{h:"Algebra needs all but 1.",nx:3}} },
+                        { q:"Reasoning: Why does knowing '5 variables' help?", o:["This algebraic relationship allows us to predict the final equilibrium state of any combination of materials", "It doesn't help"], a:"This algebraic relationship allows us to predict the final equilibrium state of any combination of materials", f:{"doesn't help":{h:"It's the core of computational modeling.",nx:3}} }
+                    ],
+                    [ // V3
+                        { q:"How do you mathematically calculate ΔT?", o:["$T_f - T_i$", "$T_i - T_f$"], a:"$T_f - T_i$", f:{"$T_i - T_f$":{h:"Final minus initial.",nx:4}} },
+                        { q:"Evidence: If an object cools from 80 to 50, its ΔT is...", a:"-30", t:"text", num:true, f:{"30":{h:"50 - 80.",nx:4}} },
+                        { q:"Reasoning: Why does '-30' prove the 'Final - Initial' formula?", o:["Using Final minus Initial ensures the sign correctly indicates whether thermal energy was gained (+) or lost (-)", "It's just a convention"], a:"Using Final minus Initial ensures the sign correctly indicates whether thermal energy was gained (+) or lost (-)", f:{"convention":{h:"It has deep physical meaning.",nx:4}} }
+                    ],
+                    [ // V4
+                        { q:"If you leave insulation UNCHECKED, is $-(m_A c_A \\Delta T_A) = (m_B c_B \\Delta T_B)$ true?", o:["No, heat leaks to the room", "Yes, energy is conserved inside"], a:"No, heat leaks to the room", f:{"Yes":{h:"Uncontrolled systems leak.",nx:5}} },
+                        { q:"Evidence: Uninsulated uncontrolled systems evolve toward...", o:["More stable states (room temp)", "Infinite heat"], a:"More stable states (room temp)", f:{"Infinite heat":{h:"Room temp.",nx:5}} },
+                        { q:"Reasoning: Why does 'room temp' prove the equation is 'No'?", o:["Heat leaks into the surrounding environment, meaning the defined system is no longer closed and energy escapes", "Because room temp is 20"], a:"Heat leaks into the surrounding environment, meaning the defined system is no longer closed and energy escapes", f:{"20":{h:"It's about the boundary leaking.",nx:5}} }
+                    ],
+                    [ // V5
+                        { q:"To solve for $c$ algebraicaly, divide $q$ by...", o:["$m \\times \\Delta T$", "$m + \\Delta T$"], a:"$m \\times \\Delta T$", f:{"$m + \\Delta T$":{h:"Reverse the multiplication.",nx:0}} },
+                        { q:"Evidence: This gives specific heat the units of...", o:["Joules / (g * °C)", "Joules"], a:"Joules / (g * °C)", f:{"Joules":{h:"Divided by mass and temp.",nx:0}} },
+                        { q:"Reasoning: Why do 'Joules / (g * °C)' prove the algebraic division?", o:["By dividing total energy by mass and temperature change, we isolate the material's unique capacity to store heat", "Units are made up"], a:"By dividing total energy by mass and temperature change, we isolate the material's unique capacity to store heat", f:{"made up":{h:"Units follow the algebra.",nx:0}} }
+                    ]
+                ]
+            }
+        ];
+
+        function loadQuestion() {
+            const S = QB[appState.step - 1];
+            document.getElementById('stepDisplay').innerText = appState.step;
+            document.getElementById('wzTitle').innerText = S.title;
+            document.getElementById('wzSetup').innerHTML = S.setup;
+            
+            // Auto-configure simulation to match the question setup
+            if (appState.step === 1) {
+                document.getElementById('massA').value = 100; document.getElementById('tempA').value = 20;
+                document.getElementById('materialB').value = 'water'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
+            } else if (appState.step === 2) {
+                document.getElementById('massA').value = 200; document.getElementById('tempA').value = 20;
+                document.getElementById('materialB').value = 'water'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
+            } else if (appState.step === 3) {
+                document.getElementById('massA').value = 100; document.getElementById('tempA').value = 20;
+                document.getElementById('materialB').value = 'copper'; document.getElementById('massB').value = 100; document.getElementById('tempB').value = 80;
+            }
+
+            if(appState.step === 4) {
+                document.getElementById('tab-graph').classList.remove('opacity-50', 'cursor-not-allowed');
+                switchMode('graph');
+            } else if (appState.step < 4) {
+                switchMode('calorimeter');
+            }
+
+            appState.variantIndex = Math.floor(Math.random() * 6);
+            appState.subQ = 0;
+            renderSubQ();
+        }
+
+        function getCleanAnswer(vIdx, subIdx) {
+            return QB[appState.step - 1].v[vIdx][subIdx].a.replace(/\|/g, " and ");
+        }
+
+        function renderSubQ() {
+            const V = QB[appState.step - 1].v[appState.variantIndex];
+            const sqData = V[appState.subQ];
+            
+            // Build dynamic Context Box
+            let ctxHtml = "";
+            if (appState.subQ === 1) {
+                ctxHtml = `<div class="bg-blue-50 text-blue-900 p-3 text-sm border-l-4 border-blue-500 rounded"><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Concept Supported:</strong><br> ${getCleanAnswer(appState.variantIndex, 0)}</div>`;
+            } else if (appState.subQ === 2) {
+                ctxHtml = `<div class="bg-blue-50 text-blue-900 p-3 text-sm border-l-4 border-blue-500 rounded space-y-2"><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Concept Supported:</strong><br> ${getCleanAnswer(appState.variantIndex, 0)}<br><strong class="uppercase text-[10px] text-blue-700 tracking-wider">Experimental Evidence:</strong><br> ${getCleanAnswer(appState.variantIndex, 1)}</div>`;
+            }
+            document.getElementById('wzContext').innerHTML = ctxHtml;
+
+            document.getElementById('phaseDisplay').innerText = appState.subQ === 0 ? "Part A: Concept" : (appState.subQ === 1 ? "Part B: Evidence" : "Part C: Reasoning");
+            document.getElementById('wzQuestion').innerHTML = sqData.q;
+            document.getElementById('wzFeedback').className = "hidden p-3 rounded-md text-sm mb-4 border transition-all";
+            
+            const inputsDiv = document.getElementById('wzInputs'); inputsDiv.innerHTML = '';
+
+            if (sqData.t === 'text') {
+                inputsDiv.innerHTML = `<input type="text" id="qAns" class="w-full border-slate-300 rounded p-2 border focus:ring-brand-500">`;
+            } else if (sqData.t === 'select') {
+                inputsDiv.innerHTML = `<p class="text-xs text-slate-500 italic">Select correct options in the text above.</p>`;
+            } else {
+                sqData.o.forEach(opt => {
+                    inputsDiv.innerHTML += `<label class="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer"><input type="radio" name="qAns" value="${opt}"> <span>${opt}</span></label>`;
+                });
+            }
+            
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise().catch(err => console.error('MathJax Error:', err));
+            }
+            appState.mistakes = 0; 
+            
+            document.getElementById('btnSubmit').classList.remove('hidden');
+            document.getElementById('btnNextSub').classList.add('hidden');
+        }
+
+        function checkAnswer() {
+            const V = QB[appState.step - 1].v[appState.variantIndex];
+            const sqData = V[appState.subQ];
+            let isCorrect = false, uAns = "";
+
+            if (sqData.t === 'text') {
+                uAns = document.getElementById('qAns').value.trim();
+                if(sqData.num) {
+                    if (Math.abs(parseFloat(uAns) - parseFloat(sqData.a)) <= 0.2) { isCorrect = true; document.getElementById('qAns').value = sqData.a; }
+                } else {
+                    if (uAns.toLowerCase() === sqData.a.toLowerCase()) isCorrect = true;
+                }
+            } else if (sqData.t === 'select') {
+                let sels = document.querySelectorAll('.inline-select'), ans = sqData.a.split('|');
+                isCorrect = true; sels.forEach((s, i) => { if(s.value !== ans[i]) isCorrect = false; uAns = s.value; });
+            } else {
+                let chk = document.querySelector('input[name="qAns"]:checked');
+                if(!chk) return;
+                uAns = chk.value;
+                if(uAns === sqData.a) isCorrect = true;
+            }
+
+            const fb = document.getElementById('wzFeedback');
+            fb.classList.remove('hidden', 'bg-red-50', 'border-red-200', 'text-red-800', 'bg-green-50', 'border-green-200', 'text-green-800');
+
+            if (isCorrect) {
+                fb.classList.add('bg-green-50', 'border-green-200', 'text-green-800');
+                fb.innerHTML = `<p class="font-bold"><i class="ph ph-check-circle"></i> Correct!</p>`;
+                document.getElementById('btnSubmit').classList.add('hidden');
+                document.getElementById('btnNextSub').classList.remove('hidden');
+            } else {
+                appState.mistakes++; appState.totalMistakes++;
+                fb.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                
+                if (appState.mistakes >= 3) {
+                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-warning-circle"></i> Moving on.</p><p>Answer: <strong>${sqData.a.replace(/\|/g, " and ")}</strong>.</p>`;
+                    document.getElementById('btnSubmit').classList.add('hidden');
+                    document.getElementById('btnNextSub').classList.remove('hidden');
+                } else {
+                    let feedbackObj = sqData.f[uAns] || Object.values(sqData.f)[0]; 
+                    fb.innerHTML = `<p class="font-bold"><i class="ph ph-x-circle"></i> Not quite.</p><p class="mt-1 font-medium italic text-slate-600">Hint: ${feedbackObj.h}</p><p class="mt-2 text-xs">Try this variation...</p>`;
+                    
+                    appState.variantIndex = feedbackObj.nx;
+                    setTimeout(() => renderSubQ(), 2000); 
+                    document.getElementById('btnSubmit').disabled = true;
+                    setTimeout(() => document.getElementById('btnSubmit').disabled = false, 2000);
+                }
+            }
+        }
+
+        function nextSubQuestion() {
+            const V = QB[appState.step - 1].v[appState.variantIndex];
+            appState.subQ++;
+            if (appState.subQ < V.length) {
+                renderSubQ();
+            } else {
+                if (appState.step === 4) {
+                    document.getElementById('teachingPanel').classList.remove('hidden');
+                } else if (appState.step < 5) {
+                    appState.step++; loadQuestion();
+                } else {
+                    triggerWin();
+                }
+            }
+        }
+
+        function closeTeachingPanel() {
+            document.getElementById('teachingPanel').classList.add('hidden');
+            appState.step++; loadQuestion();
+        }
+
+        // --- GAMIFICATION & WIN LOGIC ---
+        function triggerWin() {
+            let m = appState.totalMistakes;
+            let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
+            let baseScore = m > 10 ? Math.max(0, 15 - (m - 10)) : 15;
+            let finalScore = baseScore + ec;
+
+            const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
+            const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
+            
+            document.getElementById('winScreen').classList.remove('hidden');
+            document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
+            document.getElementById('finalScoreVal').innerText = finalScore;
+            document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+            
+            if(ec > 0) document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
+            if(baseScore < 12) {
+                document.getElementById('tryAgainBtn').classList.remove('hidden');
+                document.getElementById('ecMessage').innerHTML = `<span class="text-red-500 font-normal">Errors made: ${m}</span>`;
+            }
+
+            let rounds = finalScore > 15 ? 3 : (finalScore === 15 ? 1 : 0);
+            for(let i=0; i<rounds; i++) setTimeout(() => confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] }), i * 800);
+        }
+
+        // Init
+        window.addEventListener('load', () => {
+            loadQuestion();
+        });
+
+    </script>
+</body>
+</html>
