@@ -42,7 +42,7 @@
     </header>
 
     <!-- Win Screen Overlay -->
-    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500">
+    <div id="winScreen" class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center border-4 border-brand-500 overflow-y-auto">
         <i class="ph ph-medal text-7xl text-yellow-500 mb-4 drop-shadow-md"></i>
         <h2 id="congratsMessage" class="text-3xl font-bold text-slate-800 mb-2">Excellent Work!</h2>
         <div class="bg-brand-50 p-6 rounded-xl border border-brand-200 shadow-inner my-6">
@@ -460,6 +460,7 @@
                         { q:"Evidence: At a slope ($c$) of ~4.18, a $\\Delta T$ of 10°C required roughly how much energy ($q$)?", a:"41.8", t:"text", num:true, f:{"10":{h:"Look at Y axis.",nx:1}, "4.18":{h:"Multiply them.",nx:2}, "0":{h:"It required energy.",nx:1}} },
                         { q:"Reasoning: Why does this confirm the equation $q = c \\times \\Delta T$?", o:["Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", "Adding them gives the right answer", "Dividing energy by temp gives the mass", "Because the graph is a curve", "It is a coincidence"], a:"Multiplying the slope (Joules/°C) by the temperature change (°C) perfectly predicts the total energy (Joules)", f:{"Adding them gives the right answer":{h:"4.18 + 10 != 41.8.",nx:1}, "Dividing energy by temp gives the mass":{h:"Mass is 1g constant here.",nx:2}, "Because the graph is a curve":{h:"It is a straight line.",nx:1}, "It is a coincidence":{h:"It's mathematical proof.",nx:2}} }
                     ],
+                    // Repeating logic for V1-V5 to satisfy robust engine needs
                     [ // V1
                         { q:"If you know the slope ($c$) and the Joules applied ($q$), how do you find $\\Delta T$?", o:["$\\Delta T = q / c$", "$\\Delta T = q \\times c$", "$\\Delta T = c / q$", "$\\Delta T = q + c$", "$\\Delta T = q - c$"], a:"$\\Delta T = q / c$", f:{"$\\Delta T = q \\times c$":{h:"Algebra: divide $q$ by $c$.",nx:2}, "$\\Delta T = c / q$":{h:"Flip it.",nx:3}, "$\\Delta T = q + c$":{h:"No addition.",nx:2}, "$\\Delta T = q - c$":{h:"No subtraction.",nx:3}} },
                         { q:"Evidence: If $q=16.7$ and $c=1.67$ (Plastic), what is $\\Delta T$?", a:"10", t:"text", num:true, f:{"16.7":{h:"Divide q by c.",nx:2}, "1.67":{h:"Divide 16.7 by 1.67.",nx:3}, "0":{h:"Do the math.",nx:2}} },
@@ -660,6 +661,9 @@
         }
 
         function nextSubQuestion() {
+            document.getElementById('btnNextSub').disabled = true; // prevent double clicks
+            setTimeout(() => { document.getElementById('btnNextSub').disabled = false; }, 500);
+
             const V = QB[appState.step - 1].v[appState.variantIndex];
             appState.subQ++;
             if (appState.subQ < V.length) {
@@ -682,27 +686,44 @@
 
         // --- GAMIFICATION & WIN LOGIC ---
         function triggerWin() {
-            let m = appState.totalMistakes;
-            let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
-            let baseScore = m > 10 ? Math.max(0, 25 - (m - 10)) : 25;
-            let finalScore = baseScore + ec;
+            try {
+                let m = appState.totalMistakes;
+                let ec = m===0?5 : m===1?4 : m===2?3 : m===3?2 : m===4?1 : 0;
+                let baseScore = m > 10 ? Math.max(0, 25 - (m - 10)) : 25;
+                let finalScore = baseScore + ec;
 
-            const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
-            const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
-            
-            document.getElementById('winScreen').classList.remove('hidden');
-            document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
-            document.getElementById('finalScoreVal').innerText = finalScore;
-            document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
-            
-            if(ec > 0) document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
-            if(baseScore < 20) { // Below ~80%
-                document.getElementById('tryAgainBtn').classList.remove('hidden');
-                document.getElementById('ecMessage').innerHTML = `<span class="text-red-500 font-normal">Errors made: ${m}</span>`;
+                const adjs = ["Outstanding", "Phenomenal", "Spectacular", "Brilliant", "Stellar"];
+                const nouns = ["Scientist", "Physicist", "Researcher", "Thinker", "Analyst"];
+                
+                document.getElementById('winScreen').classList.remove('hidden');
+                document.getElementById('congratsMessage').innerText = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}!`;
+                document.getElementById('finalScoreVal').innerText = finalScore;
+                document.getElementById('verifyCode').innerText = Math.random().toString(36).substring(2, 8).toUpperCase();
+                
+                if(ec > 0) {
+                    document.getElementById('ecMessage').innerText = `+ ${ec} Extra Credit Points Awarded!`;
+                } else {
+                    document.getElementById('ecMessage').innerText = ``;
+                }
+                
+                if(baseScore < 20) { // Below ~80%
+                    document.getElementById('tryAgainBtn').classList.remove('hidden');
+                    document.getElementById('ecMessage').innerHTML += `<br><span class="text-red-500 font-normal">Errors made: ${m}</span>`;
+                }
+
+                let rounds = finalScore >= 25 ? 3 : 0;
+                if (typeof window.confetti === 'function') {
+                    for(let i=0; i<rounds; i++) {
+                        setTimeout(() => {
+                            try {
+                                window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] });
+                            } catch(e) {}
+                        }, i * 800);
+                    }
+                }
+            } catch (e) {
+                console.error("Win Screen Error: ", e);
             }
-
-            let rounds = finalScore > 25 ? 3 : (finalScore === 25 ? 1 : 0);
-            for(let i=0; i<rounds; i++) setTimeout(() => confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#14b8a6', '#0d9488', '#f59e0b', '#2563eb'] }), i * 800);
         }
 
         // Init
