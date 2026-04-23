@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NM-ASR Practice Test: Space Science</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .nm-header { border-bottom: 4px solid #1e3a8a; }
+        .split-pane { display: flex; flex-direction: column; height: calc(100vh - 140px); }
+        @media (min-width: 1024px) { .split-pane { flex-direction: row; } }
+        .stimulus-pane { background: white; border-right: 2px solid #e5e7eb; overflow-y: auto; padding: 2rem; }
+        .question-pane { background: #f9fafb; overflow-y: auto; padding: 2rem; }
+        
+        /* Drag and Drop Styles */
+        .draggable-list { list-style-type: none; padding: 0; }
+        .draggable-item { 
+            background: white; border: 2px solid #d1d5db; border-radius: 0.5rem; 
+            padding: 1rem; margin-bottom: 0.5rem; cursor: grab; display: flex; align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: border-color 0.2s;
+        }
+        .draggable-item:active { cursor: grabbing; border-color: #3b82f6; }
+        .draggable-item.dragging { opacity: 0.5; background: #eff6ff; }
+        .drag-handle { margin-right: 1rem; color: #9ca3af; cursor: grab; }
+
+        /* Dropdown Inline Styles */
+        .inline-dd {
+            appearance: none; background-color: #fff; border: 2px solid #cbd5e1; border-radius: 0.375rem;
+            padding: 0.25rem 2rem 0.25rem 0.75rem; color: #0f172a; font-weight: 600; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+        }
+        .inline-dd:focus { outline: none; border-color: #3b82f6; ring: 2px; }
+
+        /* Custom Radio Buttons */
+        .radio-container { display: block; position: relative; padding-left: 2.5rem; margin-bottom: 1rem; cursor: pointer; user-select: none; font-size: 1.1rem;}
+        .radio-container input { position: absolute; opacity: 0; cursor: pointer; }
+        .checkmark { position: absolute; top: 0.15rem; left: 0; height: 1.5rem; width: 1.5rem; background-color: #fff; border: 2px solid #9ca3af; border-radius: 50%; }
+        .radio-container:hover input ~ .checkmark { border-color: #3b82f6; }
+        .radio-container input:checked ~ .checkmark { background-color: #3b82f6; border-color: #3b82f6; }
+        .checkmark:after { content: ""; position: absolute; display: none; }
+        .radio-container input:checked ~ .checkmark:after { display: block; }
+        .radio-container .checkmark:after { top: 0.35rem; left: 0.35rem; width: 0.65rem; height: 0.65rem; border-radius: 50%; background: white; }
+
+        .correct-anim { animation: pulseGreen 1s; }
+        .incorrect-anim { animation: shakeRed 0.5s; }
+        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        @keyframes shakeRed { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white nm-header px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-10">
+        <div class="flex items-center space-x-4">
+            <div class="bg-blue-900 text-white font-bold px-3 py-1 rounded text-lg tracking-wider">NM-ASR</div>
+            <h1 class="text-xl font-semibold text-gray-800 hidden md:block">Science Readiness: Space Science</h1>
+        </div>
+        <div class="flex items-center space-x-6">
+            <button onclick="downloadStudyGuide()" class="hidden md:flex text-sm text-blue-700 hover:text-blue-900 font-semibold items-center space-x-1 border border-blue-200 bg-blue-50 px-3 py-1 rounded transition-colors" title="Download Source Code / Study Guide">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Save HTML</span>
+            </button>
+            <div class="text-gray-600 font-medium text-lg">Question <span id="q-current" class="text-blue-700 font-bold">1</span> of 15</div>
+            <div class="w-32 bg-gray-200 rounded-full h-2.5">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 5%"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="test-container" class="split-pane flex-grow">
+        <!-- Stimulus Pane -->
+        <div class="stimulus-pane w-full lg:w-1/2 flex flex-col space-y-6" id="stimulus-pane">
+            <!-- Injected dynamically -->
+        </div>
+
+        <!-- Question Pane -->
+        <div class="question-pane w-full lg:w-1/2 flex flex-col relative">
+            <div id="question-content" class="flex-grow space-y-6 pb-24">
+                <!-- Injected dynamically -->
+            </div>
+            
+            <!-- Controls & Feedback -->
+            <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div id="feedback-box" class="hidden mb-4 p-4 rounded-lg text-sm border-l-4"></div>
+                <div class="flex justify-end space-x-4">
+                    <button id="btn-check" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-8 rounded-lg shadow transition-colors text-lg" onclick="checkAnswer()">Submit Answer</button>
+                    <button id="btn-next" class="hidden bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-8 rounded-lg shadow transition-colors text-lg" onclick="nextQuestion()">Next Question</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="hidden absolute inset-0 bg-gray-50 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8 md:p-12 text-center border-t-8 border-blue-600">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 text-blue-600 rounded-full mb-6">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+            </div>
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Assignment Complete</h1>
+            <h2 class="text-xl text-gray-600 font-medium mb-8">NM-ASR Space Science Practice</h2>
+            
+            <div class="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-200">
+                <div class="text-6xl font-black text-blue-700 mb-2" id="final-score">0/15</div>
+                <div class="text-gray-500 font-semibold tracking-wide uppercase text-sm">Final Score</div>
+            </div>
+
+            <div class="flex flex-col items-center justify-center mb-8">
+                <div class="text-sm text-gray-500 mb-1">Verification Code</div>
+                <div id="verif-code" class="font-mono text-2xl font-bold bg-blue-50 text-blue-800 px-6 py-2 rounded border border-blue-200 tracking-[0.25em]">ABCDEF</div>
+            </div>
+
+            <div class="space-y-4">
+                <button onclick="downloadStudyGuide()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center space-x-3 text-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>Download Study Guide HTML</span>
+                </button>
+                <button onclick="location.reload()" class="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-xl border-2 border-gray-200 transition-all text-lg">
+                    Retake with New Questions
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- 15 SPECIFIC TOPICS WITH 6 HAND-CRAFTED VARIATIONS EACH --- */
+        const coreTopics = [
+            {
+                topic: "Cosmic Expansion & Redshift",
+                stim: "Astronomers observing distant galaxies note that the spectral lines of the light they emit are shifted toward the red end of the electromagnetic spectrum. Edwin Hubble discovered that the further away a galaxy is, the greater this shift appears to be.",
+                theory: "Redshift occurs because the fabric of space itself is expanding. As light travels through expanding space, its wavelength is stretched. Hubble's Law provides primary evidence that the universe is expanding from an initial dense state (the Big Bang).",
+                vars: [
+                    { type: 'mc2', qA: "What conclusion about the universe is drawn from observing galactic redshift?", optA: ["The universe is static and infinite.", "Galaxies are shrinking in size.", "The universe is expanding.", "Galaxies are moving toward Earth."], ansA: 2, qB: "Which piece of evidence directly supports this conclusion?", optB: ["The proportional lengthening of light waves from distant objects.", "The uniform temperature of the cosmic microwave background.", "The specific ratio of hydrogen to helium.", "The energy released during nuclear fusion."], ansB: 0 },
+                    { type: 'mc2', qA: "If a newly discovered galaxy is found to have a more extreme redshift than Galaxy Andromeda, what can be inferred?", optA: ["It is older than Andromeda.", "It is closer to Earth than Andromeda.", "It is moving toward Earth faster than Andromeda.", "It is farther away from Earth than Andromeda."], ansA: 3, qB: "Why does extreme redshift correlate with distance?", optB: ["Older light degrades into red wavelengths over time.", "Light from further objects has traveled through more expanding space.", "More distant galaxies have lower temperatures.", "Distant galaxies consist of different elements."], ansB: 1 },
+                    { type: 'dd', text: "The phenomenon where light waves from a galaxy are stretched out is known as {0}. This stretching indicates that the galaxy is moving {1} us, supporting the theory that space is {2}.", options: [["blueshift", "redshift", "mass defect"], ["toward", "parallel to", "away from"], ["contracting", "static", "expanding"]], ans: [1, 2, 2] },
+                    { type: 'dd', text: "Edwin Hubble observed that the {0} a galaxy is from Earth, the {1} its spectral lines are shifted to the red. This established a direct relationship between distance and {2}.", options: [["larger", "older", "farther"], ["less", "more", "randomly"], ["recessional velocity", "stellar mass", "core temperature"]], ans: [2, 1, 0] },
+                    { type: 'order', text: "Trace the logical steps astronomers use to determine the universe is expanding:", items: [{id:"A", text:"Capture light spectra from distant galaxies using telescopes."}, {id:"B", text:"Identify known elemental absorption lines in the spectra."}, {id:"C", text:"Measure how far these lines are shifted toward the red end."}, {id:"D", text:"Correlate the shift with distance to formulate Hubble's Law."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the following objects from LEAST redshifted to MOST redshifted based on Hubble's observations:", items: [{id:"A", text:"A star within our own Milky Way galaxy"}, {id:"B", text:"The nearby Andromeda Galaxy"}, {id:"C", text:"A moderately distant galaxy cluster"}, {id:"D", text:"The most distant observable quasar"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "The Cosmic Microwave Background (CMB)",
+                stim: "In 1965, scientists detected a faint, uniform microwave radiation coming from all directions in the sky. This radiation has a temperature of approximately 2.7 Kelvin and is not associated with any specific star or galaxy.",
+                theory: "The CMB is the 'afterglow' of the Big Bang. About 380,000 years after the initial expansion, the universe cooled enough for neutral atoms to form, allowing the first light to travel freely. This light has stretched into the microwave spectrum due to cosmic expansion.",
+                vars: [
+                    { type: 'mc2', qA: "What is the origin of the Cosmic Microwave Background?", optA: ["Light emitted by the very first generation of stars.", "Radiation left over from the hot, dense early universe.", "Energy released by massive black holes in the ancient past.", "Microwaves produced by interstellar dust clouds."], ansA: 1, qB: "What specific characteristic of the CMB provides evidence for the Big Bang model?", optB: ["It is found only in the centers of dense galaxy clusters.", "It is expanding rapidly away from Earth.", "It is nearly uniform in temperature in all directions.", "It demonstrates a precise 3:1 ratio of hydrogen to helium."], ansB: 2 },
+                    { type: 'mc2', qA: "Why is the CMB observed in the microwave spectrum today, rather than as visible light?", optA: ["It was originally emitted as microwaves.", "Cosmic dust absorbed all the visible light.", "The expansion of space stretched the light waves over billions of years.", "The universe has heated up, shifting the spectrum."], ansA: 2, qB: "Which concept explains this stretching of light?", optB: ["Cosmic Redshift", "Nuclear Fusion", "Mass Defect", "Hydrostatic Equilibrium"], ansB: 0 },
+                    { type: 'dd', text: "The CMB is the oldest observable {0} in the universe. It was released when the early universe cooled enough to allow the formation of {1}, changing the universe from opaque to {2}.", options: [["matter", "light", "gravity"], ["black holes", "neutral atoms", "supernovae"], ["transparent", "static", "contracting"]], ans: [1, 1, 0] },
+                    { type: 'dd', text: "Because the CMB is detected coming from {0} with a nearly uniform temperature of roughly {1}, it proves the universe was once in a highly {2} state.", options: [["only the galactic core", "all directions in space", "nearby stars"], ["10 million Kelvin", "2.7 Kelvin", "Absolute Zero"], ["cold and empty", "hot and dense", "stable and static"]], ans: [1, 1, 1] },
+                    { type: 'order', text: "Order the timeline of events that led to the CMB we observe today:", items: [{id:"A", text:"The Big Bang initiates a rapid expansion of a hot, dense singularity."}, {id:"B", text:"The universe cools to ~3000K, allowing electrons to bind to protons."}, {id:"C", text:"The first photons are able to travel freely through space."}, {id:"D", text:"Expansion stretches these ancient photons into microwaves."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order these cosmic phenomena by their age, from OLDEST (happened first) to YOUNGEST (happened most recently):", items: [{id:"A", text:"The Big Bang singularity"}, {id:"B", text:"Emission of the Cosmic Microwave Background"}, {id:"C", text:"Formation of the first stars"}, {id:"D", text:"Formation of the Earth and Solar System"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Primordial Abundance (Hydrogen to Helium)",
+                stim: "Astronomers observing pristine gas clouds (uncontaminated by stellar explosions) consistently find that the elemental mass of the universe is composed of roughly 75% Hydrogen and 25% Helium.",
+                theory: "During the first few minutes after the Big Bang, the universe was hot enough for fusion to occur everywhere. It quickly expanded and cooled, freezing the elemental ratio at roughly 3 parts Hydrogen to 1 part Helium before any stars existed.",
+                vars: [
+                    { type: 'mc2', qA: "What does the 75% Hydrogen to 25% Helium mass ratio represent?", optA: ["The elements created inside a main sequence star.", "The elements dispersed by a supernova explosion.", "The primordial abundance created in the early universe.", "The composition of Earth's atmosphere."], ansA: 2, qB: "Why did the early universe stop fusing Hydrogen into heavier elements after just a few minutes?", optB: ["It ran out of Hydrogen fuel.", "Rapid expansion caused the temperature and pressure to drop too low.", "The first stars formed and absorbed all the energy.", "Gravity overpowered the fusion reactions."], ansB: 1 },
+                    { type: 'mc2', qA: "If scientists found a primordial gas cloud that was 50% Hydrogen and 50% Helium, how would it affect the Big Bang theory?", optA: ["It would support the theory perfectly.", "It would contradict Big Bang nucleosynthesis models.", "It would prove that stars were present in the cloud.", "It would show the cloud was formed by a supernova."], ansA: 1, qB: "What exact ratio is predicted by Big Bang models and confirmed by current observations?", optB: ["1:1 (50% H, 50% He)", "3:1 (75% H, 25% He)", "10:1 (90% H, 10% He)", "No specific ratio is predicted."], ansB: 1 },
+                    { type: 'dd', text: "Big Bang {0} occurred during the first few minutes of the universe. The extreme heat acted like the core of a star, fusing protons into {1}. The rapid expansion quickly halted this process, resulting in a 3:1 mass ratio of {2}.", options: [["Redshift", "Nucleosynthesis", "Hydrostatic Equilibrium"], ["Carbon", "Helium", "Iron"], ["Helium to Carbon", "Hydrogen to Helium", "Matter to Antimatter"]], ans: [1, 1, 1] },
+                    { type: 'dd', text: "The universe's pristine gas is composed of roughly {0} Hydrogen and {1} Helium. This specific ratio could not have been produced solely by {2}, confirming it happened during the Big Bang.", options: [["25%", "50%", "75%"], ["25%", "50%", "75%"], ["supernovae", "stellar fusion", "black holes"]], ans: [2, 0, 1] },
+                    { type: 'order', text: "Order the events of Big Bang Nucleosynthesis:", items: [{id:"A", text:"Universe is a soup of isolated protons and neutrons."}, {id:"B", text:"Temperature allows protons and neutrons to fuse into Helium nuclei."}, {id:"C", text:"Rapid expansion causes the universe to cool drastically."}, {id:"D", text:"Fusion stops, freezing the mass ratio at 75% Hydrogen, 25% Helium."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the following atomic structures by when they first appeared in the universe:", items: [{id:"A", text:"Quarks and individual Protons (Hydrogen nuclei)"}, {id:"B", text:"Helium nuclei (2 protons, 2 neutrons)"}, {id:"C", text:"Neutral atoms (electrons orbiting nuclei)"}, {id:"D", text:"Carbon and Oxygen nuclei (forged in stars)"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Nebula to Protostar Formation",
+                stim: "Vast, cold clouds of interstellar gas and dust, known as nebulae, are the birthplaces of stars. Over time, regions within these clouds begin to collapse inward, growing denser and hotter until a protostar forms.",
+                theory: "Star formation is driven by gravity. Gravity pulls matter inwards, converting gravitational potential energy into kinetic and thermal energy. As the core compresses, the temperature and pressure rise dramatically until they are high enough to ignite nuclear fusion.",
+                vars: [
+                    { type: 'mc2', qA: "Which fundamental force is directly responsible for the collapse of a nebula into a protostar?", optA: ["Electromagnetism", "The Strong Nuclear Force", "Gravity", "Radiation Pressure"], ansA: 2, qB: "As the nebula collapses under this force, what happens to the core of the cloud?", optB: ["It gets cooler and less dense.", "It expands outward, creating a planetary nebula.", "It transforms entirely into heavy elements.", "Its temperature and pressure increase drastically."], ansB: 3 },
+                    { type: 'mc2', qA: "What marks the transition from a collapsing cloud of gas into a true 'protostar'?", optA: ["The ignition of nuclear fusion.", "The formation of a dense, glowing, heating core.", "The explosion of the outer layers.", "The creation of planetary bodies."], ansA: 1, qB: "Why does the protostar's temperature rise as it shrinks?", optB: ["Nuclear fusion is already occurring.", "Gravitational potential energy is converted to thermal energy.", "Friction from nearby stars heats it up.", "It absorbs the cosmic microwave background."], ansB: 1 },
+                    { type: 'dd', text: "A star begins its life in a {0}. As {1} pulls the gas and dust together, the material loses potential energy and gains {2} energy, causing the core to heat up.", options: [["black hole", "nebula", "supernova"], ["magnetism", "gravity", "fusion"], ["nuclear", "chemical", "thermal"]], ans: [1, 1, 2] },
+                    { type: 'dd', text: "Before a star can ignite, the collapsing gas forms a {0}. It continues to shrink and heat up until the core reaches approximately {1}, the threshold required for {2} to begin.", options: [["white dwarf", "protostar", "neutron star"], ["10 million Kelvin", "2.7 Kelvin", "1000 degrees Celsius"], ["nuclear fusion", "radioactive decay", "redshift"]], ans: [1, 0, 0] },
+                    { type: 'order', text: "Order the stages of early star formation:", items: [{id:"A", text:"A cold, diffuse nebula of gas and dust drifts in space."}, {id:"B", text:"Gravity causes a region of the nebula to begin collapsing."}, {id:"C", text:"The collapsing core becomes dense, opaque, and heats up (Protostar)."}, {id:"D", text:"Core temperature reaches 10 million K, igniting fusion."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Trace the flow of energy during the formation of a protostar:", items: [{id:"A", text:"Matter is spread out, possessing high gravitational potential energy."}, {id:"B", text:"Gravity pulls particles inward, accelerating them."}, {id:"C", text:"Kinetic energy increases as particles collide frequently."}, {id:"D", text:"Thermal energy (heat) skyrockets at the core."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Nuclear Fusion Ignition (Mass Defect)",
+                stim: "Inside the core of a star, temperatures reach 10 million Kelvin. Under this extreme environment, four Hydrogen protons are forced together to create one Helium nucleus. However, the Helium nucleus weighs slightly less than the four original protons.",
+                theory: "Nuclear fusion powers stars. The 'missing mass' (mass defect) is converted directly into a massive amount of energy according to Einstein's equation E=mc². This energy pushes outward, providing the star's heat and light.",
+                vars: [
+                    { type: 'mc2', qA: "What happens to the 'missing mass' when Hydrogen fuses into Helium?", optA: ["It is destroyed and ceases to exist.", "It falls into a black hole.", "It is converted directly into energy.", "It turns into dark matter."], ansA: 2, qB: "Which scientific equation governs this conversion?", optB: ["Newton's Law of Universal Gravitation", "Hubble's Law (v = H0 * d)", "Einstein's Mass-Energy Equivalence (E=mc²)", "The Ideal Gas Law (PV = nRT)"], ansB: 2 },
+                    { type: 'mc2', qA: "Why are extreme temperatures (10 million K) required for nuclear fusion to occur?", optA: ["To overcome the electrostatic repulsion between positively charged protons.", "To melt the solid hydrogen into a liquid.", "To create enough gravity to hold the star together.", "To prevent the star from going supernova."], ansA: 0, qB: "Once fusion begins, what is the primary source of the energy released?", optB: ["The burning of chemical fuels.", "The mass defect (conversion of mass to energy).", "The continuing collapse of the star's outer layers.", "The absorption of the cosmic microwave background."], ansB: 1 },
+                    { type: 'dd', text: "During nuclear fusion, lightweight nuclei like {0} are forced together to form heavier nuclei like {1}. The resulting nucleus has slightly {2} mass than the original components.", options: [["Iron", "Helium", "Hydrogen"], ["Hydrogen", "Helium", "Uranium"], ["more", "less", "the exact same"]], ans: [2, 1, 1] },
+                    { type: 'dd', text: "The difference in mass during fusion is known as the {0}. Because the speed of light squared (c²) is such a {1} number, even a tiny amount of lost mass yields a {2} amount of energy.", options: [["mass defect", "redshift", "atomic weight"], ["small", "negative", "huge"], ["minuscule", "massive", "zero"]], ans: [0, 2, 1] },
+                    { type: 'order', text: "Order the steps of hydrogen fusion in a stellar core:", items: [{id:"A", text:"Extreme heat and pressure force 4 protons close together."}, {id:"B", text:"The Strong Nuclear Force binds the protons and neutrons together."}, {id:"C", text:"A Helium nucleus is formed, which has slightly less mass."}, {id:"D", text:"The lost mass is radiated outward as photons (energy)."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the forces/factors involved in initiating fusion, from the cause to the final effect:", items: [{id:"A", text:"Immense gravitational pressure compresses the core."}, {id:"B", text:"Core temperatures reach 10 million Kelvin."}, {id:"C", text:"Thermal kinetic energy overcomes proton electrostatic repulsion."}, {id:"D", text:"Hydrogen nuclei fuse, releasing energy via E=mc²."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Main Sequence & Hydrostatic Equilibrium",
+                stim: "For the majority of a star's life, it exists in a stable state called the Main Sequence. During this phase, the star neither collapses inward nor explodes outward, maintaining a consistent size and temperature.",
+                theory: "A star remains stable due to hydrostatic equilibrium: the exact, continuous balance between the inward crushing force of gravity and the outward pushing force of thermal and radiation pressure generated by nuclear fusion in the core.",
+                vars: [
+                    { type: 'mc2', qA: "What defines a star's 'Main Sequence' phase?", optA: ["It is actively fusing helium into carbon.", "It is shedding its outer layers.", "It is actively fusing hydrogen into helium in its core.", "It is collapsing into a black hole."], ansA: 2, qB: "What specific physical state keeps a Main Sequence star stable?", optB: ["The loss of all gravitational pull.", "Hydrostatic equilibrium.", "The mass defect.", "Cosmic expansion."], ansB: 1 },
+                    { type: 'mc2', qA: "In the context of hydrostatic equilibrium, what provides the outward push?", optA: ["Centrifugal force from the star's rotation.", "Gravity from neighboring planets.", "Dark energy expanding space.", "Thermal and radiation pressure from core fusion."], ansA: 3, qB: "What inward force is this outward pressure constantly fighting against?", optB: ["Magnetism", "Gravity", "Electromagnetic radiation", "The Strong Nuclear Force"], ansB: 1 },
+                    { type: 'dd', text: "A star in the Main Sequence is in a state of {0}. If fusion were to slow down, the outward pressure would {1}, causing gravity to compress the star and {2} the core temperature.", options: [["freefall", "hydrostatic equilibrium", "supernova"], ["increase", "decrease", "remain constant"], ["lower", "raise", "freeze"]], ans: [1, 1, 1] },
+                    { type: 'dd', text: "Hydrostatic equilibrium is the balance between the inward pull of {0} and the outward push of {1}. This battle determines the {2} and size of the star for billions of years.", options: [["gravity", "fusion", "magnetism"], ["gravity", "radiation pressure", "redshift"], ["stability", "chemical composition", "location"]], ans: [0, 1, 0] },
+                    { type: 'order', text: "Order the sequence of events that keeps a star stable (the equilibrium thermostat):", items: [{id:"A", text:"Star's core temperature drops slightly, slowing fusion."}, {id:"B", text:"Outward radiation pressure drops, causing gravity to compress the core."}, {id:"C", text:"Compression raises the core temperature back up."}, {id:"D", text:"Fusion rates increase, pushing outward and restoring balance."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Categorize the forces acting on a stable star from the inside-out:", items: [{id:"A", text:"Core fusion generates outward radiation pressure."}, {id:"B", text:"Pressure pushes against the middle layers of the star."}, {id:"C", text:"The entire mass of the star exerts an inward pull due to gravity."}, {id:"D", text:"The two opposing forces meet in perfectly balanced equilibrium."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Low Mass Star Lifecycle",
+                stim: "Stars like our Sun spend roughly 10 billion years on the Main Sequence. When hydrogen fuel runs out, the core shrinks and heats up, causing outer layers to expand into a Red Giant. Eventually, the outer layers gently drift away, leaving a hot, dense core.",
+                theory: "Low and medium-mass stars lack the massive gravity needed to fuse elements heavier than carbon and oxygen. Therefore, they do not explode in supernovae. They end their lives by shedding a Planetary Nebula and becoming a White Dwarf.",
+                vars: [
+                    { type: 'mc2', qA: "What is the final remnant left behind by a low to medium mass star like our Sun?", optA: ["A Black Hole", "A Neutron Star", "A White Dwarf", "A Protostar"], ansA: 2, qB: "Why doesn't a star like our Sun go supernova?", optB: ["It doesn't have enough mass to generate the core pressure needed to fuse iron.", "It has too much hydrogen in its core.", "It is spinning too slowly.", "It is not in a binary star system."], ansB: 0 },
+                    { type: 'mc2', qA: "What causes a Sun-like star to expand into a Red Giant?", optA: ["The ignition of hydrogen fusion.", "A collision with another star.", "The core runs out of hydrogen, causing structural changes and outer layer expansion.", "The star absorbs too much dark matter."], ansA: 2, qB: "What happens immediately after the Red Giant phase for a low-mass star?", optB: ["It violently explodes as a supernova.", "It sheds its outer layers as a planetary nebula.", "It collapses directly into a black hole.", "It returns to the Main Sequence."], ansB: 1 },
+                    { type: 'dd', text: "A medium-mass star spends most of its life as a {0} star. When it runs out of core hydrogen, it expands into a {1}. Finally, it sheds its outer layers to expose a glowing {2}.", options: [["Red Giant", "Main Sequence", "White Dwarf"], ["White Dwarf", "Supernova", "Red Giant"], ["Black Hole", "Planetary Nebula", "White Dwarf"]], ans: [1, 2, 2] },
+                    { type: 'dd', text: "Because low-mass stars have less {0}, their cores never get hot enough to fuse elements heavier than {1}. They end their lives relatively peacefully as a {2}.", options: [["gravity/mass", "volume", "rotation"], ["Helium", "Carbon/Oxygen", "Iron"], ["Supernova", "White Dwarf", "Pulsar"]], ans: [0, 1, 1] },
+                    { type: 'order', text: "Order the life cycle stages of a low/medium mass star (like the Sun):", items: [{id:"A", text:"Main Sequence (fusing Hydrogen)."}, {id:"B", text:"Red Giant (fusing Helium, expanding)."}, {id:"C", text:"Planetary Nebula (shedding outer gas layers)."}, {id:"D", text:"White Dwarf (inert, glowing dense core)."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Trace the elemental fusion stages of a Sun-like star:", items: [{id:"A", text:"Hydrogen fuses into Helium (Main Sequence)."}, {id:"B", text:"Core hydrogen runs out, core compresses."}, {id:"C", text:"Core temperature rises enough to fuse Helium into Carbon."}, {id:"D", text:"Fusion stops permanently; star cannot fuse Carbon."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "High Mass Star Lifecycle",
+                stim: "Massive stars (more than 8 times the Sun's mass) have immense gravity, causing them to burn their fuel furiously and live only millions of years. They expand into Supergiants and fuse progressively heavier elements in layers, ending with Iron in the core.",
+                theory: "High mass stars have enough gravitational pressure to fuse elements up to Iron. Because fusing Iron requires more energy than it releases, outward pressure suddenly vanishes. Gravity wins instantly, causing a catastrophic core collapse and a Supernova explosion.",
+                vars: [
+                    { type: 'mc2', qA: "Why do high mass stars have much shorter lifespans than low mass stars?", optA: ["They have less hydrogen to start with.", "Their immense gravity forces a much faster, hotter rate of fusion.", "They are destroyed by black holes.", "They lack hydrostatic equilibrium entirely."], ansA: 1, qB: "What marks the inevitable death of a high-mass star?", optB: ["The gentle shedding of a planetary nebula.", "The buildup of an Iron core that absorbs energy rather than releasing it.", "The cooling of the core to absolute zero.", "The fusion of hydrogen into helium."], ansB: 1 },
+                    { type: 'mc2', qA: "What happens the moment a massive star's core turns entirely to Iron?", optA: ["Fusion releases massive energy, expanding the star.", "The star becomes permanently stable.", "Fusion stops producing outward pressure, resulting in immediate gravitational collapse.", "The star turns into a white dwarf."], ansA: 2, qB: "What is the observable result of this sudden core collapse?", optB: ["A Red Giant phase.", "A Type II Supernova explosion.", "A Cosmic Microwave Background.", "A Planetary Nebula."], ansB: 1 },
+                    { type: 'dd', text: "Massive stars live for only {0} of years because their huge mass creates intense gravity, causing rapid fusion. They expand into {1} and eventually explode violently as a {2}.", options: [["billions", "millions", "trillions"], ["Red Dwarfs", "White Dwarfs", "Supergiants"], ["Planetary Nebula", "Supernova", "Quasar"]], ans: [1, 2, 1] },
+                    { type: 'dd', text: "Inside a supergiant, elements fuse in layers like an onion. The sequence stops at {0} because fusing it is {1}, meaning it steals energy from the core, leading to a {2}.", options: [["Carbon", "Oxygen", "Iron"], ["exothermic (releases energy)", "endothermic (absorbs energy)", "impossible"], ["Supernova", "White Dwarf", "Main sequence phase"]], ans: [2, 1, 0] },
+                    { type: 'order', text: "Order the life cycle stages of a massive star (e.g., 20 solar masses):", items: [{id:"A", text:"Main Sequence (rapid Hydrogen fusion)."}, {id:"B", text:"Supergiant (fusing heavier elements in layers)."}, {id:"C", text:"Iron core forms, outward radiation pressure drops to zero."}, {id:"D", text:"Core collapses inward, rebounds, and explodes as a Supernova."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the layered fusion stages in a Supergiant's core, from earliest/coolest to latest/hottest:", items: [{id:"A", text:"Hydrogen fusing into Helium."}, {id:"B", text:"Helium fusing into Carbon."}, {id:"C", text:"Carbon/Oxygen fusing into Silicon."}, {id:"D", text:"Silicon fusing into Iron."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Stellar Remnants (Neutron Stars & Black Holes)",
+                stim: "After a massive star undergoes a supernova, the outer layers are blown away, but the crushed core remains. If the core's mass is less than ~3 solar masses, it becomes an ultra-dense Neutron Star. If it is heavier, gravity completely overwhelms all physical forces.",
+                theory: "The mass of the remaining core determines its fate. Protons and electrons are crushed into neutrons to form a Neutron Star. If the mass exceeds the Tolman-Oppenheimer-Volkoff limit, even neutron degeneracy pressure fails, and the core collapses into a singularity (Black Hole).",
+                vars: [
+                    { type: 'mc2', qA: "What determines whether a supernova remnant becomes a Neutron Star or a Black Hole?", optA: ["The temperature of the explosion.", "The mass of the crushed core left behind.", "The amount of iron in the original star.", "The speed of the star's rotation."], ansA: 1, qB: "Under what condition does a Black Hole form?", optB: ["If the core mass is less than 1.4 solar masses.", "If the star was originally a red dwarf.", "If the remaining core mass is so great that gravity overcomes all quantum forces.", "If the supernova fails to explode outward."], ansB: 2 },
+                    { type: 'mc2', qA: "What constitutes a Neutron Star?", optA: ["A star that emits no light whatsoever.", "An incredibly dense sphere composed almost entirely of neutrons.", "A hollow shell of gas left over from a supernova.", "A normal star that has cooled down."], ansA: 1, qB: "What happens if a remnant's gravity is too strong to even form a Neutron Star?", optB: ["It rebounds back into a normal star.", "It shatters into asteroids.", "It collapses to an infinitely dense point, forming a Black Hole.", "It becomes a White Dwarf."], ansB: 2 },
+                    { type: 'dd', text: "The fate of a star's core depends strictly on its {0}. A medium mass star leaves a {1}. A highly massive star leaves a {2} or a Black Hole.", options: [["temperature", "mass", "rotation rate"], ["Neutron Star", "White Dwarf", "Black Hole"], ["White Dwarf", "Protostar", "Neutron Star"]], ans: [1, 1, 2] },
+                    { type: 'dd', text: "In a Neutron star, gravity has crushed {0} and electrons together. If the mass exceeds about 3 solar masses, gravity wins completely, creating a {1} whose escape velocity exceeds {2}.", options: [["protons", "photons", "quarks"], ["White Dwarf", "Supernova", "Black Hole"], ["the speed of sound", "the speed of light", "hydrostatic equilibrium"]], ans: [0, 2, 1] },
+                    { type: 'order', text: "Order these stellar remnants by density/gravity, from LEAST dense to MOST dense:", items: [{id:"A", text:"Main Sequence Star (e.g., our Sun)"}, {id:"B", text:"White Dwarf (Earth-sized, electron degeneracy)"}, {id:"C", text:"Neutron Star (City-sized, neutron degeneracy)"}, {id:"D", text:"Black Hole (Singularity, infinite density)"}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the sequence of events forming a Black Hole:", items: [{id:"A", text:"A massive supergiant runs out of nuclear fuel."}, {id:"B", text:"The Iron core undergoes catastrophic gravitational collapse."}, {id:"C", text:"The mass of the collapsing core exceeds 3 solar masses."}, {id:"D", text:"Gravity overcomes neutron degeneracy, collapsing to a singularity."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Stellar Nucleosynthesis (Up to Iron)",
+                stim: "Stars act as cosmic foundries. Throughout their lifetimes, they continuously squeeze lighter elements into heavier ones. This process provides the energy that keeps the star shining.",
+                theory: "Stellar nucleosynthesis is the creation of new elements via nuclear fusion. During stable stellar evolution, elements up to Iron (Atomic number 26) can be forged in the cores of massive stars, requiring progressively higher temperatures at each stage.",
+                vars: [
+                    { type: 'mc2', qA: "What is the heaviest element that can be fused during the normal, stable lifespan of a massive star?", optA: ["Helium", "Carbon", "Iron", "Gold"], ansA: 2, qB: "Why does standard stellar nucleosynthesis stop at this element?", optB: ["The star runs out of gravity.", "Fusing elements heavier than Iron absorbs energy instead of releasing it.", "The star gets too hot to hold heavier elements.", "Iron is radioactive and decays instantly."], ansB: 1 },
+                    { type: 'mc2', qA: "Where did the Carbon and Oxygen currently found on Earth originally come from?", optA: ["They were created during the Big Bang.", "They were forged via stellar nucleosynthesis in the cores of ancient stars.", "They were formed by chemical reactions in Earth's mantle.", "They fell from the cosmic microwave background."], ansA: 1, qB: "What physical process created these elements?", optB: ["The splitting of Uranium atoms.", "Nuclear fusion of lighter elements like Helium.", "The stretching of space-time.", "Gravitational redshift."], ansB: 1 },
+                    { type: 'dd', text: "Stellar nucleosynthesis is responsible for forging all elements up to {0}. This occurs because the star's core acts like an immense pressure cooker, forcing {1} to combine and release {2}.", options: [["Helium", "Iron", "Uranium"], ["electrons", "atomic nuclei", "dark matter"], ["energy", "water", "gravity"]], ans: [1, 1, 0] },
+                    { type: 'dd', text: "As a star ages, it must reach {0} core temperatures to fuse heavier elements. A Sun-like star stops at Carbon/Oxygen, but a massive star can reach temperatures high enough to fuse {1} before becoming a {2}.", options: [["lower", "stable", "higher"], ["Hydrogen", "Silicon and Iron", "Uranium and Gold"], ["White Dwarf", "Supernova", "Nebula"]], ans: [2, 1, 1] },
+                    { type: 'order', text: "Order these elements by when they are fused in a massive star, from FIRST (easiest) to LAST (hardest):", items: [{id:"A", text:"Helium (fused from Hydrogen)"}, {id:"B", text:"Carbon (fused from Helium)"}, {id:"C", text:"Oxygen & Silicon"}, {id:"D", text:"Iron (final stable fusion product)"}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Trace the relationship between stellar age, temperature, and nucleosynthesis:", items: [{id:"A", text:"A star exhausts its core Hydrogen fuel."}, {id:"B", text:"Gravity compresses the core, raising its temperature drastically."}, {id:"C", text:"The new higher temperature is sufficient to fuse Helium."}, {id:"D", text:"The cycle repeats for progressively heavier elements up to Iron."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Supernova Nucleosynthesis (Heavier than Iron)",
+                stim: "Elements like Gold, Platinum, and Uranium are extremely heavy and require an enormous input of energy to form. The normal fusion processes inside a stable star cannot create them.",
+                theory: "Because fusing elements beyond Iron is endothermic (absorbs energy), they can only be created during incredibly violent, high-energy events. The intense heat, pressure, and flood of neutrons during a Supernova explosion (or neutron star merger) forge all naturally occurring elements heavier than Iron.",
+                vars: [
+                    { type: 'mc2', qA: "How are elements heavier than Iron (like Gold and Uranium) created in the universe?", optA: ["During the Big Bang.", "During the Main Sequence phase of a star.", "During the explosive death of massive stars (Supernovae).", "Inside the cores of White Dwarfs."], ansA: 2, qB: "Why are these elements ONLY created during these events?", optB: ["They require a massive input of energy and a flood of neutrons that only an explosion provides.", "They are too heavy for normal stars to hold onto.", "They require temperatures of Absolute Zero.", "They are formed by the stretching of space."], ansB: 0 },
+                    { type: 'mc2', qA: "What makes the formation of Gold physically different from the formation of Carbon?", optA: ["Gold formation releases energy, Carbon formation absorbs it.", "Gold is formed during a supernova, Carbon is formed during stable stellar fusion.", "Gold was formed in the Big Bang, Carbon was not.", "Gold requires less pressure to form than Carbon."], ansA: 1, qB: "What is the physical reason for this difference?", optB: ["Fusion past Iron is endothermic and requires an extreme energy source.", "Gold has fewer protons than Carbon.", "Carbon is only found in living organisms.", "Supernovae only happen in the early universe."], ansB: 0 },
+                    { type: 'dd', text: "Elements heavier than Iron cannot be created by {0} because the reaction absorbs energy. Instead, they are forged during a {1} via rapid {2} capture.", options: [["stable stellar fusion", "supernovae", "black holes"], ["Main Sequence", "Supernova explosion", "Planetary Nebula"], ["proton", "neutron", "electron"]], ans: [0, 1, 1] },
+                    { type: 'dd', text: "The immense energy of a {0} forces neutrons into existing nuclei rapidly. This process creates heavy elements like {1}, which are then blasted out into the {2}.", options: [["Red Giant", "Supernova", "Protostar"], ["Helium", "Carbon", "Uranium and Gold"], ["core", "interstellar medium", "black hole"]], ans: [1, 1, 1] },
+                    { type: 'order', text: "Order the events that lead to the creation of a gold ring:", items: [{id:"A", text:"A massive star builds an Iron core, causing gravitational collapse."}, {id:"B", text:"The star explodes in a violent Supernova."}, {id:"C", text:"Extreme neutron flux during the explosion forges Gold atoms."}, {id:"D", text:"The Gold is ejected into space, eventually part of Earth's formation."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the environments required to synthesize elements, from lowest energy required to highest:", items: [{id:"A", text:"Big Bang Expansion (Synthesizes Helium)"}, {id:"B", text:"Main Sequence Core (Synthesizes Helium to Carbon)"}, {id:"C", text:"Supergiant Core (Synthesizes up to Iron)"}, {id:"D", text:"Supernova Explosion (Synthesizes Uranium and Gold)"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Cosmic Recycling & Solar System Formation",
+                stim: "When massive stars explode, they violently disperse newly forged heavy elements out into surrounding interstellar space. This 'stardust' mixes with existing hydrogen gas clouds.",
+                theory: "The heavy elements making up Earth (silicon, iron) and our bodies (carbon, oxygen, nitrogen) were not created in the Big Bang. They were forged in earlier generations of stars, dispersed via supernovae, and gathered by gravity to form our Solar System.",
+                vars: [
+                    { type: 'mc2', qA: "Why is it scientifically accurate to say humans are made of 'star stuff'?", optA: ["Human cells undergo nuclear fusion.", "The heavy elements in our bodies were forged inside ancient dying stars.", "The Big Bang created all the carbon in our bodies directly.", "Humans absorb starlight to survive."], ansA: 1, qB: "How did these elements get from inside a star to the Earth?", optB: ["They were carried by comets.", "They were dispersed into space by supernova explosions and incorporated into the solar nebula.", "They were pulled out of the sun by Earth's gravity.", "They traveled via the cosmic microwave background."], ansB: 1 },
+                    { type: 'mc2', qA: "If you analyzed the very first generation of stars after the Big Bang, what would you notice about their composition?", optA: ["They contained high amounts of Iron and Gold.", "They were made entirely of Carbon and Oxygen.", "They were composed almost exclusively of Hydrogen and Helium.", "They were made of dark matter."], ansA: 2, qB: "Why is our Sun different, containing traces of heavy elements?", optB: ["Our Sun is a later generation star, formed from gas enriched by previous supernovae.", "Our Sun generates heavy elements faster.", "Our Sun absorbed planets.", "The Big Bang happened twice."], ansB: 0 },
+                    { type: 'dd', text: "The Big Bang only produced Hydrogen and {0}. Therefore, the rocky planets and life on Earth could not exist without {1} that enriched the interstellar medium with {2}.", options: [["Carbon", "Helium", "Iron"], ["previous generations of stars", "black holes", "dark energy"], ["heavy elements", "microwaves", "antimatter"]], ans: [1, 0, 0] },
+                    { type: 'dd', text: "When a supernova occurs, it {0} heavy elements into space. These elements mix with nebulae, seeding the formation of {1} generation stars and their accompanying {2}.", options: [["destroys", "absorbs", "disperses"], ["first", "later", "zero"], ["black holes", "planets", "galaxies"]], ans: [2, 1, 1] },
+                    { type: 'order', text: "Order the sequence of cosmic recycling that led to you:", items: [{id:"A", text:"Ancient massive stars fuse Hydrogen into Carbon, Oxygen, and Iron."}, {id:"B", text:"These stars explode as Supernovae, scattering heavy elements."}, {id:"C", text:"Enriched gas and dust collapse to form the Solar nebula."}, {id:"D", text:"Earth forms from this stardust, eventually giving rise to life."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Trace the history of an Iron atom in your blood:", items: [{id:"A", text:"A supergiant star's core fuses silicon into Iron."}, {id:"B", text:"The star goes supernova, blasting the Iron atom into the galaxy."}, {id:"C", text:"The Iron atom becomes part of a dusty nebula."}, {id:"D", text:"The nebula collapses to form Earth, where the Iron is mined/consumed."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Stellar Lifespans & Mass",
+                stim: "Astronomers observe that large, hot, blue stars are very rare and die quickly, while small, cool, red stars are extremely common and live for hundreds of billions of years.",
+                theory: "A star's initial mass dictates its entire life cycle. Higher mass means greater gravitational crushing force on the core. This requires a much hotter core temperature to maintain equilibrium, meaning the star burns through its nuclear fuel millions of times faster than a low-mass star.",
+                vars: [
+                    { type: 'mc2', qA: "Which characteristic determines exactly how fast a star will consume its nuclear fuel?", optA: ["Its distance from Earth.", "Its initial mass.", "The number of planets orbiting it.", "Its position in the galaxy."], ansA: 1, qB: "Why does a star with MORE mass live a SHORTER life?", optB: ["More mass creates immense gravity, forcing a furiously fast rate of fusion to prevent collapse.", "More mass means less hydrogen fuel.", "Massive stars are eaten by black holes faster.", "Massive stars do not have hydrostatic equilibrium."], ansB: 0 },
+                    { type: 'mc2', qA: "If you compare a 10-solar-mass star and a 0.5-solar-mass star, which will live longer?", optA: ["The 10-solar-mass star.", "The 0.5-solar-mass star.", "They will live the exact same amount of time.", "It is impossible to predict."], ansA: 1, qB: "What is the physical reason for this difference in lifespan?", optB: ["The low-mass star has lower core pressure, causing it to burn fuel very slowly.", "The high-mass star has no gravity.", "The low-mass star has more hydrogen.", "The high-mass star fuses helium instead of hydrogen."], ansB: 0 },
+                    { type: 'dd', text: "A star's lifespan is inversely proportional to its {0}. A massive 'blue giant' burns extremely hot and lives for a {1} time, while a low-mass 'red dwarf' burns cool and lives for {2} of years.", options: [["mass", "color", "location"], ["short", "long", "infinite"], ["thousands", "millions", "billions"]], ans: [0, 0, 2] },
+                    { type: 'dd', text: "Because massive stars have incredibly strong {0}, their cores must be incredibly {1} to maintain hydrostatic equilibrium. This causes them to exhaust their hydrogen fuel very {2}.", options: [["magnetic fields", "gravity", "solar winds"], ["cool", "hot", "dense"], ["slowly", "quickly", "erratically"]], ans: [1, 1, 1] },
+                    { type: 'order', text: "Order these stars based on their expected Lifespan, from SHORTEST (dies first) to LONGEST (lives oldest):", items: [{id:"A", text:"A 40-solar-mass blue supergiant"}, {id:"B", text:"A 10-solar-mass main sequence star"}, {id:"C", text:"A 1-solar-mass star (like our Sun)"}, {id:"D", text:"A 0.1-solar-mass red dwarf"}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Trace the logical relationship between mass and lifespan:", items: [{id:"A", text:"A star forms with a very high initial mass."}, {id:"B", text:"High mass creates an immense inward pull of gravity."}, {id:"C", text:"Core must burn fuel furiously to generate enough outward pressure."}, {id:"D", text:"High fusion rate exhausts the fuel supply in just a few million years."}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Gravity vs. Outward Pressure (Lifelong Battle)",
+                stim: "From the moment a nebula begins to collapse until the star leaves behind a remnant, the entire structural evolution of a star is dictated by two opposing forces fighting for dominance.",
+                theory: "Stellar evolution is a continuous battle between the inward pull of gravity and outward pressure (thermal/radiation from fusion, or quantum degeneracy in remnants). Whenever fuel runs out, gravity temporarily wins, compressing the star until a new pressure source (like fusing a heavier element) is ignited.",
+                vars: [
+                    { type: 'mc2', qA: "What happens to a star the moment it runs out of hydrogen fuel in its core?", optA: ["Outward pressure drops, and gravity causes the core to shrink and heat up.", "Gravity stops, and the star expands instantly.", "The star vanishes.", "The star cools down and becomes a planet."], ansA: 0, qB: "Why does this core shrinkage lead to the Red Giant phase?", optB: ["The shrinkage causes the core to cool.", "The core shrinkage generates heat that ignites fusion in the outer shell, pushing the outer layers away.", "The core turns into a black hole and pushes matter away.", "The strong nuclear force reverses."], ansB: 1 },
+                    { type: 'mc2', qA: "During a star's life, what force is ALWAYS trying to crush the star inward?", optA: ["Nuclear Fusion", "Radiation Pressure", "Gravity", "Electromagnetism"], ansA: 2, qB: "When does gravity ultimately 'win' this lifelong battle?", optB: ["During the Main Sequence phase.", "When all nuclear fuel is exhausted and fusion ceases permanently.", "When the star first forms from a nebula.", "Gravity never wins; fusion always continues."], ansB: 1 },
+                    { type: 'dd', text: "A star's life is a constant battle between inward {0} and outward {1}. When fuel changes, the star alters its {2} to find a new balance.", options: [["fusion", "gravity", "magnetism"], ["radiation pressure", "gravity", "dark energy"], ["mass", "size and temperature", "location"]], ans: [1, 0, 1] },
+                    { type: 'dd', text: "If {0} drops because nuclear fusion slows down, {1} compresses the core. This compression actually {2} the core temperature, often igniting a new fuel source.", options: [["outward pressure", "gravity", "mass"], ["fusion", "gravity", "radiation"], ["lowers", "raises", "stabilizes"]], ans: [0, 1, 1] },
+                    { type: 'order', text: "Order the shifting balance of forces during the end of the Main Sequence:", items: [{id:"A", text:"Core hydrogen is exhausted; fusion slows down."}, {id:"B", text:"Outward radiation pressure decreases."}, {id:"C", text:"Inward gravity becomes the dominant force, compressing the core."}, {id:"D", text:"Compression causes temperatures to rise, igniting helium fusion."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the sources of 'outward pressure' as a star evolves from birth to death:", items: [{id:"A", text:"Thermal pressure from gravitational collapse (Protostar)"}, {id:"B", text:"Radiation pressure from Hydrogen fusion (Main Sequence)"}, {id:"C", text:"Radiation pressure from heavier element fusion (Supergiant)"}, {id:"D", text:"Neutron degeneracy pressure (Neutron Star remnant)"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            },
+            {
+                topic: "Holistic Universe Timeline",
+                stim: "Tracing the history of the universe backwards reveals a story of increasing temperature and density. Moving forward from the Big Bang, the universe expands, cools, and forms increasingly complex structures over 13.8 billion years.",
+                theory: "The universe's timeline: Singularity -> Rapid expansion/cooling -> Protons/Neutrons form -> Primordial Nucleosynthesis (H/He) -> CMB released -> Dark Ages -> First Stars/Galaxies form -> Heavy elements forged -> Solar System forms.",
+                vars: [
+                    { type: 'mc2', qA: "Which sequence broadly outlines the evolution of matter in the universe?", optA: ["Stars -> Planets -> Big Bang -> Atoms", "Energy -> Subatomic Particles -> Atoms -> Stars -> Heavy Elements", "Heavy Elements -> Atoms -> Stars -> Subatomic Particles", "Galaxies -> Stars -> Big Bang -> Black Holes"], ansA: 1, qB: "Why did complex structures like stars and atoms take time to form?", optB: ["Gravity didn't exist until 1 billion years ago.", "The early universe was too hot and energetic for particles to bind together.", "The universe was expanding too slowly.", "Dark matter prevented normal matter from forming."], ansB: 1 },
+                    { type: 'mc2', qA: "Could a rocky planet like Earth have formed 1 million years after the Big Bang?", optA: ["Yes, planets formed immediately.", "No, because the universe consisted almost entirely of Hydrogen and Helium.", "Yes, but they were destroyed by black holes.", "No, because the universe was too cold."], ansA: 1, qB: "What necessary event had to occur before rocky planets could exist?", optB: ["The cosmic microwave background had to fade away.", "Generations of massive stars had to live and die to forge heavy elements.", "Galaxies had to stop expanding.", "The solar system had to move to the center of the galaxy."], ansB: 1 },
+                    { type: 'dd', text: "As the universe expands, it {0}. This allowed fundamental particles to bind into {1}, which later clumped together under gravity to form the first {2}.", options: [["heats up", "cools down", "remains constant"], ["stars", "black holes", "simple atoms (H, He)"], ["supernovae", "stars and galaxies", "quarks"]], ans: [1, 2, 1] },
+                    { type: 'dd', text: "The history of the cosmos is one of increasing {0}. From a hot soup of plasma, it cooled to form {1}, which eventually forged the {2} required for life.", options: [["temperature", "complexity", "density"], ["simple atoms", "heavy elements", "planets"], ["hydrogen", "heavy elements", "dark energy"]], ans: [1, 0, 1] },
+                    { type: 'order', text: "Order the major epochs of the Universe from EARLIEST to LATEST:", items: [{id:"A", text:"Big Bang and rapid expansion of energy."}, {id:"B", text:"Formation of the first protons and neutrons."}, {id:"C", text:"Release of the Cosmic Microwave Background (atoms form)."}, {id:"D", text:"Ignition of the first stars and formation of galaxies."}], correctOrder: ["A", "B", "C", "D"] },
+                    { type: 'order', text: "Order the emergence of these structures in the history of the universe:", items: [{id:"A", text:"Quarks and basic subatomic particles"}, {id:"B", text:"Hydrogen and Helium nuclei"}, {id:"C", text:"Massive first-generation stars"}, {id:"D", text:"Rocky planets containing Iron and Silicon"}], correctOrder: ["A", "B", "C", "D"] }
+                ]
+            }
+        ];
+
+        let userTest = [];
+        let currentQIndex = 0;
+        let score = 0;
+        let isAnswered = false;
+
+        function initTest() {
+            userTest = [];
+            currentQIndex = 0;
+            score = 0;
+            
+            // For each of the 15 topics, select 1 random variation
+            coreTopics.forEach(topicData => {
+                const randomVarIndex = Math.floor(Math.random() * topicData.vars.length);
+                const selectedVar = topicData.vars[randomVarIndex];
+                
+                // Construct the flat question object
+                userTest.push({
+                    topic: topicData.topic,
+                    stim: topicData.stim,
+                    theory: topicData.theory,
+                    ...selectedVar
+                });
+            });
+
+            document.getElementById('win-screen').classList.add('hidden');
+            document.getElementById('test-container').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function updateProgress() {
+            document.getElementById('q-current').innerText = currentQIndex + 1;
+            const pct = ((currentQIndex) / 15) * 100;
+            document.getElementById('progress-bar').style.width = pct + '%';
+        }
+
+        function renderQuestion() {
+            isAnswered = false;
+            document.getElementById('feedback-box').classList.add('hidden');
+            document.getElementById('btn-check').classList.remove('hidden');
+            document.getElementById('btn-next').classList.add('hidden');
+            updateProgress();
+
+            const q = userTest[currentQIndex];
+            
+            document.getElementById('stimulus-pane').innerHTML = `
+                <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r shadow-sm">
+                    <h2 class="text-xl font-bold text-blue-900 mb-2">Scenario: ${q.topic}</h2>
+                    <p class="text-gray-800 leading-relaxed text-lg">${q.stim}</p>
+                </div>
+            `;
+
+            const qPane = document.getElementById('question-content');
+            qPane.innerHTML = '';
+
+            if (q.type === 'mc2') {
+                qPane.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Part A</h3>
+                        <p class="text-gray-800 mb-4 text-lg">${q.qA}</p>
+                        <div class="space-y-3" id="opts-A">
+                            ${q.optA.map((opt, i) => `
+                                <label class="radio-container">
+                                    ${opt}
+                                    <input type="radio" name="partA" value="${i}">
+                                    <span class="checkmark"></span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Part B</h3>
+                        <p class="text-gray-800 mb-4 text-lg">${q.qB}</p>
+                        <div class="space-y-3" id="opts-B">
+                            ${q.optB.map((opt, i) => `
+                                <label class="radio-container">
+                                    ${opt}
+                                    <input type="radio" name="partB" value="${i}">
+                                    <span class="checkmark"></span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (q.type === 'dd') {
+                let htmlStr = q.text;
+                q.options.forEach((optArr, i) => {
+                    let selectHtml = `<select id="dd-${i}" class="inline-dd mx-1 text-blue-700 bg-blue-50"><option value="" disabled selected>[ Select ]</option>`;
+                    optArr.forEach((opt, j) => {
+                        selectHtml += `<option value="${j}">${opt}</option>`;
+                    });
+                    selectHtml += `</select>`;
+                    htmlStr = htmlStr.replace(`{${i}}`, selectHtml);
+                });
+                qPane.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Select the correct terms to complete the statement:</h3>
+                        <p class="text-gray-800 leading-loose text-xl">${htmlStr}</p>
+                    </div>
+                `;
+            } else if (q.type === 'order') {
+                qPane.innerHTML = `
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">${q.text}</h3>
+                        <p class="text-sm text-gray-500 mb-4 italic">Drag and drop the items to reorder them.</p>
+                        <ul id="drag-list" class="draggable-list">
+                            ${[...q.items].sort(()=>Math.random()-0.5).map(item => `
+                                <li class="draggable-item" draggable="true" data-id="${item.id}">
+                                    <span class="drag-handle">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                                    </span>
+                                    <span class="text-lg text-gray-800 font-medium">${item.text}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+                initDragAndDrop();
+            }
+        }
+
+        let dragSrcEl = null;
+        function initDragAndDrop() {
+            const items = document.querySelectorAll('.draggable-item');
+            items.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    dragSrcEl = this;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/html', this.innerHTML);
+                    this.classList.add('dragging');
+                });
+                item.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    const bounding = this.getBoundingClientRect();
+                    const offset = bounding.y + (bounding.height / 2);
+                    if (e.clientY - offset > 0) {
+                        this.style.borderBottom = "2px solid #3b82f6";
+                        this.style.borderTop = "";
+                    } else {
+                        this.style.borderTop = "2px solid #3b82f6";
+                        this.style.borderBottom = "";
+                    }
+                    return false;
+                });
+                item.addEventListener('dragleave', function(e) {
+                    this.style.borderTop = "";
+                    this.style.borderBottom = "";
+                });
+                item.addEventListener('drop', function(e) {
+                    e.stopPropagation();
+                    this.style.borderTop = "";
+                    this.style.borderBottom = "";
+                    if (dragSrcEl !== this) {
+                        const list = this.parentNode;
+                        const bounding = this.getBoundingClientRect();
+                        const offset = bounding.y + (bounding.height / 2);
+                        if (e.clientY - offset > 0) {
+                            list.insertBefore(dragSrcEl, this.nextSibling);
+                        } else {
+                            list.insertBefore(dragSrcEl, this);
+                        }
+                    }
+                    return false;
+                });
+                item.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    items.forEach(i => { i.style.borderTop = ""; i.style.borderBottom = ""; });
+                });
+            });
+        }
+
+        function checkAnswer() {
+            if (isAnswered) return;
+            const q = userTest[currentQIndex];
+            let isCorrect = false;
+
+            if (q.type === 'mc2') {
+                const ansA = document.querySelector('input[name="partA"]:checked');
+                const ansB = document.querySelector('input[name="partB"]:checked');
+                
+                if (!ansA || !ansB) {
+                    alert("Please answer both Part A and Part B.");
+                    return;
+                }
+                
+                isCorrect = (parseInt(ansA.value) === q.ansA && parseInt(ansB.value) === q.ansB);
+                
+                document.querySelectorAll('#opts-A label').forEach((lbl, i) => {
+                    if(i === q.ansA) lbl.classList.add('text-green-700', 'font-bold');
+                    else if(ansA.value == i && !isCorrect) lbl.classList.add('text-red-600', 'line-through');
+                });
+                document.querySelectorAll('#opts-B label').forEach((lbl, i) => {
+                    if(i === q.ansB) lbl.classList.add('text-green-700', 'font-bold');
+                    else if(ansB.value == i && !isCorrect) lbl.classList.add('text-red-600', 'line-through');
+                });
+
+            } else if (q.type === 'dd') {
+                let allSelected = true;
+                q.options.forEach((optArr, i) => {
+                    const select = document.getElementById(`dd-${i}`);
+                    if(!select || select.value === "") allSelected = false;
+                });
+                
+                if(!allSelected) {
+                    alert("Please complete all dropdowns.");
+                    return;
+                }
+
+                let allCorrect = true;
+                q.options.forEach((optArr, i) => {
+                    const select = document.getElementById(`dd-${i}`);
+                    if(parseInt(select.value) !== q.ans[i]) {
+                        allCorrect = false;
+                        if(select) select.classList.add('border-red-500', 'text-red-700', 'bg-red-50');
+                    } else {
+                        if(select) select.classList.add('border-green-500', 'text-green-700', 'bg-green-50');
+                    }
+                });
+                isCorrect = allCorrect;
+
+            } else if (q.type === 'order') {
+                const currentOrder = Array.from(document.querySelectorAll('.draggable-item')).map(li => li.getAttribute('data-id'));
+                isCorrect = JSON.stringify(currentOrder) === JSON.stringify(q.correctOrder);
+                
+                document.querySelectorAll('.draggable-item').forEach((li, i) => {
+                    if (li.getAttribute('data-id') === q.correctOrder[i]) {
+                        li.classList.add('border-green-500', 'bg-green-50');
+                    } else {
+                        li.classList.add('border-red-500', 'bg-red-50');
+                    }
+                });
+            }
+
+            if (isCorrect) score++;
+            q.userCorrect = isCorrect;
+
+            showFeedback(isCorrect, q.theory);
+            isAnswered = true;
+            document.getElementById('btn-check').classList.add('hidden');
+            document.getElementById('btn-next').classList.remove('hidden');
+        }
+
+        function showFeedback(isCorrect, theory) {
+            const fb = document.getElementById('feedback-box');
+            fb.classList.remove('hidden', 'bg-green-100', 'border-green-500', 'text-green-800', 'bg-red-100', 'border-red-500', 'text-red-800');
+            
+            if(isCorrect) {
+                fb.classList.add('bg-green-100', 'border-green-500', 'text-green-900', 'correct-anim');
+                fb.innerHTML = `
+                    <div class="flex items-center mb-2">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h4 class="font-bold text-lg">Correct!</h4>
+                    </div>
+                    <p class="text-base"><strong>Background Theory:</strong> ${theory}</p>
+                `;
+            } else {
+                fb.classList.add('bg-red-100', 'border-red-500', 'text-red-900', 'incorrect-anim');
+                fb.innerHTML = `
+                    <div class="flex items-center mb-2">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h4 class="font-bold text-lg">Incorrect.</h4>
+                    </div>
+                    <p class="text-base"><strong>Background Theory:</strong> ${theory}</p>
+                `;
+            }
+            
+            const container = document.querySelector('.question-pane');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function nextQuestion() {
+            currentQIndex++;
+            if (currentQIndex < userTest.length) {
+                renderQuestion();
+            } else {
+                showWinScreen();
+            }
+        }
+
+        function showWinScreen() {
+            document.getElementById('test-container').classList.add('hidden');
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+            
+            const pct = score / 15;
+            document.getElementById('final-score').innerText = `${score}/15`;
+            
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('verif-code').innerText = code;
+
+            if (pct >= 0.90) {
+                let bursts = 1;
+                if (pct >= 0.95) bursts = 2;
+                if (pct === 1.0) bursts = 3;
+                
+                let count = 0;
+                const interval = setInterval(() => {
+                    confetti({
+                        particleCount: 150,
+                        spread: 80,
+                        origin: { y: 0.6 },
+                        colors: ['#1e3a8a', '#3b82f6', '#10b981', '#f59e0b']
+                    });
+                    count++;
+                    if (count >= bursts) clearInterval(interval);
+                }, 800);
+            }
+        }
+
+        function downloadStudyGuide() {
+            let htmlContent = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>NM-ASR Space Science Study Guide</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }
+                    h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+                    .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+                    .stimulus { background: #eff6ff; padding: 15px; border-left: 4px solid #3b82f6; margin-bottom: 15px; }
+                    .theory { background: #ecfdf5; padding: 15px; border-left: 4px solid #10b981; margin-top: 15px; }
+                    .correct { color: #047857; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h1>NM-ASR Space Science Study Guide</h1>
+                <p>Generated from your recent practice test. Use this to review the concepts and explanations.</p>
+            `;
+
+            userTest.forEach((q, idx) => {
+                htmlContent += `<div class="card">
+                    <h3>Question ${idx + 1}: ${q.topic}</h3>
+                    <div class="stimulus"><strong>Scenario:</strong> ${q.stim}</div>
+                `;
+
+                if (q.type === 'mc2') {
+                    htmlContent += `
+                        <p><strong>Part A:</strong> ${q.qA}</p>
+                        <p><em>Correct Answer:</em> <span class="correct">${q.optA[q.ansA]}</span></p>
+                        <p><strong>Part B:</strong> ${q.qB}</p>
+                        <p><em>Correct Evidence:</em> <span class="correct">${q.optB[q.ansB]}</span></p>
+                    `;
+                } else if (q.type === 'dd') {
+                    let filledText = q.text;
+                    q.options.forEach((optArr, i) => {
+                        filledText = filledText.replace(`{${i}}`, `[ <span class="correct">${optArr[q.ans[i]]}</span> ]`);
+                    });
+                    htmlContent += `<p><strong>Statement:</strong> ${filledText}</p>`;
+                } else if (q.type === 'order') {
+                    htmlContent += `<p><strong>Task:</strong> ${q.text}</p><ol>`;
+                    q.correctOrder.forEach(id => {
+                        const item = q.items.find(i => i.id === id);
+                        htmlContent += `<li><span class="correct">${item.text}</span></li>`;
+                    });
+                    htmlContent += `</ol>`;
+                }
+
+                htmlContent += `
+                    <div class="theory"><strong>Background Theory:</strong> ${q.theory}</div>
+                </div>`;
+            });
+
+            htmlContent += `</body></html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'NM-ASR_Space_Science_Study_Guide.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        window.onload = initTest;
+    </script>
+</body>
+</html>
