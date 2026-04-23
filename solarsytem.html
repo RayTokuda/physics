@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar System Formation Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #050510; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 20, 30, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            width: 320px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .slider-container { margin-bottom: 15px; }
+        .slider-container label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; color: #cbd5e1; }
+        input[type=range] { width: 100%; accent-color: #6366f1; }
+        
+        .btn {
+            width: 100%;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .btn:hover { background: #4338ca; }
+        
+        #stats { font-size: 0.8rem; color: #94a3b8; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1 class="text-xl font-bold mb-1 text-indigo-400">Nebula to System</h1>
+        <p class="text-xs text-slate-400 mb-4 pb-2 border-b border-white/10">N-body gravitational simulation</p>
+        
+        <div class="slider-container">
+            <label><span>Initial Particles</span> <span id="val-particles">400</span></label>
+            <input type="range" id="param-particles" min="100" max="2500" step="50" value="400">
+        </div>
+
+        <div class="slider-container">
+            <label><span>Chaotic Velocity</span> <span id="val-init-vel">0.25</span></label>
+            <input type="range" id="param-init-vel" min="0" max="2" step="0.05" value="0.25">
+        </div>
+
+        <div class="slider-container">
+            <label><span>Angular Momentum</span> <span id="val-ang-mom">0.90</span></label>
+            <input type="range" id="param-ang-mom" min="0" max="2" step="0.05" value="0.90">
+        </div>
+
+        <div class="slider-container">
+            <label><span>Simulation Speed</span> <span id="val-speed">1x</span></label>
+            <input type="range" id="param-speed" min="0.1" max="10" step="0.1" value="1">
+        </div>
+
+        <div class="slider-container">
+            <label><span>Camera Zoom</span> <span id="val-zoom">1.00x</span></label>
+            <input type="range" id="param-zoom" min="0.01" max="4" step="0.01" value="1">
+        </div>
+        <button class="btn" id="btn-zoom-fit" style="margin-top: 0px; margin-bottom: 15px; background: #3b82f6;">Zoom to Fit Center</button>
+
+        <div class="slider-container" style="margin-top: 15px;">
+            <label><span>Gas Drag (Stabilization)</span> <span id="val-drag">Medium</span></label>
+            <input type="range" id="param-drag" min="0" max="0.002" step="0.0001" value="0.0005">
+        </div>
+
+        <button class="btn" id="btn-restart">Generate New Nebula</button>
+
+        <div id="stats">
+            Entities: <span id="stat-count" class="text-white">0</span><br>
+            Largest Mass: <span id="stat-mass" class="text-white">0</span><br>
+            Largest Body %: <span id="stat-mass-pct" class="text-white">0%</span>
+        </div>
+    </div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        // UI Elements
+        const paramParticles = document.getElementById('param-particles');
+        const paramSpeed = document.getElementById('param-speed');
+        const paramDrag = document.getElementById('param-drag');
+        const btnRestart = document.getElementById('btn-restart');
+        const paramZoom = document.getElementById('param-zoom');
+        const btnZoomFit = document.getElementById('btn-zoom-fit');
+        const paramInitVel = document.getElementById('param-init-vel');
+        const paramAngMom = document.getElementById('param-ang-mom');
+        
+        const random = Math.random;
+
+        // State
+        let width, height, cx, cy;
+        let particles = [];
+        let animationId;
+        let zoom = 1.0;
+        
+        // Physics constants
+        const G = 0.5; // Gravitational constant
+        const SOFTENING = 2.0; // Prevents extreme forces at close ranges
+        const DENSITY = 1.0; // Used to calculate radius from mass
+
+        class Particle {
+            constructor(x, y, vx, vy, mass) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.mass = mass;
+                this.updateRadius();
+                this.color = this.generateColor();
+                this.isStar = false;
+                this.hasAtmosphere = false;
+            }
+
+            updateRadius() {
+                // Volume = mass / density. radius = cbrt(Volume) * scale
+                this.radius = Math.cbrt(this.mass / DENSITY) * 1.5;
+                if(this.radius < 0.5) this.radius = 0.5;
+            }
+
+            generateColor() {
+                // Color based roughly on mass
+                if (this.mass < 5) return '#888888'; // dust/asteroids
+                if (this.mass < 20) return `hsl(${random()*360}, 40%, 60%)`; // small planets
+                if (this.mass < 100) return `hsl(${random()*60 + 180}, 70%, 50%)`; // gas giants
+                return '#ffddaa'; // star material
+            }
+            
+            checkStatus() {
+                // Determine if it's the central star (simplification for visuals)
+                if (this.mass > 500) {
+                    this.isStar = true;
+                    this.color = '#ffffff';
+                } else {
+                    this.isStar = false;
+                    if(this.mass > 30) this.hasAtmosphere = true;
+                }
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            cx = width / 2;
+            cy = height / 2;
+        }
+
+        function initSimulation() {
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            const numParticles = parseInt(paramParticles.value);
+            particles = [];
+            
+            // Reset zoom
+            zoom = 1.0;
+            if(paramZoom) paramZoom.value = zoom;
+            if(document.getElementById('val-zoom')) document.getElementById('val-zoom').innerText = '1.00x';
+
+            // Randomize the nebula's overall angular momentum direction
+            const spinDir = random() > 0.5 ? 1 : -1;
+            
+            const maxDist = Math.min(width, height) * 0.45;
+
+            // Starting mass of all particles
+            const baseParticleMass = 0.85;
+            const totalCloudMass = numParticles * baseParticleMass;
+            
+            const chaoticVel = parseFloat(paramInitVel.value);
+            const angMom = parseFloat(paramAngMom.value);
+
+            // Generate particles in a swirling cloud (no pre-made star)
+            for (let i = 0; i < numParticles; i++) {
+                // Keep away from the immediate center so they don't instantly fall in
+                const minR = 10;
+                const r = minR + (maxDist - minR) * Math.pow(random(), 0.7); 
+                const angle = random() * Math.PI * 2;
+                
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+                
+                // Estimate the mass interior to this particle's radius to approximate a stable orbital velocity.
+                // Assuming roughly uniform 2D distribution: M_interior = TotalMass * (r / maxDist)^2
+                const estimatedInteriorMass = totalCloudMass * Math.pow(r / maxDist, 2);
+                
+                // Calculate orbital velocity required: v = sqrt(G*M/r)
+                // We multiply by the angular momentum slider to control the net rotation
+                let baseV = Math.sqrt((G * Math.max(estimatedInteriorMass, 15)) / r) * angMom;
+                
+                // Add random noise to velocity to allow chaotic accretion
+                const vx = -Math.sin(angle) * baseV * spinDir + (random() - 0.5) * chaoticVel * 2;
+                const vy = Math.cos(angle) * baseV * spinDir + (random() - 0.5) * chaoticVel * 2;
+                
+                // ALL particles start exactly the same small size
+                const mass = baseParticleMass;
+                
+                particles.push(new Particle(x, y, vx, vy, mass));
+            }
+
+            // Clear canvas black instantly
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+            
+            updateUIStats();
+            animate();
+        }
+
+        function updatePhysics(dt) {
+            const dragForce = parseFloat(paramDrag.value);
+
+            // Calculate gravitational forces O(N^2)
+            for (let i = 0; i < particles.length; i++) {
+                const p1 = particles[i];
+                let ax = 0;
+                let ay = 0;
+
+                for (let j = 0; j < particles.length; j++) {
+                    if (i === j) continue;
+                    
+                    const p2 = particles[j];
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distSq = dx*dx + dy*dy;
+                    
+                    // Collision Check
+                    const minDist = p1.radius + p2.radius;
+                    if (distSq < minDist * minDist) {
+                        handleCollision(i, j);
+                        i--; // Adjust index because array length changed
+                        break; 
+                    }
+
+                    // Gravity force calculation
+                    const force = (G * p2.mass) / (distSq + SOFTENING);
+                    const dist = Math.sqrt(distSq);
+                    
+                    ax += force * (dx / dist);
+                    ay += force * (dy / dist);
+                }
+
+                // Apply drag (simulates gas friction in protoplanetary disk, circularizes orbits)
+                // Drag is stronger for smaller particles, weaker for massive ones
+                const dragFactor = dragForce * (1 / Math.sqrt(p1.mass));
+                ax -= p1.vx * dragFactor;
+                ay -= p1.vy * dragFactor;
+
+                p1.vx += ax * dt;
+                p1.vy += ay * dt;
+            }
+
+            // Update positions
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].x += particles[i].vx * dt;
+                particles[i].y += particles[i].vy * dt;
+                particles[i].checkStatus();
+                
+                // Remove particles that flew extremely far away
+                if (particles[i].x < -width*2 || particles[i].x > width*3 || 
+                    particles[i].y < -height*2 || particles[i].y > height*3) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function handleCollision(i, j) {
+            let p1 = particles[i];
+            let p2 = particles[j];
+
+            // Ensure p1 is the more massive one
+            if (p2.mass > p1.mass) {
+                [p1, p2] = [p2, p1];
+                let temp = i; i = j; j = temp;
+            }
+
+            // Moon formation predisposition logic
+            // If a moderately sized body hits a much larger body, occasionally spawn a moon
+            // instead of a complete merge.
+            const massRatio = p1.mass / p2.mass;
+            const isGlancing = true; // Simplified: we assume standard merges are chaotic enough to spawn debris
+
+            if (p1.mass > 20 && massRatio > 5 && massRatio < 50 && Math.random() < 0.3) {
+                // Spawn a moon from the debris
+                const moonMass = p2.mass * 0.4; // 40% of the small body becomes the moon
+                
+                // Conserve momentum for the main body
+                const remainingMergeMass = p2.mass - moonMass;
+                const newMass = p1.mass + remainingMergeMass;
+                p1.vx = (p1.mass * p1.vx + remainingMergeMass * p2.vx) / newMass;
+                p1.vy = (p1.mass * p1.vy + remainingMergeMass * p2.vy) / newMass;
+                p1.mass = newMass;
+                p1.updateRadius();
+
+                // Create the moon at a stable orbital distance
+                const orbitRadius = p1.radius * (2 + Math.random() * 3);
+                // Random angle for moon position relative to planet
+                const angle = Math.random() * Math.PI * 2;
+                
+                const mx = p1.x + Math.cos(angle) * orbitRadius;
+                const my = p1.y + Math.sin(angle) * orbitRadius;
+                
+                // Calculate circular orbital velocity: v = sqrt(G*M/r)
+                const vOrbit = Math.sqrt(G * p1.mass / orbitRadius);
+                const mvx = p1.vx - Math.sin(angle) * vOrbit;
+                const mvy = p1.vy + Math.cos(angle) * vOrbit;
+
+                particles.push(new Particle(mx, my, mvx, mvy, moonMass));
+            } else {
+                // Standard Merge (Perfect inelastic collision)
+                const newMass = p1.mass + p2.mass;
+                const newVx = (p1.mass * p1.vx + p2.mass * p2.vx) / newMass;
+                const newVy = (p1.mass * p1.vy + p2.mass * p2.vy) / newMass;
+                
+                // Position shifts slightly towards center of mass
+                p1.x = (p1.mass * p1.x + p2.mass * p2.x) / newMass;
+                p1.y = (p1.mass * p1.y + p2.mass * p2.y) / newMass;
+                
+                p1.vx = newVx;
+                p1.vy = newVy;
+                p1.mass = newMass;
+                p1.updateRadius();
+                
+                // Blend colors if they are comparable in mass, otherwise keep bigger one
+                if (massRatio < 3) {
+                    p1.color = p2.color; // Simplify: just take the color of what it hit if it was a big hit
+                }
+            }
+
+            // Remove the secondary particle
+            particles.splice(Math.max(i, j), 1);
+            particles.splice(Math.min(i, j), 1, p1); // re-insert updated p1 just to be safe
+        }
+
+        function draw() {
+            // Reset transform before clearing for full screen blur
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            // Motion blur/trail effect
+            ctx.fillStyle = 'rgba(5, 5, 16, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Apply Camera Zoom
+            ctx.translate(cx, cy);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-cx, -cy);
+
+            // Draw particles
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                
+                if (p.isStar) {
+                    // Draw Star Glow (Smaller Corona)
+                    const gradient = ctx.createRadialGradient(p.x, p.y, p.radius*0.8, p.x, p.y, p.radius*1.8);
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.3, '#ffddaa');
+                    gradient.addColorStop(1, 'rgba(255, 150, 50, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath(); // Start a fresh path for the corona
+                    ctx.arc(p.x, p.y, p.radius*1.8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Draw Planet/Dust
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+
+                    if (p.hasAtmosphere) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius * 1.4, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(100, 200, 255, 0.1)';
+                        ctx.fill();
+                    }
+                }
+            });
+        }
+
+        let lastUIUpdate = 0;
+        function updateUIStats() {
+            const now = Date.now();
+            if (now - lastUIUpdate > 500) { // Update UI twice a second
+                document.getElementById('stat-count').innerText = particles.length;
+                let maxMass = 0;
+                let totalMass = 0;
+                particles.forEach(p => { 
+                    totalMass += p.mass;
+                    if(p.mass > maxMass) maxMass = p.mass; 
+                });
+                document.getElementById('stat-mass').innerText = maxMass.toFixed(0);
+                
+                let massPct = totalMass > 0 ? (maxMass / totalMass) * 100 : 0;
+                let pctEl = document.getElementById('stat-mass-pct');
+                if (pctEl) pctEl.innerText = massPct.toFixed(1) + '%';
+                
+                lastUIUpdate = now;
+            }
+        }
+
+        function animate() {
+            const speed = parseFloat(paramSpeed.value);
+            
+            // To make simulation faster without losing physics accuracy, 
+            // we step the physics engine multiple times per frame rather than increasing dt
+            const steps = Math.ceil(speed);
+            const dt = speed / steps;
+
+            for (let i = 0; i < steps; i++) {
+                updatePhysics(dt);
+            }
+            
+            // Center the universe on the Center of Mass
+            let totalMass = 0;
+            let comX = 0;
+            let comY = 0;
+            
+            for (let i = 0; i < particles.length; i++) {
+                totalMass += particles[i].mass;
+                comX += particles[i].x * particles[i].mass;
+                comY += particles[i].y * particles[i].mass;
+            }
+            
+            if (totalMass > 0) {
+                comX /= totalMass;
+                comY /= totalMass;
+                
+                const shiftX = cx - comX;
+                const shiftY = cy - comY;
+                
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].x += shiftX;
+                    particles[i].y += shiftY;
+                }
+            }
+            
+            draw();
+            updateUIStats();
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', resize);
+        
+        btnRestart.addEventListener('click', initSimulation);
+        
+        paramParticles.addEventListener('input', (e) => document.getElementById('val-particles').innerText = e.target.value);
+        paramInitVel.addEventListener('input', (e) => document.getElementById('val-init-vel').innerText = parseFloat(e.target.value).toFixed(2));
+        paramAngMom.addEventListener('input', (e) => document.getElementById('val-ang-mom').innerText = parseFloat(e.target.value).toFixed(2));
+        paramSpeed.addEventListener('input', (e) => document.getElementById('val-speed').innerText = e.target.value + 'x');
+        
+        paramZoom.addEventListener('input', (e) => {
+            zoom = parseFloat(e.target.value);
+            document.getElementById('val-zoom').innerText = zoom.toFixed(2) + 'x';
+        });
+
+        btnZoomFit.addEventListener('click', () => {
+            if (particles.length === 0) return;
+            let maxDistSq = 0;
+            for (let p of particles) {
+                let dx = p.x - cx;
+                let dy = p.y - cy;
+                let distSq = dx*dx + dy*dy;
+                if (distSq > maxDistSq) maxDistSq = distSq;
+            }
+            if (maxDistSq > 0) {
+                let maxDist = Math.sqrt(maxDistSq);
+                // Calculate zoom to leave a 10% margin around the farthest particle
+                let targetZoom = (Math.min(cx, cy) * 0.9) / maxDist;
+                zoom = Math.max(0.01, Math.min(4, targetZoom));
+                paramZoom.value = zoom;
+                document.getElementById('val-zoom').innerText = zoom.toFixed(2) + 'x';
+            }
+        });
+
+        // Add mouse wheel zoom support
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault(); // prevent page scroll
+            const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+            zoom = Math.max(0.01, Math.min(4, zoom * zoomDelta));
+            paramZoom.value = zoom;
+            document.getElementById('val-zoom').innerText = zoom.toFixed(2) + 'x';
+        }, { passive: false });
+        
+        paramDrag.addEventListener('input', (e) => {
+            let val = parseFloat(e.target.value);
+            let text = "Medium";
+            if (val === 0) text = "None (Chaotic)";
+            else if (val < 0.0005) text = "Low";
+            else if (val > 0.001) text = "High";
+            document.getElementById('val-drag').innerText = text;
+        });
+
+        // Bootstrap
+        resize();
+        initSimulation();
+
+    </script>
+</body>
+</html>
