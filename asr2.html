@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Custom scrollbar for textareas to keep it looking clean */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 text-white p-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Science Assessment</h1>
+                <p id="header-student-name" class="text-indigo-200 mt-1 hidden"></p>
+            </div>
+            <i data-lucide="award" class="w-10 h-10 opacity-80"></i>
+        </div>
+
+        <div id="app-content" class="p-6 md:p-8">
+            <!-- Dynamic content will be injected here -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- Assessment Data & Rubrics ---
+        const QUESTIONS = [
+            {
+                id: 'q1',
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vS64wDmq7SdWIJwNDDXleOH1f_4wwN-gSe6A0hr2TmHz4cn_7KAuRBYmwJm8sy4cQzF9RW6u5VcLxwU/pub?w=410&h=716",
+                    prompt: "A: State what the pieces labeled X represent. \nB: Describe how electrical current is produced when the coil is turned.",
+                    criteria: "A: The pieces labeled X are permanent magnets. B: When the coil is turned, it moves through the magnetic field created by the permanent magnets. This changing magnetic field induces an electrical current in the wire coil (electromagnetic induction)."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRJPijNvR3xdE-Oaho0sTA1mMILE9Fy6ZLxOT9GhO_bR0gV3oRbiHBi28I3jDYM6vtm2opmz4x_dXSL/pub?w=960&h=720",
+                    prompt: "This is a diagram of an electric motor. What are the components labeled x and y? If the motor is initially at rest and positive charge is continuously sent through the + wire lead or alternatively, negative charge is continuously sent through the - wire lead. What will happen?",
+                    criteria: "Student must explicitly state: X = permanent magnets, Y = electromagnets. They must explain that the north pole of the electromagnet will repel the fixed north pole permanent magnet and the motor will spin clockwise. The south pole of the electromagnet will repel the south pole of the permanent magnet, also causing it to spin clockwise. After half a circle, the spinning contact disk will cause the polarity of the electromagnet to switch, ending up in the starting configuration, so the cycle continues and the motor spins as long as charge is sent."
+                }
+            },
+            {
+                id: 'q2',
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRIp70VYq0AlGUvGFUFSiWW59tRkuwmtUiQixq3PInacKrs1YVUJvRCs8buK9ZMF-14jOu4iqmpu69a/pub?w=551&h=684",
+                    prompt: "The bones of the human, bird and bat above have a different overall shape but a lot of them match up on a one to one basis. How does the theory of evolution account for this difference in overall shape but similarity in individual bone types?",
+                    criteria: "The student must explain the concept of homologous structures and common ancestry. They should mention that the underlying bone structure is inherited from a shared evolutionary ancestor, but the overall shapes have adapted (divergent evolution) due to different environmental pressures and functions (e.g., flying vs. grasping)."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRIp70VYq0AlGUvGFUFSiWW59tRkuwmtUiQixq3PInacKrs1YVUJvRCs8buK9ZMF-14jOu4iqmpu69a/pub?w=551&h=684",
+                    prompt: "Alternative Question: If these forelimbs are used for entirely different functions (like a bird flying and a human utilizing tools), why didn't they just evolve entirely different internal structures from scratch?",
+                    criteria: "The student should indicate that evolution works by modifying existing structures (descent with modification) rather than creating entirely new ones from scratch, strongly pointing to a shared common ancestry."
+                }
+            },
+            {
+                id: 'q3',
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vT27QNoSfCAKB4YK7uuBuMEiO-_SHP_R-mwugiPaLGWQ6uTFarK8XPIVtHgkj9s_WrQBiuvT5eTEPM_/pub?w=960&h=720",
+                    prompt: "The picture shows the wings of a pterosaur, bat and a bird, that all have a similar shape. Explain how the theory of evolution would account for this similarity.",
+                    criteria: "The student must explain convergent evolution or analogous structures. They should explain that these animals do not share a recent common winged ancestor. Instead, they independently evolved similar wing shapes because they faced similar environmental challenges and selective pressures (the need for aerodynamics and flight)."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vT27QNoSfCAKB4YK7uuBuMEiO-_SHP_R-mwugiPaLGWQ6uTFarK8XPIVtHgkj9s_WrQBiuvT5eTEPM_/pub?w=960&h=720",
+                    prompt: "Alternative Question: Are the wings of the pterosaur, bat, and bird considered homologous or analogous structures? Explain your reasoning based on evolutionary principles.",
+                    criteria: "They are analogous structures. They evolved independently to serve the same function (flight) due to similar selective pressures in their environments, not because they inherited wings from a common ancestor."
+                }
+            },
+            {
+                id: 'q4',
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRUIjSK9gHiO8HGIjDBbrLA1eWF7rAwYSDPK-Je5cTwCRiaPA8KW_eO23CCox58XdEzo_Cv0U64YMs_/pub?w=339&h=485",
+                    prompt: "Identify the type of symbiotic relationship between the clownfish and anemone. Explain your answer.",
+                    criteria: "The relationship is mutualism. The student must explain that both organisms benefit: the anemone provides a safe shelter/protection for the clownfish from predators, while the clownfish protects the anemone from its predators or provides nutrients through its waste."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vSyqEL2y2R1d23wP_dyamwNKIruOY1Y0Yl7Y9gBD82jOgbfiWVT_g0vw0S-yY2Ta1oucyxVVXbWujcP/pub?w=960&h=720",
+                    prompt: "Alternative Question: A remora fish can stick to a sea turtle without harming it. It feeds off scraps from the turtle's meals, and the turtle does not seem to mind the fish. Identify the type of symbiotic relationship depicted and explain your answer.",
+                    criteria: "The relationship is commensalism. The student must explain that one organism benefits (the remora gets food and a free ride) while the other organism is neither helped nor harmed (the turtle is unaffected)."
+                }
+            }
+        ];
+
+        // --- Application State ---
+        const state = {
+            step: 'welcome',
+            studentName: '',
+            answers: {},
+            altAnswers: {},
+            scores: {},
+            feedbacks: {},
+            needsAlternate: []
+        };
+
+        // --- AI Grading Engine ---
+        const isVercelEnvironment = () => {
+            if (typeof window === 'undefined') return false;
+            const hostname = window.location.hostname;
+            const protocol = window.location.protocol;
+            return protocol !== 'blob:' && 
+                   !hostname.includes('googleusercontent.com') && 
+                   !hostname.includes('usercontent.goog') && 
+                   !hostname.includes('sandbox') && 
+                   hostname !== 'localhost' && 
+                   hostname !== '127.0.0.1';
+        };
+
+        const gradeAnswer = async (questionData, studentAnswer) => {
+            const prompt = `Question Asked: ${questionData.prompt}\nCorrect Answer Criteria: ${questionData.criteria}\nStudent's Answer: ${studentAnswer}`;
+            const systemInstruction = `You are a strict but fair science teacher grading a student's assessment. 
+Grade the student's answer out of 5 points based strictly on the 'Correct Answer Criteria'. 
+You MUST return ONLY a valid JSON object.
+Format: { 
+  "score": <number between 0 and 5>
+}`;
+
+            const parseResponse = (text) => {
+                try {
+                    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const parsed = JSON.parse(cleanText);
+                    const validScore = Math.min(5, Math.max(0, Number(parsed.score) || 0));
+
+                    return {
+                        score: validScore
+                    };
+                } catch (e) {
+                    console.error("Failed to parse AI response:", e);
+                    return { score: 0 };
+                }
+            };
+
+            if (isVercelEnvironment()) {
+                try {
+                    const res = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, systemInstruction })
+                    });
+                    const data = await res.json();
+                    return parseResponse(data.text);
+                } catch (e) {
+                    console.error("Vercel Backend Error:", e);
+                    return { score: 0, feedback: "Error connecting to grading server.", improvementHint: "" };
+                }
+            } else {
+                const apiKey = ""; 
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                score: { type: "INTEGER" }
+                            }
+                        }
+                    }
+                };
+
+                let retries = 5;
+                let delay = 1000;
+                while(retries > 0) {
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error("API Request Failed");
+                        const data = await res.json();
+                        return parseResponse(data.candidates[0].content.parts[0].text);
+                    } catch(e) {
+                        retries--;
+                        if(retries === 0) return { score: 0, feedback: "Grading failed due to network error.", improvementHint: "" };
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    }
+                }
+            }
+        };
+
+        // --- Render Functions ---
+        const appContent = document.getElementById('app-content');
+
+        const updateIcons = () => {
+            lucide.createIcons();
+        };
+
+        const render = () => {
+            switch(state.step) {
+                case 'welcome': renderWelcome(); break;
+                case 'initial': renderInitial(); break;
+                case 'grading_initial':
+                case 'grading_alternate': renderGrading(); break;
+                case 'review_initial': renderReviewInitial(); break;
+                case 'alternate': renderAlternate(); break;
+                case 'final': renderFinal(); break;
+            }
+            updateIcons();
+        };
+
+        const renderWelcome = () => {
+            appContent.innerHTML = `
+                <div class="text-center py-12">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-4">Welcome to the Assessment</h2>
+                    <p class="text-slate-600 mb-8 max-w-lg mx-auto">
+                        This exercise consists of ${QUESTIONS.length} questions. Please provide detailed scientific explanations for each diagram. Your answers will be AI-graded for up to 5 points each.
+                    </p>
+                    <div class="max-w-xs mx-auto">
+                        <input
+                            type="text"
+                            id="student-name-input"
+                            placeholder="Enter your full name"
+                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none mb-4"
+                            oninput="checkNameInput()"
+                        />
+                        <button
+                            id="start-btn"
+                            disabled
+                            onclick="startAssessment()"
+                            class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                            Start Assessment <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        const checkNameInput = () => {
+            const input = document.getElementById('student-name-input');
+            const btn = document.getElementById('start-btn');
+            if(input.value.trim().length > 0) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+        };
+
+        const startAssessment = () => {
+            const name = document.getElementById('student-name-input').value.trim();
+            state.studentName = name;
+            
+            const headerName = document.getElementById('header-student-name');
+            headerName.textContent = `Student: ${name}`;
+            headerName.classList.remove('hidden');
+
+            state.step = 'initial';
+            render();
+        };
+
+        const renderInitial = () => {
+            let html = `
+                <div class="space-y-10">
+                    <div class="mb-6 pb-4 border-b border-slate-200">
+                        <h2 class="text-xl font-bold">Part 1: Initial Questions</h2>
+                        <p class="text-slate-500">Answer each question thoroughly based on the provided diagrams.</p>
+                    </div>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                html += `
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="md:w-1/3 flex-shrink-0">
+                                <img src="${q.initial.image}" alt="Diagram ${index + 1}" class="w-full h-auto object-contain bg-white rounded-lg border border-slate-200 p-2" />
+                            </div>
+                            <div class="md:w-2/3 flex flex-col">
+                                <h3 class="font-semibold text-lg mb-2">Question ${index + 1}</h3>
+                                <p class="text-slate-700 mb-4 whitespace-pre-wrap">${q.initial.prompt}</p>
+                                <textarea
+                                    id="ans-${q.id}"
+                                    class="w-full flex-grow min-h-[120px] p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y"
+                                    placeholder="Type your explanation here..."
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="flex justify-end pt-6 border-t border-slate-200">
+                        <button
+                            onclick="handleInitialSubmit()"
+                            class="bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            Submit Answers for Grading
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+        };
+
+        const handleInitialSubmit = async () => {
+            // Collect answers before changing step
+            QUESTIONS.forEach(q => {
+                const text = document.getElementById(`ans-${q.id}`).value;
+                state.answers[q.id] = text;
+            });
+
+            state.step = 'grading_initial';
+            render();
+
+            let missedQuestions = [];
+
+            for (const q of QUESTIONS) {
+                const studentAns = state.answers[q.id] || "No answer provided.";
+                const result = await gradeAnswer(q.initial, studentAns);
+                
+                state.scores[q.id] = result.score;
+                state.feedbacks[q.id] = result;
+                
+                if (result.score < 5) {
+                    missedQuestions.push(q.id);
+                }
+            }
+
+            state.needsAlternate = missedQuestions;
+            state.step = 'review_initial';
+            render();
+        };
+
+        const renderGrading = () => {
+            appContent.innerHTML = `
+                <div class="py-20 text-center flex flex-col items-center">
+                    <i data-lucide="loader-2" class="w-16 h-16 text-indigo-600 animate-spin mb-6"></i>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">AI is Analyzing Your Answers...</h2>
+                    <p class="text-slate-500">Evaluating responses against scientific rubrics.</p>
+                </div>
+            `;
+        };
+
+        const renderReviewInitial = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.length * 5;
+
+            let html = `
+                <div class="space-y-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold mb-2">Initial Results</h2>
+                        <div class="inline-block bg-indigo-100 text-indigo-800 px-6 py-2 rounded-full font-semibold text-xl">
+                            Score: ${totalScore} / ${maxScore}
+                        </div>
+                    </div>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                const score = state.scores[q.id];
+                const isPerfect = score === 5;
+                const answerText = state.answers[q.id] || "";
+
+                html += `
+                    <div class="p-5 rounded-lg border-l-4 ${isPerfect ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i data-lucide="${isPerfect ? 'check-circle' : 'x-circle'}" class="${isPerfect ? 'text-green-600' : 'text-red-600'}"></i>
+                            <h3 class="font-bold text-lg">Question ${index + 1}: ${score}/5 Points</h3>
+                        </div>
+                        <p class="text-slate-700 italic mb-3">"${answerText}"</p>
+                        
+                        <div class="bg-blue-50 p-3 rounded border border-blue-200 text-sm text-blue-900 mb-2 shadow-sm">
+                            <strong class="flex items-center gap-1 mb-1"><i data-lucide="book-open" class="w-4 h-4"></i> Grading Rubric (Ideal Answer):</strong> 
+                            ${q.initial.criteria}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="text-center pt-8 border-t border-slate-200">
+            `;
+
+            if (state.needsAlternate.length > 0) {
+                html += `
+                        <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-amber-500 mx-auto mb-3"></i>
+                            <h3 class="text-xl font-bold text-amber-800 mb-2">Points Missed!</h3>
+                            <p class="text-amber-700 mb-6">
+                                You didn't get full points on ${state.needsAlternate.length} question(s). You must answer alternative questions to regain those points.
+                            </p>
+                            <button
+                                onclick="state.step='alternate'; render();"
+                                class="bg-amber-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 mx-auto"
+                            >
+                                Proceed to Alternative Questions <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                `;
+            } else {
+                html += `
+                        <div>
+                            <h3 class="text-2xl font-bold text-green-600 mb-4">Perfect Score!</h3>
+                            <button
+                                onclick="state.step='final'; render();"
+                                class="bg-green-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                                View Final Certificate
+                            </button>
+                        </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            appContent.innerHTML = html;
+        };
+
+        const renderAlternate = () => {
+            let html = `
+                <div class="space-y-10">
+                    <div class="mb-6 pb-4 border-b border-slate-200">
+                        <h2 class="text-2xl font-bold text-amber-700 flex items-center gap-2">
+                            <i data-lucide="refresh-ccw" class="w-6 h-6"></i> Alternative Questions
+                        </h2>
+                        <p class="text-slate-600 mt-2">Answer these alternative questions correctly to replace your missed points.</p>
+                    </div>
+            `;
+
+            state.needsAlternate.forEach((qId) => {
+                const q = QUESTIONS.find(q => q.id === qId);
+                const originalIndex = QUESTIONS.findIndex(q => q.id === qId) + 1;
+                html += `
+                    <div class="bg-amber-50/50 p-6 rounded-xl border border-amber-200 shadow-sm">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="md:w-1/3 flex-shrink-0">
+                                <img src="${q.alternate.image}" alt="Alternate Diagram ${originalIndex}" class="w-full h-auto object-contain bg-white rounded-lg border border-slate-200 p-2" />
+                            </div>
+                            <div class="md:w-2/3 flex flex-col">
+                                <h3 class="font-semibold text-lg mb-2 text-amber-900">Alternative for Question ${originalIndex}</h3>
+                                <p class="text-slate-800 mb-4 font-medium whitespace-pre-wrap">${q.alternate.prompt}</p>
+                                <textarea
+                                    id="alt-ans-${q.id}"
+                                    class="w-full flex-grow min-h-[140px] p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-y"
+                                    placeholder="Type your revised explanation here..."
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="flex justify-end pt-6 border-t border-slate-200">
+                        <button
+                            onclick="handleAlternateSubmit()"
+                            class="bg-amber-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-amber-700 transition-colors"
+                        >
+                            Submit Alternative Answers
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+        };
+
+        const handleAlternateSubmit = async () => {
+            // Collect alt answers
+            state.needsAlternate.forEach(qId => {
+                const text = document.getElementById(`alt-ans-${qId}`).value;
+                state.altAnswers[qId] = text;
+            });
+
+            state.step = 'grading_alternate';
+            render();
+
+            for (const qId of state.needsAlternate) {
+                const q = QUESTIONS.find(q => q.id === qId);
+                const studentAns = state.altAnswers[qId] || "No answer provided.";
+                const result = await gradeAnswer(q.alternate, studentAns);
+                
+                state.scores[qId] = result.score; 
+                state.feedbacks[qId] = result;
+            }
+
+            state.step = 'final';
+            render();
+        };
+
+        const renderFinal = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.length * 5;
+
+            let html = `
+                <div class="py-10">
+                    <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-8 max-w-2xl mx-auto text-center shadow-sm">
+                        <i data-lucide="award" class="w-20 h-20 text-indigo-600 mx-auto mb-4"></i>
+                        <h2 class="text-4xl font-bold text-slate-800 mb-8">Exercise Complete!</h2>
+                        
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8 inline-block shadow-inner min-w-[280px]">
+                            <div class="text-sm text-slate-500 uppercase tracking-wide font-bold mb-2">Final Score</div>
+                            <div class="text-6xl font-black text-slate-800 mb-4">
+                                ${totalScore} <span class="text-3xl text-slate-400">/ ${maxScore}</span>
+                            </div>
+                            <div class="border-t border-slate-100 pt-4 mt-2">
+                                <div class="text-xl text-indigo-700 font-bold">Science Assessment</div>
+                                <div class="text-lg text-slate-600 font-medium">${state.studentName}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full flex justify-center mb-8">
+                            <button
+                                onclick="downloadStudyGuide()"
+                                class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-md"
+                            >
+                                <i data-lucide="download" class="w-5 h-5"></i> Download HTML Study Guide
+                            </button>
+                        </div>
+
+                        <div class="text-sm text-slate-500 text-left border-t border-slate-200 pt-6">
+                            <h4 class="font-bold mb-4 text-lg text-slate-800">Performance Summary & Rubrics:</h4>
+                            <div class="space-y-6">
+            `;
+
+            QUESTIONS.forEach((q, i) => {
+                const tookAlt = state.needsAlternate.includes(q.id);
+                const scoreBadgeClass = state.scores[q.id] === 5 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                
+                // Determine which rubric to show based on if they took the alternate question
+                const relevantCriteria = tookAlt ? q.alternate.criteria : q.initial.criteria;
+
+                html += `
+                                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="font-bold text-slate-800 text-base">Question ${i+1} ${tookAlt ? "(Alternate)" : ""}</span> 
+                                        <span class="font-bold px-2 py-1 rounded text-xs ${scoreBadgeClass}">
+                                            Score: ${state.scores[q.id]}/5
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="bg-blue-50 p-2 rounded text-sm text-blue-900 mb-2">
+                                        <strong>Rubric used for grading:</strong> ${relevantCriteria}
+                                    </div>
+                                </div>
+                `;
+            });
+
+            html += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+
+            // Trigger Confetti based on score
+            const fireConfetti = (bursts) => {
+                let count = 0;
+                const interval = setInterval(() => {
+                    confetti({
+                        particleCount: 120,
+                        startVelocity: 45,
+                        spread: 360,
+                        origin: {
+                            x: Math.random() * 0.6 + 0.2, // Random x between 0.2 and 0.8
+                            y: Math.random() * 0.2 + 0.3  // Random y between 0.3 and 0.5
+                        },
+                        zIndex: 100
+                    });
+                    count++;
+                    if (count >= bursts) clearInterval(interval);
+                }, 400); // fire bursts 400ms apart
+            };
+
+            if (totalScore === 20) {
+                fireConfetti(3);
+            } else if (totalScore === 19) {
+                fireConfetti(2);
+            } else if (totalScore === 18) {
+                fireConfetti(1);
+            }
+        };
+
+        const downloadStudyGuide = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.length * 5;
+
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Science Assessment Study Guide - ${state.studentName}</title>
+                    <style>
+                        body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #334155; max-width: 900px; margin: 0 auto; padding: 2rem; background: #f8fafc; }
+                        h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem; }
+                        .question-card { background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+                        .score-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; background: #e0e7ff; color: #3730a3; float: right; }
+                        .section { margin-top: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; border-left: 4px solid #64748b; }
+                        .ideal { border-left-color: #10b981; background: #ecfdf5; }
+                        .feedback { border-left-color: #f59e0b; background: #fffbeb; }
+                        h3 { margin-top: 0; color: #1e293b; }
+                        img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 1rem; max-height: 300px; object-fit: contain; background: white;}
+                        .whitespace-pre-wrap { white-space: pre-wrap; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Science Assessment Study Guide</h1>
+                    <p><strong>Student:</strong> ${state.studentName}</p>
+                    <p><strong>Final Score:</strong> ${totalScore} / ${maxScore}</p>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                const finalScore = state.scores[q.id];
+                const fb = state.feedbacks[q.id];
+                const tookAlternate = state.needsAlternate.includes(q.id);
+
+                htmlContent += `
+                    <div class="question-card">
+                        <div class="score-badge">Score: ${finalScore} / 5</div>
+                        <h2>Question ${index + 1}</h2>
+                        
+                        <div class="section">
+                            <h3>Initial Attempt</h3>
+                            <img src="${q.initial.image}" alt="Question Image" />
+                            <p class="whitespace-pre-wrap"><strong>Prompt:</strong><br/>${q.initial.prompt}</p>
+                            <p><strong>Your Answer:</strong><br/>${state.answers[q.id] || "<em>No answer provided</em>"}</p>
+                            <div class="section ideal">
+                                <strong>Ideal Answer Criteria:</strong> ${q.initial.criteria}
+                            </div>
+                        </div>
+                `;
+
+                if (tookAlternate) {
+                    htmlContent += `
+                        <div class="section">
+                            <h3>Alternate Attempt</h3>
+                            <img src="${q.alternate.image}" alt="Alternate Question Image" />
+                            <p class="whitespace-pre-wrap"><strong>Prompt:</strong><br/>${q.alternate.prompt}</p>
+                            <p><strong>Your Answer:</strong><br/>${state.altAnswers[q.id] || "<em>No answer provided</em>"}</p>
+                            <div class="section ideal">
+                                <strong>Ideal Answer Criteria:</strong> ${q.alternate.criteria}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                htmlContent += `</div>`;
+            });
+
+            htmlContent += `</body></html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.studentName.replace(/\s+/g, '_')}_Study_Guide.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // Initialize App
+        render();
+
+    </script>
+</body>
+</html>
