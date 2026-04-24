@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NM ASR Practice Test - Session 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .selected-option { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .stimulus-text p { margin-bottom: 0.75rem; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-700">NM ASR Science - Session 1</h1>
+            <div id="env-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                Detecting Environment...
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6">
+        <div id="app-container" class="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden min-h-[600px] flex flex-col relative fade-in">
+            <!-- Content injected via JS -->
+        </div>
+    </main>
+
+    <script>
+        // --- DATA & CONFIGURATION ---
+        const isPreviewMode = window.location.hostname === 'localhost' || window.location.hostname === '' || window.self !== window.top || !window.location.hostname.includes('vercel.app');
+        
+        document.getElementById('env-badge').textContent = isPreviewMode ? 'Mode: Code Preview' : 'Mode: Live Web';
+        document.getElementById('env-badge').className = isPreviewMode 
+            ? 'px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700' 
+            : 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700';
+
+        const VERIFICATION_CODE = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        const carbonStimulus = `<div class="stimulus-text text-sm sm:text-base text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6">
+            <p><strong>Read the information. Then answer the questions that follow.</strong></p>
+            <p><strong>Carbon in the Oceans</strong></p>
+            <p>Students have learned that humans add large amounts of carbon to the atmosphere when carbon dioxide (CO2) is released from burning fossil fuels. They want to learn more about how human activities affect the movement of carbon among Earth’s spheres. The students find a quantitative model that shows the amount of carbon stored in Earth’s spheres and the amount that moves into and out of the atmosphere from the other spheres. The amounts shown are in 10¹² kilograms per year.</p>
+            <p>When the students research the effects of increasing carbon levels in the atmosphere, they learn that the carbon dioxide that oceans remove from the atmosphere increases the amount of carbon dioxide dissolved in ocean water and causes the ocean water to become more acidic. The amount of ocean acidification is measured by pH: As ocean water becomes more acidic, pH decreases. Ocean water that is more acidic causes damage to ocean organisms and the ecosystems they live in.</p>
+            <p>The students also learn that the amount of carbon dioxide that can dissolve in ocean water depends on the temperature of the ocean water. The graph shows how the solubility of carbon dioxide depends on water temperature.</p>
+        </div>`;
+
+        const landUseStimulus = `<div class="stimulus-text text-sm sm:text-base text-slate-600 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6">
+            <p><strong>Read the information. Then answer the questions that follow.</strong></p>
+            <p><strong>Land Use and Erosion</strong></p>
+            <p>A student lives in a forested area. A logging company wants to harvest trees from land near her home by clearcutting the area. When a forested area is clearcut, all the trees in the area are cut down. The clearcut area is often replanted with one of the following:</p>
+            <ul class="list-disc ml-6 mb-3">
+                <li>tree plantations to harvest wood</li>
+                <li>tree crops like nuts and fruits</li>
+                <li>rotating food crops like grains and vegetables</li>
+            </ul>
+            <p>The land that is being considered for clearcutting and replanting has steep hills and is very close to a stream. The student wonders how this change in land use could affect the environment. She finds a study that assesses how much soil disturbance is caused by five different logging methods. Each logging method uses one of two cut patterns: harvesting trees selectively by cutting down only the large trees in an area, or clearcutting.</p>
+            <p>The logging methods studied vary in the amount of trees and ground cover removed, the number of roads built, and the way logs are stored. These differences result in different amounts of bare soil after the logging. The table shows the percentage of bare soil that results from each logging method.</p>
+        </div>`;
+
+        const testData = [
+            {
+                id: 'q1', title: 'Question 1',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vTkw_3kx9gm9a5-i6uJNXIe74UU41fXgeePYEdw42C9r9hl6G1BB4MM3G3tkCvsR_NEa3Coxy0D94H1/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vRz3PZqce5QhcD4gKoDkVjHCaxAq4xqqwY___lxwn76ncpOBRZTQdcjGUjIa4KXpugnCPKPP3DyYpEO/pub?w=423&h=345'
+                ],
+                text: 'A student who is hiking on a high mountain sees the large rock shown in the diagram. She wonders whether water could have caused the rock to break. To investigate, she mixes water with plaster in a paper cup. Then she fills a balloon with water and pushes the balloon into the liquid plaster in the cup.',
+                parts: [
+                    {
+                        id: 'q1a', type: 'mcq',
+                        prompt: 'Part a\nWhich statement describes the process that most likely caused the rock to break?',
+                        options: ['Wind blew sand against the rock.', 'Plant roots grew into cracks in the rock.', 'Sunlight heated the rock and caused it to expand.', 'Water froze and expanded in cracks in the rock.'],
+                        answer: 3, explanation: 'When water seeps into cracks and freezes, it expands, exerting pressure that can break the rock (a process known as ice wedging).'
+                    },
+                    {
+                        id: 'q1b', type: 'mcq',
+                        prompt: 'Part b\nWhich part of the student\'s investigation represents the freezing water?',
+                        options: ['the expanding balloon', 'the hardening plaster', 'the tearing cup', 'the decreasing air temperature'],
+                        answer: 0, explanation: 'The balloon filled with water simulates the water trapped in the rock, which will expand if frozen, mimicking ice wedging.'
+                    }
+                ]
+            },
+            {
+                id: 'q2', title: 'Question 2',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQ_Y3S7M9xnqj6fBnqOSKWzRcKfoC1wfBlw1QbqLuxMiq2TI7fjmj-vRAEPNr-onYSS4fosDFhAB5qh/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vRLd4j9PalVSdjEkAPnsuQ8BIvP-f5oqkyCAjwluWkH3nh52QZ-MLaqCCLYkDCZ8NM9EwEt_AvLnJSG/pub?w=433&h=388'
+                ],
+                text: 'A student is comparing the gravitational force between different pairs of objects. The student uses the gravitational force equation and the three models shown.',
+                parts: [
+                    {
+                        id: 'q2a', type: 'mcq',
+                        prompt: 'Part a\nWhich description of the gravitational force in the models is supported by the equation?',
+                        options: [
+                            'The gravitational force between the objects in Model 2 is one-fifth the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 2 is one-half the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 2 is twice the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 2 is five times the gravitational force between the objects in Model 1.'
+                        ],
+                        answer: 1, explanation: 'According to Newton\'s Law of Universal Gravitation, gravitational force is proportional to the masses. Model 2 has half the force.'
+                    },
+                    {
+                        id: 'q2b', type: 'mcq',
+                        prompt: 'Part b\nWhich statement describes the gravitational force in the models?',
+                        options: [
+                            'The gravitational force between the objects in Model 3 is one-fourth the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 3 is one-half the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 3 is twice the gravitational force between the objects in Model 1.',
+                            'The gravitational force between the objects in Model 3 is four times the gravitational force between the objects in Model 1.'
+                        ],
+                        answer: 0, explanation: 'Based on the inverse square law of gravitation, if the distance is doubled in Model 3, the force becomes one-fourth.'
+                    }
+                ]
+            },
+            {
+                id: 'q3', title: 'Question 3',
+                images: ['https://docs.google.com/drawings/d/e/2PACX-1vTR5Eo6_NHBBscT07cvfJJx8ny0i54VVlKcEdlvhtkidUaGF4q7YDPUGD0v6RzQYubc8WzjZE8gw-up/pub?w=356&h=235'],
+                text: 'A student learns that multicellular organisms have different types of specialized cells, but each somatic cell in the organism has the same number of chromosomes. For example, leaves have specialized cells for transporting water and gases through the leaf. She reads about an investigation that scientists designed in order to study specialized cells in leaves. Scientists put part of a leaf into a solution with hormone and nutrient. In a few days, new leaves were observed growing on the original leaf. The diagram shows the original leaf and the new leaves.',
+                parts: [
+                    {
+                        id: 'q3a', type: 'mcq',
+                        prompt: 'Part a\nWhich question could be answered by the investigation shown in the diagram?',
+                        options: [
+                            'What process causes cells with the same chromosomes to produce specialized cell structures?',
+                            'What process causes some chromosomes to divide and produce new chromosomes and specialized cell structures?',
+                            'What process causes some chromosomes to produce more specialized cells than other chromosomes?',
+                            'What process causes cells with the same chromosomes to mutate and produce specialized cells?'
+                        ],
+                        answer: 0, explanation: 'The investigation observes how the same original leaf cells (with the same chromosomes) differentiate to form new specialized leaf structures.'
+                    },
+                    {
+                        id: 'q3b', type: 'mcq',
+                        prompt: 'Part b\nThe scientists compared cells in the original leaf to cells in the new leaves. Which question could this comparison answer?',
+                        options: [
+                            'How do the chromosomes in leaves help the plant transport water and gases?',
+                            'Do chromosomes transport water and gases in the original leaf and the new leaves?',
+                            'How many chromosomes do the leaves use to build structures that transport water and gases?',
+                            'Which parts of the chromosomes in leaves contain instructions for cell structures that transport water and gases?'
+                        ],
+                        answer: 3, explanation: 'Comparing the genetic expression of the cells helps identify which specific parts of the chromosomes contain the instructions for those specialized transport structures.'
+                    }
+                ]
+            },
+            {
+                id: 'q4', title: 'Question 4',
+                images: [],
+                text: `<p class="mb-4">This question has two parts. Be sure to answer both parts of the question.</p>
+                       <p class="mb-4">Some students work at a local aquarium. One of their tasks is to care for mollusks and corals in ocean water in a tank at the aquarium. The students need to make sure that the ocean water has the right balance of calcium ions (Ca<sup>2+</sup>) and carbonate ions (CO<sub>3</sub><sup>2-</sup>) that the mollusks and corals need to build their shells and skeletons. To do this, the students need to ensure that calcium and carbonate ions are continuously added to the ocean water in the tank.</p>
+                       <p class="mb-4">The students know that ocean water contains calcium carbonate, which naturally breaks down into calcium and carbonate ions. The equilibrium relationship between the components in the water is shown in the equation.</p>
+                       <div class="bg-blue-50 p-4 rounded-lg font-mono text-center text-lg mb-4 border border-blue-200 shadow-sm text-blue-900">
+                           Equilibrium Equation:<br>
+                           CO<sub>2</sub> + H<sub>2</sub>O + CaCO<sub>3</sub> &#8652; Ca<sup>2+</sup> + 2H<sup>+</sup> + 2CO<sub>3</sub><sup>2-</sup>
+                       </div>
+                       <p class="mb-4">The students decide to test the equilibrium relationships in the equation. With ocean water as an input, the students remove calcium ions (Ca<sup>2+</sup>) as the ions form in the water in the tank. The students observe that as they remove calcium ions, more calcium ions form in the tank. They realize that this is an example of Le Chatelier’s principle that describes the equilibrium relationships in the water.</p>
+                       <p class="mb-4">The people who work at the aquarium tell the students that ocean water contains carbon dioxide (CO<sub>2</sub>) and that increasing amounts of CO<sub>2</sub> in ocean water can cause some of the calcium carbonate (CaCO<sub>3</sub>) in the shells and skeletons of ocean organisms to dissolve. The students want to solve this problem by decreasing the amount of carbon dioxide in ocean water.</p>
+                       <p class="text-sm font-bold text-slate-500 uppercase">(This section is worth 4 points and will be graded by AI based on the official state rubric).</p>`,
+                parts: [
+                    {
+                        id: 'q4a', type: 'open',
+                        prompt: 'a. Describe one way students could decrease the amount of CO2 in ocean water by applying Le Chatelier’s principle.',
+                    },
+                    {
+                        id: 'q4b', type: 'open',
+                        prompt: 'b. Describe one constraint on implementing the change described in Part (a).',
+                    }
+                ]
+            },
+            {
+                id: 'q5', title: 'Question 5',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vSTIKtOioDcYtkCRuSArp6N7Uq63jJRNQ0DvGEaFQgBdhg92vlYVo-NIueaq-nOInXzc0C9gluGxjXl/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQNDiX2DrODwOLQLa6rBeeEA2PH1UqveKkHf0r69SO13a11rzAq_s_oEGFy1ok66fRN3bA4zDrjf1ws/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vStFgkRybu3ygMmyfnNRELCqI0MFe7y56Dfi1RwQ2QROgOpnTVesms_XaIiW_qdnPX8P6S8Dkkw2uz-/pub?w=960&h=720'
+                ],
+                text: carbonStimulus + '<p class="mt-4 text-slate-700">As the students study the model, they realize that the carbon released by burning fossil fuels moves only a small amount of carbon into the atmosphere every year.</p>',
+                parts: [
+                    {
+                        id: 'q5a', type: 'mcq',
+                        prompt: 'Which statement best describes how burning fossil fuels is a problem for Earth’s spheres and is supported by the model?',
+                        options: [
+                            'Burning fossil fuels adds less carbon to the atmosphere than the oceans.', 
+                            'Burning fossil fuels moves carbon from the biosphere into the atmosphere.', 
+                            'Millions of years ago, the carbon in fossil fuels was part of plants in the biosphere.', 
+                            'Carbon released from burning fossil fuels is not quickly recycled back to Earth’s other spheres.'
+                        ],
+                        answer: 3, explanation: 'The model and texts support that once carbon is removed from the geosphere (fossil fuels) and burned, it enters the atmosphere and takes an extremely long time to be drawn back down naturally, causing a dangerous imbalance.'
+                    }
+                ]
+            },
+            {
+                id: 'q6', title: 'Question 6',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vSTIKtOioDcYtkCRuSArp6N7Uq63jJRNQ0DvGEaFQgBdhg92vlYVo-NIueaq-nOInXzc0C9gluGxjXl/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQNDiX2DrODwOLQLa6rBeeEA2PH1UqveKkHf0r69SO13a11rzAq_s_oEGFy1ok66fRN3bA4zDrjf1ws/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vStFgkRybu3ygMmyfnNRELCqI0MFe7y56Dfi1RwQ2QROgOpnTVesms_XaIiW_qdnPX8P6S8Dkkw2uz-/pub?w=960&h=720'
+                ],
+                text: carbonStimulus,
+                parts: [
+                    {
+                        id: 'q6a', type: 'mcq',
+                        prompt: 'Which claim is supported by the model and graphs?',
+                        options: [
+                            'By 2100, Earth’s oceans will be more acidic because of increasing levels of carbon in Earth’s atmosphere.', 
+                            'By 2100, Earth’s oceans will be more acidic because of decreasing levels of carbon in Earth’s atmosphere.', 
+                            'By 2100, Earth’s oceans will be less acidic because of increasing levels of carbon in Earth’s atmosphere.', 
+                            'By 2100, Earth’s oceans will be less acidic because of decreasing levels of carbon in Earth’s atmosphere.'
+                        ],
+                        answer: 0, explanation: 'The graphs show a clear correlation: as atmospheric CO2 increases over time, the pH of the ocean decreases (becomes more acidic).'
+                    }
+                ]
+            },
+            {
+                id: 'q7', title: 'Question 7',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vSTIKtOioDcYtkCRuSArp6N7Uq63jJRNQ0DvGEaFQgBdhg92vlYVo-NIueaq-nOInXzc0C9gluGxjXl/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQNDiX2DrODwOLQLa6rBeeEA2PH1UqveKkHf0r69SO13a11rzAq_s_oEGFy1ok66fRN3bA4zDrjf1ws/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vStFgkRybu3ygMmyfnNRELCqI0MFe7y56Dfi1RwQ2QROgOpnTVesms_XaIiW_qdnPX8P6S8Dkkw2uz-/pub?w=960&h=720'
+                ],
+                text: carbonStimulus + '<p class="mt-4 text-slate-700">As human populations and carbon emissions continue to increase, ocean ecosystems will continue to be damaged.</p>',
+                parts: [
+                    {
+                        id: 'q7a', type: 'mcq',
+                        prompt: 'Part a\nBased on the CO2 Solubility vs. Water Temperature graph, which part of Earth’s oceans is most likely to contain ecosystems that have been damaged by ocean acidification?',
+                        options: [
+                            'cold water ecosystems near the poles', 
+                            'warm water ecosystems near the poles', 
+                            'cold water ecosystems near the equator', 
+                            'warm water ecosystems near the equator'
+                        ],
+                        answer: 0, explanation: 'According to the solubility graph, colder water can dissolve significantly more CO2. Therefore, cold water ecosystems near the poles will absorb more CO2 and experience more severe acidification.'
+                    },
+                    {
+                        id: 'q7b', type: 'mcq',
+                        prompt: 'Part b\nWhich statement describes how evidence from the graph supports the claim in Part (a)?',
+                        options: [
+                            'Half as much carbon dioxide dissolves in water at 50°C as dissolves in water at 30°C.', 
+                            'Half as much carbon dioxide dissolves in water at 40°C as dissolves in water at 60°C.', 
+                            'Twice as much carbon dioxide dissolves in water at 0°C as dissolves in water at 20°C.', 
+                            'Twice as much carbon dioxide dissolves in water at 40°C as dissolves in water at 10°C.'
+                        ],
+                        answer: 2, explanation: 'Looking at the graph, at 0°C solubility is around 3.4, and at 20°C it is around 1.7. This confirms that twice as much CO2 dissolves at 0°C compared to 20°C.'
+                    }
+                ]
+            },
+            {
+                id: 'q8', title: 'Question 8',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vSTIKtOioDcYtkCRuSArp6N7Uq63jJRNQ0DvGEaFQgBdhg92vlYVo-NIueaq-nOInXzc0C9gluGxjXl/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQNDiX2DrODwOLQLa6rBeeEA2PH1UqveKkHf0r69SO13a11rzAq_s_oEGFy1ok66fRN3bA4zDrjf1ws/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vStFgkRybu3ygMmyfnNRELCqI0MFe7y56Dfi1RwQ2QROgOpnTVesms_XaIiW_qdnPX8P6S8Dkkw2uz-/pub?w=960&h=720'
+                ],
+                text: carbonStimulus + '<p class="mt-4 text-slate-700">The students learn that underwater forests made of plants like kelp store carbon in the same way that trees in forests on land store carbon. They are surprised to learn that organisms that live in kelp forests can increase the amount of carbon stored by the kelp. For example, scientists have determined that when sea otters live in kelp forests, the forests store up to 12 times more carbon than kelp forests without sea otters.</p>',
+                parts: [
+                    {
+                        id: 'q8a', type: 'mcq',
+                        prompt: 'Part a\nWhich statement describes how sea otters can increase the amount of carbon stored by the biosphere?',
+                        options: [
+                            'Sea otters eat organisms that eat kelp, which allows the kelp forest to grow larger.', 
+                            'Sea otters only live in kelp forests that are small enough to have low levels of carbon.', 
+                            'Sea otters only live in kelp forests that release large amounts of carbon into the water.', 
+                            'Sea otters are less likely to eat organisms that live in kelp forests with large amounts of dissolved carbon.'
+                        ],
+                        answer: 0, explanation: 'Sea otters are a keystone species that prey on sea urchins (which eat kelp). By keeping the urchin population in check, the kelp forests can grow larger and store more carbon.'
+                    },
+                    {
+                        id: 'q8b', type: 'mcq',
+                        prompt: 'Part b\nWhich statement describes the effect of sea otters on carbon in the hydrosphere?',
+                        options: [
+                            'The sea otter population directly causes the amount of carbon in ocean water to increase.', 
+                            'The sea otter population directly causes the amount of carbon in ocean water to decrease.', 
+                            'The sea otter population indirectly causes the amount of carbon in ocean water to increase.', 
+                            'The sea otter population indirectly causes the amount of carbon in ocean water to decrease.'
+                        ],
+                        answer: 3, explanation: 'Because sea otters protect the kelp, the kelp absorbs more carbon from the water. Thus, the otters indirectly cause the amount of carbon in the hydrosphere (ocean water) to decrease.'
+                    }
+                ]
+            },
+            {
+                id: 'q9', title: 'Question 9',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQwM5swRs7VgwR7qWjf5ecACZXH64GVrVSfUna74gg407sM_0xti1a-KJOnHUnQKuP0NNo62H4Mlo4p/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vS4BdCyJEZp6n5jSg5sxEn4cGmMDsdZkyvYRKUJg7CRG8TEeTfAcSbd39_OCanUPhnJ4WB-yk_73Eik/pub?w=960&h=720'
+                ],
+                text: landUseStimulus,
+                parts: [
+                    {
+                        id: 'q9a', type: 'mcq',
+                        prompt: 'Which description of the effect of land use on erosion is supported by the Soil Erosion and Land Use table?',
+                        options: [
+                            'Planting tree crops with ground cover after logging a natural forest could decrease the amount of erosion.', 
+                            'Planting rotating food crops with ground cover after logging a natural forest could decrease the amount of erosion.', 
+                            'Planting tree plantations without ground cover after logging a natural forest could decrease the amount of erosion.', 
+                            'Planting rotating food crops without ground cover after logging a natural forest could decrease the amount of erosion.'
+                        ],
+                        answer: 0, explanation: 'According to the table, undisturbed natural forest has an erosion rate of 6.16, while tree crops with ground cover have an erosion rate of 5.60, demonstrating a potential decrease.'
+                    }
+                ]
+            },
+            {
+                id: 'q10', title: 'Question 10',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQwM5swRs7VgwR7qWjf5ecACZXH64GVrVSfUna74gg407sM_0xti1a-KJOnHUnQKuP0NNo62H4Mlo4p/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vS4BdCyJEZp6n5jSg5sxEn4cGmMDsdZkyvYRKUJg7CRG8TEeTfAcSbd39_OCanUPhnJ4WB-yk_73Eik/pub?w=960&h=720'
+                ],
+                text: landUseStimulus,
+                parts: [
+                    {
+                        id: 'q10a', type: 'mcq',
+                        prompt: 'Part a\nWhich claim is supported by the Soil Disturbance from Logging table?',
+                        options: [
+                            'Road building during clearcutting results in less soil disturbance than during selective cutting.', 
+                            'Tree removal during selective cutting results in more soil disturbance than during clearcutting.', 
+                            'Clearcutting results in more soil disturbance than selective cutting because more logs are stored.', 
+                            'Selective cutting results in less soil disturbance than clearcutting because fewer trees are cut down.'
+                        ],
+                        answer: 1, explanation: 'The table shows tree removal disturbance for selective cutting is 15.0 and 12.1, whereas for clearcutting it is 6.0, 6.2, and 2.7. Thus, tree removal in selective cutting causes more disturbance.'
+                    },
+                    {
+                        id: 'q10b', type: 'mcq',
+                        prompt: 'Part b\nWhich set of statements describes a feedback loop between the biosphere and the geosphere caused by logging?',
+                        options: [
+                            '• When trees are planted on bare soil, a positive feedback loop occurs.\n• Planting the trees increases the amount of ground cover.\n• This causes the amount of erosion to decrease.\n• This change causes increased ground cover.', 
+                            '• When trees are planted on bare soil, a positive feedback loop occurs.\n• Planting the trees decreases the amount of ground cover.\n• This causes the amount of erosion to increase.\n• This change causes decreased ground cover.', 
+                            '• When trees are planted on bare soil, a negative feedback loop occurs.\n• Planting the trees increases the amount of ground cover.\n• This causes the amount of erosion to decrease.\n• This change causes increased ground cover.', 
+                            '• When trees are planted on bare soil, a negative feedback loop occurs.\n• Planting the trees decreases the amount of ground cover.\n• This causes the amount of erosion to increase.\n• This change causes decreased ground cover.'
+                        ],
+                        answer: 0, explanation: 'A positive feedback loop reinforces the direction of change. More trees lead to more ground cover, which leads to less erosion, which allows even more ground cover to establish.'
+                    }
+                ]
+            },
+            {
+                id: 'q11', title: 'Question 11',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQwM5swRs7VgwR7qWjf5ecACZXH64GVrVSfUna74gg407sM_0xti1a-KJOnHUnQKuP0NNo62H4Mlo4p/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vS4BdCyJEZp6n5jSg5sxEn4cGmMDsdZkyvYRKUJg7CRG8TEeTfAcSbd39_OCanUPhnJ4WB-yk_73Eik/pub?w=960&h=720'
+                ],
+                text: landUseStimulus,
+                parts: [
+                    {
+                        id: 'q11a', type: 'mcq',
+                        prompt: 'A logging company is choosing a logging method to selectively cut an area of forest. The company wants to use a method that will reduce human impact and stabilize the amount of erosion in the area. Based on the Soil Disturbance from Logging table, which method should the logging company use?',
+                        options: [
+                            'Method 3, because removing fewer trees will result in a smaller increase in erosion than method 1.', 
+                            'Method 3, because clearing less land for roads will result in a smaller increase in erosion than method 1.', 
+                            'Method 1, because not using land to store logs will result in a smaller increase in erosion than method 3.', 
+                            'Method 1, because leaving less soil bare after logging will result in a smaller increase in erosion than method 3.'
+                        ],
+                        answer: 1, explanation: 'Method 1 and 3 are the selective cut options. Method 3 causes significantly less disturbance from road building (6.0) compared to Method 1 (14.1).'
+                    }
+                ]
+            },
+            {
+                id: 'q12', title: 'Question 12',
+                images: [
+                    'https://docs.google.com/drawings/d/e/2PACX-1vQwM5swRs7VgwR7qWjf5ecACZXH64GVrVSfUna74gg407sM_0xti1a-KJOnHUnQKuP0NNo62H4Mlo4p/pub?w=960&h=720',
+                    'https://docs.google.com/drawings/d/e/2PACX-1vS4BdCyJEZp6n5jSg5sxEn4cGmMDsdZkyvYRKUJg7CRG8TEeTfAcSbd39_OCanUPhnJ4WB-yk_73Eik/pub?w=960&h=720'
+                ],
+                text: landUseStimulus + '<p class="mt-4 text-slate-700">The logging company decides to clearcut the forest near the student’s home.</p>',
+                parts: [
+                    {
+                        id: 'q12a', type: 'mcq',
+                        prompt: 'Part a\nBased on information in the tables, which logging method and land use is most likely to reduce the human impact on the ecosystem near the student’s home?',
+                        options: [
+                            'Clearcut with Method 2 and then plant tree crops with ground cover.', 
+                            'Clearcut with Method 4 and then plant tree crops with ground cover.', 
+                            'Clearcut with Method 2 and then plant rotating food crops with ground cover.', 
+                            'Clearcut with Method 4 and then plant rotating food crops with ground cover.'
+                        ],
+                        answer: 1, explanation: 'Method 4 clearcutting has a much lower total soil disturbance (8.9) than Method 2 (19.1). Additionally, planting tree crops with ground cover yields the lowest post-logging erosion rate (5.60).'
+                    },
+                    {
+                        id: 'q12b', type: 'mcq',
+                        prompt: 'Part b\nWhich statement describes a reason for the answer to Part (a)?',
+                        options: [
+                            'This logging method and land use will result in less bare soil and less erosion.', 
+                            'This logging method and land use will result in more bare soil but less erosion.', 
+                            'This logging method and land use will result in the smallest increase in bare soil and erosion.', 
+                            'This logging method and land use will result in the largest decrease in bare soil and erosion.'
+                        ],
+                        answer: 2, explanation: 'Since any logging inherently disturbs soil compared to undisturbed nature, the goal is to choose the method resulting in the smallest increase in bare soil and erosion.'
+                    }
+                ]
+            }
+        ];
+
+        // --- STATE ---
+        let currentIndex = 0;
+        let userAnswers = {};
+        let aiGradingResult = { score: 0, feedback: '' };
+
+        const appContainer = document.getElementById('app-container');
+
+        // --- RENDER FUNCTIONS ---
+        function renderApp() {
+            if (currentIndex < testData.length) {
+                renderQuestion();
+            } else {
+                renderGradingScreen();
+            }
+        }
+
+        function renderQuestion() {
+            const q = testData[currentIndex];
+            
+            let imagesHtml = q.images && q.images.length > 0 ? q.images.map(img => `<img src="${img}" class="max-h-56 sm:max-h-64 object-contain rounded border border-slate-200 shadow-sm" alt="Question Resource">`).join('') : '';
+            
+            let partsHtml = q.parts.map(part => {
+                if (part.type === 'mcq') {
+                    let optionsHtml = part.options.map((opt, i) => {
+                        const isSelected = userAnswers[part.id] === i;
+                        return `
+                            <label class="block p-4 border rounded-lg cursor-pointer transition-all hover:bg-slate-50 ${isSelected ? 'selected-option' : 'border-slate-200'}"
+                                   onclick="handleSelect('${part.id}', ${i})">
+                                <div class="flex items-start">
+                                    <input type="radio" name="${part.id}" class="w-4 h-4 mt-1 text-blue-600 border-slate-300 focus:ring-blue-500" ${isSelected ? 'checked' : ''}>
+                                    <span class="ml-3 text-slate-700 font-medium whitespace-pre-wrap">${opt}</span>
+                                </div>
+                            </label>
+                        `;
+                    }).join('');
+                    
+                    return `
+                        <div class="mb-8 fade-in">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3 whitespace-pre-wrap">${part.prompt}</h3>
+                            <div class="space-y-3">${optionsHtml}</div>
+                        </div>
+                    `;
+                } else if (part.type === 'open') {
+                    const currentVal = userAnswers[part.id] || '';
+                    return `
+                        <div class="mb-8 fade-in">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3 whitespace-pre-wrap">${part.prompt}</h3>
+                            <textarea id="${part.id}" rows="5" class="w-full p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-slate-700 shadow-sm" placeholder="Type your detailed explanation here..." oninput="handleText('${part.id}', this.value)">${currentVal}</textarea>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            const progressPct = ((currentIndex) / testData.length) * 100;
+
+            appContainer.innerHTML = `
+                <div class="w-full h-2 bg-slate-100 shrink-0">
+                    <div class="h-full bg-blue-500 transition-all duration-300" style="width: ${progressPct}%"></div>
+                </div>
+                <div class="p-6 sm:p-8 flex-grow overflow-y-auto">
+                    <div class="mb-4 text-sm font-bold text-blue-600 tracking-wider uppercase">Question ${currentIndex + 1} of ${testData.length}</div>
+                    
+                    ${imagesHtml ? `<div class="flex flex-wrap gap-4 justify-center mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">${imagesHtml}</div>` : ''}
+                    
+                    <div class="text-slate-600 mb-8 leading-relaxed">${q.text}</div>
+                    ${partsHtml}
+                </div>
+                <div class="p-4 sm:p-6 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+                    <button onclick="prevQuestion()" class="${currentIndex === 0 ? 'invisible' : ''} px-4 sm:px-6 py-2.5 rounded-lg font-medium text-slate-600 hover:bg-slate-200 transition-colors">Previous</button>
+                    <button onclick="nextQuestion()" class="px-4 sm:px-6 py-2.5 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-colors">
+                        ${currentIndex === testData.length - 1 ? 'Submit Test' : 'Next Question'}
+                    </button>
+                </div>
+            `;
+        }
+
+        async function renderGradingScreen() {
+            appContainer.innerHTML = `
+                <div class="flex-grow flex flex-col items-center justify-center p-12 text-center fade-in">
+                    <svg class="w-16 h-16 text-blue-500 animate-spin mb-6" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">Grading your responses...</h2>
+                    <p class="text-slate-500">Our AI is currently evaluating your open-ended responses for Question 4.</p>
+                </div>
+            `;
+
+            await gradeQuestion4();
+            renderScoreScreen();
+        }
+
+        async function gradeQuestion4() {
+            const ansA = userAnswers['q4a'] || "No answer provided.";
+            const ansB = userAnswers['q4b'] || "No answer provided.";
+
+            const prompt = `Student Answer Part A (Decrease CO2): ${ansA}\nStudent Answer Part B (Constraint): ${ansB}`;
+            
+            const systemInstruction = `You are an expert high school chemistry teacher grading an assessment on Le Chatelier's Principle in ocean water.
+The student was asked to: 
+a. Describe one way students could decrease the amount of CO2 in ocean water by applying Le Chatelier's principle (using the equation CO2 + H2O + CaCO3 <-> Ca2+ + 2H+ + 2CO3 2-).
+b. Describe one constraint on implementing the change described in Part (a).
+
+Score out of 4 total points based on this rubric:
+4 points: Thoroughly describes a way to decrease CO2 (e.g., adding CaCO3 or removing Ca2+ to shift reaction to products) AND describes a valid constraint (cost, materials, scaling, testing, environmental impact). Explanation is coherent and accurate.
+3 points: Sufficient use, but may lack some detail or contain minor errors.
+2 points: Limited use, lacks multiple details or contains major errors.
+1 point: Minimal use or only answers one part very briefly.
+0 points: Inaccurate, irrelevant, or blank.
+
+You MUST return your grade in ONLY a raw JSON format exactly like this:
+{"score": <number>, "feedback": "<your explanation of the grade>"}
+Do not include markdown blocks. Return only the JSON object.`;
+
+            try {
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, systemInstruction })
+                });
+
+                if (!response.ok) throw new Error('API fetch failed');
+
+                const data = await response.json();
+                const cleanText = data.text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleanText);
+                
+                aiGradingResult.score = typeof parsed.score === 'number' ? parsed.score : 0;
+                aiGradingResult.feedback = parsed.feedback || "Feedback parsed incorrectly.";
+
+            } catch (error) {
+                console.warn("Backend API not found or failed. Using Mock Grading fallback.", error);
+                
+                let mockScore = 0;
+                let mockFeedback = "<strong>(Code Preview Fallback Grading)</strong><br/>";
+                const lowerA = ansA.toLowerCase();
+                const lowerB = ansB.toLowerCase();
+
+                // Rubric Logic for A (Le Chatelier shift to products to decrease CO2)
+                if (lowerA.includes('add') || lowerA.includes('remove') || lowerA.includes('shift') || lowerA.includes('right') || lowerA.includes('calcium') || lowerA.includes('carbonate') || lowerA.includes('products')) {
+                    mockScore += 1;
+                    mockFeedback += "- Identified a method to shift equilibrium towards products (+1).<br/>";
+                }
+                if (lowerA.includes('consume') || lowerA.includes('decrease') || lowerA.length > 30) {
+                    mockScore += 1;
+                    mockFeedback += "- Logically explained how the shift decreases CO2 (+1).<br/>";
+                }
+                // Rubric Logic for B (Constraints)
+                if (lowerB.includes('cost') || lowerB.includes('money') || lowerB.includes('scale') || lowerB.includes('hard') || lowerB.includes('materials') || lowerB.includes('energy') || lowerB.includes('test')) {
+                    mockScore += 1;
+                    mockFeedback += "- Identified a valid real-world constraint such as cost or scale (+1).<br/>";
+                }
+                
+                // Cohesion bonus
+                if (mockScore === 3 && (ansA.length + ansB.length) > 80) {
+                    mockScore += 1;
+                    mockFeedback += "- Provided a coherent, accurate, and complete explanation covering all parts (+1).<br/>";
+                }
+
+                // Minimums
+                if(mockScore === 0 && (ansA.length > 5 || ansB.length > 5)){
+                    mockScore = 1; 
+                    mockFeedback += "- Minimal/Partial attempt (+1).";
+                } else if (ansA === "No answer provided." && ansB === "No answer provided.") {
+                    mockFeedback += "- No attempt made (0).";
+                }
+
+                aiGradingResult.score = mockScore;
+                aiGradingResult.feedback = mockFeedback;
+            }
+        }
+
+        function calculateMCQScore() {
+            let score = 0;
+            testData.forEach(q => {
+                q.parts.forEach(part => {
+                    if (part.type === 'mcq') {
+                        if (userAnswers[part.id] === part.answer) {
+                            score += 1;
+                        }
+                    }
+                });
+            });
+            return score;
+        }
+
+        function renderScoreScreen() {
+            const mcqScore = calculateMCQScore(); // 18 points total
+            const totalScore = mcqScore + aiGradingResult.score;
+            const maxScore = 22; // 18 MCQ + 4 AI
+            const missedPoints = maxScore - totalScore;
+
+            appContainer.innerHTML = `
+                <div class="flex-grow flex flex-col items-center justify-center p-8 sm:p-12 text-center fade-in bg-white">
+                    <div class="w-32 h-32 rounded-full border-8 border-slate-100 flex items-center justify-center mb-4 relative">
+                        <svg class="absolute inset-0 w-full h-full text-blue-500" style="transform: rotate(-90deg);" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="8" stroke-dasharray="289" stroke-dashoffset="${289 - (289 * totalScore / maxScore)}"></circle>
+                        </svg>
+                        <span class="text-4xl font-bold text-slate-800">${totalScore}<span class="text-xl text-slate-400">/22</span></span>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-1">Exercise Name: NM ASR Practice Test - Session 1</p>
+                        <p class="text-xs text-slate-400">Verification Code: <span class="font-mono font-bold text-slate-600">${VERIFICATION_CODE}</span></p>
+                    </div>
+                    
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Test Completed!</h2>
+                    <p class="text-slate-600 mb-8 max-w-md">You scored ${mcqScore} points on the multiple choice, and ${aiGradingResult.score}/4 on the AI-graded chemistry question.</p>
+                    
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-8 w-full max-w-2xl text-left">
+                        <h4 class="font-bold text-blue-800 mb-2">AI Feedback (Question 4 - Le Chatelier's Principle):</h4>
+                        <p class="text-blue-900 text-sm leading-relaxed">${aiGradingResult.feedback}</p>
+                    </div>
+
+                    <button onclick="downloadStudyGuide()" class="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg transition-transform transform hover:scale-105">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download Study Guide
+                    </button>
+                </div>
+            `;
+
+            if (missedPoints === 0) {
+                shootBallistic(3);
+            } else if (missedPoints === 1) {
+                shootBallistic(2);
+            } else if (missedPoints === 2) {
+                shootBallistic(1);
+            }
+        }
+
+        // --- INTERACTION LOGIC ---
+        window.handleSelect = (partId, optionIndex) => {
+            userAnswers[partId] = optionIndex;
+            renderApp();
+        };
+
+        window.handleText = (partId, value) => {
+            userAnswers[partId] = value;
+        };
+
+        window.nextQuestion = () => {
+            // Increment the index unconditionally, as renderApp handles the boundary logic
+            currentIndex++;
+            renderApp();
+        };
+
+        window.prevQuestion = () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderApp();
+            }
+        };
+
+        // --- CONFETTI LOGIC ---
+        function shootBallistic(bursts) {
+            let count = 0;
+            const interval = setInterval(() => {
+                confetti({ particleCount: 80, spread: 60, origin: { y: 1, x: 0.1 }, angle: 60, velocity: 70, zIndex: 100 });
+                confetti({ particleCount: 80, spread: 60, origin: { y: 1, x: 0.9 }, angle: 120, velocity: 70, zIndex: 100 });
+                count++;
+                if (count >= bursts) clearInterval(interval);
+            }, 800);
+        }
+
+        // --- STUDY GUIDE GENERATION ---
+        window.downloadStudyGuide = () => {
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>NM ASR Study Guide</title>
+                    <style>
+                        body { font-family: system-ui, sans-serif; line-height: 1.6; color: #333; max-w: 800px; margin: 40px auto; padding: 20px; }
+                        h1 { color: #1e40af; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+                        .question { background: #f9fafb; border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
+                        .prompt { font-weight: bold; margin-bottom: 10px; white-space: pre-wrap; }
+                        .correct { color: #15803d; font-weight: bold; }
+                        .incorrect { color: #b91c1c; font-weight: bold; }
+                        .explanation { background: #eff6ff; padding: 10px; border-left: 4px solid #3b82f6; margin-top: 10px; font-size: 0.9em; }
+                        .ai-feedback { background: #fdf2f8; padding: 10px; border-left: 4px solid #db2777; margin-top: 10px; font-size: 0.9em; }
+                        .verification { text-align: center; margin-top: 40px; font-size: 0.8em; color: #6b7280; }
+                    </style>
+                </head>
+                <body>
+                    <h1>NM ASR Practice - Study Guide & Review</h1>
+                    <p>Review your answers and the explanations below to improve your understanding.</p>
+            `;
+
+            testData.forEach((q, index) => {
+                htmlContent += `<div class="question"><h2>${q.title}</h2>`;
+                
+                if(['q5', 'q6', 'q7', 'q8'].includes(q.id)) {
+                    if (q.id === 'q5') {
+                        htmlContent += `<div><em>(See Carbon in the Oceans stimulus text from the test)</em></div>`;
+                    }
+                } else if (['q9', 'q10', 'q11', 'q12'].includes(q.id)) {
+                    if (q.id === 'q9') {
+                         htmlContent += `<div><em>(See Land Use and Erosion stimulus text from the test)</em></div>`;
+                    }
+                } else {
+                     htmlContent += `<div><em>${q.text}</em></div>`;
+                }
+                
+                q.parts.forEach(part => {
+                    htmlContent += `<div style="margin-top:20px;"><div class="prompt">${part.prompt}</div>`;
+                    
+                    if (part.type === 'mcq') {
+                        const userAnsIndex = userAnswers[part.id];
+                        const userAnsText = userAnsIndex !== undefined ? part.options[userAnsIndex] : "No answer selected";
+                        const correctAnsText = part.options[part.answer];
+                        const isCorrect = userAnsIndex === part.answer;
+
+                        htmlContent += `
+                            <p>Your Answer: <span class="${isCorrect ? 'correct' : 'incorrect'}">${userAnsText}</span></p>
+                            ${!isCorrect ? `<p>Correct Answer: <span class="correct">${correctAnsText}</span></p>` : ''}
+                            <div class="explanation"><strong>Explanation:</strong> ${part.explanation}</div>
+                        `;
+                    } else if (part.type === 'open') {
+                        const userText = userAnswers[part.id] || "No answer provided.";
+                        htmlContent += `<p>Your Answer:</p><blockquote>${userText}</blockquote>`;
+                        
+                        // Add AI feedback only after the last part of Q4
+                        if (part.id === 'q4b') {
+                            htmlContent += `<div class="ai-feedback"><strong>AI Grading Feedback (Score: ${aiGradingResult.score}/4):</strong><br/>${aiGradingResult.feedback}</div>`;
+                        }
+                    }
+                    htmlContent += `</div>`;
+                });
+                htmlContent += `</div>`;
+            });
+
+            htmlContent += `
+                    <div class="verification">
+                        Exercise Name: NM ASR Practice Test - Session 1<br/>
+                        Verification Code: ${VERIFICATION_CODE}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `NM_ASR_Study_Guide_${VERIFICATION_CODE}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // --- INIT ---
+        renderApp();
+    </script>
+</body>
+</html>
