@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Custom scrollbar for textareas to keep it looking clean */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        .whitespace-pre-wrap {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 text-white p-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Science Assessment</h1>
+                <p id="header-student-name" class="text-indigo-200 mt-1 hidden"></p>
+            </div>
+            <i data-lucide="award" class="w-10 h-10 opacity-80"></i>
+        </div>
+
+        <div id="app-content" class="p-6 md:p-8">
+            <!-- Dynamic content will be injected here -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- Assessment Data & Rubrics ---
+        const QUESTIONS = [
+            {
+                id: 'q1',
+                maxScore: 10,
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vS75hb5GdEzdLLjCDeP0yFnjXX8V4AVbu9hYDhiiPCt7f3_CWOnU-eY3PcU7GP11ygjb6mlEYdSLUS2/pub?w=399&h=487",
+                    prompt: "A dairy farm is replacing open-air waste lagoons with an anaerobic digester. This system encloses waste, captures methane for electricity, and produces fertilizer, but it costs $2 million and takes 15 years to pay off.\n\nExplain how this digester mitigates two negative environmental impacts. Then, identify one major constraint of the project and argue whether the long-term benefits outweigh this constraint.",
+                    criteria: "Award up to 10 points. To get full points, the student must:\n1. Identify two environmental benefits (e.g., reduces methane/greenhouse gases, prevents watershed contamination, stops odor).\n2. Identify a constraint (e.g., high $2 million cost, long 15-year payoff).\n3. Provide a logical argument for whether the benefits outweigh the constraint."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRyp-RilZ6ZJvLiVy2XQ4bp3Yb8fi5u6dTY4ZsHinffqxgGXulMpS8xmthLk64_CrB1txJcIbmESMN7/pub?w=960&h=720",
+                    prompt: "A city must choose between expanding a landfill into a 500-acre forest ($15 million) or building a Waste-to-Energy (WTE) Incinerator ($150 million, risk of air pollution).\n\nExplain how the WTE Incinerator reduces human impact on the biosphere compared to the landfill. Then, identify one major constraint of the WTE facility and argue which option the city should choose.",
+                    criteria: "Award up to 10 points. To get full points, the student must:\n1. Explain that the WTE incinerator saves 500 acres of forest/habitat compared to the landfill.\n2. Identify a constraint of the WTE facility (e.g., high $150 million cost, toxic air pollution risk).\n3. Provide a logical argument choosing one option over the other."
+                }
+            },
+            {
+                id: 'q2',
+                maxScore: 5,
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRFNyFPPUDp4ilQktB8af1IGjy-cxsKEHG-_YAlxBXORKqohK95jwvrGoUBGIly2YrRSVfRiguQ8rQB/pub?w=960&h=720",
+                    prompt: "Question 1: Energy and Phase Changes (HS-ESS2-4)\nFocus: Modeling how sunlight drives water movement through phase changes.\n\nVersion A: Describe how energy from the sun drives the water cycle. In your answer, explain how water changes its physical state to move from the ocean to the atmosphere and finally back to land, focusing on the roles of evaporation and condensation.",
+                    criteria: "The student must explain that solar energy heats liquid ocean water, increasing the kinetic energy of water molecules and causing evaporation (liquid to gas phase change). As this water vapor rises into the atmosphere, it cools, loses energy, and undergoes condensation (gas to liquid phase change) to form clouds, which eventually lead to precipitation returning to the land."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vRFNyFPPUDp4ilQktB8af1IGjy-cxsKEHG-_YAlxBXORKqohK95jwvrGoUBGIly2YrRSVfRiguQ8rQB/pub?w=960&h=720",
+                    prompt: "Version B: Using the concept of energy transfer, explain why evaporation occurs faster at the equator compared to the poles. Describe how this energy contributes to the formation of precipitation over inland areas.",
+                    criteria: "The student must state that the equator receives more direct and intense solar radiation (energy transfer) than the poles, leading to a higher energy state and faster rate of evaporation. They must then explain that this high-energy water vapor is carried inland by air currents, where it eventually cools, loses energy to the surrounding atmosphere, condenses into clouds, and falls as precipitation."
+                }
+            },
+            {
+                id: 'q3',
+                maxScore: 5,
+                initial: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vQ2hKbQcKaDt7qdkdf-CQWrjYqsuBvc-II7lNZzrzfs10xiWxtFl60Vr1fQQRgoM_4YOtXlxudjZI76/pub?w=198&h=310",
+                    prompt: "A student hypothesizes that if a food source were introduced several feet above the ocean’s surface, flying fish might eventually evolve wings as an adaptation for reaching the food source.\n\nExplain why this hypothesis would be difficult to support with a scientific investigation.",
+                    criteria: "The student must explain that biological evolution and the development of complex physical adaptations (like functional wings) occur over many generations and vast amounts of time, making it extremely difficult to observe or measure within a typical scientific investigation or a human lifetime. They should also note that evolution relies on random genetic mutations and natural selection, not a direct response to a 'want' or 'need' for food."
+                },
+                alternate: {
+                    image: "https://docs.google.com/drawings/d/e/2PACX-1vTxuQQSfmrhFwp5xrWHrk9XDC9roeIx2-eDpPAeJv5Hj8LmdNzpJBN2saKilkT-gAVA7OiNsD0DvOyP/pub?w=960&h=720",
+                    prompt: "Background: A student scientist is conducting a study on evolutionary adaptation. Their hypothesis is that a species can rapidly develop completely new anatomical structures if placed in a radically different environment.\n\nThe Setup: As shown in the image, the student has placed a barrel cactus (an arid, desert-dwelling species) into a sealed glass terrarium that replicates a humid, misty rainforest floor, with frequent moisture and low light. They plan to observe this individual cactus daily for a period of six months to see if it begins developing large, broad leaves (like the surrounding tropical foliage) to help it collect light and thrive in its new environment.\n\nExplain why the student's hypothesis is scientifically flawed based on the principles of evolution and adaptation.",
+                    criteria: "The student must explain that biological evolution and structural adaptations do not occur within a single individual's lifespan (acquired characteristics). Adaptations are the result of genetic variation and natural selection occurring over many generations within a population. An individual cactus cannot change its DNA to suddenly grow broad leaves just because its environment changed."
+                }
+            }
+        ];
+
+        // --- Application State ---
+        const state = {
+            step: 'welcome',
+            studentName: '',
+            answers: {},
+            altAnswers: {},
+            scores: {},
+            feedbacks: {},
+            needsAlternate: []
+        };
+
+        // --- AI Grading Engine ---
+        const isVercelEnvironment = () => {
+            if (typeof window === 'undefined') return false;
+            const hostname = window.location.hostname;
+            const protocol = window.location.protocol;
+            return protocol !== 'blob:' && 
+                   !hostname.includes('googleusercontent.com') && 
+                   !hostname.includes('usercontent.goog') && 
+                   !hostname.includes('sandbox') && 
+                   hostname !== 'localhost' && 
+                   hostname !== '127.0.0.1';
+        };
+
+        const gradeAnswer = async (questionData, studentAnswer, maxScore) => {
+            const prompt = `Question Asked: ${questionData.prompt}\nCorrect Answer Criteria: ${questionData.criteria}\nStudent's Answer: ${studentAnswer}`;
+            const systemInstruction = `You are a strict but fair science teacher grading a student's assessment. 
+Grade the student's answer out of ${maxScore} points based strictly on the 'Correct Answer Criteria'. 
+Provide short, constructive feedback.
+You MUST return ONLY a valid JSON object.
+Format: { 
+  "score": <only an integer number from 0 to ${maxScore}. No slashes, no text>,
+  "feedback": "<string: Explain exactly what they did right and wrong. Must not be empty.>",
+  "improvementHint": "<string: If score is less than ${maxScore}, tell them exactly what scientific concepts they missed and what they must write to get full points. If perfect score, leave empty.>"
+}`;
+
+            const parseResponse = (text) => {
+                let parsedScore = 0;
+                let fb = "";
+                let hint = "";
+
+                try {
+                    let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const parsed = JSON.parse(cleanText);
+                    
+                    // Bulletproof parsing: AI sometimes returns "10/10", so we force extraction of just the first number sequence.
+                    let rawScore = parsed.score;
+                    if (typeof rawScore === 'number') {
+                        parsedScore = rawScore;
+                    } else if (typeof rawScore === 'string') {
+                        const match = rawScore.match(/\d+/);
+                        if (match) parsedScore = parseInt(match[0], 10);
+                    }
+                    
+                    fb = (parsed.feedback || "").trim();
+                    hint = (parsed.improvementHint || "").trim();
+
+                } catch (e) {
+                    console.error("Failed to parse AI response completely. Attempting regex fallback.", e, text);
+                    // Fallback if AI totally breaks JSON format
+                    const scoreMatch = text.match(/"score"\s*:\s*"?(\d+)/i);
+                    if (scoreMatch) parsedScore = parseInt(scoreMatch[1], 10);
+                    fb = "Error fully parsing AI response. Please rely on the grading rubric below.";
+                }
+
+                const validScore = Math.min(maxScore, Math.max(0, parsedScore));
+
+                return {
+                    score: validScore,
+                    feedback: fb ? fb : "Your answer was evaluated, but the AI failed to generate specific text feedback. Please review the grading rubric below carefully.",
+                    improvementHint: hint ? hint : (validScore < maxScore ? "Review the exact criteria in the rubric below and ensure you include all the necessary scientific concepts and terminology." : "")
+                };
+            };
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            score: { type: "INTEGER" },
+                            feedback: { type: "STRING" },
+                            improvementHint: { type: "STRING" }
+                        }
+                    }
+                }
+            };
+
+            if (isVercelEnvironment()) {
+                try {
+                    const res = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error("Vercel Backend Failed");
+                    const data = await res.json();
+                    return parseResponse(data.text);
+                } catch (e) {
+                    console.error("Vercel Backend Error:", e);
+                    return { score: 0, feedback: "Error connecting to grading server.", improvementHint: "Connection failed. Please download backup." };
+                }
+            } else {
+                const apiKey = ""; 
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                // Reduced retries so it fails faster and doesn't hang forever
+                let retries = 3; 
+                let delay = 1000;
+                while(retries > 0) {
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error("API Request Failed");
+                        const data = await res.json();
+                        return parseResponse(data.candidates[0].content.parts[0].text);
+                    } catch(e) {
+                        retries--;
+                        if(retries === 0) return { score: 0, feedback: "Grading failed due to a network timeout.", improvementHint: "Connection failed. Please download your answers as a backup." };
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    }
+                }
+            }
+        };
+
+        // --- Render Functions ---
+        const appContent = document.getElementById('app-content');
+
+        const updateIcons = () => {
+            lucide.createIcons();
+        };
+
+        const render = () => {
+            switch(state.step) {
+                case 'welcome': renderWelcome(); break;
+                case 'initial': renderInitial(); break;
+                case 'grading_initial':
+                case 'grading_alternate': renderGrading(); break;
+                case 'review_initial': renderReviewInitial(); break;
+                case 'alternate': renderAlternate(); break;
+                case 'final': renderFinal(); break;
+            }
+            updateIcons();
+        };
+
+        const renderWelcome = () => {
+            const totalPoints = QUESTIONS.reduce((sum, q) => sum + q.maxScore, 0);
+            appContent.innerHTML = `
+                <div class="text-center py-12">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-4">Welcome to the Assessment</h2>
+                    <p class="text-slate-600 mb-8 max-w-lg mx-auto">
+                        This exercise consists of ${QUESTIONS.length} extensive response questions worth a total of ${totalPoints} points. Please provide detailed scientific explanations for each scenario. Your answers will be automatically graded.
+                    </p>
+                    <div class="max-w-xs mx-auto">
+                        <input
+                            type="text"
+                            id="student-name-input"
+                            placeholder="Enter your full name"
+                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none mb-4"
+                            oninput="checkNameInput()"
+                        />
+                        <button
+                            id="start-btn"
+                            disabled
+                            onclick="startAssessment()"
+                            class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                            Start Assessment <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        const checkNameInput = () => {
+            const input = document.getElementById('student-name-input');
+            const btn = document.getElementById('start-btn');
+            if(input.value.trim().length > 0) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+        };
+
+        const startAssessment = () => {
+            const name = document.getElementById('student-name-input').value.trim();
+            state.studentName = name;
+            
+            const headerName = document.getElementById('header-student-name');
+            headerName.textContent = `Student: ${name}`;
+            headerName.classList.remove('hidden');
+
+            state.step = 'initial';
+            render();
+        };
+
+        const renderInitial = () => {
+            let html = `
+                <div class="space-y-10">
+                    <div class="mb-6 pb-4 border-b border-slate-200">
+                        <h2 class="text-xl font-bold">Part 1: Initial Questions</h2>
+                        <p class="text-slate-500">Answer each question thoroughly based on the provided scenarios and diagrams.</p>
+                    </div>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                const hasImage = q.initial.image && q.initial.image.trim() !== "";
+                const layoutClass = hasImage ? "flex-col md:flex-row" : "flex-col";
+                const textContainerClass = hasImage ? "md:w-2/3" : "w-full";
+
+                html += `
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="flex ${layoutClass} gap-6">
+                            ${hasImage ? `
+                            <div class="md:w-1/3 flex-shrink-0">
+                                <img src="${q.initial.image}" alt="Diagram ${index + 1}" class="w-full h-auto object-contain bg-white rounded-lg border border-slate-200 p-2" />
+                            </div>
+                            ` : ''}
+                            <div class="${textContainerClass} flex flex-col">
+                                <h3 class="font-semibold text-lg mb-2">Question ${index + 1} <span class="text-sm font-normal text-indigo-600 bg-indigo-50 px-2 py-1 rounded ml-2">${q.maxScore} Points</span></h3>
+                                <p class="text-slate-700 mb-4 whitespace-pre-wrap">${q.initial.prompt}</p>
+                                <textarea
+                                    id="ans-${q.id}"
+                                    class="w-full flex-grow min-h-[160px] p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y"
+                                    placeholder="Type your explanation here..."
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="flex justify-end pt-6 border-t border-slate-200">
+                        <button
+                            onclick="handleInitialSubmit()"
+                            class="bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            Submit Answers for Grading
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+        };
+
+        const handleInitialSubmit = async () => {
+            QUESTIONS.forEach(q => {
+                const text = document.getElementById(`ans-${q.id}`).value;
+                state.answers[q.id] = text;
+            });
+
+            state.step = 'grading_initial';
+            render();
+
+            let missedQuestions = [];
+
+            for (const q of QUESTIONS) {
+                const studentAns = state.answers[q.id] || "No answer provided.";
+                const result = await gradeAnswer(q.initial, studentAns, q.maxScore);
+                
+                state.scores[q.id] = result.score;
+                state.feedbacks[q.id] = result;
+                
+                if (result.score < q.maxScore) {
+                    missedQuestions.push(q.id);
+                }
+            }
+
+            state.needsAlternate = missedQuestions;
+            state.step = 'review_initial';
+            render();
+        };
+
+        const renderGrading = () => {
+            appContent.innerHTML = `
+                <div class="py-20 text-center flex flex-col items-center">
+                    <i data-lucide="loader-2" class="w-16 h-16 text-indigo-600 animate-spin mb-6"></i>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">AI is Analyzing Your Answers...</h2>
+                    <p class="text-slate-500">Evaluating responses against scientific rubrics. This may take a moment.</p>
+                </div>
+            `;
+        };
+
+        const renderReviewInitial = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.reduce((sum, q) => sum + q.maxScore, 0);
+            
+            // Check if there are any network failure hints to display the warning banner
+            const hasNetworkErrors = Object.values(state.feedbacks).some(fb => 
+                fb.improvementHint && fb.improvementHint.includes("Connection failed")
+            );
+
+            let html = `
+                <div class="space-y-8">
+            `;
+
+            if (hasNetworkErrors) {
+                html += `
+                    <div class="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-lg shadow-sm">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i data-lucide="wifi-off" class="text-red-600 w-6 h-6"></i>
+                            <h3 class="font-bold text-red-800 text-lg">Network Timeout / Grading Error</h3>
+                        </div>
+                        <p class="text-red-700 mb-4">The grading server took too long to respond. Because of this, you may have received a score of 0 on some questions despite having correct answers. <strong>Please download your answers as a backup study guide below so you don't lose your work!</strong></p>
+                        <button
+                            onclick="downloadStudyGuide()"
+                            class="bg-red-600 text-white font-semibold py-2 px-6 rounded hover:bg-red-700 transition-colors inline-flex items-center gap-2"
+                        >
+                            <i data-lucide="download" class="w-4 h-4"></i> Download Backup Answers
+                        </button>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold mb-2">Initial Results</h2>
+                        <div class="inline-block bg-indigo-100 text-indigo-800 px-6 py-2 rounded-full font-semibold text-xl">
+                            Score: ${totalScore} / ${maxScore}
+                        </div>
+                    </div>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                const score = state.scores[q.id];
+                const isPerfect = score === q.maxScore;
+                const answerText = state.answers[q.id] || "";
+                const feedbackObj = state.feedbacks[q.id];
+
+                html += `
+                    <div class="p-5 rounded-lg border-l-4 ${isPerfect ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i data-lucide="${isPerfect ? 'check-circle' : 'x-circle'}" class="${isPerfect ? 'text-green-600' : 'text-red-600'}"></i>
+                            <h3 class="font-bold text-lg">Question ${index + 1}: ${score}/${q.maxScore} Points</h3>
+                        </div>
+                        <p class="text-slate-700 italic mb-3">"${answerText}"</p>
+                        
+                        <div class="bg-white p-3 rounded border border-slate-200 text-sm text-slate-600 mb-3 shadow-sm">
+                            <strong class="text-slate-800">AI Feedback:</strong> ${feedbackObj.feedback}
+                        </div>
+                        
+                        <div class="bg-blue-50 p-3 rounded border border-blue-200 text-sm text-blue-900 mb-2 shadow-sm">
+                            <strong class="flex items-center gap-1 mb-1"><i data-lucide="book-open" class="w-4 h-4"></i> Grading Rubric (Ideal Answer):</strong> 
+                            ${q.initial.criteria}
+                        </div>
+                        
+                        ${(!isPerfect && feedbackObj.improvementHint) ? `
+                            <div class="bg-amber-100 p-3 rounded border border-amber-300 text-sm text-amber-900 mt-2 shadow-sm">
+                                <strong class="flex items-center gap-1 mb-1"><i data-lucide="alert-circle" class="w-4 h-4"></i> What you missed & How to get full points:</strong> 
+                                ${feedbackObj.improvementHint}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="flex justify-center mt-6">
+                        <button
+                            onclick="downloadStudyGuide()"
+                            class="bg-slate-100 text-slate-700 font-semibold py-2 px-6 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2 border border-slate-300"
+                        >
+                            <i data-lucide="download" class="w-5 h-5"></i> Download Answers & Study Guide
+                        </button>
+                    </div>
+
+                    <div class="text-center pt-8 border-t border-slate-200">
+            `;
+
+            if (state.needsAlternate.length > 0) {
+                html += `
+                        <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl">
+                            <i data-lucide="alert-circle" class="w-12 h-12 text-amber-500 mx-auto mb-3"></i>
+                            <h3 class="text-xl font-bold text-amber-800 mb-2">Points Missed!</h3>
+                            <p class="text-amber-700 mb-6">
+                                You didn't get full points on ${state.needsAlternate.length} question(s). You must answer alternative questions to regain those points.
+                            </p>
+                            <button
+                                onclick="state.step='alternate'; render();"
+                                class="bg-amber-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 mx-auto"
+                            >
+                                Proceed to Alternative Questions <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                `;
+            } else {
+                html += `
+                        <div>
+                            <h3 class="text-2xl font-bold text-green-600 mb-4">Perfect Score!</h3>
+                            <button
+                                onclick="state.step='final'; render();"
+                                class="bg-green-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-green-700 transition-colors"
+                            >
+                                View Final Certificate
+                            </button>
+                        </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            appContent.innerHTML = html;
+        };
+
+        const renderAlternate = () => {
+            let html = `
+                <div class="space-y-10">
+                    <div class="mb-6 pb-4 border-b border-slate-200">
+                        <h2 class="text-2xl font-bold text-amber-700 flex items-center gap-2">
+                            <i data-lucide="refresh-ccw" class="w-6 h-6"></i> Alternative Questions
+                        </h2>
+                        <p class="text-slate-600 mt-2">Answer these alternative questions correctly to replace your missed points.</p>
+                    </div>
+            `;
+
+            state.needsAlternate.forEach((qId) => {
+                const q = QUESTIONS.find(q => q.id === qId);
+                const originalIndex = QUESTIONS.findIndex(q => q.id === qId) + 1;
+                
+                const hasImage = q.alternate.image && q.alternate.image.trim() !== "";
+                const layoutClass = hasImage ? "flex-col md:flex-row" : "flex-col";
+                const textContainerClass = hasImage ? "md:w-2/3" : "w-full";
+
+                html += `
+                    <div class="bg-amber-50/50 p-6 rounded-xl border border-amber-200 shadow-sm">
+                        <div class="flex ${layoutClass} gap-6">
+                            ${hasImage ? `
+                            <div class="md:w-1/3 flex-shrink-0">
+                                <img src="${q.alternate.image}" alt="Alternate Diagram ${originalIndex}" class="w-full h-auto object-contain bg-white rounded-lg border border-slate-200 p-2" />
+                            </div>
+                            ` : ''}
+                            <div class="${textContainerClass} flex flex-col">
+                                <h3 class="font-semibold text-lg mb-2 text-amber-900">Alternative for Question ${originalIndex} <span class="text-sm font-normal text-amber-700 bg-amber-100 px-2 py-1 rounded ml-2">${q.maxScore} Points</span></h3>
+                                <p class="text-slate-800 mb-4 font-medium whitespace-pre-wrap">${q.alternate.prompt}</p>
+                                <textarea
+                                    id="alt-ans-${q.id}"
+                                    class="w-full flex-grow min-h-[160px] p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-y"
+                                    placeholder="Type your revised explanation here..."
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div class="flex justify-end pt-6 border-t border-slate-200">
+                        <button
+                            onclick="handleAlternateSubmit()"
+                            class="bg-amber-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-amber-700 transition-colors"
+                        >
+                            Submit Alternative Answers
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+        };
+
+        const handleAlternateSubmit = async () => {
+            state.needsAlternate.forEach(qId => {
+                const text = document.getElementById(`alt-ans-${qId}`).value;
+                state.altAnswers[qId] = text;
+            });
+
+            state.step = 'grading_alternate';
+            render();
+
+            for (const qId of state.needsAlternate) {
+                const q = QUESTIONS.find(q => q.id === qId);
+                const studentAns = state.altAnswers[qId] || "No answer provided.";
+                const result = await gradeAnswer(q.alternate, studentAns, q.maxScore);
+                
+                state.scores[qId] = result.score; 
+                state.feedbacks[qId] = result;
+            }
+
+            state.step = 'final';
+            render();
+        };
+
+        const renderFinal = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.reduce((sum, q) => sum + q.maxScore, 0);
+
+            let html = `
+                <div class="py-10">
+                    <div class="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-8 max-w-2xl mx-auto text-center shadow-sm">
+                        <i data-lucide="award" class="w-20 h-20 text-indigo-600 mx-auto mb-4"></i>
+                        <h2 class="text-4xl font-bold text-slate-800 mb-8">Exercise Complete!</h2>
+                        
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 mb-8 inline-block shadow-inner min-w-[280px]">
+                            <div class="text-sm text-slate-500 uppercase tracking-wide font-bold mb-2">Final Score</div>
+                            <div class="text-6xl font-black text-slate-800 mb-4">
+                                ${totalScore} <span class="text-3xl text-slate-400">/ ${maxScore}</span>
+                            </div>
+                            <div class="border-t border-slate-100 pt-4 mt-2">
+                                <div class="text-xl text-indigo-700 font-bold">Science Assessment</div>
+                                <div class="text-lg text-slate-600 font-medium">${state.studentName}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full flex justify-center mb-8">
+                            <button
+                                onclick="downloadStudyGuide()"
+                                class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-md"
+                            >
+                                <i data-lucide="download" class="w-5 h-5"></i> Download HTML Study Guide
+                            </button>
+                        </div>
+
+                        <div class="text-sm text-slate-500 text-left border-t border-slate-200 pt-6">
+                            <h4 class="font-bold mb-4 text-lg text-slate-800">Performance Summary & Rubrics:</h4>
+                            <div class="space-y-6">
+            `;
+
+            QUESTIONS.forEach((q, i) => {
+                const tookAlt = state.needsAlternate.includes(q.id);
+                const isPerfect = state.scores[q.id] === q.maxScore;
+                const scoreBadgeClass = isPerfect ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                
+                const finalFb = state.feedbacks[q.id];
+                const relevantCriteria = tookAlt ? q.alternate.criteria : q.initial.criteria;
+
+                html += `
+                                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <span class="font-bold text-slate-800 text-base">Question ${i+1} ${tookAlt ? "(Alternate)" : ""}</span> 
+                                        <span class="font-bold px-2 py-1 rounded text-xs ${scoreBadgeClass}">
+                                            Score: ${state.scores[q.id]}/${q.maxScore}
+                                        </span>
+                                    </div>
+                                    
+                                    <p class="text-slate-600 mb-3 border-l-2 border-slate-300 pl-3"><strong>Final Feedback:</strong> ${finalFb.feedback}</p>
+                                    
+                                    <div class="bg-blue-50 p-3 rounded text-sm text-blue-900 mb-2">
+                                        <strong>Rubric used for grading:</strong> ${relevantCriteria}
+                                    </div>
+
+                                    ${(!isPerfect && finalFb.improvementHint) ? `
+                                        <p class="text-amber-700 bg-amber-50 p-3 rounded text-sm mt-2 border border-amber-200">
+                                            <strong>How to improve:</strong> ${finalFb.improvementHint}
+                                        </p>
+                                    ` : ''}
+                                </div>
+                `;
+            });
+
+            html += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            appContent.innerHTML = html;
+
+            const fireConfetti = (bursts) => {
+                let count = 0;
+                const interval = setInterval(() => {
+                    confetti({
+                        particleCount: 120,
+                        startVelocity: 45,
+                        spread: 360,
+                        origin: {
+                            x: Math.random() * 0.6 + 0.2, 
+                            y: Math.random() * 0.2 + 0.3  
+                        },
+                        zIndex: 100
+                    });
+                    count++;
+                    if (count >= bursts) clearInterval(interval);
+                }, 400); 
+            };
+
+            if (totalScore === 20) {
+                fireConfetti(3);
+            } else if (totalScore === 19) {
+                fireConfetti(2);
+            } else if (totalScore === 18) {
+                fireConfetti(1);
+            }
+        };
+
+        const downloadStudyGuide = () => {
+            const totalScore = Object.values(state.scores).reduce((a, b) => a + b, 0);
+            const maxScore = QUESTIONS.reduce((sum, q) => sum + q.maxScore, 0);
+
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Science Assessment Study Guide - ${state.studentName}</title>
+                    <style>
+                        body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #334155; max-width: 900px; margin: 0 auto; padding: 2rem; background: #f8fafc; }
+                        h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem; }
+                        .question-card { background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+                        .score-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; background: #e0e7ff; color: #3730a3; float: right; }
+                        .section { margin-top: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; border-left: 4px solid #64748b; }
+                        .ideal { border-left-color: #10b981; background: #ecfdf5; }
+                        .feedback { border-left-color: #f59e0b; background: #fffbeb; }
+                        h3 { margin-top: 0; color: #1e293b; }
+                        img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 1rem; max-height: 300px; object-fit: contain; background: white;}
+                        .whitespace-pre-wrap { white-space: pre-wrap; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Science Assessment Study Guide</h1>
+                    <p><strong>Student:</strong> ${state.studentName}</p>
+                    <p><strong>Final Score:</strong> ${totalScore} / ${maxScore}</p>
+            `;
+
+            QUESTIONS.forEach((q, index) => {
+                const finalScore = state.scores[q.id];
+                const fb = state.feedbacks[q.id];
+                const tookAlternate = state.needsAlternate.includes(q.id);
+
+                htmlContent += `
+                    <div class="question-card">
+                        <div class="score-badge">Score: ${finalScore} / ${q.maxScore}</div>
+                        <h2>Question ${index + 1}</h2>
+                        
+                        <div class="section">
+                            <h3>Initial Attempt</h3>
+                            ${q.initial.image ? `<img src="${q.initial.image}" alt="Question Image" />` : ''}
+                            <p class="whitespace-pre-wrap"><strong>Prompt:</strong><br/>${q.initial.prompt}</p>
+                            <p class="whitespace-pre-wrap"><strong>Your Answer:</strong><br/>${state.answers[q.id] || "<em>No answer provided</em>"}</p>
+                            <div class="section ideal">
+                                <strong>Ideal Answer Criteria:</strong> ${q.initial.criteria}
+                            </div>
+                        </div>
+                `;
+
+                if (tookAlternate) {
+                    htmlContent += `
+                        <div class="section">
+                            <h3>Alternate Attempt</h3>
+                            ${q.alternate.image ? `<img src="${q.alternate.image}" alt="Alternate Question Image" />` : ''}
+                            <p class="whitespace-pre-wrap"><strong>Prompt:</strong><br/>${q.alternate.prompt}</p>
+                            <p class="whitespace-pre-wrap"><strong>Your Answer:</strong><br/>${state.altAnswers[q.id] || "<em>No answer provided</em>"}</p>
+                            <div class="section ideal">
+                                <strong>Ideal Answer Criteria:</strong> ${q.alternate.criteria}
+                            </div>
+                            <div class="section feedback">
+                                <strong>AI Feedback (Alternate):</strong> ${fb.feedback}
+                                ${fb.improvementHint ? `<br/><br/><strong>How to improve:</strong> ${fb.improvementHint}` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    htmlContent += `
+                        <div class="section feedback">
+                            <strong>AI Feedback:</strong> ${fb.feedback}
+                            ${fb.improvementHint ? `<br/><br/><strong>How to improve:</strong> ${fb.improvementHint}` : ''}
+                        </div>
+                    `;
+                }
+
+                htmlContent += `</div>`;
+            });
+
+            htmlContent += `</body></html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.studentName.replace(/\s+/g, '_')}_Study_Guide.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // Initialize App
+        render();
+
+    </script>
+</body>
+</html>
