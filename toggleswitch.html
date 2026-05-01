@@ -23,7 +23,7 @@
         .smoke-puff { position: absolute; width: 30px; height: 30px; background: #555; border-radius: 50%; filter: blur(5px); animation: smoke 1.5s ease-out forwards; pointer-events: none; z-index: 100; }
 
         /* Component Styles */
-        .component { position: absolute; user-select: none; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3); transition: transform 0.1s; }
+        .component { position: absolute; user-select: none; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3); transition: transform 0.1s; cursor: grab; }
         .component:active { cursor: grabbing; transform: scale(1.02); }
         
         /* Enlarged Invisible Hitbox for Terminals */
@@ -159,14 +159,6 @@
                     </div>
 
                     <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
-                        <div class="w-20 h-20 bg-slate-300 rounded-full border-4 border-slate-700 relative mb-3 shadow-md flex items-center justify-center">
-                            <div class="w-16 h-4 bg-slate-800 rounded-full"></div>
-                        </div>
-                        <span class="text-sm font-black text-slate-700 mb-2">Prop Motor</span>
-                        <button onclick="addComponent('MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
-                    </div>
-
-                    <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
                         <div class="w-20 h-24 bg-blue-700 rounded-lg border-4 border-slate-900 relative mb-3 shadow-md flex flex-col items-center">
                             <div class="w-6 h-4 bg-slate-300 border-2 border-slate-800 rounded-t absolute -top-4"></div>
                             <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-auto mb-2">
@@ -177,6 +169,14 @@
                         </div>
                         <span class="text-sm font-black text-slate-700 mb-2">DPDT Switch</span>
                         <button onclick="addComponent('DPDT')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
+                        <div class="w-20 h-20 bg-slate-300 rounded-full border-4 border-slate-700 relative mb-3 shadow-md flex items-center justify-center">
+                            <div class="w-16 h-4 bg-slate-800 rounded-full"></div>
+                        </div>
+                        <span class="text-sm font-black text-slate-700 mb-2">Prop Motor</span>
+                        <button onclick="addComponent('MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
                     </div>
                 </div>
 
@@ -195,8 +195,8 @@
                     
                     <div class="absolute bottom-4 left-4 text-slate-500 text-sm pointer-events-none font-bold bg-white/90 px-4 py-2 rounded-lg shadow-md border border-slate-200 z-50">
                         <span class="text-indigo-600">Wiring Tool:</span> Click one terminal, then another. Or Click, Drag, & Release!<br>
-                        <span class="text-indigo-600">Delete Wires:</span> Click directly on a wire to erase it.<br>
-                        <span class="text-indigo-600">Controls:</span> Click & drag background to pan. Double-click a component to delete it.
+                        <span class="text-indigo-600">Auto-Connect:</span> Drag a battery's (+) right up to another's (-) to auto-wire them.<br>
+                        <span class="text-indigo-600">Controls:</span> Click a wire to delete. Double-click a component to delete it.
                     </div>
                 </div>
 
@@ -288,6 +288,8 @@
             { type: 'QBLOCK', setupId: 'DPDT_CASE_COUNT', title: "Switch Count" },
             { type: 'LESSON', title: "Switch Mechanics", text: "Notice the metal lever (the toggle bat) at the top of the blue case. It is connected to BOTH of the internal switches at the exact same time.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
             { type: 'QBLOCK', setupId: 'DPDT_CASE_SIMULT', title: "Switch Mechanics" },
+            { type: 'LESSON', title: "Electrical Isolation", text: "Even though the toggle bat moves both internal switches at the same time, the two sides are completely separated electrically. Posts A, B, and C NEVER internally connect to posts D, E, or F.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+            { type: 'QBLOCK', setupId: 'DPDT_ISOLATION', title: "Circuit Isolation" },
             { type: 'QBLOCK', setupId: 'DPDT_PINOUT', title: "Pin Connections" },
             { type: 'SIM_START' }
         ];
@@ -341,6 +343,17 @@
                     { tag: 'simult', type: 'place', q: "Because of the single toggle lever, the two internal switches must always be in the...", tokens: ["Same Position", "Opposite Position", "Open Position", "Closed Position"], ans: "Same Position", exp: "They are mechanically linked to move exactly the same way.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" }
                 ]
             },
+            'DPDT_ISOLATION': {
+                finalExp: "The left posts (A, B, C) and right posts (D, E, F) belong to separate internal switches. They are completely electrically isolated from one another and never connect to each other inside the case.",
+                sequence: [['iso']],
+                questions: [
+                    { tag: 'iso', type: 'mc', q: "Do posts A, B, or C ever internally connect to posts D, E, or F?", opts: ["Yes, when Toggled Up", "Yes, when Toggled Down", "Yes, in the Center", "No, never"], ans: "No, never", exp: "The two sides are completely isolated from each other electrically.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+                    { tag: 'iso', type: 'dropdown', q: "Are the left and right sides of the switch electrically connected inside the case?", opts: ["Always", "Sometimes", "Never", "Only when broken"], ans: "Never", exp: "They are separate switches (poles) housed in the same case.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+                    { tag: 'iso', type: 'tf', q: "True or False: Current can flow directly from Post B to Post E inside the switch.", ans: "False", exp: "False! There is no internal connection between the left and right sides.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+                    { tag: 'iso', type: 'text', q: "How many internal electrical connections exist between the left side (A,B,C) and the right side (D,E,F)? (Enter a number)", ans: "0", exact: true, exp: "Zero. They are completely separated.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+                    { tag: 'iso', type: 'place', q: "Tap the word that describes the relationship between the left and right sides of the DPDT switch:", tokens: ["Isolated", "Connected", "Shorted", "Reversed"], ans: "Isolated", exp: "They are electrically isolated from one another.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" }
+                ]
+            },
             'DPDT_PINOUT': {
                 finalExp: "Toggle Right connects Post A to B, and Post D to E. Toggle Left connects Post B to C, and Post E to F. Toggle Center connects nothing.",
                 sequence: [['center'], ['left', 'right']], // Center first, then left or right
@@ -370,16 +383,16 @@
         };
 
         const PUZZLES = [
-            { title: "Sim 4: Endurance Racer", desc: "Give the motor exactly 12V (Fast Speed), but wire it to run TWICE as long. (Hint: Build 2 parallel strings, each containing 2 series batteries).", check: (v, c) => v === 12.0 && c >= 2 },
-            { title: "Sim 4: Super Marathon", desc: "Wire 3 batteries in PARALLEL to give the motor 6V but 3x the lifespan. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 3 },
-            { title: "Sim 4: 12V Boost", desc: "We need exactly 12V (Fast Speed) but we don't care about duration. Use just 2 batteries in series.", check: (v, c) => v === 12.0 }
+            { title: "Sim 4: Endurance Racer", desc: "Make the motor run 2 times faster (12V) and 2 times longer! (Hint: Build 2 parallel strings, each containing 2 series batteries).", check: (v, c) => v === 12.0 && c >= 2 },
+            { title: "Sim 4: Super Marathon", desc: "Make the motor run at normal speed (1x faster) but 3 times longer! Remember, more batteries in parallel gives more endurance.", check: (v, c) => v === 6.0 && c >= 3 },
+            { title: "Sim 4: 6V Ultra-Marathon", desc: "Make the motor run at normal speed (1x faster) but 4 times longer! Wire them up and turn the switch ON.", check: (v, c) => v === 6.0 && c >= 4 }
         ];
 
         // This gets populated dynamically in startGame
         const SIM_STAGES = [
             { title: "Sim 1: Ignition", desc: "Connect ONE 6V battery to the motor using the DPDT switch as an ON/OFF switch. Turn the switch ON, then test.", check: (v) => v === 6.0 },
-            { title: "Sim 2: Speed Demon", desc: "Let's go faster! Put 2 batteries in SERIES to double the voltage (12V) and connect the motor. Turn the switch ON, then test.", check: (v) => v === 12.0 },
-            { title: "Sim 3: Parallel Marathon", desc: "Put 2 batteries in PARALLEL to keep it at 6V but double the runtime. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 2 },
+            { title: "Sim 2: Speed Demon", desc: "More voltage means faster! Put 2 batteries in SERIES to double the voltage to 12V and make the motor run 2 times faster. Turn the switch ON, then test.", check: (v) => v === 12.0 },
+            { title: "Sim 3: Parallel Marathon", desc: "More batteries in PARALLEL means more endurance! Put 2 batteries in parallel to keep it at 6V but make the motor run 2 times longer. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 2 },
             { title: "Sim 4: Placeholder", desc: "Placeholder...", check: () => false }, // Will be overwritten
             { title: "Ultimate Challenge: Forward & Reverse", desc: "Use ONE 6V battery and the switch to make the motor go FORWARD, REVERSE, and OFF. (Hint: Cross-wire the switch outer posts).", checkUltimate: true }
         ];
@@ -698,8 +711,15 @@
         function getUniqueId() { return Math.random().toString(36).substr(2, 9); }
 
         window.addComponent = function(type) {
-            let cx = -state.panX + 350 + (Math.random()*50);
-            let cy = -state.panY + 200 + (Math.random()*50);
+            let cx;
+            let cy = -state.panY + 100 + (Math.random()*50);
+            
+            // Spawn components in logical zones
+            if (type === 'BATTERY') cx = -state.panX + 150 + (Math.random()*40);
+            else if (type === 'DPDT') cx = -state.panX + 350 + (Math.random()*40);
+            else if (type === 'MOTOR') cx = -state.panX + 550 + (Math.random()*40);
+            else cx = -state.panX + 350 + (Math.random()*50);
+            
             let comp = { id: getUniqueId(), type, x: cx, y: cy, state: 0, terminals: [] };
             
             if (type === 'BATTERY') {
@@ -713,6 +733,7 @@
                     { id: comp.id+'_t2', compId: comp.id, tag: 'R', rx: 90, ry: 40 }
                 ];
             } else if (type === 'DPDT') {
+                // Modified layout to prevent text overlap
                 comp.terminals = [
                     { id: comp.id+'_A', compId: comp.id, tag: 'A', rx: 20, ry: 40 },
                     { id: comp.id+'_B', compId: comp.id, tag: 'B', rx: 48, ry: 40 },
@@ -776,7 +797,34 @@
         }
         
         window.handleMouseUp = function(e) {
-            state.isPanning = false; state.dragCompId = null;
+            state.isPanning = false; 
+            let droppedCompId = state.dragCompId;
+            state.dragCompId = null;
+
+            if (droppedCompId) {
+                let comp = state.components.find(c => c.id === droppedCompId);
+                if (comp && comp.type === 'BATTERY') {
+                    // Auto-connect touching batteries!
+                    state.components.filter(c => c.type === 'BATTERY' && c.id !== comp.id).forEach(other => {
+                        let cPos = getTerminalAbsPos(comp.id+'_pos');
+                        let oNeg = getTerminalAbsPos(other.id+'_neg');
+                        if (Math.hypot(cPos.x - oNeg.x, cPos.y - oNeg.y) < 60) {
+                            if(!state.wires.find(w => (w.from === comp.id+'_pos' && w.to === other.id+'_neg') || (w.to === comp.id+'_pos' && w.from === other.id+'_neg'))) {
+                                state.wires.push({ id: getUniqueId(), from: comp.id+'_pos', to: other.id+'_neg' });
+                            }
+                        }
+                        let cNeg = getTerminalAbsPos(comp.id+'_neg');
+                        let oPos = getTerminalAbsPos(other.id+'_pos');
+                        if (Math.hypot(cNeg.x - oPos.x, cNeg.y - oPos.y) < 60) {
+                            if(!state.wires.find(w => (w.from === comp.id+'_neg' && w.to === other.id+'_pos') || (w.to === comp.id+'_neg' && w.from === other.id+'_pos'))) {
+                                state.wires.push({ id: getUniqueId(), from: comp.id+'_neg', to: other.id+'_pos' });
+                            }
+                        }
+                    });
+                    evaluatePhysics();
+                }
+            }
+
             if (state.wiringStartTerm) {
                 if (state.hoverTermId && state.hoverTermId !== state.wiringStartTerm) {
                     // Completing wire via drag release!
@@ -917,8 +965,10 @@
                     else if (isHovered && state.wiringStartTerm) termClasses += ' snap-hover';
                     
                     let tagYAdjust = c.type === 'DPDT' ? t.ry - 18 : t.ry - 16;
+                    let hitboxSize = c.type === 'DPDT' ? 'w-8 h-8' : 'w-10 h-10'; // Smaller hitboxes on DPDT makes dragging the body easier
+                    
                     return `
-                        <div class="terminal-hitbox absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 z-40 cursor-pointer flex items-center justify-center" 
+                        <div class="terminal-hitbox absolute ${hitboxSize} -translate-x-1/2 -translate-y-1/2 z-40 cursor-pointer flex items-center justify-center" 
                              style="left: ${t.rx}px; top: ${t.ry}px;" 
                              onmousedown="handleTerminalClick(event, '${t.id}')"
                              onmouseenter="state.hoverTermId = '${t.id}'; if(state.wiringStartTerm) renderWorkspace();"
