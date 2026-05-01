@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electric Circuits Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        
+        /* Animations */
+        @keyframes spin-fwd { 100% { transform: rotate(360deg); } }
+        @keyframes spin-rev { 100% { transform: rotate(-360deg); } }
+        @keyframes spark { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.5); } 100% { opacity: 0; transform: scale(2); } }
+        @keyframes smoke { 0% { opacity: 0.8; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(3); } }
+        
+        .spin-fast { animation: spin-fwd 0.1s linear infinite; }
+        .spin-med { animation: spin-fwd 0.3s linear infinite; }
+        .spin-rev-fast { animation: spin-rev 0.1s linear infinite; }
+        .spin-rev-med { animation: spin-rev 0.3s linear infinite; }
+
+        .sparkle { position: absolute; width: 10px; height: 10px; background: yellow; border-radius: 50%; animation: spark 0.5s ease-out forwards; pointer-events: none; z-index: 100; box-shadow: 0 0 10px red; }
+        .smoke-puff { position: absolute; width: 30px; height: 30px; background: #555; border-radius: 50%; filter: blur(5px); animation: smoke 1.5s ease-out forwards; pointer-events: none; z-index: 100; }
+
+        /* Component Styles */
+        .component { position: absolute; user-select: none; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3); transition: transform 0.1s; }
+        .component:active { cursor: grabbing; transform: scale(1.02); }
+        
+        /* Enlarged Invisible Hitbox for Terminals */
+        .terminal { 
+            position: absolute; width: 18px; height: 18px; background-color: #fbbf24; border: 3px solid #b45309; 
+            border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%); z-index: 50;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .terminal::before {
+            content: ''; position: absolute; top: -20px; left: -20px; right: -20px; bottom: -20px; border-radius: 50%; z-index: 51;
+        }
+        .terminal:hover { transform: translate(-50%, -50%) scale(1.5); background-color: #fef08a; box-shadow: 0 0 12px #f59e0b; }
+        .terminal.active-wiring { background-color: #ef4444; border-color: #7f1d1d; box-shadow: 0 0 15px #ef4444; transform: translate(-50%, -50%) scale(1.4); }
+        .terminal.snap-hover { transform: translate(-50%, -50%) scale(1.6); background-color: #fef08a; box-shadow: 0 0 15px #10b981; border-color: #047857; }
+        .term-label { position: absolute; font-size: 12px; font-weight: 900; color: white; pointer-events: none; transform: translate(-50%, -50%); z-index: 41; text-shadow: 1px 1px 3px black; }
+
+        .wire-line { stroke: #374151; stroke-width: 6; stroke-linecap: round; cursor: pointer; transition: stroke-width 0.2s, stroke 0.2s; pointer-events: stroke; }
+        .wire-line:hover { stroke: #ef4444; stroke-width: 10; stroke-dasharray: 4 4; } /* Shows it can be deleted */
+        .wire-line.powered { stroke: #10b981; }
+        .wire-line.shorted { stroke: #ef4444; stroke-dasharray: 4 4; animation: pulse-short 0.5s infinite; }
+
+        @keyframes pulse-short { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #workspace { background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 30px 30px; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        /* Modality Tokens */
+        .token { display: inline-block; padding: 8px 16px; background: #e2e8f0; border: 2px solid #94a3b8; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .token.selected { background: #818cf8; border-color: #4f46e5; color: white; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .dropzone { display: inline-block; min-width: 120px; height: 40px; border: 2px dashed #94a3b8; border-radius: 8px; vertical-align: middle; background: #f8fafc; cursor: pointer; text-align: center; line-height: 36px; font-weight: bold; }
+        .dropzone.filled { border: 2px solid #4f46e5; background: #e0e7ff; color: #4f46e5; }
+    </style>
+</head>
+<body class="bg-slate-100 h-screen w-screen flex flex-col text-slate-800">
+
+    <header class="bg-indigo-700 text-white p-4 shadow-md flex justify-between items-center z-50">
+        <div class="flex items-center gap-4">
+            <button id="nav-back" onclick="goBack()" class="hidden bg-indigo-800 hover:bg-indigo-900 text-white font-bold py-2 px-4 rounded-lg shadow-lg border border-indigo-500 transition-colors text-sm flex items-center gap-1">
+                ⏪ Back
+            </button>
+            <h1 class="text-2xl font-bold flex items-center gap-2">⚡ Propeller Car Circuit Lab</h1>
+        </div>
+        <div id="status-bar" class="hidden text-sm font-semibold bg-indigo-900 px-4 py-2 rounded-full shadow-inner border border-indigo-500">
+            Phase: <span id="stage-name">Intro</span>
+        </div>
+    </header>
+
+    <main id="app-container" class="flex-grow relative overflow-hidden flex">
+        
+        <!-- Screen 1: Start -->
+        <div id="screen-start" class="absolute inset-0 flex items-center justify-center bg-slate-50 z-40 transition-opacity duration-500">
+            <div class="bg-white p-10 rounded-2xl shadow-2xl max-w-md w-full text-center mx-4 border-t-8 border-indigo-600">
+                <h2 class="text-3xl font-extrabold mb-2 text-slate-800">Welcome to the Lab!</h2>
+                <p class="text-slate-600 mb-6 font-medium">Today we are going to build the circuitry for a propellerized Hot Wheels car using a blue DPDT toggle switch.</p>
+                <div class="mb-6 text-left">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Enter your name to begin:</label>
+                    <input type="text" id="student-name" class="w-full px-4 py-3 rounded-lg border-2 border-slate-200 focus:border-indigo-500 focus:outline-none transition-colors text-lg" placeholder="Your Name" onkeypress="if(event.key==='Enter') startGame()">
+                </div>
+                <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg text-xl transition-transform hover:scale-105">
+                    Begin Mission 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- Screen 2: Narrative / Lesson -->
+        <div id="screen-lesson" class="absolute inset-0 bg-slate-900 flex flex-col hidden z-30 overflow-y-auto">
+            <div class="flex-grow flex flex-col items-center justify-center p-8 relative my-auto">
+                <div class="max-w-5xl w-full bg-slate-800/90 p-8 rounded-3xl shadow-2xl backdrop-blur-md border border-slate-600 mb-6 text-center text-white flex flex-col items-center">
+                    <h2 id="lesson-title" class="text-3xl font-black text-amber-400 mb-4 drop-shadow-md">The Theory</h2>
+                    <p id="lesson-text" class="text-xl leading-relaxed text-slate-200 mb-4 font-medium max-w-4xl"></p>
+                    <div id="lesson-imgs-container" class="flex flex-wrap justify-center gap-6 w-full"></div>
+                </div>
+                
+                <button onclick="advanceLesson()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 px-12 rounded-2xl text-2xl shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-transform hover:scale-105">
+                    I Understand! Continue ▶
+                </button>
+            </div>
+        </div>
+
+        <!-- Screen 3: Q&A Block -->
+        <div id="screen-qa" class="absolute inset-0 bg-slate-50 flex items-center justify-center hidden z-30 overflow-y-auto py-8">
+            <div class="bg-white p-10 rounded-3xl shadow-2xl max-w-2xl w-full mx-4 border-t-8 border-amber-500 relative overflow-hidden my-auto">
+                <div class="absolute top-0 right-0 bg-amber-500 text-white px-5 py-2 rounded-bl-xl font-bold text-sm shadow-md">Knowledge Check</div>
+                
+                <h3 class="text-lg font-bold text-slate-400 uppercase tracking-widest mb-1 mt-2">Attempt: <span id="qa-counter">1</span></h3>
+                <h2 class="text-2xl font-black text-slate-800 mb-6" id="qa-block-title">Question</h2>
+                
+                <img id="qa-img" src="" class="max-h-64 mx-auto mb-6 rounded-xl shadow-lg border-2 border-slate-200 hidden object-contain bg-white">
+                
+                <p id="qa-text" class="text-xl text-slate-700 mb-8 font-medium leading-relaxed"></p>
+                
+                <!-- Dynamic Input Area -->
+                <div id="qa-input-area" class="mb-8 min-h-[60px]"></div>
+                
+                <div class="flex justify-between items-center pt-6 border-t-2 border-slate-100" id="qa-action-container">
+                    <button id="qa-action-btn" onclick="submitQAAnswer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg text-lg">Submit Answer</button>
+                    <div id="qa-feedback" class="text-sm font-bold transition-opacity opacity-0 max-w-xs text-right"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Simulator -->
+        <div id="screen-sim" class="absolute inset-0 flex flex-col hidden z-20">
+            <div class="bg-white border-b-2 border-slate-200 p-4 shadow-sm flex justify-between items-center relative z-10">
+                <div class="max-w-3xl">
+                    <h3 class="font-black text-2xl text-indigo-800 tracking-tight" id="sim-task-title">Task</h3>
+                    <p class="text-slate-600 font-bold text-lg mt-1" id="sim-task-desc">Connect the components.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="requestHint()" class="bg-amber-400 hover:bg-amber-500 text-amber-900 font-bold py-3 px-6 rounded-xl shadow-md flex items-center gap-2 transition-transform hover:scale-105">💡 Get a Hint</button>
+                    <button onclick="testCircuitUI()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl shadow-md text-lg flex items-center gap-2 transition-transform hover:scale-105">▶ Run Test</button>
+                </div>
+            </div>
+
+            <div class="flex flex-grow relative overflow-hidden">
+                <!-- Sidebar Palette -->
+                <div class="w-64 bg-slate-200 border-r-2 border-slate-300 p-4 flex flex-col gap-6 overflow-y-auto z-10 shadow-2xl">
+                    <h4 class="font-black text-xs text-slate-500 uppercase tracking-widest text-center border-b-2 border-slate-300 pb-2">Inventory Room</h4>
+                    
+                    <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
+                        <div class="w-16 h-24 bg-yellow-400 rounded-lg border-4 border-slate-800 relative mb-3 shadow-md">
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-3 bg-slate-300 border-2 border-slate-800 rounded-t"></div>
+                            <div class="text-slate-800 font-black text-xl mt-2">+</div>
+                            <div class="text-slate-800 font-black text-xl absolute bottom-1 left-1/2 -translate-x-1/2">-</div>
+                        </div>
+                        <span class="text-sm font-black text-slate-700 mb-2">6V Battery</span>
+                        <button onclick="addComponent('BATTERY')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
+                        <div class="w-20 h-20 bg-slate-300 rounded-full border-4 border-slate-700 relative mb-3 shadow-md flex items-center justify-center">
+                            <div class="w-16 h-4 bg-slate-800 rounded-full"></div>
+                        </div>
+                        <span class="text-sm font-black text-slate-700 mb-2">Prop Motor</span>
+                        <button onclick="addComponent('MOTOR')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow border-2 border-transparent hover:border-indigo-400 transition-colors text-center flex flex-col items-center">
+                        <div class="w-20 h-24 bg-blue-700 rounded-lg border-4 border-slate-900 relative mb-3 shadow-md flex flex-col items-center">
+                            <div class="w-6 h-4 bg-slate-300 border-2 border-slate-800 rounded-t absolute -top-4"></div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-auto mb-2">
+                                <div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div><div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div>
+                                <div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div><div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div>
+                                <div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div><div class="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></div>
+                            </div>
+                        </div>
+                        <span class="text-sm font-black text-slate-700 mb-2">DPDT Switch</span>
+                        <button onclick="addComponent('DPDT')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow">➕ ADD TO TABLE</button>
+                    </div>
+                </div>
+
+                <!-- Workspace -->
+                <div id="workspace" class="flex-grow relative" 
+                     onmousedown="startPan(event)" 
+                     onmousemove="handleMouseMove(event)" 
+                     onmouseup="handleMouseUp(event)"
+                     onmouseleave="handleMouseUp(event)">
+                    
+                    <div id="componentsLayer" class="absolute inset-0 pointer-events-none z-10"></div>
+                    <!-- Finalized Wires -->
+                    <svg id="wiresLayer" class="absolute inset-0 w-full h-full pointer-events-none z-30"></svg>
+                    <!-- Active drag wire logic (butter smooth) -->
+                    <svg id="activeWireLayer" class="absolute inset-0 w-full h-full pointer-events-none z-[31]"></svg>
+                    
+                    <div class="absolute bottom-4 left-4 text-slate-500 text-sm pointer-events-none font-bold bg-white/90 px-4 py-2 rounded-lg shadow-md border border-slate-200 z-50">
+                        <span class="text-indigo-600">Wiring Tool:</span> Click one terminal, then another. Or Click, Drag, & Release!<br>
+                        <span class="text-indigo-600">Delete Wires:</span> Click directly on a wire to erase it.<br>
+                        <span class="text-indigo-600">Controls:</span> Click & drag background to pan. Double-click a component to delete it.
+                    </div>
+                </div>
+
+                <!-- Live Graph/HUD Overlay -->
+                <div id="sim-hud" class="absolute bottom-4 right-4 bg-slate-900/95 text-white p-5 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-none z-50 flex gap-8 items-end border-2 border-slate-700 hidden transition-opacity">
+                    <div class="flex flex-col items-center">
+                        <span class="text-xs text-slate-400 font-bold uppercase mb-2 tracking-wider">Voltage</span>
+                        <div class="h-40 w-12 bg-slate-800 rounded-t-lg relative flex items-end overflow-hidden shadow-inner border border-slate-700">
+                            <div id="bar-voltage" class="w-full bg-emerald-500 transition-all duration-300" style="height: 0%;"></div>
+                        </div>
+                        <span id="txt-voltage" class="font-black text-xl mt-2">0V</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-xs text-slate-400 font-bold uppercase mb-2 tracking-wider">Capacity</span>
+                        <div class="h-40 w-12 bg-slate-800 rounded-t-lg relative flex items-end overflow-hidden shadow-inner border border-slate-700">
+                            <div id="bar-capacity" class="w-full bg-blue-500 transition-all duration-300" style="height: 0%;"></div>
+                        </div>
+                        <span id="txt-capacity" class="font-black text-xl mt-2">0x</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Win Screen -->
+        <div id="screen-win" class="absolute inset-0 bg-slate-900 flex items-center justify-center hidden z-50 text-center p-4">
+            <canvas id="confetti-canvas" class="absolute inset-0 pointer-events-none z-0"></canvas>
+            <div class="bg-white p-12 rounded-3xl shadow-2xl max-w-2xl w-full z-10 transform scale-95 opacity-0 transition-all duration-700 border-t-8 border-emerald-500" id="win-card">
+                <h1 class="text-6xl font-black text-indigo-600 mb-4 tracking-tight">Mission Complete!</h1>
+                <p id="win-message" class="text-2xl text-slate-600 font-bold mb-8 leading-relaxed"></p>
+                
+                <div class="bg-slate-50 p-8 rounded-3xl border-4 border-slate-100 mb-10 shadow-inner">
+                    <div class="text-8xl font-black text-slate-800 mb-2 drop-shadow-md" id="win-score">30/25</div>
+                    <p class="text-3xl text-emerald-600 font-black uppercase tracking-widest mt-4" id="win-student-name">Name</p>
+                    <p class="text-lg text-slate-400 mt-2 font-bold uppercase">Exercise: DPDT Switches & Motors</p>
+                </div>
+
+                <div id="win-actions" class="flex justify-center gap-4 hidden">
+                    <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-900 text-white font-black py-4 px-10 rounded-2xl transition-transform hover:scale-105 shadow-xl text-xl">
+                        Try Again to Perfect Your Score
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hint/Success Modal -->
+        <div id="hint-modal" class="absolute inset-0 bg-black/70 flex items-center justify-center hidden z-[100] opacity-0 transition-opacity backdrop-blur-sm">
+            <div class="bg-white p-10 rounded-3xl shadow-2xl max-w-lg w-full mx-4 transform scale-95 transition-transform" id="hint-box">
+                <div class="flex items-center gap-4 mb-6 text-amber-500 border-b-2 border-slate-100 pb-4" id="hint-header">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="hint-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h3 class="text-3xl font-black text-slate-800" id="hint-title">Teacher's Hint</h3>
+                </div>
+                <p id="hint-text" class="text-xl text-slate-700 mb-8 leading-relaxed font-bold"></p>
+                <div id="hint-loading" class="hidden text-indigo-500 font-black mb-8 animate-pulse text-xl">Thinking...</div>
+                <button id="hint-btn" onclick="closeHint()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl transition-colors text-xl shadow-lg">Got it!</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- System & State ---
+        const apiKey = ""; 
+        const isWeb = window.location.hostname !== 'sandbox.google.com' && window.location.hostname !== '' && !window.location.href.includes('data:text');
+
+        let state = {
+            studentName: '',
+            corrections: 0,
+            lessonIdx: 0,
+            qBlockActive: false,
+            qBlockQuestions: [],
+            qBlockWrongCount: 0,
+            qBlockStep: 0,
+            currentSequence: [],
+            askedQuestions: [],
+            qBlockFinalExplanation: "",
+            simStage: 0,
+            // Circuit
+            components: [], wires: [], wiringStartTerm: null, hoverTermId: null,
+            panX: 0, panY: 0, isPanning: false, startPanX: 0, startPanY: 0, dragCompId: null,
+            circuitStatus: { v: 0, cap: 0, active: false, shorted: false }
+        };
+
+        // --- Data Definitions ---
+        const FLOW = [
+            { type: 'LESSON', title: "The Mission", text: "We're going to use this blue toggle switch to control a propellerized Hot Wheels car. But first, as a physics student, you need to learn about batteries and how the switch works.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQQZbOteUnLOh20dX5Bnme7YeyWMwc8i-ahFykYBJIravSrEW3pdOBRyp_848pawLHxEWlZ7SdljA6G/pub?w=960&h=720" },
+            { type: 'LESSON', title: "Inside the Switch", text: "Here is a side view diagram of the inside parts. Ordinarily, electricity cannot flow through an air gap. Electrons can only flow across an air gap if there is about 3,000 volts per millimeter of gap to force them across!", img: "https://docs.google.com/drawings/d/e/2PACX-1vRrejmxVdNQFCT6G683sOBH9oaL8evhQdoctdihnI-ZKnxBvlzuI9og8gDppe4mym2f3aZ1Vu-NLGN_/pub?w=545&h=711" },
+            { type: 'QBLOCK', setupId: 'SPDT_INTERNAL', title: "Air Gap Dynamics" },
+            { type: 'LESSON', title: "The Blue Case", text: "The previous diagram was for a double-pole single-throw center-off switch. Look at the photos of the physical switch we are going to use.", imgs: ["https://docs.google.com/drawings/d/e/2PACX-1vRTru6oDDzYNbKiGuJE_7Uz33iGuUYM0D-wIXdvbvs31p2YypqP6qsJCgZ2Q2p7UbzV3xbCuID53YN2/pub?w=960&h=720", "https://docs.google.com/drawings/d/e/2PACX-1vTqTwaTSKYiqDMMlo1xuNAQ8I-R2hCoryo_0x8ql1_6wnywgVwpSPk0tPKQC_aCdRFRvOFo63RPdOpi/pub?w=550&h=714", "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720"] },
+            { type: 'QBLOCK', setupId: 'DPDT_CASE_COUNT', title: "Switch Count" },
+            { type: 'LESSON', title: "Switch Mechanics", text: "Notice the metal lever (the toggle bat) at the top of the blue case. It is connected to BOTH of the internal switches at the exact same time.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
+            { type: 'QBLOCK', setupId: 'DPDT_CASE_SIMULT', title: "Switch Mechanics" },
+            { type: 'QBLOCK', setupId: 'DPDT_PINOUT', title: "Pin Connections" },
+            { type: 'SIM_START' }
+        ];
+
+        const QBANKS = {
+            'SPDT_INTERNAL': {
+                finalExp: "A switch physically moves a contactor to bridge posts. Toggle Left bridges Bottom Center (BC) and Bottom Right (BR). Toggle Right bridges Bottom Left (BL) and Bottom Center (BC). Center connects nothing, relying on an air gap requiring 3000V/mm to arc.",
+                sequence: [['center'], ['left', 'right']], // Forces 1 center question, then 1 left/right question
+                questions: [
+                    // --- 5 CENTER VARIATIONS ---
+                    { tag: 'center', type: 'mc', q: "In this picture (Toggle Center), what parts are electrically connected?", opts: ["Posts BC and BR", "Posts BL and BC", "Posts BL and BR", "No posts are connected"], ans: "No posts are connected", exp: "In the center position, the contactor touches nothing. The air gap breaks the circuit.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
+                    { tag: 'center', type: 'place', q: "Tap the word that describes what prevents the electricity from flowing in the center position:", tokens: ["Resistor", "Air Gap", "Wire", "Battery"], ans: "Air Gap", exp: "The physical space between the metal contacts is called an air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
+                    { tag: 'center', type: 'dropdown', q: "Ordinarily, electricity cannot flow through an air gap. How many volts per millimeter of air gap are required to force electrons across?", opts: ["100 volts", "1,000 volts", "3,000 volts", "10,000 volts"], ans: "3,000 volts", exp: "It takes about 3,000 volts to jump a 1mm air gap (dielectric breakdown of air)." },
+                    { tag: 'center', type: 'text', q: "In the center position, how many posts are electrically bridged together by the contactor? (Enter a number)", ans: "0", exact: true, exp: "Zero posts are bridged because it rests in the air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
+                    { tag: 'center', type: 'tf', q: "True or False: In the Toggle Center position, the internal metal seesaw touches the outer posts.", ans: "False", exp: "False! It touches nothing, creating an air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
+                    
+                    // --- 5 LEFT VARIATIONS ---
+                    { tag: 'left', type: 'mc', q: "In this picture (Toggle Left), what parts are electrically connected?", opts: ["Posts BC and BR", "Posts BL and BC", "Posts BL and BR", "No posts are connected"], ans: "Posts BC and BR", exp: "The seesaw pushes the contactor to bridge the center and right posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRIDRc3AFyr0o51bKq9DSjzTvwwMpNPXJDzFupe15uFf3ELy-kW2KLTtCwUTonXR5XJO9S59Jj-u1Zu/pub?w=960&h=720" },
+                    { tag: 'left', type: 'dropdown', q: "When toggled Left, the contactor bridges the Bottom Center (BC) post to which other post?", opts: ["Bottom Left (BL)", "Bottom Right (BR)", "Top Left", "Top Right"], ans: "Bottom Right (BR)", exp: "The contactor pivots to connect the center and right posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRIDRc3AFyr0o51bKq9DSjzTvwwMpNPXJDzFupe15uFf3ELy-kW2KLTtCwUTonXR5XJO9S59Jj-u1Zu/pub?w=960&h=720" },
+                    { tag: 'left', type: 'tf', q: "True or False: When Toggled Left, post BC is electrically connected to post BR.", ans: "True", exp: "True! The metal contactor bridges them together.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRIDRc3AFyr0o51bKq9DSjzTvwwMpNPXJDzFupe15uFf3ELy-kW2KLTtCwUTonXR5XJO9S59Jj-u1Zu/pub?w=960&h=720" },
+                    { tag: 'left', type: 'place', q: "Tap the post that connects to Bottom Center (BC) when toggled Left:", tokens: ["Bottom Left (BL)", "Bottom Right (BR)", "Top Center", "Top Right"], ans: "Bottom Right (BR)", exp: "It bridges the center to the right.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRIDRc3AFyr0o51bKq9DSjzTvwwMpNPXJDzFupe15uFf3ELy-kW2KLTtCwUTonXR5XJO9S59Jj-u1Zu/pub?w=960&h=720" },
+                    { tag: 'left', type: 'text', q: "When toggled Left, how many individual posts are bridged together by the internal contactor? (Enter a number)", ans: "2", exact: true, exp: "Exactly two posts (BC and BR) are connected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRIDRc3AFyr0o51bKq9DSjzTvwwMpNPXJDzFupe15uFf3ELy-kW2KLTtCwUTonXR5XJO9S59Jj-u1Zu/pub?w=960&h=720" },
+
+                    // --- 5 RIGHT VARIATIONS ---
+                    { tag: 'right', type: 'mc', q: "In this picture (Toggle Right), what parts are electrically connected?", opts: ["Posts BC and BR", "Posts BL and BC", "Posts BL and BR", "No posts are connected"], ans: "Posts BL and BC", exp: "The toggle pushes the contactor the other way, bridging left and center.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQHwJP78iDxZhmhRjeGJl0_6xoruu5lzkiFf711xIJJgsfIvyzh74GdSbjeqbjXvnhoFUGusZn5HacI/pub?w=960&h=720" },
+                    { tag: 'right', type: 'dropdown', q: "When toggled Right, the contactor bridges the Bottom Center (BC) post to which other post?", opts: ["Bottom Left (BL)", "Bottom Right (BR)", "Top Left", "Top Right"], ans: "Bottom Left (BL)", exp: "The contactor pivots to connect the center and left posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQHwJP78iDxZhmhRjeGJl0_6xoruu5lzkiFf711xIJJgsfIvyzh74GdSbjeqbjXvnhoFUGusZn5HacI/pub?w=960&h=720" },
+                    { tag: 'right', type: 'tf', q: "True or False: When Toggled Right, post BC is electrically connected to post BL.", ans: "True", exp: "True! The metal contactor bridges them together on the left side.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQHwJP78iDxZhmhRjeGJl0_6xoruu5lzkiFf711xIJJgsfIvyzh74GdSbjeqbjXvnhoFUGusZn5HacI/pub?w=960&h=720" },
+                    { tag: 'right', type: 'place', q: "Tap the post that connects to Bottom Center (BC) when toggled Right:", tokens: ["Bottom Left (BL)", "Bottom Right (BR)", "Top Left", "Top Center"], ans: "Bottom Left (BL)", exp: "It bridges the center to the left.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQHwJP78iDxZhmhRjeGJl0_6xoruu5lzkiFf711xIJJgsfIvyzh74GdSbjeqbjXvnhoFUGusZn5HacI/pub?w=960&h=720" },
+                    { tag: 'right', type: 'text', q: "When toggled Right, how many individual posts are bridged together by the internal contactor? (Enter a number)", ans: "2", exact: true, exp: "Exactly two posts (BL and BC) are connected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQHwJP78iDxZhmhRjeGJl0_6xoruu5lzkiFf711xIJJgsfIvyzh74GdSbjeqbjXvnhoFUGusZn5HacI/pub?w=960&h=720" }
+                ]
+            },
+            'DPDT_CASE_COUNT': {
+                finalExp: "The blue case is a Double-Pole switch, meaning it literally houses TWO independent DPST/SPDT switch mechanisms inside of it.",
+                sequence: [['count']], 
+                questions: [
+                    { tag: 'count', type: 'mc', q: "How many DPST switches are inside the switch we are going to use?", opts: ["1", "2", "3", "4"], ans: "2", exp: "There are two independent switch mechanisms inside the case.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRTru6oDDzYNbKiGuJE_7Uz33iGuUYM0D-wIXdvbvs31p2YypqP6qsJCgZ2Q2p7UbzV3xbCuID53YN2/pub?w=960&h=720" },
+                    { tag: 'count', type: 'dropdown', q: "Select the correct number of DPST switches inside the blue case:", opts: ["1", "2", "3", "4"], ans: "2", exp: "The case holds exactly two switches.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRTru6oDDzYNbKiGuJE_7Uz33iGuUYM0D-wIXdvbvs31p2YypqP6qsJCgZ2Q2p7UbzV3xbCuID53YN2/pub?w=960&h=720" },
+                    { tag: 'count', type: 'text', q: "Enter the exact number of DPST switches housed inside the blue case:", ans: "2", exact: true, exp: "Double-Pole means there are TWO separate poles (switches).", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
+                    { tag: 'count', type: 'place', q: "Tap the correct number to answer: How many DPST switches are inside?", tokens: ["1", "2", "3", "4"], ans: "2", exp: "There are two internal switches.", img: "https://docs.google.com/drawings/d/e/2PACX-1vRTru6oDDzYNbKiGuJE_7Uz33iGuUYM0D-wIXdvbvs31p2YypqP6qsJCgZ2Q2p7UbzV3xbCuID53YN2/pub?w=960&h=720" },
+                    { tag: 'count', type: 'tf', q: "True or False: There is only ONE DPST switch inside the blue case.", ans: "False", exp: "False! There are two separate switches inside.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" }
+                ]
+            },
+            'DPDT_CASE_SIMULT': {
+                finalExp: "Because both internal switches are connected to the exact same metal toggle bat, they are mechanically forced to switch simultaneously. They must always be in the exact same position.",
+                sequence: [['simult']],
+                questions: [
+                    { tag: 'simult', type: 'mc', q: "If you move the toggle to the left, what happens to the internal contacts of BOTH switches?", opts: ["Both metal seesaws are pushed down on the right", "Both metal seesaws are pushed down on the left", "One is pushed down left and the other is pushed down right", "One is pushed down right and the other is pushed down left"], ans: "Both metal seesaws are pushed down on the right", exp: "It's a seesaw! Moving the top of the toggle left pushes BOTH bottom contacts to the right simultaneously.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
+                    { tag: 'simult', type: 'dropdown', q: "Do the two internal switches actuate simultaneously, or can they be switched one at a time?", opts: ["Simultaneously", "One at a time", "It depends on the wiring", "They switch randomly"], ans: "Simultaneously", exp: "They share the same mechanical lever, so they flip together.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
+                    { tag: 'simult', type: 'tf', q: "True or False: It is possible for one internal switch to be ON while the other switch is OFF.", ans: "False", exp: "Because they share a toggle lever, they must be in the exact same position.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
+                    { tag: 'simult', type: 'mc', q: "Can one switch be center-to-right, while the other switch is center-to-left?", opts: ["Yes, they are independent", "No, they move together", "Only if it is broken", "Only when wired in series"], ans: "No, they move together", exp: "The mechanical bat forces both internal switches to mirror each other.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
+                    { tag: 'simult', type: 'place', q: "Because of the single toggle lever, the two internal switches must always be in the...", tokens: ["Same Position", "Opposite Position", "Open Position", "Closed Position"], ans: "Same Position", exp: "They are mechanically linked to move exactly the same way.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" }
+                ]
+            },
+            'DPDT_PINOUT': {
+                finalExp: "Toggle Right connects Post A to B, and Post D to E. Toggle Left connects Post B to C, and Post E to F. Toggle Center connects nothing.",
+                sequence: [['center'], ['left', 'right']], // Center first, then left or right
+                questions: [
+                    // --- 5 CENTER VARIATIONS ---
+                    { tag: 'center', type: 'mc', q: "Look at the toggle center switch. Which posts are connected?", opts: ["Post A to B", "Post B to C", "Post D to E", "No posts are connected"], ans: "No posts are connected", exp: "Center is OFF. The contacts are in the air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    { tag: 'center', type: 'dropdown', q: "In the Toggle Center position, what is the connection state of Post B?", opts: ["Connected to A", "Connected to C", "Disconnected", "Connected to E"], ans: "Disconnected", exp: "Center is OFF. No posts are connected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    { tag: 'center', type: 'text', q: "If the switch is Toggle Center, how many electrical connections exist between the posts? (Enter number)", ans: "0", exact: true, exp: "Zero connections. The switch is totally off.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    { tag: 'center', type: 'tf', q: "True or False: In the Toggle Center position, Post E is electrically connected to Post D.", ans: "False", exp: "False! Center connects nothing.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    { tag: 'center', type: 'place', q: "Tap the term that describes the electrical state of all posts in the Center position:", tokens: ["Disconnected", "Connected to D", "Connected to F", "Shorted"], ans: "Disconnected", exp: "All posts are disconnected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    
+                    // --- 5 LEFT VARIATIONS (Focuses on B->C and E->F) ---
+                    { tag: 'left', type: 'mc', q: "In the Toggle Left position, which post is Post B connected to?", opts: ["Post A", "Post C", "Post D", "Post F"], ans: "Post C", exp: "Toggle left pushes the contact right/down, connecting the center to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+                    { tag: 'left', type: 'dropdown', q: "In the Toggle Left position, which post is Post E connected to?", opts: ["Post D", "Post F", "Post A", "Post C"], ans: "Post F", exp: "Toggle left pushes the contact right/down, connecting the center to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+                    { tag: 'left', type: 'tf', q: "True or False: Look at the toggle left switch. Post B is connected to post C, and post E is connected to post F.", ans: "True", exp: "True! Both middle posts connect to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+                    { tag: 'left', type: 'place', q: "Tap the post that connects to Post E when toggled Left:", tokens: ["Post D", "Post F", "Post A", "Post C"], ans: "Post F", exp: "Post E connects to Post F.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+                    { tag: 'left', type: 'text', q: "When Toggled Left, is Post B connected to Post A or Post C? (Type A or C)", ans: "C", exact: false, exp: "Toggle left connects it to the bottom post, C.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+
+                    // --- 5 RIGHT VARIATIONS (Focuses on B->A and E->D) ---
+                    { tag: 'right', type: 'mc', q: "In the Toggle Right position, which post is Post B connected to?", opts: ["Post A", "Post C", "Post D", "Post F"], ans: "Post A", exp: "Toggle right pushes the internal contact to the top side.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
+                    { tag: 'right', type: 'dropdown', q: "In the Toggle Right position, which post is Post E connected to?", opts: ["Post D", "Post F", "Post A", "Post C"], ans: "Post D", exp: "Toggle right pushes the internal contact to the top side.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
+                    { tag: 'right', type: 'tf', q: "True or False: In the Toggle Right position, Post E connects to Post D.", ans: "True", exp: "True! The middle post connects to the top post.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
+                    { tag: 'right', type: 'place', q: "Tap the post that connects to Post B when toggled Right:", tokens: ["Post A", "Post C", "Post D", "Post F"], ans: "Post A", exp: "Post B connects to Post A.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
+                    { tag: 'right', type: 'text', q: "When Toggled Right, is Post E connected to Post D or Post F? (Type D or F)", ans: "D", exact: false, exp: "Toggle right connects it to the top post, D.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" }
+                ]
+            }
+        };
+
+        const PUZZLES = [
+            { title: "Sim 4: Endurance Racer", desc: "Give the motor exactly 12V (Fast Speed), but wire it to run TWICE as long. (Hint: Build 2 parallel strings, each containing 2 series batteries).", check: (v, c) => v === 12.0 && c >= 2 },
+            { title: "Sim 4: Super Marathon", desc: "Wire 3 batteries in PARALLEL to give the motor 6V but 3x the lifespan. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 3 },
+            { title: "Sim 4: 12V Boost", desc: "We need exactly 12V (Fast Speed) but we don't care about duration. Use just 2 batteries in series.", check: (v, c) => v === 12.0 }
+        ];
+
+        // This gets populated dynamically in startGame
+        const SIM_STAGES = [
+            { title: "Sim 1: Ignition", desc: "Connect ONE 6V battery to the motor using the DPDT switch as an ON/OFF switch. Turn the switch ON, then test.", check: (v) => v === 6.0 },
+            { title: "Sim 2: Speed Demon", desc: "Let's go faster! Put 2 batteries in SERIES to double the voltage (12V) and connect the motor. Turn the switch ON, then test.", check: (v) => v === 12.0 },
+            { title: "Sim 3: Parallel Marathon", desc: "Put 2 batteries in PARALLEL to keep it at 6V but double the runtime. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 2 },
+            { title: "Sim 4: Placeholder", desc: "Placeholder...", check: () => false }, // Will be overwritten
+            { title: "Ultimate Challenge: Forward & Reverse", desc: "Use ONE 6V battery and the switch to make the motor go FORWARD, REVERSE, and OFF. (Hint: Cross-wire the switch outer posts).", checkUltimate: true }
+        ];
+
+        // --- Core UI Navigation ---
+        function showScreen(id) {
+            ['screen-start', 'screen-lesson', 'screen-qa', 'screen-sim', 'screen-win'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function startGame() {
+            const name = document.getElementById('student-name').value.trim();
+            if(!name) return alert("Please enter your name!");
+            state.studentName = name;
+            
+            // Generate Random Puzzle for Stage 4
+            let randomPuzzle = PUZZLES[Math.floor(Math.random() * PUZZLES.length)];
+            SIM_STAGES[3] = { title: randomPuzzle.title, desc: randomPuzzle.desc, check: randomPuzzle.check };
+
+            document.getElementById('status-bar').classList.remove('hidden');
+            processFlow();
+        }
+
+        function goBack() {
+            if (state.lessonIdx > 0) {
+                state.lessonIdx--;
+                state.qBlockActive = false; // Reset active QBlock logic
+                processFlow();
+            }
+        }
+
+        function processFlow() {
+            if(state.lessonIdx >= FLOW.length) return;
+
+            let backBtn = document.getElementById('nav-back');
+            if(state.lessonIdx > 0 && FLOW[state.lessonIdx].type !== 'SIM_START') {
+                backBtn.classList.remove('hidden');
+            } else {
+                backBtn.classList.add('hidden');
+            }
+
+            const step = FLOW[state.lessonIdx];
+            
+            if (step.type === 'LESSON') {
+                showScreen('screen-lesson');
+                document.getElementById('stage-name').innerText = "Theory";
+                document.getElementById('lesson-title').innerText = step.title;
+                document.getElementById('lesson-text').innerText = step.text;
+                
+                const imgContainer = document.getElementById('lesson-imgs-container');
+                imgContainer.innerHTML = '';
+                if (step.imgs && step.imgs.length > 0) {
+                    step.imgs.forEach(src => {
+                        let img = document.createElement('img');
+                        img.src = src;
+                        img.className = 'max-h-[40vh] rounded-xl shadow-lg border-2 border-slate-600 object-contain bg-white';
+                        imgContainer.appendChild(img);
+                    });
+                    imgContainer.classList.remove('hidden');
+                } else if (step.img) {
+                    let img = document.createElement('img');
+                    img.src = step.img;
+                    img.className = 'max-h-[65vh] w-full rounded-xl shadow-lg border-2 border-slate-600 object-contain bg-white';
+                    imgContainer.appendChild(img);
+                    imgContainer.classList.remove('hidden');
+                } else {
+                    imgContainer.classList.add('hidden');
+                }
+            } else if (step.type === 'QBLOCK') {
+                if (step.completed) {
+                    renderQBlockSummary(step.setupId, step.title, step.askedSummary);
+                } else {
+                    startQBlock(step.setupId, step.title);
+                }
+            } else if (step.type === 'SIM_START') {
+                startSim();
+            }
+        }
+
+        function advanceLesson() {
+            state.lessonIdx++;
+            processFlow();
+        }
+
+        function renderQBlockSummary(setupId, title, askedSummary) {
+            showScreen('screen-qa');
+            document.getElementById('stage-name').innerText = "Review";
+            document.getElementById('qa-block-title').innerText = title + " - Review";
+            let bank = QBANKS[setupId];
+            
+            let html = `<div class="mb-6"><span class="text-indigo-700 font-black">Summary:</span> ${bank.finalExp}</div>`;
+            html += `<div class="space-y-4 text-left border-t-2 border-slate-200 pt-6">`;
+            
+            if(askedSummary && askedSummary.length > 0) {
+                askedSummary.forEach((q, i) => {
+                    html += `<div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="font-bold text-slate-800 mb-3 text-lg">Q: ${q.q}</p>
+                        ${q.img ? `<img src="${q.img}" class="max-h-40 mb-4 rounded-lg border border-slate-300 shadow">` : ''}
+                        <p class="text-emerald-700 font-black text-lg">A: ${q.ans}</p>
+                        <p class="text-slate-600 font-medium mt-1"><em>${q.exp}</em></p>
+                    </div>`;
+                });
+            } else {
+                html += `<p class="italic text-slate-500">You passed this section flawlessly!</p>`;
+            }
+            
+            html += `</div>`;
+            
+            document.getElementById('qa-counter').innerText = "Reviewing Past Answers";
+            document.getElementById('qa-img').classList.add('hidden');
+            document.getElementById('qa-text').innerHTML = html;
+            document.getElementById('qa-input-area').innerHTML = '';
+            document.getElementById('qa-feedback').style.opacity = '0';
+            
+            let btn = document.getElementById('qa-action-btn');
+            btn.innerText = "Continue ▶";
+            btn.className = "bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-10 rounded-xl shadow-lg w-full text-xl transition-transform hover:scale-105";
+            btn.onclick = advanceLesson;
+            document.getElementById('qa-feedback').classList.add('hidden');
+        }
+
+        // --- Q&A Block Engine ---
+        function startQBlock(setupId, title) {
+            state.qBlockActive = true;
+            state.qBlockWrongCount = 0;
+            state.qBlockStep = 0;
+            state.askedQuestions = [];
+            // clone array to mutate
+            state.qBlockQuestions = [...QBANKS[setupId].questions];
+            state.qBlockFinalExplanation = QBANKS[setupId].finalExp;
+            state.currentSequence = QBANKS[setupId].sequence;
+            
+            // Reset button
+            let btn = document.getElementById('qa-action-btn');
+            if(btn) {
+                btn.innerText = "Submit Answer";
+                btn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg text-lg";
+                btn.onclick = submitQAAnswer;
+                document.getElementById('qa-feedback').classList.remove('hidden');
+            }
+
+            showScreen('screen-qa');
+            document.getElementById('stage-name').innerText = "Knowledge Check";
+            document.getElementById('qa-block-title').innerText = title;
+            renderNextQuestion();
+        }
+
+        function renderNextQuestion() {
+            if (state.qBlockWrongCount >= 5 || state.qBlockStep >= state.currentSequence.length) {
+                FLOW[state.lessonIdx].completed = true;
+                FLOW[state.lessonIdx].askedSummary = [...state.askedQuestions];
+                renderQBlockSummary(FLOW[state.lessonIdx].setupId, FLOW[state.lessonIdx].title, FLOW[state.lessonIdx].askedSummary);
+                return;
+            }
+
+            let allowedTags = state.currentSequence[state.qBlockStep];
+            let availableQs = state.qBlockQuestions.filter(q => allowedTags.includes(q.tag));
+
+            if (availableQs.length === 0) {
+                availableQs = QBANKS[FLOW[state.lessonIdx].setupId].questions.filter(q => allowedTags.includes(q.tag));
+            }
+
+            let qIdx = Math.floor(Math.random() * availableQs.length);
+            state.currentQ = availableQs[qIdx];
+            
+            let globalIdx = state.qBlockQuestions.indexOf(state.currentQ);
+            if (globalIdx > -1) state.qBlockQuestions.splice(globalIdx, 1);
+
+            if (!state.askedQuestions.some(q => q.q === state.currentQ.q)) {
+                state.askedQuestions.push(state.currentQ);
+            }
+
+            document.getElementById('qa-counter').innerText = (state.qBlockWrongCount + 1);
+            document.getElementById('qa-text').innerText = state.currentQ.q;
+            document.getElementById('qa-feedback').style.opacity = '0';
+            
+            let qaImg = document.getElementById('qa-img');
+            if (state.currentQ.img) {
+                qaImg.src = state.currentQ.img;
+                qaImg.classList.remove('hidden');
+            } else {
+                qaImg.classList.add('hidden');
+            }
+            
+            const area = document.getElementById('qa-input-area');
+            area.innerHTML = '';
+
+            let q = state.currentQ;
+            if (q.type === 'mc' || q.type === 'tf') {
+                let opts = q.opts || ["True", "False"];
+                let html = '<div class="flex flex-col gap-3">';
+                opts.forEach((o, i) => {
+                    html += `<label class="flex items-center gap-4 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
+                        <input type="radio" name="qa-radio" value="${o}" class="w-6 h-6 text-indigo-600">
+                        <span class="text-xl font-bold text-slate-700">${o}</span>
+                    </label>`;
+                });
+                html += '</div>';
+                area.innerHTML = html;
+            } else if (q.type === 'dropdown') {
+                let html = `<select id="qa-sel" class="w-full p-5 border-2 border-slate-300 rounded-xl text-xl font-bold text-slate-700 focus:border-indigo-500 outline-none cursor-pointer shadow-inner">
+                    <option value="" disabled selected>Select an answer...</option>`;
+                q.opts.forEach(o => html += `<option value="${o}">${o}</option>`);
+                html += `</select>`;
+                area.innerHTML = html;
+            } else if (q.type === 'text') {
+                area.innerHTML = `<input type="text" id="qa-text-input" class="w-full p-5 border-2 border-slate-300 rounded-xl text-xl font-bold text-slate-700 focus:border-indigo-500 outline-none shadow-inner" placeholder="Type answer here...">`;
+            } else if (q.type === 'place') {
+                let html = `<div class="mb-4 font-bold text-slate-500 uppercase tracking-wide">Tap the correct token into the box:</div>
+                    <div class="dropzone shadow-inner text-xl" id="qa-dropzone" onclick="clearDropzone()">Tap Token to Drop Here</div>
+                    <div class="mt-8 flex flex-wrap gap-4 justify-center" id="qa-tokens">`;
+                q.tokens.forEach(t => html += `<div class="token text-lg" onclick="selectToken(this, '${t}')">${t}</div>`);
+                html += `</div>`;
+                area.innerHTML = html;
+            }
+        }
+
+        let selectedTokenVal = "";
+        window.selectToken = function(el, val) {
+            document.querySelectorAll('.token').forEach(t => t.classList.remove('selected'));
+            el.classList.add('selected');
+            let dz = document.getElementById('qa-dropzone');
+            dz.innerText = val;
+            dz.classList.add('filled');
+            selectedTokenVal = val;
+        }
+        window.clearDropzone = function() {
+            let dz = document.getElementById('qa-dropzone');
+            dz.innerText = "Tap Token to Drop Here";
+            dz.classList.remove('filled');
+            selectedTokenVal = "";
+            document.querySelectorAll('.token').forEach(t => t.classList.remove('selected'));
+        }
+
+        function submitQAAnswer() {
+            let q = state.currentQ;
+            let ans = "";
+            
+            if (q.type === 'mc' || q.type === 'tf') {
+                let sel = document.querySelector('input[name="qa-radio"]:checked');
+                if(!sel) return alert("Please select an option.");
+                ans = sel.value;
+            } else if (q.type === 'dropdown') {
+                let sel = document.getElementById('qa-sel');
+                if(!sel.value) return alert("Please select an option.");
+                ans = sel.value;
+            } else if (q.type === 'text') {
+                ans = document.getElementById('qa-text-input').value.trim();
+                if(!ans) return alert("Please enter text.");
+            } else if (q.type === 'place') {
+                if(!selectedTokenVal) return alert("Please tap a token.");
+                ans = selectedTokenVal;
+            }
+
+            let isCorrect = false;
+            let autoFixed = false;
+
+            if (q.exact) {
+                let val = parseFloat(ans);
+                let target = parseFloat(q.ans);
+                if (!isNaN(val) && !isNaN(target)) {
+                    if (val === target) isCorrect = true;
+                    else if (Math.abs(val - target) / target <= 0.02) {
+                        isCorrect = true; autoFixed = true;
+                        if(document.getElementById('qa-text-input')) document.getElementById('qa-text-input').value = target;
+                    }
+                } else if (ans.toLowerCase() === q.ans.toLowerCase()) {
+                    isCorrect = true;
+                }
+            } else {
+                if (ans.toLowerCase() === q.ans.toLowerCase() || (q.type==='text' && ans.toLowerCase().includes(q.ans.toLowerCase()))) {
+                    isCorrect = true;
+                }
+            }
+
+            const fb = document.getElementById('qa-feedback');
+            
+            if (isCorrect) {
+                fb.innerText = autoFixed ? "Correct! (Auto-adjusted)" : "Correct! Excellent.";
+                fb.className = "text-lg font-black transition-opacity opacity-100 text-emerald-600 max-w-xs text-right";
+                
+                state.qBlockStep++;
+                
+                setTimeout(() => {
+                    renderNextQuestion();
+                }, 1500);
+            } else {
+                state.corrections++;
+                state.qBlockWrongCount++;
+                
+                fb.innerText = `Incorrect. ${q.exp}`;
+                fb.className = "text-md font-bold transition-opacity opacity-100 text-red-600 max-w-xs text-right";
+                
+                setTimeout(renderNextQuestion, 4000);
+            }
+        }
+
+        // --- Simulator Engine ---
+        function startSim() {
+            showScreen('screen-sim');
+            loadSimStage();
+        }
+
+        function loadSimStage() {
+            const stg = SIM_STAGES[state.simStage];
+            if (!stg) return triggerWin();
+            
+            document.getElementById('stage-name').innerText = stg.title;
+            document.getElementById('sim-task-title').innerText = stg.title;
+            document.getElementById('sim-task-desc').innerText = stg.desc;
+            resetCircuit();
+        }
+
+        function getUniqueId() { return Math.random().toString(36).substr(2, 9); }
+
+        window.addComponent = function(type) {
+            let cx = -state.panX + 350 + (Math.random()*50);
+            let cy = -state.panY + 200 + (Math.random()*50);
+            let comp = { id: getUniqueId(), type, x: cx, y: cy, state: 0, terminals: [] };
+            
+            if (type === 'BATTERY') {
+                comp.terminals = [
+                    { id: comp.id+'_pos', compId: comp.id, tag: '+', rx: 40, ry: -10 },
+                    { id: comp.id+'_neg', compId: comp.id, tag: '-', rx: 40, ry: 106 }
+                ];
+            } else if (type === 'MOTOR') {
+                comp.terminals = [
+                    { id: comp.id+'_t1', compId: comp.id, tag: 'L', rx: -10, ry: 40 },
+                    { id: comp.id+'_t2', compId: comp.id, tag: 'R', rx: 90, ry: 40 }
+                ];
+            } else if (type === 'DPDT') {
+                comp.terminals = [
+                    { id: comp.id+'_A', compId: comp.id, tag: 'A', rx: 20, ry: 40 },
+                    { id: comp.id+'_B', compId: comp.id, tag: 'B', rx: 48, ry: 40 },
+                    { id: comp.id+'_C', compId: comp.id, tag: 'C', rx: 76, ry: 40 },
+                    { id: comp.id+'_D', compId: comp.id, tag: 'D', rx: 20, ry: 76 },
+                    { id: comp.id+'_E', compId: comp.id, tag: 'E', rx: 48, ry: 76 },
+                    { id: comp.id+'_F', compId: comp.id, tag: 'F', rx: 76, ry: 76 }
+                ];
+            }
+            state.components.push(comp);
+            evaluatePhysics();
+            renderWorkspace();
+        }
+
+        function resetCircuit() {
+            state.components = [];
+            state.wires = [];
+            state.panX = 0;
+            state.panY = 0;
+            state.circuitStatus = { v: 0, cap: 0, active: false, shorted: false };
+            document.getElementById('sim-hud').classList.add('hidden');
+            document.getElementById('activeWireLayer').innerHTML = '';
+            renderWorkspace();
+        }
+
+        // Drag/Pan
+        window.startPan = function(e) {
+            if (e.target.closest('.component') || e.target.closest('.terminal') || e.target.closest('.wire-line') || e.target.closest('.terminal-hitbox')) return;
+            state.isPanning = true;
+            state.startPanX = e.clientX - state.panX;
+            state.startPanY = e.clientY - state.panY;
+        }
+        
+        window.handleMouseMove = function(e) {
+            if (state.isPanning) {
+                state.panX = e.clientX - state.startPanX;
+                state.panY = e.clientY - state.startPanY;
+                renderWorkspace();
+            } else if (state.dragCompId) {
+                let comp = state.components.find(c => c.id === state.dragCompId);
+                if (comp) { comp.x += e.movementX; comp.y += e.movementY; renderWorkspace(); }
+            } else if (state.wiringStartTerm) {
+                // Drawing active wire
+                let svg = document.getElementById('activeWireLayer');
+                let startPos = getTerminalAbsPos(state.wiringStartTerm);
+                let rect = svg.getBoundingClientRect();
+                let endX = e.clientX - rect.left;
+                let endY = e.clientY - rect.top;
+                let isSolid = false;
+
+                if (state.hoverTermId && state.hoverTermId !== state.wiringStartTerm) {
+                    let endPos = getTerminalAbsPos(state.hoverTermId);
+                    endX = endPos.x;
+                    endY = endPos.y;
+                    isSolid = true; // Snap to target
+                }
+                
+                let lineHtml = `<line x1="${startPos.x}" y1="${startPos.y}" x2="${endX}" y2="${endY}" class="wire-line ${isSolid ? 'stroke-emerald-500' : 'stroke-red-400'}" stroke-width="${isSolid ? 8 : 6}" stroke-dasharray="${isSolid ? '' : '8,8'}"></line>`;
+                svg.innerHTML = lineHtml;
+            }
+        }
+        
+        window.handleMouseUp = function(e) {
+            state.isPanning = false; state.dragCompId = null;
+            if (state.wiringStartTerm) {
+                if (state.hoverTermId && state.hoverTermId !== state.wiringStartTerm) {
+                    // Completing wire via drag release!
+                    state.wires.push({ id: getUniqueId(), from: state.wiringStartTerm, to: state.hoverTermId });
+                    evaluatePhysics();
+                }
+                state.wiringStartTerm = null;
+                document.getElementById('activeWireLayer').innerHTML = '';
+                renderWorkspace();
+            }
+        }
+
+        // Interactions
+        window.handleTerminalClick = function(e, termId) {
+            e.stopPropagation();
+            if (!state.wiringStartTerm) {
+                state.wiringStartTerm = termId;
+            } else if (state.wiringStartTerm !== termId) {
+                state.wires.push({ id: getUniqueId(), from: state.wiringStartTerm, to: termId });
+                state.wiringStartTerm = null;
+                document.getElementById('activeWireLayer').innerHTML = '';
+                evaluatePhysics();
+            } else {
+                state.wiringStartTerm = null;
+                document.getElementById('activeWireLayer').innerHTML = '';
+            }
+            renderWorkspace();
+        }
+        
+        window.handleCompDown = function(e, compId) {
+            if (e.target.closest('.terminal') || e.target.closest('.terminal-hitbox') || e.target.closest('.comp-interact')) return;
+            e.stopPropagation(); state.dragCompId = compId;
+        }
+        
+        window.handleCompInteract = function(e, compId) {
+            e.stopPropagation();
+            let comp = state.components.find(c => c.id === compId);
+            if (comp.type === 'DPDT') {
+                comp.state = comp.state === 0 ? 1 : (comp.state === 1 ? -1 : 0);
+            }
+            evaluatePhysics(); renderWorkspace();
+        }
+        
+        window.handleWireClick = function(e, wireId) {
+            e.stopPropagation();
+            state.wires = state.wires.filter(w => w.id !== wireId);
+            evaluatePhysics(); renderWorkspace();
+        }
+        
+        window.removeComponent = function(e, compId) {
+            e.stopPropagation();
+            let comp = state.components.find(c => c.id === compId);
+            let tIds = comp.terminals.map(t => t.id);
+            state.wires = state.wires.filter(w => !tIds.includes(w.from) && !tIds.includes(w.to));
+            state.components = state.components.filter(c => c.id !== compId);
+            evaluatePhysics(); renderWorkspace();
+        }
+
+        function getTerminalAbsPos(termId) {
+            for (let c of state.components) {
+                let t = c.terminals.find(tt => tt.id === termId);
+                if (t) return { x: c.x + t.rx + state.panX, y: c.y + t.ry + state.panY };
+            }
+            return { x: 0, y: 0 };
+        }
+
+        function renderWorkspace() {
+            let layer = document.getElementById('componentsLayer');
+            let svg = document.getElementById('wiresLayer');
+            layer.innerHTML = ''; svg.innerHTML = '';
+
+            state.wires.forEach(w => {
+                let p1 = getTerminalAbsPos(w.from); let p2 = getTerminalAbsPos(w.to);
+                let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+                line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+                let wClass = 'wire-line';
+                if (state.circuitStatus.shorted) wClass += ' shorted';
+                else if (state.circuitStatus.active) wClass += ' powered';
+                line.setAttribute('class', wClass);
+                line.onclick = (e) => handleWireClick(e, w.id);
+                svg.appendChild(line);
+            });
+
+            state.components.forEach(c => {
+                let div = document.createElement('div');
+                div.className = 'component pointer-events-auto';
+                div.style.left = (c.x + state.panX) + 'px'; div.style.top = (c.y + state.panY) + 'px';
+                div.onmousedown = (e) => handleCompDown(e, c.id);
+                div.ondblclick = (e) => removeComponent(e, c.id);
+
+                let innerHtml = '';
+                if (c.type === 'BATTERY') {
+                    innerHtml = `
+                        <div class="w-20 h-24 bg-yellow-400 rounded-xl border-4 border-slate-800 shadow-xl flex flex-col items-center justify-between py-1 relative">
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-3 bg-slate-300 border-2 border-slate-800 rounded-t"></div>
+                            <span class="text-slate-800 font-black text-2xl">+</span>
+                            <span class="text-slate-800 font-black text-sm px-2 bg-yellow-300 border border-yellow-500 rounded shadow-inner">6V</span>
+                            <span class="text-slate-800 font-black text-2xl">-</span>
+                        </div>`;
+                } else if (c.type === 'MOTOR') {
+                    let rotClass = '';
+                    if (state.circuitStatus.v >= 18) rotClass = 'hidden'; 
+                    else if (state.circuitStatus.v >= 12) rotClass = 'spin-fast';
+                    else if (state.circuitStatus.v > 0) rotClass = 'spin-med';
+                    else if (state.circuitStatus.v <= -12) rotClass = 'spin-rev-fast';
+                    else if (state.circuitStatus.v < 0) rotClass = 'spin-rev-med';
+
+                    innerHtml = `
+                        <div class="w-20 h-20 bg-slate-300 rounded-full border-4 border-slate-800 shadow-xl flex items-center justify-center relative overflow-visible">
+                            <div class="absolute -top-5 font-black text-xs text-slate-500 w-24 text-center">PROP MOTOR</div>
+                            <div class="w-24 h-4 bg-red-600 rounded-full absolute ${rotClass} shadow-lg" style="transform-origin: center;"></div>
+                            <div class="w-6 h-6 bg-slate-900 rounded-full z-10 shadow-inner border-2 border-slate-600"></div>
+                            ${state.circuitStatus.v >= 18 ? '<div class="absolute inset-0 bg-black/80 rounded-full flex items-center justify-center text-red-500 font-black text-sm z-20">MELTED</div>' : ''}
+                        </div>`;
+                } else if (c.type === 'DPDT') {
+                    let toggleRotation = '';
+                    if(c.state === 1) toggleRotation = 'rotate-[30deg]'; // Toggle Right
+                    if(c.state === -1) toggleRotation = '-rotate-[30deg]'; // Toggle Left
+                    
+                    innerHtml = `
+                        <div class="w-24 h-24 bg-blue-700 rounded-xl shadow-xl border-4 border-slate-900 flex flex-col items-center p-2 relative mt-4">
+                            <!-- Toggle Base sticking out top -->
+                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-6 bg-slate-400 border-x-4 border-t-4 border-slate-800 rounded-t-lg z-0"></div>
+                            <!-- Toggle Bat -->
+                            <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-4 h-12 bg-slate-300 rounded-full border-2 border-slate-500 origin-bottom transition-transform duration-200 z-10 comp-interact cursor-pointer shadow-lg ${toggleRotation}" onclick="handleCompInteract(event, '${c.id}')"></div>
+                            
+                            <div class="absolute bottom-1 text-[11px] font-black text-blue-300 uppercase tracking-widest pointer-events-none">DPDT</div>
+                        </div>`;
+                }
+
+                let termsHtml = c.terminals.map(t => {
+                    let isWiringStart = state.wiringStartTerm === t.id;
+                    let isHovered = state.hoverTermId === t.id;
+                    let termClasses = 'terminal';
+                    
+                    if (isWiringStart) termClasses += ' active-wiring';
+                    else if (isHovered && state.wiringStartTerm) termClasses += ' snap-hover';
+                    
+                    let tagYAdjust = c.type === 'DPDT' ? t.ry - 18 : t.ry - 16;
+                    return `
+                        <div class="terminal-hitbox absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 z-40 cursor-pointer flex items-center justify-center" 
+                             style="left: ${t.rx}px; top: ${t.ry}px;" 
+                             onmousedown="handleTerminalClick(event, '${t.id}')"
+                             onmouseenter="state.hoverTermId = '${t.id}'; if(state.wiringStartTerm) renderWorkspace();"
+                             onmouseleave="state.hoverTermId = null; if(state.wiringStartTerm) renderWorkspace();">
+                            <div class="${termClasses} pointer-events-none absolute top-1/2 left-1/2"></div>
+                        </div>
+                        <div class="term-label" style="left: ${t.rx}px; top: ${tagYAdjust}px;">${t.tag}</div>
+                    `;
+                }).join('');
+
+                div.innerHTML = innerHtml + termsHtml;
+                layer.appendChild(div);
+            });
+        }
+
+        // Physics Engine
+        function evaluatePhysics(silent = false) {
+            let nets = {}; let nextNetId = 1; let adjList = {};
+            state.components.forEach(c => c.terminals.forEach(t => adjList[t.id] = []));
+
+            state.wires.forEach(w => {
+                if(adjList[w.from] && adjList[w.to]) {
+                    adjList[w.from].push(w.to); adjList[w.to].push(w.from);
+                }
+            });
+
+            state.components.forEach(c => {
+                if (c.type === 'DPDT') {
+                    if (c.state === 1) { 
+                        adjList[c.id+'_B'].push(c.id+'_A'); adjList[c.id+'_A'].push(c.id+'_B');
+                        adjList[c.id+'_E'].push(c.id+'_D'); adjList[c.id+'_D'].push(c.id+'_E');
+                    } else if (c.state === -1) { 
+                        adjList[c.id+'_B'].push(c.id+'_C'); adjList[c.id+'_C'].push(c.id+'_B');
+                        adjList[c.id+'_E'].push(c.id+'_F'); adjList[c.id+'_F'].push(c.id+'_E');
+                    }
+                }
+            });
+
+            let visited = new Set();
+            Object.keys(adjList).forEach(tId => {
+                if(!visited.has(tId)) {
+                    let netId = nextNetId++; let q = [tId]; visited.add(tId);
+                    while(q.length > 0) {
+                        let curr = q.shift(); nets[curr] = netId;
+                        adjList[curr].forEach(n => { if(!visited.has(n)) { visited.add(n); q.push(n); } });
+                    }
+                }
+            });
+
+            let edges = []; let shorts = false;
+            state.components.filter(c => c.type === 'BATTERY').forEach(b => {
+                let pNet = nets[b.id+'_pos']; let nNet = nets[b.id+'_neg'];
+                if (pNet && nNet) {
+                    if (pNet === nNet) shorts = true; 
+                    edges.push({ fromNet: nNet, toNet: pNet, v: 6.0, id: b.id });
+                    edges.push({ fromNet: pNet, toNet: nNet, v: -6.0, id: b.id });
+                }
+            });
+
+            let motor = state.components.find(c => c.type === 'MOTOR');
+            let blankStatus = { v: 0, cap: 0, active: false, shorted: false };
+
+            if (shorts) {
+                if (!silent) triggerSpark();
+                return { v: 0, cap: 0, active: false, shorted: true };
+            }
+            if (!motor) {
+                if (!silent) { state.circuitStatus = blankStatus; updateHUD(); }
+                return blankStatus;
+            }
+
+            let mNet1 = nets[motor.id+'_t1']; let mNet2 = nets[motor.id+'_t2'];
+            if (!mNet1 || !mNet2 || mNet1 === mNet2) {
+                if (!silent) { state.circuitStatus = blankStatus; updateHUD(); }
+                return blankStatus;
+            }
+
+            let paths = [];
+            function dfs(currNet, targetNet, currV, visitedEdges) {
+                if (currNet === targetNet) { paths.push({ v: currV }); return; }
+                edges.forEach(e => {
+                    if (e.fromNet === currNet && !visitedEdges.includes(e.id)) {
+                        dfs(e.toNet, targetNet, currV + e.v, [...visitedEdges, e.id]);
+                    }
+                });
+            }
+            dfs(mNet1, mNet2, 0, []);
+
+            if (paths.length === 0) {
+                if (!silent) { state.circuitStatus = blankStatus; updateHUD(); }
+                return blankStatus;
+            }
+
+            let voltages = paths.map(p => parseFloat(p.v.toFixed(2))); 
+            let maxV = Math.max(...voltages); let minV = Math.min(...voltages);
+
+            if (Math.abs(maxV - minV) > 0.1) {
+                if (!silent) triggerSpark();
+                return { v: 0, cap: 0, active: false, shorted: true }; // Parallel conflict
+            }
+
+            let finalV = maxV;
+            let cap = paths.length; // parallel branches
+
+            if (Math.abs(finalV) >= 18.0) {
+                if (!silent) triggerMelt(motor);
+            }
+
+            let status = { v: finalV, cap: cap, active: finalV !== 0, shorted: false };
+            if (!silent) {
+                state.circuitStatus = status;
+                updateHUD();
+            }
+            return status;
+        }
+
+        function triggerSpark() {
+            state.circuitStatus = { v: 0, cap: 0, active: false, shorted: true };
+            let ws = document.getElementById('workspace');
+            for(let i=0; i<8; i++) {
+                let sp = document.createElement('div'); sp.className = 'sparkle';
+                sp.style.left = (Math.random() * 100) + '%'; sp.style.top = (Math.random() * 100) + '%';
+                ws.appendChild(sp); setTimeout(() => sp.remove(), 500);
+            }
+            updateHUD();
+            showHintModal("SHORT CIRCUIT! Current is flowing directly from battery + to - without going through the motor, OR batteries are fighting each other. Delete the bad wires to fix it!", true);
+            state.corrections++; 
+        }
+
+        function triggerMelt(motorComp) {
+            let ws = document.getElementById('workspace');
+            let mPos = { x: motorComp.x + state.panX + 40, y: motorComp.y + state.panY + 40 };
+            for(let i=0; i<8; i++) {
+                let sp = document.createElement('div'); sp.className = 'smoke-puff';
+                sp.style.left = mPos.x + 'px'; sp.style.top = mPos.y + 'px';
+                ws.appendChild(sp); setTimeout(() => sp.remove(), 1500);
+            }
+            showHintModal("OVERVOLTAGE! >12V is too much for this motor. It melted! Remove a battery.", true);
+            state.corrections++; 
+        }
+
+        function updateHUD() {
+            let hud = document.getElementById('sim-hud');
+            if (state.components.length === 0) { hud.classList.add('hidden'); hud.style.opacity='0'; return; }
+            hud.classList.remove('hidden'); setTimeout(()=>hud.style.opacity='1',10);
+            
+            let v = Math.abs(state.circuitStatus.v);
+            let vPct = Math.min(100, (v / 18.0) * 100);
+            document.getElementById('bar-voltage').style.height = vPct + '%';
+            document.getElementById('txt-voltage').innerText = v.toFixed(1) + 'V';
+            
+            if (v > 12.1) document.getElementById('bar-voltage').className = "w-full bg-red-500 transition-all duration-300";
+            else document.getElementById('bar-voltage').className = "w-full bg-emerald-500 transition-all duration-300";
+
+            let cap = state.circuitStatus.cap;
+            let cPct = Math.min(100, (cap / 4) * 100);
+            document.getElementById('bar-capacity').style.height = cPct + '%';
+            document.getElementById('txt-capacity').innerText = cap + 'x';
+        }
+
+        // Test Logic
+        window.testCircuitUI = function() {
+            evaluatePhysics();
+            if (state.circuitStatus.shorted) {
+                return showHintModal("You still have a Short Circuit! Delete the incorrect wiring before testing.", false);
+            }
+
+            const stage = SIM_STAGES[state.simStage];
+            const v = Math.abs(state.circuitStatus.v);
+            const cap = state.circuitStatus.cap;
+
+            if (stage.checkUltimate) {
+                let dpdt = state.components.find(c => c.type === 'DPDT');
+                if (!dpdt) return showHintModal("You need the DPDT switch for this!", false);
+                
+                let origState = dpdt.state;
+                // Test states silently so it doesn't spark if they wired it wrong
+                dpdt.state = 0; let offStatus = evaluatePhysics(true);
+                dpdt.state = 1; let upStatus = evaluatePhysics(true);
+                dpdt.state = -1; let downStatus = evaluatePhysics(true);
+                
+                dpdt.state = origState; evaluatePhysics(); // Restore visual state
+
+                if (offStatus.shorted || upStatus.shorted || downStatus.shorted) {
+                    return showHintModal("Careful! While testing your reversing circuit, one of the switch positions caused a short circuit. Check your cross-wiring.", false);
+                }
+
+                if (offStatus.v === 0 && ((upStatus.v > 0 && downStatus.v < 0) || (upStatus.v < 0 && downStatus.v > 0))) {
+                    return passSimStage();
+                } else {
+                    state.corrections++;
+                    return showHintModal("Not quite right! To build a reversing circuit: cross-connect the outer posts (A to F, C to D) and attach the battery to the center posts, and the motor to the outer posts.", false);
+                }
+            }
+
+            if (stage.check && stage.check(v, cap)) {
+                if (cap > 1) {
+                    let btn = document.querySelector('button[onclick="testCircuitUI()"]');
+                    btn.innerHTML = "⏳ Testing..."; btn.disabled = true;
+                    let remaining = cap * 2; 
+                    let intv = setInterval(() => {
+                        remaining--; document.getElementById('txt-capacity').innerText = remaining + 's';
+                        if(remaining <= 0) {
+                            clearInterval(intv); btn.innerHTML = "▶ Run Test"; btn.disabled = false; passSimStage();
+                        }
+                    }, 1000);
+                } else {
+                    passSimStage();
+                }
+            } else {
+                // If it failed because it was OFF, but would pass if it was ON, give friendly reminder!
+                let dpdt = state.components.find(c => c.type === 'DPDT');
+                if (dpdt && v === 0) {
+                    let origState = dpdt.state;
+                    dpdt.state = 1; let stat1 = evaluatePhysics(true);
+                    dpdt.state = -1; let stat2 = evaluatePhysics(true);
+                    dpdt.state = origState; evaluatePhysics(); // restore
+                    
+                    if ((stage.check(Math.abs(stat1.v), stat1.cap) || stage.check(Math.abs(stat2.v), stat2.cap))) {
+                        return showHintModal("Your circuit is wired perfectly, but the switch is currently OFF! Flip the toggle before testing.", false);
+                    }
+                }
+                
+                state.corrections++;
+                showHintModal("The circuit doesn't meet the task requirements. Check your voltages, connections, and make sure the switch is turned ON!", false);
+            }
+        }
+
+        window.showSuccessModal = function(text) {
+            document.getElementById('hint-text').innerText = text;
+            document.getElementById('hint-loading').classList.add('hidden');
+            let m = document.getElementById('hint-modal');
+            
+            // change style to success
+            document.getElementById('hint-box').classList.add('border-t-8', 'border-emerald-500');
+            document.getElementById('hint-title').innerText = "Stage Complete!";
+            document.getElementById('hint-title').classList.replace('text-slate-800', 'text-emerald-600');
+            
+            let btn = document.getElementById('hint-btn');
+            btn.innerText = "Next Stage ▶";
+            btn.classList.replace('bg-slate-800', 'bg-emerald-600');
+            btn.classList.replace('hover:bg-slate-900', 'hover:bg-emerald-700');
+            
+            btn.onclick = () => {
+                closeHint();
+                setTimeout(() => {
+                    // Restore styles
+                    document.getElementById('hint-box').classList.remove('border-t-8', 'border-emerald-500');
+                    document.getElementById('hint-title').innerText = "Teacher's Hint";
+                    document.getElementById('hint-title').classList.replace('text-emerald-600', 'text-slate-800');
+                    btn.innerText = "Got it!";
+                    btn.classList.replace('bg-emerald-600', 'bg-slate-800');
+                    btn.classList.replace('hover:bg-emerald-700', 'hover:bg-slate-900');
+                    btn.onclick = closeHint;
+                    
+                    state.simStage++;
+                    if(state.simStage >= SIM_STAGES.length) triggerWin();
+                    else loadSimStage();
+                }, 300);
+            };
+            
+            m.classList.remove('hidden'); setTimeout(()=> m.style.opacity = '1', 10);
+        }
+
+        function passSimStage() {
+            showSuccessModal("Great job! You have successfully completed this circuit stage.");
+        }
+
+        window.requestHint = async function() {
+            state.corrections++;
+            const stage = SIM_STAGES[state.simStage];
+            document.getElementById('hint-loading').classList.remove('hidden');
+            document.getElementById('hint-text').innerText = "";
+            let m = document.getElementById('hint-modal');
+            m.classList.remove('hidden'); setTimeout(()=>m.style.opacity = '1', 10);
+
+            const prompt = `Student stuck on physics circuit: "${stage.desc}". Give a single encouraging hint sentence without solving it entirely.`;
+            let hintStr = "Series adds voltage (+ to -). Parallel adds capacity (+ to +, - to -). DPDT centers connect to outers.";
+            
+            try {
+                if (isWeb) {
+                    const res = await fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, systemInstruction: "You are an encouraging physics teacher." }) });
+                    const data = await res.json(); if(data.hint) hintStr = data.hint;
+                } else if(apiKey) {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "You are an encouraging physics teacher." }] } })
+                    });
+                    const data = await res.json(); 
+                    if(data.candidates) hintStr = data.candidates[0].content.parts[0].text;
+                }
+            } catch (e) { }
+
+            document.getElementById('hint-loading').classList.add('hidden');
+            document.getElementById('hint-text').innerText = hintStr;
+        }
+
+        window.showHintModal = function(text, isError) {
+            document.getElementById('hint-text').innerText = text;
+            document.getElementById('hint-loading').classList.add('hidden');
+            let m = document.getElementById('hint-modal'); m.classList.remove('hidden'); setTimeout(()=> m.style.opacity = '1', 10);
+        }
+        window.closeHint = function() {
+            let m = document.getElementById('hint-modal'); m.style.opacity = '0'; setTimeout(()=> m.classList.add('hidden'), 300);
+        }
+
+        // Winning
+        function calculateScore() {
+            let c = state.corrections;
+            if (c === 0) return { pts: 25, ec: 5, total: 30 };
+            if (c === 1) return { pts: 25, ec: 4, total: 29 };
+            if (c === 2) return { pts: 25, ec: 3, total: 28 };
+            if (c === 3) return { pts: 25, ec: 2, total: 27 };
+            if (c === 4) return { pts: 25, ec: 1, total: 26 };
+            if (c >= 5 && c <= 12) return { pts: 25, ec: 0, total: 25 };
+            return { pts: Math.max(0, 25 - Math.floor(c/2)), ec: 0, total: Math.max(0, 25 - Math.floor(c/2)) };
+        }
+
+        function triggerWin() {
+            showScreen('screen-win');
+            const scoreObj = calculateScore();
+            document.getElementById('win-student-name').innerText = state.studentName;
+            document.getElementById('win-score').innerText = `${scoreObj.total}/25`;
+            
+            const adjs = ["Incredible", "Amazing", "Spectacular", "Phenomenal", "Stellar"];
+            const nouns = ["Job", "Work", "Performance", "Achievement", "Mastery"];
+            const phrases = ["You rock!", "Keep it up!", "Physics master!", "Electricity wizard!"];
+            let msg = `${adjs[Math.floor(Math.random()*adjs.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}! ${phrases[Math.floor(Math.random()*phrases.length)]}`;
+            if(scoreObj.total < 25) msg = "Great effort! You're getting the hang of it. Circuits can be tricky. Try Again to perfect your score!";
+            
+            document.getElementById('win-message').innerText = msg;
+            let card = document.getElementById('win-card');
+            setTimeout(() => {
+                card.classList.remove('scale-95', 'opacity-0'); card.classList.add('scale-100', 'opacity-100');
+                if (scoreObj.total < 25) document.getElementById('win-actions').classList.remove('hidden');
+                let bursts = scoreObj.total === 30 ? 4 : (scoreObj.total >= 28 ? 3 : (scoreObj.total >= 26 ? 2 : (scoreObj.total === 25 ? 1 : 0)));
+                if (bursts > 0) fireConfetti(bursts);
+            }, 100);
+        }
+
+        function fireConfetti(rounds) {
+            const canvas = document.getElementById('confetti-canvas'); const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            let particles = []; const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa'];
+            function createBurst() {
+                for(let i=0; i<100; i++) particles.push({
+                    x: canvas.width / 2, y: canvas.height / 2 + 100, r: Math.random() * 6 + 4,
+                    dx: Math.random() * 24 - 12, dy: Math.random() * -24 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)], tilt: Math.floor(Math.random() * 10) - 10,
+                    tiltAngleInc: (Math.random() * 0.07) + 0.05, tiltAngle: 0
+                });
+            }
+            let roundCount = 0; let interval = setInterval(() => { createBurst(); roundCount++; if (roundCount >= rounds) clearInterval(interval); }, 800);
+            function render() {
+                requestAnimationFrame(render); ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach((p, i) => {
+                    p.tiltAngle += p.tiltAngleInc; p.y += (Math.cos(p.tiltAngle) + 1 + p.r / 2) / 2;
+                    p.x += Math.sin(p.tiltAngle) * 2 + p.dx; p.dy += 0.25; p.y += p.dy;
+                    ctx.beginPath(); ctx.lineWidth = p.r; ctx.strokeStyle = p.color;
+                    ctx.moveTo(p.x + p.tilt + p.r, p.y); ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r); ctx.stroke();
+                    if (p.y > canvas.height) particles.splice(i, 1);
+                });
+            }
+            createBurst(); render();
+        }
+        window.addEventListener('resize', () => { renderWorkspace(); const canvas = document.getElementById('confetti-canvas'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+    </script>
+</body>
+</html>
