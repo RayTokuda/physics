@@ -41,7 +41,7 @@
         .term-label { position: absolute; font-size: 12px; font-weight: 900; color: white; pointer-events: none; transform: translate(-50%, -50%); z-index: 41; text-shadow: 1px 1px 3px black; }
 
         .wire-line { stroke: #374151; stroke-width: 6; stroke-linecap: round; cursor: pointer; transition: stroke-width 0.2s, stroke 0.2s; pointer-events: stroke; }
-        .wire-line:hover { stroke: #ef4444; stroke-width: 10; stroke-dasharray: 4 4; } /* Shows it can be deleted */
+        .wire-line:hover { stroke: #ef4444; stroke-width: 10; stroke-dasharray: 4 4; } 
         .wire-line.powered { stroke: #10b981; }
         .wire-line.shorted { stroke: #ef4444; stroke-dasharray: 4 4; animation: pulse-short 0.5s infinite; }
 
@@ -279,6 +279,10 @@
             circuitStatus: { v: 0, cap: 0, active: false, shorted: false }
         };
 
+        const IMG_RIGHT = "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=262&h=479";
+        const IMG_LEFT = "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498";
+        const IMG_CENTER = "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720";
+
         // --- Data Definitions ---
         const FLOW = [
             { type: 'LESSON', title: "The Mission", text: "We're going to use this blue toggle switch to control a propellerized Hot Wheels car. But first, as a physics student, you need to learn about batteries and how the switch works.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQQZbOteUnLOh20dX5Bnme7YeyWMwc8i-ahFykYBJIravSrEW3pdOBRyp_848pawLHxEWlZ7SdljA6G/pub?w=960&h=720" },
@@ -288,8 +292,7 @@
             { type: 'QBLOCK', setupId: 'DPDT_CASE_COUNT', title: "Switch Count" },
             { type: 'LESSON', title: "Switch Mechanics", text: "Notice the metal lever (the toggle bat) at the top of the blue case. It is connected to BOTH of the internal switches at the exact same time.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" },
             { type: 'QBLOCK', setupId: 'DPDT_CASE_SIMULT', title: "Switch Mechanics" },
-            { type: 'LESSON', title: "Electrical Isolation", text: "Even though the toggle bat moves both internal switches at the same time, the two sides are completely separated electrically. Posts A, B, and C NEVER internally connect to posts D, E, or F.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
-            { type: 'QBLOCK', setupId: 'DPDT_ISOLATION', title: "Circuit Isolation" },
+            { type: 'LESSON', title: "Circuit Isolation", text: "Look closely at the posts! The top row of posts (A, B, C) and the bottom row of posts (D, E, F) belong to separate internal switches. They are completely electrically isolated from one another and never touch each other inside the case.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
             { type: 'QBLOCK', setupId: 'DPDT_PINOUT', title: "Pin Connections" },
             { type: 'SIM_START' }
         ];
@@ -297,12 +300,12 @@
         const QBANKS = {
             'SPDT_INTERNAL': {
                 finalExp: "A switch physically moves a contactor to bridge posts. Toggle Left bridges Bottom Center (BC) and Bottom Right (BR). Toggle Right bridges Bottom Left (BL) and Bottom Center (BC). Center connects nothing, relying on an air gap requiring 3000V/mm to arc.",
-                sequence: [['center'], ['left', 'right']], // Forces 1 center question, then 1 left/right question
+                sequence: [['center'], ['left', 'right']], 
                 questions: [
                     // --- 5 CENTER VARIATIONS ---
                     { tag: 'center', type: 'mc', q: "In this picture (Toggle Center), what parts are electrically connected?", opts: ["Posts BC and BR", "Posts BL and BC", "Posts BL and BR", "No posts are connected"], ans: "No posts are connected", exp: "In the center position, the contactor touches nothing. The air gap breaks the circuit.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
                     { tag: 'center', type: 'place', q: "Tap the word that describes what prevents the electricity from flowing in the center position:", tokens: ["Resistor", "Air Gap", "Wire", "Battery"], ans: "Air Gap", exp: "The physical space between the metal contacts is called an air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
-                    { tag: 'center', type: 'dropdown', q: "Ordinarily, electricity cannot flow through an air gap. How many volts per millimeter of air gap are required to force electrons across?", opts: ["100 volts", "1,000 volts", "3,000 volts", "10,000 volts"], ans: "3,000 volts", exp: "It takes about 3,000 volts to jump a 1mm air gap (dielectric breakdown of air)." },
+                    { tag: 'center', type: 'dropdown', q: "Ordinarily, electricity cannot flow through an air gap. How many volts per millimeter of air gap are required to force electrons across?", opts: ["100 volts", "1,000 volts", "3,000 volts", "10,000 volts"], ans: "3,000 volts", exp: "It takes about 3,000 volts to jump a 1mm air gap." },
                     { tag: 'center', type: 'text', q: "In the center position, how many posts are electrically bridged together by the contactor? (Enter a number)", ans: "0", exact: true, exp: "Zero posts are bridged because it rests in the air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
                     { tag: 'center', type: 'tf', q: "True or False: In the Toggle Center position, the internal metal seesaw touches the outer posts.", ans: "False", exp: "False! It touches nothing, creating an air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSnDrpfIWSFF2BBA2H2H6MtmYddoBCpOgnZW-WuLcfLOZhkoZG4NaD4ple4YmKLe7rXoTdoRp7eUORR/pub?w=960&h=720" },
                     
@@ -343,57 +346,85 @@
                     { tag: 'simult', type: 'place', q: "Because of the single toggle lever, the two internal switches must always be in the...", tokens: ["Same Position", "Opposite Position", "Open Position", "Closed Position"], ans: "Same Position", exp: "They are mechanically linked to move exactly the same way.", img: "https://docs.google.com/drawings/d/e/2PACX-1vT4Tku3QEr_8YxArZCVu8XKJ4g41oqOYZUKeYqTxVo3oVkAYcX8LVw_q3wl41267UF5_HMh3_Hm5n42/pub?w=960&h=720" }
                 ]
             },
-            'DPDT_ISOLATION': {
-                finalExp: "The left posts (A, B, C) and right posts (D, E, F) belong to separate internal switches. They are completely electrically isolated from one another and never connect to each other inside the case.",
-                sequence: [['iso']],
-                questions: [
-                    { tag: 'iso', type: 'mc', q: "Do posts A, B, or C ever internally connect to posts D, E, or F?", opts: ["Yes, when Toggled Up", "Yes, when Toggled Down", "Yes, in the Center", "No, never"], ans: "No, never", exp: "The two sides are completely isolated from each other electrically.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
-                    { tag: 'iso', type: 'dropdown', q: "Are the left and right sides of the switch electrically connected inside the case?", opts: ["Always", "Sometimes", "Never", "Only when broken"], ans: "Never", exp: "They are separate switches (poles) housed in the same case.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
-                    { tag: 'iso', type: 'tf', q: "True or False: Current can flow directly from Post B to Post E inside the switch.", ans: "False", exp: "False! There is no internal connection between the left and right sides.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
-                    { tag: 'iso', type: 'text', q: "How many internal electrical connections exist between the left side (A,B,C) and the right side (D,E,F)? (Enter a number)", ans: "0", exact: true, exp: "Zero. They are completely separated.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" },
-                    { tag: 'iso', type: 'place', q: "Tap the word that describes the relationship between the left and right sides of the DPDT switch:", tokens: ["Isolated", "Connected", "Shorted", "Reversed"], ans: "Isolated", exp: "They are electrically isolated from one another.", img: "https://docs.google.com/drawings/d/e/2PACX-1vSyPT93hUe9jODKncf1iVxtWU3c1hd-k9laOh4qezfw7lUlmpxCUXOzRD4S5tefPX22I2BKgGd0jk2l/pub?w=960&h=720" }
-                ]
-            },
             'DPDT_PINOUT': {
-                finalExp: "Toggle Right connects Post A to B, and Post D to E. Toggle Left connects Post B to C, and Post E to F. Toggle Center connects nothing.",
-                sequence: [['center'], ['left', 'right']], // Center first, then left or right
+                finalExp: "Toggle Right connects A-B & D-E. Toggle Left connects B-C & E-F. The top (ABC) and bottom (DEF) rows never touch inside!",
+                // Dynamic Sequence: If they fail a 'right' question, the engine swaps all remaining options in that step to 'left' variants!
+                sequence: [
+                    ['center'], 
+                    ['conn_right'], 
+                    ['not_conn_right'], 
+                    ['iso_right']
+                ],
                 questions: [
-                    // --- 5 CENTER VARIATIONS ---
-                    { tag: 'center', type: 'mc', q: "Look at the toggle center switch. Which posts are connected?", opts: ["Post A to B", "Post B to C", "Post D to E", "No posts are connected"], ans: "No posts are connected", exp: "Center is OFF. The contacts are in the air gap.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
-                    { tag: 'center', type: 'dropdown', q: "In the Toggle Center position, what is the connection state of Post B?", opts: ["Connected to A", "Connected to C", "Disconnected", "Connected to E"], ans: "Disconnected", exp: "Center is OFF. No posts are connected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
-                    { tag: 'center', type: 'text', q: "If the switch is Toggle Center, how many electrical connections exist between the posts? (Enter number)", ans: "0", exact: true, exp: "Zero connections. The switch is totally off.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
-                    { tag: 'center', type: 'tf', q: "True or False: In the Toggle Center position, Post E is electrically connected to Post D.", ans: "False", exp: "False! Center connects nothing.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
-                    { tag: 'center', type: 'place', q: "Tap the term that describes the electrical state of all posts in the Center position:", tokens: ["Disconnected", "Connected to D", "Connected to F", "Shorted"], ans: "Disconnected", exp: "All posts are disconnected.", img: "https://docs.google.com/drawings/d/e/2PACX-1vS8a50EVxs_mxtaJFiukc8ssC3T_fbSnRxW4VJx08i4uzxDzwgLgpMcUAVzCcGqY-yx0XieIyCx2-SV/pub?w=960&h=720" },
+                    // --- STEP 1: 5 CENTER VARIATIONS ---
+                    { tag: 'center', type: 'mc', q: "Look at the toggle center switch. Which posts are connected?", opts: ["Post A is connected to B, and D is connected to E", "Post B is connected to C, and E is connected to F", "Post A is connected to C, and D is connected to F", "No posts are connected"], ans: "No posts are connected", exp: "Center is OFF. The contacts are in the air gap.", img: IMG_CENTER },
+                    { tag: 'center', type: 'dropdown', q: "In the Toggle Center position, what is the connection state of Post B?", opts: ["Connected to A", "Connected to C", "Disconnected", "Connected to E"], ans: "Disconnected", exp: "Center is OFF. No posts are connected.", img: IMG_CENTER },
+                    { tag: 'center', type: 'text', q: "If the switch is Toggle Center, how many electrical connections exist between the posts? (Enter number)", ans: "0", exact: true, exp: "Zero connections. The switch is totally off.", img: IMG_CENTER },
+                    { tag: 'center', type: 'tf', q: "True or False: In the Toggle Center position, Post E is electrically connected to Post D.", ans: "False", exp: "False! Center connects nothing.", img: IMG_CENTER },
+                    { tag: 'center', type: 'place', q: "Tap the term that describes the electrical state of all posts in the Center position:", tokens: ["Disconnected", "Connected to D", "Connected to F", "Shorted"], ans: "Disconnected", exp: "All posts are disconnected.", img: IMG_CENTER },
                     
-                    // --- 5 LEFT VARIATIONS (Focuses on B->C and E->F) ---
-                    { tag: 'left', type: 'mc', q: "In the Toggle Left position, which post is Post B connected to?", opts: ["Post A", "Post C", "Post D", "Post F"], ans: "Post C", exp: "Toggle left pushes the contact right/down, connecting the center to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
-                    { tag: 'left', type: 'dropdown', q: "In the Toggle Left position, which post is Post E connected to?", opts: ["Post D", "Post F", "Post A", "Post C"], ans: "Post F", exp: "Toggle left pushes the contact right/down, connecting the center to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
-                    { tag: 'left', type: 'tf', q: "True or False: Look at the toggle left switch. Post B is connected to post C, and post E is connected to post F.", ans: "True", exp: "True! Both middle posts connect to the bottom posts.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
-                    { tag: 'left', type: 'place', q: "Tap the post that connects to Post E when toggled Left:", tokens: ["Post D", "Post F", "Post A", "Post C"], ans: "Post F", exp: "Post E connects to Post F.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
-                    { tag: 'left', type: 'text', q: "When Toggled Left, is Post B connected to Post A or Post C? (Type A or C)", ans: "C", exact: false, exp: "Toggle left connects it to the bottom post, C.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQPJI5ytXnBaXKfTZiI7tA9wlbGVbLb1gqQ1MOW-UM7eg2v_5wgyQMPCNRDY6KTjJjCXfnEMlZf9ddf/pub?w=300&h=498" },
+                    // --- STEP 2: PAIRS CONNECTED (5 RIGHT, 5 LEFT) ---
+                    // RIGHT Variations
+                    { tag: 'conn_right', type: 'mc', q: "Look at the toggle right switch. Which exact pairs of posts are connected?", opts: ["A to B, and D to E", "B to C, and E to F", "A to C, and D to F", "No posts are connected"], ans: "A to B, and D to E", exp: "Toggle right pushes the contact to bridge the top-left and middle posts.", img: IMG_RIGHT },
+                    { tag: 'conn_right', type: 'dropdown', q: "In the Toggle Right position, Post B connects to ___, and Post E connects to ___.", opts: ["A and D", "C and F", "D and A", "F and C"], ans: "A and D", exp: "Toggle right connects the centers (B, E) to the left posts (A, D).", img: IMG_RIGHT },
+                    { tag: 'conn_right', type: 'place', q: "Tap the option showing the correct connected pairs for Toggle Right:", tokens: ["A-B & D-E", "B-C & E-F", "A-C & D-F", "A-D & B-E"], ans: "A-B & D-E", exp: "Centers to left.", img: IMG_RIGHT },
+                    { tag: 'conn_right', type: 'tf', q: "True or False: In the Toggle Right position, Post B connects to A, and E connects to D.", ans: "True", exp: "True! The middle posts connect to the left posts.", img: IMG_RIGHT },
+                    { tag: 'conn_right', type: 'text', q: "In Toggle Right, post B connects to A. Which post does E connect to? (Enter letter)", ans: "D", exact: false, exp: "E connects to D.", img: IMG_RIGHT },
+                    
+                    // LEFT Variations
+                    { tag: 'conn_left', type: 'mc', q: "Look at the toggle left switch. Which exact pairs of posts are connected?", opts: ["A to B, and D to E", "B to C, and E to F", "A to C, and D to F", "No posts are connected"], ans: "B to C, and E to F", exp: "Toggle left pushes the contact to bridge the middle and right posts.", img: IMG_LEFT },
+                    { tag: 'conn_left', type: 'dropdown', q: "In the Toggle Left position, Post B connects to ___, and Post E connects to ___.", opts: ["A and D", "C and F", "D and A", "F and C"], ans: "C and F", exp: "Toggle left connects the centers (B, E) to the right posts (C, F).", img: IMG_LEFT },
+                    { tag: 'conn_left', type: 'place', q: "Tap the option showing the correct connected pairs for Toggle Left:", tokens: ["A-B & D-E", "B-C & E-F", "A-C & D-F", "A-D & B-E"], ans: "B-C & E-F", exp: "Centers to right.", img: IMG_LEFT },
+                    { tag: 'conn_left', type: 'tf', q: "True or False: In the Toggle Left position, Post B connects to C, and E connects to F. No other switches are connected.", ans: "True", exp: "True! The middle posts connect to the right posts.", img: IMG_LEFT },
+                    { tag: 'conn_left', type: 'text', q: "In Toggle Left, post B connects to C. Which post does E connect to? (Enter letter)", ans: "F", exact: false, exp: "E connects to F.", img: IMG_LEFT },
 
-                    // --- 5 RIGHT VARIATIONS (Focuses on B->A and E->D) ---
-                    { tag: 'right', type: 'mc', q: "In the Toggle Right position, which post is Post B connected to?", opts: ["Post A", "Post C", "Post D", "Post F"], ans: "Post A", exp: "Toggle right pushes the internal contact to the top side.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
-                    { tag: 'right', type: 'dropdown', q: "In the Toggle Right position, which post is Post E connected to?", opts: ["Post D", "Post F", "Post A", "Post C"], ans: "Post D", exp: "Toggle right pushes the internal contact to the top side.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
-                    { tag: 'right', type: 'tf', q: "True or False: In the Toggle Right position, Post E connects to Post D.", ans: "True", exp: "True! The middle post connects to the top post.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
-                    { tag: 'right', type: 'place', q: "Tap the post that connects to Post B when toggled Right:", tokens: ["Post A", "Post C", "Post D", "Post F"], ans: "Post A", exp: "Post B connects to Post A.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" },
-                    { tag: 'right', type: 'text', q: "When Toggled Right, is Post E connected to Post D or Post F? (Type D or F)", ans: "D", exact: false, exp: "Toggle right connects it to the top post, D.", img: "https://docs.google.com/drawings/d/e/2PACX-1vQNkJeHij0kRPsvq9PZAKDGlkMHNYsFtxMn7qzMLxdaWmHazmwFa76cL0CnkNbxxLXVy6CByKkkm7pM/pub?w=960&h=720" }
+                    // --- STEP 3: NOT CONNECTED (5 RIGHT, 5 LEFT) ---
+                    // RIGHT Variations (B-C and E-F are NOT connected)
+                    { tag: 'not_conn_right', type: 'mc', q: "In the Toggle Right position, which of these statements is true?", opts: ["B is NOT connected to C, and E is NOT connected to F", "B is NOT connected to A, and E is NOT connected to D", "All posts are connected", "No posts are connected"], ans: "B is NOT connected to C, and E is NOT connected to F", exp: "Because it connects to the left, the right posts (C and F) are isolated.", img: IMG_RIGHT },
+                    { tag: 'not_conn_right', type: 'dropdown', q: "In Toggle Right, Post B is connected to A, so it is NOT connected to ___.", opts: ["Post C", "Post D", "Post E", "Post F"], ans: "Post C", exp: "B cannot connect to C when toggled right.", img: IMG_RIGHT },
+                    { tag: 'not_conn_right', type: 'place', q: "Tap the post that Post E is NOT connected to in the Toggle Right position:", tokens: ["Post A", "Post C", "Post D", "Post F"], ans: "Post F", exp: "E connects to D, leaving F disconnected.", img: IMG_RIGHT },
+                    { tag: 'not_conn_right', type: 'tf', q: "True or False: In the Toggle Right position, Post B is electrically connected to Post C.", ans: "False", exp: "False! Toggle Right connects B to A. C is left in the air gap.", img: IMG_RIGHT },
+                    { tag: 'not_conn_right', type: 'text', q: "In Toggle Right, Post B connects to A. Is it also connected to C? (Type Yes or No)", ans: "No", exact: false, exp: "No, the contactor cannot touch both.", img: IMG_RIGHT },
+
+                    // LEFT Variations (A-B and D-E are NOT connected)
+                    { tag: 'not_conn_left', type: 'mc', q: "In the Toggle Left position, which of these statements is true?", opts: ["B is NOT connected to A, and E is NOT connected to D", "B is NOT connected to C, and E is NOT connected to F", "All posts are connected", "No posts are connected"], ans: "B is NOT connected to A, and E is NOT connected to D", exp: "Because it connects to the right, the left posts (A and D) are isolated.", img: IMG_LEFT },
+                    { tag: 'not_conn_left', type: 'dropdown', q: "In Toggle Left, Post B is connected to C, so it is NOT connected to ___.", opts: ["Post A", "Post D", "Post E", "Post F"], ans: "Post A", exp: "B cannot connect to A when toggled left.", img: IMG_LEFT },
+                    { tag: 'not_conn_left', type: 'place', q: "Tap the post that Post E is NOT connected to in the Toggle Left position:", tokens: ["Post A", "Post C", "Post D", "Post F"], ans: "Post D", exp: "E connects to F, leaving D disconnected.", img: IMG_LEFT },
+                    { tag: 'not_conn_left', type: 'tf', q: "True or False: In the Toggle Left position, Post E is electrically connected to Post D.", ans: "False", exp: "False! Toggle Left connects E to F. D is left in the air gap.", img: IMG_LEFT },
+                    { tag: 'not_conn_left', type: 'text', q: "In Toggle Left, Post E connects to F. Is it also connected to D? (Type Yes or No)", ans: "No", exact: false, exp: "No, the contactor cannot touch both.", img: IMG_LEFT },
+
+                    // --- STEP 4: ISOLATION (5 RIGHT, 5 LEFT) ---
+                    // RIGHT Variations
+                    { tag: 'iso_right', type: 'mc', q: "In this position (Toggle Right), do top posts A, B, or C ever internally connect to bottom posts D, E, or F?", opts: ["Yes, in this position", "Yes, in the center", "No, never", "Only if wired backwards"], ans: "No, never", exp: "The top and bottom rows are two entirely separate switches inside the case.", img: IMG_RIGHT },
+                    { tag: 'iso_right', type: 'dropdown', q: "The top row (A, B, C) and bottom row (D, E, F) are ___ inside the case.", opts: ["Completely isolated", "Wired together", "Connected occasionally", "Shorted"], ans: "Completely isolated", exp: "They never touch internally.", img: IMG_RIGHT },
+                    { tag: 'iso_right', type: 'place', q: "Tap the word describing the internal electrical link between the top (ABC) and bottom (DEF) posts:", tokens: ["Isolated", "Connected", "Shorted", "Reversed"], ans: "Isolated", exp: "They are completely isolated.", img: IMG_RIGHT },
+                    { tag: 'iso_right', type: 'tf', q: "True or False: Current can flow directly from Post B to Post E inside the switch.", ans: "False", exp: "False! The two poles are completely separated.", img: IMG_RIGHT },
+                    { tag: 'iso_right', type: 'text', q: "How many internal connections exist between the top row (ABC) and bottom row (DEF)? (Enter a number)", ans: "0", exact: true, exp: "Zero. They never connect.", img: IMG_RIGHT },
+
+                    // LEFT Variations
+                    { tag: 'iso_left', type: 'mc', q: "In this position (Toggle Left), are the top A, B, and C posts electrically connected to the bottom D, E, and F posts?", opts: ["Yes, in this position", "Yes, in the center", "No, never", "Only if wired backwards"], ans: "No, never", exp: "The top and bottom rows are two entirely separate switches inside the case.", img: IMG_LEFT },
+                    { tag: 'iso_left', type: 'dropdown', q: "The internal connection between the top ABC row and bottom DEF row is ___.", opts: ["Non-existent", "Permanent", "Temporary", "Only when switched"], ans: "Non-existent", exp: "They never touch internally.", img: IMG_LEFT },
+                    { tag: 'iso_left', type: 'place', q: "Tap the word for two circuit sides that never touch internally:", tokens: ["Isolated", "Connected", "Shorted", "Reversed"], ans: "Isolated", exp: "They are isolated poles.", img: IMG_LEFT },
+                    { tag: 'iso_left', type: 'tf', q: "True or False: Post C can connect to Post F internally if you switch the toggle correctly.", ans: "False", exp: "False! The two poles are completely separated.", img: IMG_LEFT },
+                    { tag: 'iso_left', type: 'text', q: "If you send power into Post B, will it ever come out of Post E? (Type Yes or No)", ans: "No", exact: false, exp: "No. The two rows never connect.", img: IMG_LEFT }
                 ]
             }
         };
 
         const PUZZLES = [
-            { title: "Sim 4: Endurance Racer", desc: "Make the motor run 2 times faster (12V) and 2 times longer! (Hint: Build 2 parallel strings, each containing 2 series batteries).", check: (v, c) => v === 12.0 && c >= 2 },
-            { title: "Sim 4: Super Marathon", desc: "Make the motor run at normal speed (1x faster) but 3 times longer! Remember, more batteries in parallel gives more endurance.", check: (v, c) => v === 6.0 && c >= 3 },
-            { title: "Sim 4: 6V Ultra-Marathon", desc: "Make the motor run at normal speed (1x faster) but 4 times longer! Wire them up and turn the switch ON.", check: (v, c) => v === 6.0 && c >= 4 }
+            { title: "Sim 4: Endurance Racer", desc: "Make the motor run 2 times faster (12V) and 2 times longer! (Hint: Build 2 parallel strings, each containing 2 series batteries).", check: (v, c) => Math.abs(v) === 12.0 && c >= 2 },
+            { title: "Sim 4: Super Marathon", desc: "Make the motor run at normal speed (1x faster) but 3 times longer! Remember, more batteries in parallel gives more endurance.", check: (v, c) => Math.abs(v) === 6.0 && c >= 3 },
+            { title: "Sim 4: 6V Ultra-Marathon", desc: "Make the motor run at normal speed (1x faster) but 4 times longer! Wire them up and turn the switch ON.", check: (v, c) => Math.abs(v) === 6.0 && c >= 4 }
         ];
 
         // This gets populated dynamically in startGame
         const SIM_STAGES = [
-            { title: "Sim 1: Ignition", desc: "Connect ONE 6V battery to the motor using the DPDT switch as an ON/OFF switch. Turn the switch ON, then test.", check: (v) => v === 6.0 },
-            { title: "Sim 2: Speed Demon", desc: "More voltage means faster! Put 2 batteries in SERIES to double the voltage to 12V and make the motor run 2 times faster. Turn the switch ON, then test.", check: (v) => v === 12.0 },
-            { title: "Sim 3: Parallel Marathon", desc: "More batteries in PARALLEL means more endurance! Put 2 batteries in parallel to keep it at 6V but make the motor run 2 times longer. Turn the switch ON, then test.", check: (v, c) => v === 6.0 && c >= 2 },
-            { title: "Sim 4: Placeholder", desc: "Placeholder...", check: () => false }, // Will be overwritten
+            { title: "Sim 1: Ignition", desc: "Connect ONE 6V battery to the motor using the DPDT switch as an ON/OFF switch. Turn the switch ON, then test.", check: (v) => Math.abs(v) === 6.0 },
+            { title: "Sim 2: Speed Demon", desc: "More voltage means faster! Put 2 batteries in SERIES to double the voltage to 12V and make the motor run 2 times faster. Turn the switch ON, then test.", check: (v) => Math.abs(v) === 12.0 },
+            { title: "Sim 3: Parallel Marathon", desc: "More batteries in PARALLEL means more endurance! Put 2 batteries in parallel to keep it at 6V but make the motor run 2 times longer. Turn the switch ON, then test.", check: (v, c) => Math.abs(v) === 6.0 && c >= 2 },
+            { title: "Sim 4: Placeholder", desc: "Placeholder...", check: () => false }, // Will be overwritten by Puzzle
+            { title: "Sim 5: Direct Drive Forward (Clockwise)", desc: "DELETE THE SWITCH! Connect ONE 6V battery directly to the motor to make it spin CLOCKWISE (Forward). Hint: Connect Battery (-) to Motor (L), and Battery (+) to Motor (R).", check: (v, c, comps) => v === 6.0 && comps.filter(x => x.type === 'DPDT').length === 0 },
+            { title: "Sim 6: Direct Drive Reverse (Counter-Clockwise)", desc: "Now reverse the wires! Connect ONE 6V battery directly to the motor (NO SWITCH) to make it spin COUNTER-CLOCKWISE (Reverse). Hint: Connect Battery (+) to Motor (L), and Battery (-) to Motor (R).", check: (v, c, comps) => v === -6.0 && comps.filter(x => x.type === 'DPDT').length === 0 },
             { title: "Ultimate Challenge: Forward & Reverse", desc: "Use ONE 6V battery and the switch to make the motor go FORWARD, REVERSE, and OFF. (Hint: Cross-wire the switch outer posts).", checkUltimate: true }
         ];
 
@@ -525,7 +556,9 @@
             // clone array to mutate
             state.qBlockQuestions = [...QBANKS[setupId].questions];
             state.qBlockFinalExplanation = QBANKS[setupId].finalExp;
-            state.currentSequence = QBANKS[setupId].sequence;
+            
+            // Deep clone the sequence arrays so we can mutate 'right' to 'left' dynamically
+            state.currentSequence = QBANKS[setupId].sequence.map(arr => [...arr]);
             
             // Reset button
             let btn = document.getElementById('qa-action-btn');
@@ -685,6 +718,14 @@
                 state.corrections++;
                 state.qBlockWrongCount++;
                 
+                // If they failed a Right or Left question, swap it for the opposite side for their next try!
+                let currentTags = state.currentSequence[state.qBlockStep];
+                if (currentTags.some(t => t.includes('right'))) {
+                    state.currentSequence[state.qBlockStep] = currentTags.map(t => t.replace('right', 'left'));
+                } else if (currentTags.some(t => t.includes('left'))) {
+                    state.currentSequence[state.qBlockStep] = currentTags.map(t => t.replace('left', 'right'));
+                }
+                
                 fb.innerText = `Incorrect. ${q.exp}`;
                 fb.className = "text-md font-bold transition-opacity opacity-100 text-red-600 max-w-xs text-right";
                 
@@ -733,7 +774,6 @@
                     { id: comp.id+'_t2', compId: comp.id, tag: 'R', rx: 90, ry: 40 }
                 ];
             } else if (type === 'DPDT') {
-                // Modified layout to prevent text overlap
                 comp.terminals = [
                     { id: comp.id+'_A', compId: comp.id, tag: 'A', rx: 20, ry: 40 },
                     { id: comp.id+'_B', compId: comp.id, tag: 'B', rx: 48, ry: 40 },
@@ -1070,7 +1110,7 @@
                 return { v: 0, cap: 0, active: false, shorted: true }; // Parallel conflict
             }
 
-            let finalV = maxV;
+            let finalV = maxV; // positive means L to R. Negative means R to L.
             let cap = paths.length; // parallel branches
 
             if (Math.abs(finalV) >= 18.0) {
@@ -1131,69 +1171,80 @@
 
         // Test Logic
         window.testCircuitUI = function() {
-            evaluatePhysics();
-            if (state.circuitStatus.shorted) {
-                return showHintModal("You still have a Short Circuit! Delete the incorrect wiring before testing.", false);
-            }
-
-            const stage = SIM_STAGES[state.simStage];
-            const v = Math.abs(state.circuitStatus.v);
-            const cap = state.circuitStatus.cap;
-
-            if (stage.checkUltimate) {
-                let dpdt = state.components.find(c => c.type === 'DPDT');
-                if (!dpdt) return showHintModal("You need the DPDT switch for this!", false);
-                
-                let origState = dpdt.state;
-                // Test states silently so it doesn't spark if they wired it wrong
-                dpdt.state = 0; let offStatus = evaluatePhysics(true);
-                dpdt.state = 1; let upStatus = evaluatePhysics(true);
-                dpdt.state = -1; let downStatus = evaluatePhysics(true);
-                
-                dpdt.state = origState; evaluatePhysics(); // Restore visual state
-
-                if (offStatus.shorted || upStatus.shorted || downStatus.shorted) {
-                    return showHintModal("Careful! While testing your reversing circuit, one of the switch positions caused a short circuit. Check your cross-wiring.", false);
+            try {
+                evaluatePhysics();
+                if (state.circuitStatus.shorted) {
+                    return showHintModal("You still have a Short Circuit! Delete the incorrect wiring before testing.", false);
                 }
 
-                if (offStatus.v === 0 && ((upStatus.v > 0 && downStatus.v < 0) || (upStatus.v < 0 && downStatus.v > 0))) {
-                    return passSimStage();
-                } else {
-                    state.corrections++;
-                    return showHintModal("Not quite right! To build a reversing circuit: cross-connect the outer posts (A to F, C to D) and attach the battery to the center posts, and the motor to the outer posts.", false);
-                }
-            }
+                const stage = SIM_STAGES[state.simStage];
+                const rawV = state.circuitStatus.v;
+                const absV = Math.abs(rawV);
+                const cap = state.circuitStatus.cap;
 
-            if (stage.check && stage.check(v, cap)) {
-                if (cap > 1) {
-                    let btn = document.querySelector('button[onclick="testCircuitUI()"]');
-                    btn.innerHTML = "⏳ Testing..."; btn.disabled = true;
-                    let remaining = cap * 2; 
-                    let intv = setInterval(() => {
-                        remaining--; document.getElementById('txt-capacity').innerText = remaining + 's';
-                        if(remaining <= 0) {
-                            clearInterval(intv); btn.innerHTML = "▶ Run Test"; btn.disabled = false; passSimStage();
-                        }
-                    }, 1000);
-                } else {
-                    passSimStage();
-                }
-            } else {
-                // If it failed because it was OFF, but would pass if it was ON, give friendly reminder!
-                let dpdt = state.components.find(c => c.type === 'DPDT');
-                if (dpdt && v === 0) {
-                    let origState = dpdt.state;
-                    dpdt.state = 1; let stat1 = evaluatePhysics(true);
-                    dpdt.state = -1; let stat2 = evaluatePhysics(true);
-                    dpdt.state = origState; evaluatePhysics(); // restore
+                if (stage.checkUltimate) {
+                    let dpdt = state.components.find(c => c.type === 'DPDT');
+                    if (!dpdt) return showHintModal("You need the DPDT switch for this!", false);
                     
-                    if ((stage.check(Math.abs(stat1.v), stat1.cap) || stage.check(Math.abs(stat2.v), stat2.cap))) {
-                        return showHintModal("Your circuit is wired perfectly, but the switch is currently OFF! Flip the toggle before testing.", false);
+                    let origState = dpdt.state;
+                    // Test states silently so it doesn't spark if they wired it wrong
+                    dpdt.state = 0; let offStatus = evaluatePhysics(true);
+                    dpdt.state = 1; let upStatus = evaluatePhysics(true);
+                    dpdt.state = -1; let downStatus = evaluatePhysics(true);
+                    
+                    dpdt.state = origState; evaluatePhysics(); // Restore visual state
+
+                    if (offStatus.shorted || upStatus.shorted || downStatus.shorted) {
+                        return showHintModal("Careful! While testing your reversing circuit, one of the switch positions caused a short circuit. Check your cross-wiring.", false);
+                    }
+
+                    if (offStatus.v === 0 && ((upStatus.v > 0 && downStatus.v < 0) || (upStatus.v < 0 && downStatus.v > 0))) {
+                        return passSimStage();
+                    } else {
+                        state.corrections++;
+                        return showHintModal("Not quite right! To build a reversing circuit: cross-connect the outer posts (A to F, C to D) and attach the battery to the center posts, and the motor to the outer posts.", false);
                     }
                 }
-                
-                state.corrections++;
-                showHintModal("The circuit doesn't meet the task requirements. Check your voltages, connections, and make sure the switch is turned ON!", false);
+
+                if (stage.check && stage.check(rawV, cap, state.components)) {
+                    if (cap > 1) {
+                        let btn = document.querySelector('button[onclick="testCircuitUI()"]');
+                        btn.innerHTML = "⏳ Testing..."; btn.disabled = true;
+                        let remaining = cap * 2; 
+                        let intv = setInterval(() => {
+                            remaining--; document.getElementById('txt-capacity').innerText = remaining + 's';
+                            if(remaining <= 0) {
+                                clearInterval(intv); btn.innerHTML = "▶ Run Test"; btn.disabled = false; passSimStage();
+                            }
+                        }, 1000);
+                    } else {
+                        passSimStage();
+                    }
+                } else {
+                    // If it failed because it was OFF, but would pass if it was ON, give friendly reminder!
+                    let dpdt = state.components.find(c => c.type === 'DPDT');
+                    if (dpdt && rawV === 0) {
+                        let origState = dpdt.state;
+                        dpdt.state = 1; let stat1 = evaluatePhysics(true);
+                        dpdt.state = -1; let stat2 = evaluatePhysics(true);
+                        dpdt.state = origState; evaluatePhysics(); // restore
+                        
+                        if ((stage.check(stat1.v, stat1.cap, state.components) || stage.check(stat2.v, stat2.cap, state.components))) {
+                            return showHintModal("Your circuit is wired perfectly, but the switch is currently OFF! Flip the toggle before testing.", false);
+                        }
+                    }
+                    
+                    // Friendly reminder if they accidentally left a switch on a "No Switch" stage
+                    if (stage.title.includes("Direct Drive") && state.components.some(c => c.type === 'DPDT')) {
+                        return showHintModal("Remember to DELETE the switch for this stage! We want a direct connection. Double-click the switch to delete it.", false);
+                    }
+                    
+                    state.corrections++;
+                    showHintModal("The circuit doesn't meet the task requirements. Check your voltages, connections, and make sure the switch is turned ON!", false);
+                }
+            } catch (err) {
+                console.error("Test Logic Error: ", err);
+                alert("Whoops! A system error occurred while checking the circuit. " + err.message);
             }
         }
 
