@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackbody Radiation & Star Colors</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        input[type=range].thermometer-slider {
+            writing-mode: bt-lr; 
+            -webkit-appearance: slider-vertical; 
+            width: 8px;
+            height: 100%;
+            padding: 0 5px;
+            background: transparent;
+        }
+        .canvas-container {
+            position: relative;
+            background: #000;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        .zoom-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 4px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .zoom-btn:hover { background: rgba(255, 255, 255, 0.3); }
+        #star-icon {
+            transition: all 0.2s ease-out;
+            box-shadow: 0 0 30px currentcolor;
+        }
+        .overlay {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex flex-col relative overflow-x-hidden">
+
+    <!-- START SCREEN OVERLAY -->
+    <div id="start-screen" class="absolute inset-0 z-50 flex items-center justify-center overlay bg-gray-900 bg-opacity-90 transition-opacity duration-500">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full text-center">
+            <h1 class="text-3xl font-bold text-yellow-400 mb-2">Blackbody Radiation</h1>
+            <p class="text-gray-300 mb-6">Explore the true colors of stars and discover the greatest mystery of classical physics.</p>
+            <div class="mb-6">
+                <label for="student-name" class="block text-sm font-medium text-gray-400 mb-2 text-left">Enter your name to begin:</label>
+                <input type="text" id="student-name" class="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white focus:outline-none focus:border-blue-500" placeholder="e.g. Marie Curie" onkeydown="if(event.key === 'Enter') startSimulation()">
+            </div>
+            <button onclick="startSimulation()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg">
+                Start Exploration
+            </button>
+        </div>
+    </div>
+
+    <!-- WIN SCREEN OVERLAY -->
+    <div id="win-screen" class="absolute inset-0 z-50 hidden items-center justify-center overlay bg-gray-900 bg-opacity-95 transition-opacity duration-500">
+        <div class="bg-gray-800 p-10 rounded-2xl shadow-2xl border border-gray-700 max-w-lg w-full text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-yellow-500"></div>
+            
+            <h2 id="win-message" class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-6">
+                Spectacular Job!
+            </h2>
+            
+            <div class="mb-8">
+                <div class="text-6xl font-black text-yellow-400 mb-2" id="win-score">30 / 25</div>
+                <div class="text-lg font-medium text-gray-300" id="win-student-name">Student Name</div>
+                <div class="text-sm text-gray-500 uppercase tracking-wider font-bold mt-1">Blackbody & Star Colors Lab</div>
+            </div>
+
+            <p id="win-subtext" class="text-gray-400 mb-8 italic">
+                You've solved the mystery of the stars!
+            </p>
+
+            <button id="btn-try-again" onclick="resetSimulation()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg hidden border border-gray-500">
+                Try Again to Improve Score
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="bg-gray-800 p-4 shadow-md border-b border-gray-700">
+        <div class="flex justify-between items-center mb-2">
+            <h1 class="text-2xl font-bold text-yellow-400">Blackbody Radiation & Star Colors</h1>
+            <div id="classical-alert" class="hidden text-blue-400 font-bold animate-pulse flex items-center gap-2">
+                <span class="w-3 h-3 bg-blue-500 rounded-full inline-block"></span>
+                Classical Prediction (Solid Blue Line) Enabled
+            </div>
+        </div>
+        <p class="text-sm text-gray-300 leading-relaxed">
+            <strong>How to read this graph:</strong> This graph displays the electromagnetic radiation emitted by an object based entirely on its temperature. 
+            The <strong>vertical axis</strong> shows the Spectral Power Density (the intensity or brightness of the light). 
+            The <strong>horizontal axis</strong> shows the Wavelength (the color or type of the light).
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:flex-row p-4 gap-6 blur-sm transition-all duration-500" id="main-content">
+        
+        <!-- Left Column: Simulation Canvas -->
+        <section class="flex-1 flex flex-col gap-2">
+            
+            <div class="canvas-container flex-1 min-h-[400px]" id="canvas-wrapper">
+                <canvas id="simCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+            </div>
+
+            <!-- Dedicated Control Bar for Zooming -->
+            <div class="flex justify-between items-center bg-gray-800 p-3 rounded-lg border border-gray-700">
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-400 font-bold">Y-Axis (Intensity):</span>
+                    <button class="zoom-btn" onclick="zoomY(-1)" title="Zoom In Y">＋</button>
+                    <button class="zoom-btn" onclick="zoomY(1)" title="Zoom Out Y">－</button>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded border border-gray-600">
+                        <input type="checkbox" id="auto-zoom" checked onchange="toggleAutoZoom()" class="cursor-pointer">
+                        <label for="auto-zoom" class="text-sm text-gray-300 cursor-pointer select-none">Auto-Zoom View</label>
+                    </div>
+                    <div class="flex items-center gap-3 border-l border-gray-600 pl-4">
+                        <span class="text-sm text-gray-400 font-bold">X-Axis (Wavelength):</span>
+                        <button class="zoom-btn" onclick="zoomX(-1)" title="Zoom In X">＋</button>
+                        <button class="zoom-btn" onclick="zoomX(1)" title="Zoom Out X">－</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                <div class="flex justify-between text-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400">Peak Wavelength:</span>
+                        <span id="lbl-peak-wave" class="font-bold text-yellow-400">0.000 µm</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-gray-400">Total Intensity:</span>
+                        <span id="lbl-intensity" class="font-bold text-blue-300">0</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm border-t border-gray-700 pt-2 mt-1">
+                    <span class="text-gray-400">Visible Light Breakdown:</span>
+                    <span id="lbl-rgb-pct" class="font-bold text-gray-200">0% Blue, 0% Green, 0% Red</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Thermometer & Star Settings -->
+        <section class="w-full lg:w-80 bg-gray-800 p-6 rounded-lg border border-gray-700 flex flex-col items-center">
+            
+            <h2 class="text-xl font-bold mb-2">Temperature</h2>
+            <div class="text-3xl font-black text-yellow-400 mb-6 drop-shadow-md" id="lbl-temperature">5800 K</div>
+
+            <!-- Star visualizer -->
+            <div class="mb-8 w-24 h-24 rounded-full flex items-center justify-center bg-gray-900 border-2 border-gray-700 relative">
+                <div id="star-indicator" class="w-16 h-16 rounded-full" style="background-color: rgb(255, 237, 227); box-shadow: 0 0 20px rgb(255, 237, 227);"></div>
+                <span class="absolute -bottom-6 text-xs text-gray-400 text-center w-full">Perceived Color</span>
+            </div>
+
+            <!-- Slider Area -->
+            <div class="flex-1 flex w-full relative min-h-[300px]">
+                
+                <!-- Markers -->
+                <div class="flex-1 relative border-r border-gray-600 text-xs text-gray-300 pr-2" id="thermometer-labels">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Slider -->
+                <div class="w-16 flex justify-center py-2 relative bg-gray-900 rounded-full ml-4 border border-gray-700">
+                    <div class="absolute bottom-0 w-4 bg-red-600 rounded-b-full transition-all duration-100 ease-linear" id="thermo-liquid" style="height: 50%;"></div>
+                    <input type="range" id="temp-slider" min="0" max="1000" value="480" class="thermometer-slider relative z-10 w-full cursor-pointer">
+                    <div class="absolute -bottom-4 w-10 h-10 bg-red-600 rounded-full border-2 border-gray-700 z-0"></div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Bottom Panel: Quiz / Tutor Engine -->
+    <footer class="bg-gray-800 p-6 border-t border-gray-700 min-h-[250px] blur-sm transition-all duration-500" id="main-footer">
+        <div class="max-w-4xl mx-auto" id="quiz-container">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h3 class="text-xl font-bold text-blue-400" id="quiz-title">Interactive Tutor</h3>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-gray-400" id="lbl-student-hud"></span>
+                    <span class="bg-blue-900 text-blue-200 text-xs px-3 py-1 rounded-full font-bold" id="quiz-progress">Module 1/12</span>
+                </div>
+            </div>
+            
+            <p class="text-lg mb-6 leading-relaxed text-gray-100" id="quiz-question">Loading question...</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="quiz-options">
+                <!-- Options injected here -->
+            </div>
+
+            <div id="quiz-feedback" class="mt-4 p-4 rounded-lg hidden text-sm leading-relaxed border"></div>
+            
+            <div class="flex justify-between items-center mt-6">
+                <button id="btn-prev-module" onclick="prevModule()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded shadow-lg hidden transition-colors border border-gray-500">
+                    ⬅ Back to Previous Topic
+                </button>
+                <button id="btn-next-module" onclick="nextModule()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded shadow-lg hidden transition-colors ml-auto">
+                    Continue to Next Topic ➔
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- CONSTANTS & STATE ---
+        const c1 = 374.177; 
+        const c2 = 14387.77; 
+        
+        let state = {
+            temperature: 5800,
+            zoomX: 3, 
+            zoomY: 100, 
+            showClassical: false,
+            autoZoom: true
+        };
+
+        // --- GAMIFICATION STATE ---
+        let appState = {
+            studentName: "",
+            totalCorrections: 0,
+            baseScore: 25
+        };
+
+        const markers = [
+            { temp: 288, label: "Earth", type: 'planet' },
+            { temp: 3042, label: "Red Dwarf", type: 'star' },
+            { temp: 3900, label: "Red Giant", type: 'star' },
+            { temp: 5778, label: "Sun", type: 'star' },
+            { temp: 9940, label: "Sirius A", type: 'star' },
+            { temp: 12100, label: "Blue Giant", type: 'star' },
+            { temp: 25200, label: "White Dwarf", type: 'star' }
+        ];
+
+        // --- MATH & PHYSICS FUNCTIONS ---
+        
+        function planck(lambda, T) {
+            if (lambda <= 0) return 0;
+            const exponent = c2 / (lambda * T);
+            if (exponent > 700) return 0; 
+            return c1 / (Math.pow(lambda, 5) * (Math.exp(exponent) - 1));
+        }
+
+        function rayleighJeans(lambda, T) {
+            if (lambda <= 0) return 0;
+            return (c1 / c2) * T / Math.pow(lambda, 4);
+        }
+
+        function getPeakWavelength(T) {
+            return 2898 / T;
+        }
+
+        function getVisibleBands(T) {
+            let b=0, g=0, r=0;
+            const steps = 10;
+            const span = (0.75 - 0.38) / 3; 
+            
+            for(let i=0; i<steps; i++) b += planck(0.38 + i*(span/steps), T);
+            for(let i=0; i<steps; i++) g += planck(0.38 + span + i*(span/steps), T);
+            for(let i=0; i<steps; i++) r += planck(0.38 + 2*span + i*(span/steps), T);
+
+            let total = b + g + r;
+            if (total < 1e-10) return { b: 0, g: 0, r: 0, visible: false }; 
+
+            return {
+                b: Math.round((b/total)*100),
+                g: Math.round((g/total)*100),
+                r: Math.round((r/total)*100),
+                visible: true
+            };
+        }
+
+        function getTicks(maxVal) {
+            if (maxVal <= 0) return [0];
+            let mag = Math.floor(Math.log10(maxVal));
+            let step = Math.pow(10, mag);
+            if (maxVal / step < 2) step /= 5;
+            else if (maxVal / step < 5) step /= 2;
+            let ticks = [];
+            for (let i = 0; i <= maxVal + step/10; i += step) ticks.push(i);
+            return ticks;
+        }
+
+        function formatTick(val, maxVal) {
+            if (val === 0) return "0";
+            if (maxVal >= 1000 || maxVal <= 0.01) return val.toExponential(1);
+            if (maxVal >= 10) return val.toFixed(0);
+            return val.toFixed(2);
+        }
+
+        function kelvinToRGB(t) {
+            let temp = t / 100;
+            let red, green, blue;
+
+            if (temp <= 66) {
+                red = 255; green = temp;
+                green = 99.4708025861 * Math.log(green) - 161.1195681661;
+                if (temp <= 19) blue = 0;
+                else {
+                    blue = temp - 10;
+                    blue = 138.5177312231 * Math.log(blue) - 305.0447927307;
+                }
+            } else {
+                red = temp - 60; red = 329.698727446 * Math.pow(red, -0.1332047592);
+                green = temp - 60; green = 288.1221695283 * Math.pow(green, -0.0755148492);
+                blue = 255;
+            }
+
+            const clamp = (c) => Math.max(0, Math.min(255, Math.round(c)));
+            return `rgb(${clamp(red)}, ${clamp(green)}, ${clamp(blue)})`;
+        }
+
+        // --- CANVAS RENDERING ---
+        
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            // Increased margins to prevent overlap
+            const marginX = 80; 
+            const marginY = 55; 
+            const graphW = w - marginX - 20;
+            const graphH = h - marginY - 20;
+
+            const visStart = 0.38;
+            const visEnd = 0.75; 
+            
+            const pxStart = marginX + (visStart / state.zoomX) * graphW;
+            const pxEnd = marginX + (visEnd / state.zoomX) * graphW;
+            
+            if (pxStart < w && pxEnd > marginX) {
+                const grad = ctx.createLinearGradient(pxStart, 0, pxEnd, 0);
+                grad.addColorStop(0, 'rgba(138, 43, 226, 0.4)'); 
+                grad.addColorStop(0.2, 'rgba(0, 0, 255, 0.4)');   
+                grad.addColorStop(0.4, 'rgba(0, 255, 0, 0.4)');   
+                grad.addColorStop(0.6, 'rgba(255, 255, 0, 0.4)'); 
+                grad.addColorStop(0.8, 'rgba(255, 127, 0, 0.4)'); 
+                grad.addColorStop(1, 'rgba(255, 0, 0, 0.4)');     
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(Math.max(marginX, pxStart), 20, Math.min(graphW, pxEnd - pxStart), graphH);
+            }
+
+            // Draw Axes lines
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(marginX, 20);
+            ctx.lineTo(marginX, 20 + graphH);
+            ctx.lineTo(marginX + graphW, 20 + graphH);
+            ctx.stroke();
+
+            // Draw Ticks and Tick Labels
+            ctx.fillStyle = '#9ca3af'; // text-gray-400
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            const xTicks = getTicks(state.zoomX);
+            xTicks.forEach(val => {
+                let x = marginX + (val / state.zoomX) * graphW;
+                if(x <= marginX + graphW) {
+                    ctx.fillText(formatTick(val, state.zoomX), x, 20 + graphH + 20);
+                    ctx.beginPath();
+                    ctx.moveTo(x, 20 + graphH);
+                    ctx.lineTo(x, 20 + graphH - 5);
+                    ctx.stroke();
+                }
+            });
+            
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const yTicks = getTicks(state.zoomY);
+            yTicks.forEach(val => {
+                let y = 20 + graphH - (val / state.zoomY) * graphH;
+                if(y >= 20) {
+                    ctx.fillText(formatTick(val, state.zoomY), marginX - 8, y);
+                    ctx.beginPath();
+                    ctx.moveTo(marginX, y);
+                    ctx.lineTo(marginX + 5, y);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw Explicit Axis Titles on Canvas
+            // Y-Axis Title (Rotated)
+            ctx.save();
+            ctx.translate(15, 20 + graphH/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Spectral Power Density (MW/m²/µm)", 0, 0);
+            ctx.restore();
+
+            // X-Axis Title
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("Wavelength (µm)", marginX + graphW/2, 20 + graphH + 45);
+
+            // Clip region for drawing lines
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(marginX, 20, graphW, graphH);
+            ctx.clip();
+
+            // Draw Actual Planck Curve
+            ctx.beginPath();
+            ctx.strokeStyle = '#ff7300'; // Orange
+            ctx.lineWidth = 3;
+            
+            let maxGraphY = 0;
+            let peakX = 0;
+            
+            for(let px = 0; px <= graphW; px += 2) {
+                let lam = (px / graphW) * state.zoomX;
+                let density = planck(lam, state.temperature);
+                
+                if (density > maxGraphY) { maxGraphY = density; peakX = px; }
+                let py = 20 + graphH - (density / state.zoomY) * graphH;
+                
+                if (px === 0) ctx.moveTo(marginX + px, py);
+                else ctx.lineTo(marginX + px, py);
+            }
+            ctx.stroke();
+
+            // Draw Classical Prediction (Solid Blue Line)
+            if (state.showClassical) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#3b82f6'; // Bright Solid Blue
+                ctx.lineWidth = 3;
+                ctx.setLineDash([]); // Ensure solid
+                
+                for(let px = 2; px <= graphW; px += 5) {
+                    let lam = (px / graphW) * state.zoomX;
+                    let density = rayleighJeans(lam, state.temperature);
+                    let py = 20 + graphH - (density / state.zoomY) * graphH;
+                    if (px === 2) ctx.moveTo(marginX + px, py);
+                    else ctx.lineTo(marginX + px, py);
+                }
+                ctx.stroke();
+                
+                ctx.fillStyle = '#3b82f6';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText("Classical Prediction (Blue Line)", marginX + 20, 40);
+            }
+
+            ctx.restore(); // END CLIP
+
+            // Peak Marker
+            const peakWave = getPeakWavelength(state.temperature);
+            const pX = marginX + (peakWave / state.zoomX) * graphW;
+            const pY = 20 + graphH - (planck(peakWave, state.temperature) / state.zoomY) * graphH;
+            
+            if (pX >= marginX && pX <= marginX + graphW && pY >= 20) {
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(pX, pY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(pX, pY);
+                ctx.lineTo(pX, 20 + graphH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        // --- CONTROLS & LOGIC ---
+
+        function updateSimulation() {
+            const sliderVal = document.getElementById('temp-slider').value;
+            const minT = 200;
+            const maxT = 30000;
+            const t = minT * Math.pow(maxT/minT, sliderVal / 1000);
+            
+            state.temperature = t;
+
+            if (state.autoZoom && !state.showClassical) {
+                let pWave = getPeakWavelength(t);
+                let pDen = planck(pWave, t);
+                
+                if (t >= 3000 && t <= 12000) {
+                    state.zoomX = 3;
+                } else if (t > 12000) {
+                    state.zoomX = 1; 
+                } else {
+                    state.zoomX = Math.max(3, Math.ceil(pWave * 2.5)); 
+                }
+                
+                state.zoomY = pDen * 1.2;
+                if (state.zoomY < 1e-6) state.zoomY = 1e-6; 
+            }
+            
+            document.getElementById('lbl-temperature').textContent = Math.round(t).toLocaleString() + " K";
+            document.getElementById('lbl-peak-wave').textContent = getPeakWavelength(t).toFixed(3) + " µm";
+            
+            const intensity = Math.pow(t / 5800, 4);
+            document.getElementById('lbl-intensity').textContent = intensity < 0.01 ? "~0" : intensity.toExponential(2);
+
+            const bands = getVisibleBands(t);
+            const lblRgb = document.getElementById('lbl-rgb-pct');
+
+            let rgb;
+            if (!bands.visible) {
+                rgb = 'rgb(0, 0, 0)';
+                lblRgb.innerHTML = `<span class="text-red-500">No visible light emitted (pure infrared)</span>`;
+            } else {
+                rgb = kelvinToRGB(t);
+                lblRgb.innerHTML = `<span class="text-blue-400">${bands.b}% Blue</span>, <span class="text-green-400">${bands.g}% Green</span>, <span class="text-red-400">${bands.r}% Red</span>`;
+            }
+
+            const starInd = document.getElementById('star-indicator');
+            starInd.style.backgroundColor = rgb;
+            starInd.style.boxShadow = `0 0 20px ${rgb}`;
+
+            const liquidHeight = (sliderVal / 1000) * 100;
+            document.getElementById('thermo-liquid').style.height = `${Math.max(10, liquidHeight)}%`;
+            
+            let liqCol = '#3b82f6'; 
+            if (t > 1000) liqCol = '#ef4444'; 
+            if (t > 8000) liqCol = '#60a5fa'; 
+            document.getElementById('thermo-liquid').style.backgroundColor = liqCol;
+
+            draw();
+        }
+
+        function toggleAutoZoom() {
+            state.autoZoom = document.getElementById('auto-zoom').checked;
+            if (state.autoZoom) updateSimulation();
+        }
+
+        function zoomX(dir) {
+            state.autoZoom = false;
+            document.getElementById('auto-zoom').checked = false;
+            const factors = [0.1, 0.5, 1, 3, 5, 10, 30, 100];
+            let closest = factors[0], minDiff = Math.abs(state.zoomX - factors[0]), idx = 0;
+            for(let i=1; i<factors.length; i++) {
+                let diff = Math.abs(state.zoomX - factors[i]);
+                if(diff < minDiff) { minDiff = diff; closest = factors[i]; idx = i; }
+            }
+            idx += dir;
+            if (idx >= 0 && idx < factors.length) { state.zoomX = factors[idx]; draw(); }
+        }
+
+        function zoomY(dir) {
+            state.autoZoom = false;
+            document.getElementById('auto-zoom').checked = false;
+            const factors = [1e-4, 1e-2, 0.1, 1, 10, 50, 100, 500, 2000, 10000];
+            let closest = factors[0], minDiff = Math.abs(state.zoomY - factors[0]), idx = 0;
+            for(let i=1; i<factors.length; i++) {
+                let diff = Math.abs(state.zoomY - factors[i]);
+                if(diff < minDiff) { minDiff = diff; closest = factors[i]; idx = i; }
+            }
+            idx += dir;
+            if(idx >= 0 && idx < factors.length) { state.zoomY = factors[idx]; draw(); }
+        }
+
+        function buildThermometer() {
+            const container = document.getElementById('thermometer-labels');
+            const minT = 200;
+            const maxT = 30000;
+            
+            markers.forEach(marker => {
+                const val = 1000 * Math.log(marker.temp / minT) / Math.log(maxT / minT);
+                const percent = (val / 1000) * 100;
+                
+                const div = document.createElement('div');
+                div.className = 'absolute right-2 whitespace-nowrap flex items-center gap-2 transform translate-y-1/2';
+                div.style.bottom = `${percent}%`;
+                
+                let colorClass = 'text-gray-300';
+                if(marker.temp < 4000 && marker.type==='star') colorClass = 'text-red-400';
+                if(marker.temp > 8000) colorClass = 'text-blue-300';
+                if(marker.label === 'Sun') colorClass = 'text-yellow-400 font-bold';
+
+                div.innerHTML = `<span class="${colorClass}">${marker.label}</span> <span class="w-2 h-px bg-gray-500"></span>`;
+                container.appendChild(div);
+            });
+
+            document.getElementById('temp-slider').addEventListener('input', updateSimulation);
+        }
+
+        // --- QUIZ & TUTOR SYSTEM ---
+
+        const questionBank = [
+            // Group 0: Sun & Scattering
+            [
+                { q: "If you looked at our Sun from the International Space Station, what color would it mostly appear?", opts: ["Blinding White", "Deep Yellow", "Orange", "Red"], correct: 0, f: "In space, without our atmosphere scattering light, the Sun's mix of visible wavelengths combines to form white light." },
+                { q: "Why does the Sun look yellow or orange during a sunset on Earth?", opts: ["The atmosphere scatters blue light away, leaving reds/yellows", "The Sun cools down at night", "The atmosphere absorbs all yellow light", "Earth's magnetic field bends the light"], correct: 0, f: "This is Rayleigh scattering! Our atmosphere scatters shorter (blue) wavelengths easily, letting the longer (red/yellow) ones through directly to your eyes." },
+                { q: "Look closely at the 5800K curve (our Sun). Which visible color has the highest peak density?", opts: ["Blue-Green", "Deep Red", "Violet", "Far Infrared"], correct: 0, f: "The peak is actually around 0.5 µm (Blue-Green/Cyan). But because it emits plenty of red and blue as well, our eyes sum it up as white." },
+                { q: "An astronaut on the moon looks at the Sun. What do they see?", opts: ["A pure white star", "A yellow dwarf", "A pale blue dot", "A green giant"], correct: 0, f: "With no atmosphere, no blue light is scattered away. The full spectrum hits their eyes, creating a white appearance." },
+                { q: "If the Sun's peak emission is technically in the blue-green spectrum (~5000-6000K), why doesn't it appear green from space?", opts: ["It emits broadly across all visible colors, stimulating all color receptors in our eyes equally to make white.", "Space distorts light.", "The peak is actually in the red.", "Human eyes can't see green light well."], correct: 0, f: "Blackbody curves are broad. A peak in the middle of the visible spectrum means you get a solid mix of red, green, and blue—which our brain interprets as white." }
+            ],
+            // Group 1: Visible Percentage
+            [
+                { q: "Set the slider to the Sun (5800 K) and adjust the Zoom to fit. Roughly what portion of the total area under the curve falls inside the visible rainbow slice?", opts: ["About 40-50%", "Nearly 100%", "Less than 5%", "Exactly 0%"], correct: 0, f: "Even for our Sun, only roughly 44% of its radiated energy is visible light. The rest is mostly infrared!" },
+                { q: "Set the slider to a 3000 K Red Dwarf. Where is the vast majority of its energy radiated?", opts: ["Invisible Infrared (to the right)", "Visible Light", "Invisible Ultraviolet (to the left)", "Microwaves"], correct: 0, f: "The curve shifts right at lower temperatures. Almost all of a red dwarf's energy is infrared heat, not visible light." },
+                { q: "Look at the 10,000 K star (Sirius A). Where does a massive portion of its radiated energy go?", opts: ["Ultraviolet (left of the rainbow)", "Infrared (right of the rainbow)", "Radio waves", "Only visible light"], correct: 0, f: "As stars get hotter, the peak shifts left. Sirius A emits a huge amount of invisible Ultraviolet radiation." },
+                { q: "If humans could only see infrared light, which star would have the largest percentage of its total output visible to us?", opts: ["A cool 3000 K Red Dwarf", "The 5800K Sun", "A blazing 25000K Blue Giant"], correct: 0, f: "Red dwarfs peak directly in the infrared. To an infrared-seeing eye, they would be incredibly efficient light sources!" },
+                { q: "Why does a 3000 K star appear relatively dim to human eyes compared to a hotter star of the same size?", opts: ["Most of its radiation is emitted as invisible infrared heat.", "It emits dark matter.", "The visible light is blocked by the star's atmosphere.", "Red light travels slower."], correct: 0, f: "The area under the curve inside the visible slice for 3000K is tiny. Most of its energy is wasted (for our eyes) as infrared heat." }
+            ],
+            // Group 2: Color Dynamics
+            [
+                { q: "Set to 10,000 K (Sirius A). Even though the peak is in the UV, look at the visible slice. Does it emit more blue light or more red light?", opts: ["More Blue", "More Red", "Exactly Equal amounts"], correct: 0, f: "The curve is sloping downward across the visible spectrum. Therefore, it's higher on the blue side than the red side. Hence, a blue-white star." },
+                { q: "Set to 3500 K. Look at the visible slice. Does it emit more blue light or more red light?", opts: ["More Red", "More Blue", "Exactly Equal amounts"], correct: 0, f: "The curve is sloping sharply upward across the visible spectrum. It's much higher on the red side, making the star appear red-orange." },
+                { q: "What happens to the Peak Wavelength marker as you increase the temperature from Earth (288K) to a White Dwarf (25000K)?", opts: ["It shifts continuously to the left (shorter wavelengths).", "It shifts to the right (longer wavelengths).", "It stays exactly in the middle."], correct: 0, f: "This is Wien's Displacement Law! Hotter objects emit radiation that peaks at shorter, more energetic wavelengths." },
+                { q: "If a star's spectrum has roughly equal amounts of red, green, and blue light across the visible band, what color will our brain perceive?", opts: ["White", "Black", "Brown", "Magenta"], correct: 0, f: "When our eye's red, green, and blue cones are stimulated roughly equally, our brain creates the perception of 'white'." },
+                { q: "Based on the curves, which visual color indicates the HOTTEST star?", opts: ["Blue/Violet", "Red", "Yellow", "Orange"], correct: 0, f: "Hotter stars peak further to the left (UV/Blue), meaning the blue side of their visible spectrum is much taller than the red side." }
+            ],
+            // Group 3: Colors of Specific Stars
+            [
+                { q: "Set the slider to Sirius A (9940 K). Look at the 'Perceived Color' indicator and the visible spectrum breakdown. What is the perceived color of Sirius A?", opts: ["Blue-White", "Yellow", "Deep Red", "Green"], correct: 0, f: "Because the peak is in the UV, the visible slice slopes down toward the red, giving a mix dominated by blue." },
+                { q: "A certain star, like Aldebaran (Red Giant), burns at 3900 K. What color does it appear?", opts: ["Red-Orange", "Pure White", "Blue", "Green"], correct: 0, f: "At 3900 K, the peak is in the infrared, meaning the visible slice consists mostly of red light with very little blue." },
+                { q: "Check out Rigel, a Blue Giant burning around 12,100 K. Based on the visible light breakdown, why does it look blue?", opts: ["It emits far more blue light (~45%) than red light (~22%).", "It only emits blue light.", "The atmosphere turns it blue.", "It reflects the ocean."], correct: 0, f: "Rigel peaks in the deep UV, so the blue side of the visible spectrum is much taller than the red side." },
+                { q: "Set the temperature to a White Dwarf like Sirius B (25,200 K). Even though it's incredibly hot, what color do our eyes perceive?", opts: ["A harsh, icy Blue-White", "Bright Yellow", "Deep Violet", "Invisible"], correct: 0, f: "It's so hot that the curve is almost flat across the visible spectrum, but still slightly higher on the blue end, making a brilliant blue-white." },
+                { q: "Look at Proxima Centauri, a Red Dwarf at 3042 K. If you look at the visible light breakdown, which color makes up the vast majority of its tiny visible output?", opts: ["Red (over 70%)", "Green", "Blue", "Yellow"], correct: 0, f: "Red dwarfs emit very little visible light, and almost all of what they do emit is at the very lowest energy (red) end of the spectrum." }
+            ],
+            // Group 4: The Shape of Thermal Radiation (No Spikes)
+            [
+                { q: "Thermal (blackbody) radiation is caused by random atomic wiggling. Because of this random heat motion, what does the spectrum of emitted light look like?", opts: ["A broad, wide curve spreading across many colors.", "A single, sharp vertical spike of one color.", "A perfectly flat horizontal line."], correct: 0, f: "Correct! The randomized motion of atoms means thermal radiation is always distributed across a wide, broad hill of many different wavelengths." },
+                { q: "If you wanted an object to emit ONLY pure green light, its spectrum graph would need to look like a narrow, sharp spike. Do blackbody curves ever look like a narrow spike?", opts: ["No, they are always broad hills.", "Yes, if heated to exactly 5000 K.", "Yes, but only in vacuums."], correct: 0, f: "Thermal radiation never produces an isolated spike. It will always drag a massive amount of surrounding colors along with it." },
+                { q: "Look at the shape of the graph for any temperature on the slider. Which statement is true about the nature of thermal radiation?", opts: ["It always spans a wide, continuous range of wavelengths.", "It only emits one exact wavelength at any given time.", "It never emits visible light."], correct: 0, f: "It's always a broad curve! You can't get just one specific color from a hot object." },
+                { q: "If you need a light source that emits exclusively one wavelength of light (like a pure green laser), could you use a simple hot object (blackbody) to achieve this?", opts: ["No, hot objects always emit a broad mix of wavelengths.", "Yes, if you heat it to the exact right temperature.", "Yes, if you cool it down enough."], correct: 0, f: "You would need something like a laser or a specific gas tube. A hot object will always spill out a mess of many different colors." },
+                { q: "Why is a blackbody curve shaped like a wide hill instead of a single thin vertical line?", opts: ["Because thermal heat energy causes atoms to jiggle randomly, emitting a wide spread of many wavelengths.", "Because light naturally bends into curves in space.", "Because measuring instruments are blurry."], correct: 0, f: "Heat is random atomic motion. That randomness results in a wide, continuous spectrum of light." }
+            ],
+            // Group 4: Peaking in Green
+            [
+                { q: "Adjust the slider so the peak is in the middle of the green section (~6000 K). Because the curve is wide, what other colors are also being emitted in massive amounts?", opts: ["Lots of Red and Blue light.", "Only invisible Infrared.", "Only invisible Ultraviolet."], correct: 0, f: "Because the curve is broad, peaking in the green means the sides of the hill are heavily blasting out both red and blue light at the same time." },
+                { q: "When a star has its peak wavelength directly in the green band, it is simultaneously blasting out tons of red and blue light. How do human eyes interpret this balanced mix of red, green, and blue?", opts: ["As White.", "As Dark Green.", "As Black."], correct: 0, f: "Human eyes synthesize a roughly equal mix of red, green, and blue light directly into the perception of 'white'." },
+                { q: "Set the temperature to around 6000 K (peak green). Why doesn't the 'Perceived Color' indicator below the thermometer turn pure green?", opts: ["The broad emission of red and blue light mixes with the green to form white.", "Computer screens cannot accurately display green.", "The atmosphere absorbs green light."], correct: 0, f: "The massive amounts of red and blue light act to 'wash out' the green peak, creating a white appearance to our eyes." },
+                { q: "Even if green is the 'tallest' point on the graph at 6000K, the area under the red and blue sections is huge. What color does a human brain synthesize from this specific mixture?", opts: ["White.", "Bright Green.", "Purple."], correct: 0, f: "Our brains process a broad, balanced visible spectrum as pure white light. This is why sunlight appears white in space!" },
+                { q: "To see a star as purely green, our eyes would need to receive mostly green light and very little red or blue. Based on the curve of a 6000K star, is this condition ever met?", opts: ["No, there is far too much red and blue light present.", "Yes, the star only emits green light at this temperature.", "Yes, but only if you use a telescope."], correct: 0, f: "The curve is just too wide. The red and blue light will always be there to ruin the pure green effect." }
+            ],
+            // Group 5: The Green Star Conclusion
+            [
+                { q: "Based on the fact that thermal curves are broad (emitting red and blue alongside green) and that our eyes mix these into white, have astronomers ever observed a green star?", opts: ["No, we have yet to observe a green star.", "Yes, but only in other galaxies.", "Yes, they are very common."], correct: 0, f: "Correct! Because of how our eyes interpret broad thermal spectrums, there are absolutely no green stars to be found in the sky." },
+                { q: "You've uncovered the 'Missing Green Star' mystery! If someone points to a green star in a sci-fi movie, what do you know based on the physics of blackbody radiation?", opts: ["Green stars don't exist because broad thermal emission peaking in green mixes into white.", "Green stars exist but only live for a few days.", "Green stars are blocked by cosmic dust."], correct: 0, f: "It's a biological and physical impossibility! The curve is too broad, and our eyes will always see the resulting mix as white." },
+                { q: "Is it possible for 'any' temperature of a normal star to produce a purely green appearance to the human eye?", opts: ["No, because any curve peaking in green also emits too much red and blue.", "Yes, at exactly 5555 K.", "Yes, if the star is very small."], correct: 0, f: "No matter how you adjust the temperature, you can never isolate just the green band using thermal radiation." },
+                { q: "We easily see red stars (peak far right) and blue stars (peak far left). Why no green stars (peak in middle)?", opts: ["A peak in the middle means a balanced mix of all visible colors, which our eyes perceive as white.", "Green light is absorbed by the vacuum of space.", "Stars simply cannot burn at green temperatures."], correct: 0, f: "Exactly. Being in the middle of the spectrum guarantees that both ends (red and blue) are also heavily stimulated, yielding white." },
+                { q: "Summary: Have we ever observed a true green star in the night sky?", opts: ["No! Physics dictates that stars peaking in green appear white to human eyes.", "Yes, they are just very rare.", "Yes, our Sun is a green star."], correct: 0, f: "Astronomers have never observed a green star! It is a fascinating quirk of how the physics of heat meets human biology." }
+            ],
+            // Group 6: The Equipartition Theorem
+            [
+                { q: "The classical 'Equipartition Theorem' is a rule that says thermal energy must be shared equally among all possible forms or 'modes'. According to this theorem, how should the energy of a glowing star be distributed among the different wavelengths?", opts: ["Equally among every single possible wavelength.", "Mostly to the longest wavelengths.", "Randomly among a few wavelengths.", "Only to visible light."], correct: 0, f: "Classical physics assumed nature was perfectly fair: every possible wavelength got the exact same slice of thermal energy." },
+                { q: "A core rule of classical physics is the 'Equipartition Theorem', which dictates that every possible wavelength gets the exact same slice of thermal energy. If a box is glowing with heat, how does this theorem say the heat energy is divided among the different wavelengths of light inside?", opts: ["It is shared perfectly equally among all wavelengths.", "It is given entirely to the red wavelengths.", "It depends entirely on the material.", "It goes to whichever wavelength is largest."], correct: 0, f: "The theorem stated that every single possible wavelength mode must receive an exactly equal amount of thermal energy." },
+                { q: "The 'Equipartition Theorem' is the classical assumption that thermal energy is partitioned (divided) perfectly equally among all possible wavelengths. Under this rule, does a specific wavelength get more or less energy than any other wavelength?", opts: ["No, all wavelengths get the exact same slice of energy.", "Yes, short waves get less energy.", "Yes, long waves get more energy.", "Yes, visible waves get the most energy."], correct: 0, f: "The word 'equipartition' literally means equal partition. Classical physics believed all wavelengths got a perfectly equal cut of the energy." },
+                { q: "According to the 'Equipartition Theorem', every possible wavelength is given an exactly equal amount of energy. If you have 10 long wavelengths and 10 short wavelengths possible inside an object, this theorem says the total energy given to the long ones compared to the short ones will be...", opts: ["Exactly the same.", "Much less for the short ones.", "Much more for the long ones.", "It varies randomly."], correct: 0, f: "Because there is an equal number of wavelengths (10 of each), and each gets an equal share, the total energy given to both groups is exactly the same." },
+                { q: "Think of the 'Equipartition Theorem' as a perfectly fair parent that hands out exactly equal amounts of energy to every possible wavelength. How does it hand out thermal energy to the different possible wavelengths of light?", opts: ["Every possible wavelength gets an equal share.", "It favors the longest wavelengths.", "It gives all its energy to the shortest wavelengths.", "It doesn't hand out energy."], correct: 0, f: "Correct! The classical assumption was absolute fairness: every possible wavelength mode was given an equal piece of the energy pie." }
+            ],
+            // Group 7: Density of Wavelengths
+            [
+                { q: "In classical physics, light inside a hot object was modeled as 'standing waves'. Think of fitting different sized waves into a fixed space. Which type of wave has vastly more ways to fit inside?", opts: ["Very short, tiny wavelengths.", "Very long, giant wavelengths.", "Both have the same amount of ways to fit."], correct: 0, f: "Correct! Just like you can fit a nearly infinite amount of tiny wiggles inside a box compared to one giant wave, the math showed there are infinitely more short-wavelengths possible." },
+                { q: "Imagine trying to fit waves into an oven. Can you fit more distinct wave patterns if the waves are 1 millimeter long, or 1 meter long?", opts: ["You can fit vastly more 1-millimeter waves.", "You can fit vastly more 1-meter waves.", "You can fit exactly the same amount of both."], correct: 0, f: "Because the tiny waves take up almost no space, there are millions more unique ways for them to bounce around inside the oven." },
+                { q: "As wavelengths get shorter and shorter (closer to zero), what happens to the number of possible wave modes that can fit inside a 3D space?", opts: ["The number of possible modes explodes toward infinity.", "The number of possible modes shrinks to zero.", "The number stays completely constant.", "It only increases for visible light."], correct: 0, f: "The smaller the wave, the more ways it can fit. As wavelength approaches zero, the number of possible patterns approaches infinity!" },
+                { q: "Which range contains more possible standing wave modes: the range from 1 to 2 meters, or the extremely tiny range from 0.001 to 0.002 meters?", opts: ["The 0.001 to 0.002 meter range has astronomically more modes.", "The 1 to 2 meter range has more modes.", "They have the exact same number of modes."], correct: 0, f: "Even though both ranges cover the same numerical span, the microscopic range allows for infinitely more distinct geometric ways to fit the waves inside a space." },
+                { q: "Because 3D space allows waves to travel in all directions, the total number of distinct wave patterns that can fit in a box heavily favors which type of wave?", opts: ["Extremely short, microscopic wavelengths.", "Extremely long wavelengths like radio waves.", "Only visible light wavelengths."], correct: 0, f: "The math proves that the 'density' of possible wavelengths heavily, heavily favors the tiny ones. There is an infinite playground of possibilities for short waves." }
+            ],
+            // Group 8: Energy Distribution Prediction
+            [
+                { q: "Let's combine the rules: 1) The Equipartition Theorem states energy is shared equally per wavelength. 2) There are astronomically more tiny wavelengths that fit between 0 and 1 µm than large ones between 3 and 5 µm. According to classical theory, which section gets more total energy?", opts: ["The 0 to 1 µm section gets massively more total energy.", "The 3 to 5 µm section gets more energy.", "They get the exact same total energy."], correct: 0, f: "Exactly! Because the 0-1 µm section contains billions of times more distinct wavelengths, and each one gets an equal share of energy, that section hoards almost all the total energy!" },
+                { q: "Since tiny wavelengths heavily outnumber large ones, and the Equipartition Theorem dictates that every single wavelength gets the same equal energy slice, which range of the spectrum will hoard the most total energy?", opts: ["The shortest wavelengths (like 0 to 1 µm).", "The longest wavelengths (like 3 to 5 µm).", "The middle wavelengths only."], correct: 0, f: "It's simple math: if you have infinitely more tiny buckets, and you put the same amount of water in every bucket, the group of tiny buckets holds infinitely more water." },
+                { q: "Compare the 0-1 µm range to the 3-5 µm range. If the 0-1 range contains millions of times more possible wave modes, and each mode gets equal energy (Equipartition Theorem), what does classical theory predict about the energy distribution?", opts: ["The 0-1 range ends up containing millions of times more energy.", "The energy perfectly balances out between both ranges.", "The 3-5 range steals all the energy."], correct: 0, f: "The classical logic falls perfectly into this trap: infinite tiny modes means infinite total energy piles up in the tiny (short) wavelengths." },
+                { q: "Based on the Equipartition Theorem giving equal energy to all waves, and short waves outnumbering long waves, if you look at a spectrum graph, should the expected energy density be higher in the 0-1 µm (short) section or the 3-5 µm (long) section?", opts: ["Much, much higher in the 0-1 µm section.", "Higher in the 3-5 µm section.", "It should be perfectly flat."], correct: 0, f: "The shorter the wavelength, the more modes there are, meaning vastly higher energy density. This is exactly what the solid blue line represents!" },
+                { q: "Knowing that shorter wavelengths vastly outnumber longer ones, and the Equipartition Theorem gives each an equal piece of the energy pie, where does almost all the thermal energy end up according to the classical theory?", opts: ["Piled up in the shortest possible wavelengths, closer to zero.", "Piled up in the longest possible wavelengths.", "Spaced perfectly evenly across the graph."], correct: 0, f: "Correct. The energy gets sucked down into the microscopic wavelengths simply because there are infinitely more of them available." }
+            ],
+            // Group 9: The Infinite Energy Conclusion
+            [
+                { q: "Recall the classical Equipartition Theorem: every possible wavelength gets an equal slice of energy. If shorter wavelengths hoard more and more total energy because there are infinitely more of them, what does classical theory predict for the energy at a near-zero wavelength?", opts: ["It predicts infinite energy.", "It predicts zero energy.", "It predicts a small, safe amount of energy.", "It turns negative."], correct: 0, f: "Because you can always make a wavelength smaller, and smaller wavelengths mean more energy, the math spirals out of control and predicts infinite energy at a wavelength of zero." },
+                { q: "As wavelength shrinks toward zero, the number of wave modes goes to infinity. If the Equipartition Theorem forces each of those infinite modes to get an equal piece of energy, what is the expected total energy at a tiny wavelength of 0.0000001 µm?", opts: ["It mathematically approaches infinity.", "It approaches zero.", "It stays comfortably low.", "It equals exactly 100."], correct: 0, f: "Dividing by smaller and smaller fractions makes the result explode. The classical math physically broke when applied to incredibly tiny wavelengths." },
+                { q: "Follow the classical logic of the Equipartition Theorem to the extreme: if the waves get infinitely small, the number of waves goes to infinity, so the equal energy they hold gets infinitely large. Notice the solid blue line—what is it doing as it moves left toward zero?", opts: ["It shoots straight up toward infinite energy.", "It curves safely back down to zero.", "It goes perfectly horizontal.", "It zig-zags randomly."], correct: 0, f: "The blue line is the visual representation of this math trap! It shoots off the top of the graph toward absolute infinity." },
+                { q: "Because classical theory mistakenly gives equal energy to an infinite number of tiny waves, the classical formula has wavelength (λ) in the denominator (1/λ⁴). As wavelength gets infinitely close to zero, what happens to the predicted energy density?", opts: ["Dividing by zero makes the prediction explode to infinity.", "Dividing by zero makes the energy zero.", "It becomes a negative number.", "It stabilizes into a rainbow."], correct: 0, f: "This fatal mathematical flaw meant that classical physics predicted any warm object would emit an infinite, blinding amount of radiation." },
+                { q: "Based on the flaw of the Equipartition Theorem (giving equal energy to an infinite amount of microscopic waves), does the classical theory predict a safe, finite amount of energy for extremely short (near-zero) wavelengths like X-rays and Gamma rays?", opts: ["No, it predicts a deadly, infinite amount of energy.", "Yes, it perfectly predicts safe levels.", "Yes, but only for stars, not planets.", "No, it predicts exactly zero energy."], correct: 0, f: "If classical theory were true, stepping outside into the warmth of the Sun would instantly vaporize you with infinite gamma radiation!" }
+            ],
+            // Group 10: The Ultraviolet Catastrophe
+            [
+                { q: "Look at the classical prediction (solid blue line) versus the actual observed reality (orange curve). Emphasizing the left side of the graph, what was the 'Ultraviolet Catastrophe'?", opts: ["The classical theory completely failed to match the real-world observation in the short (ultraviolet) wavelengths.", "Telescopes exploded when looking at ultraviolet light.", "Ultraviolet light was discovered to be an illusion.", "The universe briefly ran out of ultraviolet light."], correct: 0, f: "The 'catastrophe' was the absolute, irreconcilable mismatch between the best physics theory of the time and the undeniable reality of observation." },
+                { q: "The 'Ultraviolet Catastrophe' wasn't a physical explosion; it was a crisis in physics. Looking at the graph, what exactly was the catastrophe?", opts: ["The catastrophic failure of the blue theory line to predict the safe, dipping orange curve.", "The fact that stars are too hot.", "The sudden disappearance of the color blue.", "A mathematical error that blew up laboratories."], correct: 0, f: "The greatest minds of the era had rigorous math proving the blue line, but simply looking at a hot object proved the orange line. It was a crisis of logic." },
+                { q: "Notice how the actual observed curve (orange) dips gracefully back down to zero on the left, while the classical theory (blue) shoots to infinity. What does this massive mismatch prove?", opts: ["That the foundational rules of classical physics were fundamentally broken and incomplete.", "That our eyes don't work correctly.", "That math cannot be trusted under any circumstances.", "That the orange line is drawn wrong."], correct: 0, f: "Correct! The universe didn't follow the rules of classical mechanics, meaning physics itself needed a massive, revolutionary rewrite." },
+                { q: "If the classical theory (blue line) actually matched reality, opening a warm oven would blast you with infinite UV radiation. Since that obviously doesn't happen, what is the 'Catastrophe'?", opts: ["The catastrophic failure of the best physics of the time to explain a simple, everyday observation.", "The danger of using ovens.", "The realization that UV light is cold.", "The destruction of the ozone layer."], correct: 0, f: "It showed physicists that they didn't even understand the basic glow of a warm object. Reality (the orange curve) was keeping us safe from infinity, but no one knew how." },
+                { q: "We close this lesson with a profound mystery: the 'Ultraviolet Catastrophe'. Based on the graph, summarize the state of physics at the beginning of the 20th century.", opts: ["The accepted theory predicted absolute infinity, but real-world observations showed a safe, finite curve, leaving physicists completely stumped.", "Physics was perfectly complete and understood.", "Physicists decided to ignore the mismatch.", "They realized that stars were just holograms."], correct: 0, f: "Exactly. This catastrophic mismatch was the exact mystery that physicists faced at the beginning of the 20th century. The stage was set for a revolution—Quantum Mechanics." }
+            ]
+        ];
+
+        let qState = { group: 0, modules: [] };
+
+        function startSimulation() {
+            const nameInput = document.getElementById('student-name').value.trim();
+            if (!nameInput) {
+                alert("Please enter your name to begin.");
+                return;
+            }
+            appState.studentName = nameInput;
+            document.getElementById('lbl-student-hud').textContent = `Agent: ${nameInput}`;
+            
+            document.getElementById('start-screen').classList.add('opacity-0');
+            document.getElementById('main-content').classList.remove('blur-sm');
+            document.getElementById('main-footer').classList.remove('blur-sm');
+            
+            setTimeout(() => {
+                document.getElementById('start-screen').classList.add('hidden');
+            }, 500);
+
+            initQuiz();
+        }
+
+        function initQuiz() {
+            qState.group = 0;
+            appState.totalCorrections = 0;
+            
+            // Generate a persistent state for all 11 modules to support "Back" navigation perfectly
+            qState.modules = questionBank.map(group => {
+                let vIdx = Math.floor(Math.random() * group.length);
+                let opts = group[vIdx].opts.map((text, idx) => ({text, idx}));
+                opts.sort(() => Math.random() - 0.5); // Shuffle options once
+                return {
+                    variant: vIdx,
+                    solved: false,
+                    attempts: 0,
+                    options: opts
+                };
+            });
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const mod = qState.modules[qState.group];
+            const data = questionBank[qState.group][mod.variant];
+            
+            const titles = [
+                "Topic 1: The True Color of the Sun",
+                "Topic 2: Visible vs. Invisible Light",
+                "Topic 3: Reading the Spectrum",
+                "Topic 4: Colors of Specific Stars",
+                "Topic 5: The Shape of Thermal Radiation",
+                "Topic 6: Peaking in Green",
+                "Topic 7: The Missing Green Stars",
+                "Topic 8: The Equipartition Theorem",
+                "Topic 9: Density of Wavelengths",
+                "Topic 10: Energy Distribution Prediction",
+                "Topic 11: The Infinite Energy Conclusion",
+                "Topic 12: The Ultraviolet Catastrophe"
+            ];
+
+            document.getElementById('quiz-title').textContent = titles[qState.group];
+            document.getElementById('quiz-progress').textContent = `Module ${qState.group + 1} of 12`;
+            document.getElementById('quiz-question').textContent = data.q;
+
+            const optsContainer = document.getElementById('quiz-options');
+            optsContainer.innerHTML = '';
+            
+            const fb = document.getElementById('quiz-feedback');
+            fb.classList.add('hidden');
+            fb.classList.remove('bg-green-900', 'text-green-200', 'bg-red-900', 'text-red-200', 'border-green-500', 'border-red-500', 'bg-blue-900', 'text-blue-200', 'border-blue-500');
+            
+            document.getElementById('btn-next-module').classList.add('hidden');
+            
+            // Back button visibility
+            const btnBack = document.getElementById('btn-prev-module');
+            if (qState.group > 0) btnBack.classList.remove('hidden');
+            else btnBack.classList.add('hidden');
+
+            // Render persistent options
+            mod.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "quiz-btn bg-gray-700 hover:bg-gray-600 text-left p-4 rounded border border-gray-600 transition-colors shadow-sm w-full";
+                btn.textContent = opt.text;
+                btn.dataset.idx = opt.idx;
+                
+                // If this module is already solved, lock the UI into the correct state
+                if (mod.solved) {
+                    btn.disabled = true;
+                    if (opt.idx === data.correct) {
+                        btn.classList.replace('bg-gray-700', 'bg-green-700');
+                        btn.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
+                        btn.classList.add('border-green-500', 'border-2');
+                    }
+                } else {
+                    btn.onclick = () => processAnswer(opt.idx, btn);
+                }
+                
+                optsContainer.appendChild(btn);
+            });
+
+            // If already solved, immediately show the success feedback and Next button
+            if (mod.solved) {
+                fb.classList.remove('hidden');
+                fb.className = "mt-4 p-4 rounded-lg text-sm leading-relaxed border bg-green-900 text-green-200 border-green-500";
+                fb.innerHTML = `<span class="font-bold uppercase tracking-wider text-green-400 block mb-1">Previously Solved</span> ${data.f}`;
+                document.getElementById('btn-next-module').classList.remove('hidden');
+            }
+            
+            // Handle Classical UI activation (Starts at Group 7: Equipartition)
+            if (qState.group >= 7 && !state.showClassical) {
+                state.showClassical = true;
+                document.getElementById('classical-alert').classList.remove('hidden');
+                state.autoZoom = false; 
+                document.getElementById('auto-zoom').checked = false;
+                state.zoomX = 2;
+                state.zoomY = 100;
+                document.getElementById('temp-slider').value = 480; 
+                updateSimulation();
+            } else if (qState.group < 7 && state.showClassical) {
+                // Turn it off if they navigate back to earlier questions
+                state.showClassical = false;
+                document.getElementById('classical-alert').classList.add('hidden');
+                updateSimulation();
+            }
+
+            // Handle dramatic zoom out for Topic 11 & 12 to show the classical line shooting to near infinity
+            if (qState.group >= 10 && state.zoomY !== 10000) {
+                state.autoZoom = false; 
+                document.getElementById('auto-zoom').checked = false;
+                state.zoomX = 2;
+                state.zoomY = 10000;
+                updateSimulation();
+            } else if (qState.group >= 7 && qState.group < 10 && state.zoomY === 10000) {
+                // Return to normal classical view if going backwards
+                state.zoomX = 2;
+                state.zoomY = 100;
+                updateSimulation();
+            }
+        }
+
+        function prevModule() {
+            if (qState.group > 0) {
+                qState.group--;
+                renderQuestion();
+            }
+        }
+
+        async function fetchAIHint(questionText, wrongGuess, attemptNum) {
+            const prompt = `The student is answering a physics multiple choice question: "${questionText}". They guessed "${wrongGuess}", which is incorrect. Give them a robust, insightful, and instructive 1-2 sentence hint to guide them toward the correct answer without giving it away entirely. Keep it encouraging. This is attempt ${attemptNum}.`;
+            const sysInst = "You are an expert astrophysics interactive tutor.";
+            const apiKey = ""; 
+
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isGooglePreview = typeof __app_id !== 'undefined' || window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('gemini') || window.location.hostname === '';
+
+            if (!isLocal && !isGooglePreview) {
+                try {
+                    const res = await fetch('/api/gemini', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, systemInstruction: sysInst })
+                    });
+                    const data = await res.json();
+                    return data.hint || data.text || "Hint: Look closely at the simulation graph!";
+                } catch(e) {
+                    return "Hint: Observe the simulation carefully and try again!";
+                }
+            } else {
+                if (!apiKey) return "Hint: Adjust the simulation slider and look carefully at the result to try again!";
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: sysInst }] }
+                    };
+                    const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+                    const data = await res.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Hint: Check the simulation curves again!";
+                } catch(e) {
+                    return "Hint: Look closely at the simulation graph and try another answer!";
+                }
+            }
+        }
+
+        async function processAnswer(selectedIdx, btnEl) {
+            const mod = qState.modules[qState.group];
+            const data = questionBank[qState.group][mod.variant];
+            const fb = document.getElementById('quiz-feedback');
+            const btns = document.querySelectorAll('.quiz-btn');
+            
+            fb.classList.remove('hidden', 'bg-green-900', 'text-green-200', 'border-green-500', 'bg-red-900', 'text-red-200', 'border-red-500', 'bg-blue-900', 'text-blue-200', 'border-blue-500');
+
+            if (selectedIdx === data.correct) {
+                mod.solved = true;
+                btns.forEach(b => b.disabled = true);
+                fb.classList.add('bg-green-900', 'text-green-200', 'border-green-500');
+                fb.innerHTML = `<span class="font-bold uppercase tracking-wider text-green-400 block mb-1">Excellent Deduction</span> ${data.f}`;
+                btnEl.classList.replace('bg-gray-700', 'bg-green-700');
+                btnEl.classList.replace('hover:bg-gray-600', 'hover:bg-green-600');
+                document.getElementById('btn-next-module').classList.remove('hidden');
+            } else {
+                appState.totalCorrections++;
+                mod.attempts++;
+                
+                btnEl.classList.replace('bg-gray-700', 'bg-red-900');
+                btnEl.classList.replace('hover:bg-gray-600', 'hover:bg-red-800');
+                btnEl.disabled = true;
+
+                if (mod.attempts >= 5) {
+                    mod.solved = true; // Auto-solve after 5 failures
+                    btns.forEach(b => {
+                        b.disabled = true;
+                        if(parseInt(b.dataset.idx) === data.correct) {
+                            b.classList.replace('bg-gray-700', 'bg-green-800');
+                            b.classList.add('border-green-500', 'border-2');
+                        }
+                    });
+                    fb.classList.add('bg-blue-900', 'text-blue-200', 'border-blue-500');
+                    fb.innerHTML = `<span class="font-bold uppercase text-blue-400 block mb-1">Maximum Attempts Reached</span> The correct answer was highlighted above. <br><br><strong>Explanation:</strong> ${data.f}`;
+                    document.getElementById('btn-next-module').classList.remove('hidden');
+                } else {
+                    fb.classList.add('bg-gray-800', 'text-yellow-300', 'border-yellow-600');
+                    fb.innerHTML = `<span class="animate-pulse">Analyzing logic and generating hint...</span>`;
+                    fb.classList.remove('hidden');
+
+                    const hintText = await fetchAIHint(data.q, btnEl.textContent, mod.attempts);
+                    fb.innerHTML = `<span class="font-bold text-yellow-500 block mb-1">AI Tutor Hint (Correction #${mod.attempts}):</span> ${hintText}`;
+                }
+            }
+        }
+
+        function calculateFinalScore() {
+            let c = appState.totalCorrections;
+            if (c === 0) return 30;
+            if (c === 1) return 29;
+            if (c === 2) return 28;
+            if (c === 3) return 27;
+            if (c === 4) return 26;
+            if (c >= 5 && c <= 10) return 25;
+            return Math.max(0, 25 - (c - 10)); 
+        }
+
+        function generateWinMessage(score) {
+            const adjectives = ["Stellar", "Galactic", "Phenomenal", "Incredible", "Outstanding", "Spectacular", "Brilliant", "Superb", "Amazing", "Awesome", "Marvelous", "Fantastic", "Astronomical", "Cosmic", "Quantum"];
+            const nouns = ["Work", "Job", "Performance", "Discovery", "Effort", "Achievement", "Success", "Exploration", "Analysis", "Deduction"];
+            const phrases = ["You're a star!", "Keep reaching for the universe!", "Physics is your superpower!", "You nailed it!", "Out of this world!", "Simply breathtaking!", "Mind-blowing!", "You're on fire!", "Unbelievable!", "Masterful!"];
+            
+            let adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            let noun = nouns[Math.floor(Math.random() * nouns.length)];
+            let phrase = phrases[Math.floor(Math.random() * phrases.length)];
+
+            if (score >= 26) return `${adj} ${noun}! ${phrase}`;
+            if (score >= 20) return `Good job. Keep practicing to unlock the secrets of the universe!`;
+            return `Physics takes practice. Keep experimenting and you'll get it!`;
+        }
+
+        function triggerConfetti(rounds) {
+            if (rounds <= 0) return;
+            const duration = 2000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({ particleCount: 5 * rounds, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#3b82f6', '#8b5cf6', '#eab308'] });
+                confetti({ particleCount: 5 * rounds, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#3b82f6', '#8b5cf6', '#eab308'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        function showWinScreen() {
+            const score = calculateFinalScore();
+            
+            document.getElementById('main-content').classList.add('blur-md');
+            document.getElementById('main-footer').classList.add('blur-md');
+            
+            const winScr = document.getElementById('win-screen');
+            winScr.classList.remove('hidden');
+            
+            document.getElementById('win-student-name').textContent = appState.studentName;
+            
+            let scoreHTML = `${score} / 25`;
+            if (score > 25) scoreHTML += ` <span class="text-2xl text-green-400 block mt-2">+${score-25} Extra Credit!</span>`;
+            document.getElementById('win-score').innerHTML = scoreHTML;
+
+            document.getElementById('win-message').textContent = generateWinMessage(score);
+            
+            const subtext = document.getElementById('win-subtext');
+            const tryAgainBtn = document.getElementById('btn-try-again');
+            
+            if (score < 20) {
+                subtext.textContent = "Don't give up! Every great physicist started by making mistakes.";
+                tryAgainBtn.classList.remove('hidden');
+            } else if (score < 25) {
+                subtext.textContent = "You've grasped the core concepts. Want to try for a perfect score?";
+                tryAgainBtn.classList.remove('hidden');
+            } else {
+                subtext.textContent = "You have perfectly navigated the mysteries of blackbody radiation. This catastrophic mismatch between theory and observation was the mystery that physicists faced at the beginning of the 20th century. The stage is set for a revolution...";
+                tryAgainBtn.classList.add('hidden'); 
+            }
+
+            setTimeout(() => {
+                if (score >= 30) triggerConfetti(4);
+                else if (score >= 28) triggerConfetti(3);
+                else if (score >= 26) triggerConfetti(2);
+                else if (score >= 25) triggerConfetti(1);
+            }, 300);
+        }
+
+        function resetSimulation() {
+            document.getElementById('win-screen').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('blur-md');
+            document.getElementById('main-footer').classList.remove('blur-md');
+            state.showClassical = false;
+            document.getElementById('classical-alert').classList.add('hidden');
+            initQuiz();
+        }
+
+        function nextModule() {
+            if (qState.group < questionBank.length - 1) {
+                qState.group++;
+                renderQuestion();
+            } else {
+                showWinScreen();
+            }
+        }
+
+        window.onload = () => {
+            buildThermometer();
+            resizeCanvas();
+            updateSimulation(); 
+        };
+    </script>
+</body>
+</html>
