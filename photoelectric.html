@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hertzian Vacuum Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            background-color: #020617;
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        input[type="range"] {
+            cursor: pointer;
+        }
+        .canvas-container {
+            background-image: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+        }
+        .step-btn {
+            @apply bg-slate-800 hover:bg-slate-700 text-slate-300 w-8 h-8 rounded flex items-center justify-center transition-colors active:scale-90 border border-slate-700;
+        }
+        .toggle-active {
+            @apply bg-blue-600 border-blue-400 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)];
+        }
+        
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        
+        .pulse-text {
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { text-shadow: 0 0 10px rgba(59,130,246,0.5); }
+            50% { text-shadow: 0 0 20px rgba(59,130,246,1), 0 0 30px rgba(59,130,246,0.8); }
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur flex flex-col items-center justify-center p-6 transition-opacity duration-500">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <h1 class="text-2xl font-bold text-blue-400 mb-2 text-center">Hertzian Vacuum Lab</h1>
+            <p class="text-slate-400 text-sm mb-6 text-center leading-relaxed">You are about to conduct a series of historical experiments. Carefully observe the simulation to deduce the unseen mechanics of light.</p>
+            <input type="text" id="student-name-input" class="w-full bg-slate-800 border border-slate-600 rounded p-3 text-white mb-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="Enter your full name">
+            <p id="name-error" class="text-red-400 text-xs mb-4 hidden text-center">Please enter a valid name to proceed.</p>
+            <button onclick="startGame()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors shadow-lg">Enter Laboratory</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+        <div class="flex items-center gap-3">
+            <i data-lucide="microscope" class="text-blue-400"></i>
+            <h1 class="font-bold text-lg tracking-tight">Hertzian Vacuum Investigation</h1>
+        </div>
+        <div class="flex gap-4 items-center">
+            <!-- Score container is hidden during gameplay -->
+            <button id="btn-toggle-graph" onclick="toggleGraph()" class="px-3 py-1 text-xs rounded border border-slate-700 bg-slate-800 text-slate-400 transition-all flex items-center gap-2">
+                <i data-lucide="line-chart" size="14"></i> Data Plot
+            </button>
+            <button id="btn-highlight-stop" onclick="toggleHighlight()" class="px-3 py-1 text-xs rounded border border-slate-700 bg-slate-800 text-slate-400 transition-all flex items-center gap-2">
+                <i data-lucide="eye" size="14"></i> Highlight Turning Point
+            </button>
+            <div class="bg-black px-4 py-1 rounded border border-slate-700">
+                <span class="text-xs text-slate-500 mr-2 uppercase">Meter</span>
+                <span id="current-display" class="font-mono text-yellow-500 text-lg">0.0000 A</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden">
+        <div class="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
+            <div class="flex-1 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden canvas-container">
+                <canvas id="labCanvas" class="w-full h-full"></canvas>
+                
+                <!-- Graph Overlay -->
+                <div id="graph-overlay" class="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-3 shadow-2xl hidden">
+                    <div class="text-[10px] uppercase text-slate-400 font-bold mb-2 flex justify-between">
+                        <span>Wavelength vs. Stopping Distance</span>
+                        <span class="text-blue-400" id="graph-mat-label">Material Alpha</span>
+                    </div>
+                    <canvas id="graphCanvas" width="300" height="150" class="bg-black/50 rounded"></canvas>
+                    <div class="flex justify-between text-[9px] text-slate-500 mt-1">
+                        <span>100nm</span>
+                        <span>Wavelength</span>
+                        <span>800nm</span>
+                    </div>
+                </div>
+
+                <div class="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+                    <div class="bg-black/60 backdrop-blur px-3 py-2 rounded border border-slate-700 shadow-xl hidden">
+                        <span class="text-[10px] uppercase text-slate-500 font-bold block mb-1">Hidden Parameters</span>
+                        <div class="flex gap-4 font-mono text-xs">
+                            <span class="text-blue-400">λ: <span id="val-wavelength">400</span>nm</span>
+                            <span class="text-purple-400">E: <span id="val-energy">3.10</span>eV</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-2xl">
+                <div class="space-y-3">
+                    <label class="text-xs font-bold uppercase text-slate-500 flex justify-between">
+                        Source Color (Wavelength)
+                        <span class="text-blue-400" id="label-wavelength">400 nm</span>
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <button class="step-btn" onclick="adjust('wavelength', -1)"><i data-lucide="minus" size="14"></i></button>
+                        <input type="range" id="input-wavelength" min="100" max="800" value="400" class="flex-1 accent-blue-500">
+                        <button class="step-btn" onclick="adjust('wavelength', 1)"><i data-lucide="plus" size="14"></i></button>
+                    </div>
+                    <div class="h-2 w-full rounded-full bg-gradient-to-r from-purple-600 via-blue-500 via-green-500 via-yellow-500 to-red-600 opacity-50"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase text-slate-500 flex justify-between">
+                        Source Brightness
+                        <span class="text-yellow-500" id="label-intensity">50%</span>
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <button class="step-btn" onclick="adjust('intensity', -1)"><i data-lucide="minus" size="14"></i></button>
+                        <input type="range" id="input-intensity" min="0" max="100" value="50" class="flex-1 accent-yellow-500">
+                        <button class="step-btn" onclick="adjust('intensity', 1)"><i data-lucide="plus" size="14"></i></button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase text-slate-500">Emissive Target Material</label>
+                    <select id="input-target" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="Sodium">Material Alpha</option>
+                        <option value="Calcium">Material Beta</option>
+                        <option value="Zinc">Material Gamma</option>
+                        <option value="Copper">Material Delta</option>
+                        <option value="Platinum">Material Epsilon</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-3 space-y-2 pt-2 border-t border-slate-800">
+                    <label class="text-xs font-bold uppercase text-slate-500 flex justify-between">
+                        Tube Potential (Battery Voltage)
+                        <span class="text-green-500" id="label-voltage">0.00 V</span>
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <button class="step-btn" onclick="adjust('voltage', -0.01)"><i data-lucide="minus" size="14"></i></button>
+                        <input type="range" id="input-voltage" min="-5" max="5" step="0.01" value="0" class="flex-1 accent-green-500">
+                        <button class="step-btn" onclick="adjust('voltage', 0.01)"><i data-lucide="plus" size="14"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-[420px] border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col gap-4 shrink-0 overflow-y-auto relative">
+            <div class="flex items-center gap-2 text-blue-400">
+                <i data-lucide="book-open" size="18"></i>
+                <h2 class="font-bold uppercase tracking-wider text-sm">Investigator's Journal</h2>
+            </div>
+            
+            <div id="narrative-box" class="bg-slate-800/40 p-5 rounded-xl border border-slate-700 space-y-5 shadow-inner transition-colors duration-500">
+                <h3 id="story-title" class="font-bold text-lg text-white border-b border-slate-700 pb-2"></h3>
+                <p id="story-text" class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap"></p>
+                
+                <div id="experiment-box" class="hidden bg-blue-900/20 border border-blue-500/30 p-3 rounded-md text-sm text-blue-200">
+                    <span class="font-bold text-blue-400 flex items-center gap-2 mb-1"><i data-lucide="beaker" size="14"></i> Try this:</span>
+                    <span id="experiment-text"></span>
+                </div>
+
+                <div id="penalty-box" class="hidden bg-red-900/20 border border-red-500/30 p-3 rounded-md text-xs text-red-200 font-medium flex flex-col gap-2 shadow-lg">
+                    <div class="flex items-center gap-2 font-bold text-red-400">
+                        <i data-lucide="alert-triangle" size="16"></i>
+                        <span>Notice</span>
+                    </div>
+                    <span id="penalty-text"></span>
+                </div>
+
+                <div id="options-container" class="space-y-2 pt-2 flex flex-col gap-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const apiKey = ""; // API Key supplied by environment fallback
+        const H = 4.1357e-15, C = 3e8;
+        const TARGETS = { Sodium: 2.36, Calcium: 2.87, Zinc: 4.31, Copper: 4.70, Platinum: 6.35 };
+
+        // --- EXPONENTIAL BACKOFF & ROUTING FOR AI CALLS ---
+        async function fetchWithBackoff(studentText) {
+            // Detect if running on a standard web domain (Vercel) vs local/preview
+            const isWeb = window.location.hostname && 
+                          !window.location.hostname.includes('google') && 
+                          !window.location.hostname.includes('usercontent') && 
+                          !window.location.hostname.includes('localhost');
+            
+            const systemInstruction = "Evaluate this student's physics answer in the context of the photoelectric effect. Does their answer deduce or clearly state that light travels as particles, packets, photons, bullets, or discrete/quantized amounts? Answer only YES or NO.";
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            
+            for (let i = 0; i <= delays.length; i++) {
+                try {
+                    if (isWeb) {
+                        const response = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: studentText, systemInstruction: systemInstruction })
+                        });
+                        if (!response.ok) throw new Error("API Error");
+                        const data = await response.json();
+                        return data.text;
+                    } else {
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                        const payload = {
+                            contents: [{ parts: [{ text: studentText }] }],
+                            systemInstruction: { parts: [{ text: systemInstruction }] }
+                        };
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!response.ok) throw new Error("API Error");
+                        const data = await response.json();
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                } catch (err) {
+                    if (i === delays.length) throw err;
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        // --- INQUIRY ENGINE STORY TREE ---
+        const STORY = {
+            "start": {
+                title: "The Vacuum Spark",
+                text: "In the late 19th century, scientists noticed that electrical sparks jumped across a vacuum gap more easily when a bright light was shone on the metal plates.\n\nEnsure the light is set to 400nm and 50% brightness. Based on the visual evidence in the vacuum tube, what is the light actually doing?",
+                options: [
+                    { text: "The light is heating the vacuum, creating a conductive bridge.", next: "wrong_heat" },
+                    { text: "The light waves are physically carrying electricity across the gap.", next: "wrong_waves" },
+                    { text: "The light is dislodging particles (represented as dots in our sim) from the left plate.", next: "charge_investigation", correct: true }
+                ]
+            },
+            "wrong_heat": {
+                title: "Re-evaluating Heat",
+                text: "If the effect was caused by heat, we should test it with light that produces more heat.",
+                experiment: "Infrared (red) light transmits more heat than violet light. Change the Source Color to 750nm. Increase brightness to 100%. Does the current increase?",
+                options: [
+                    { text: "No, the current dropped to exactly 0. Heat isn't the cause.", next: "start" }
+                ]
+            },
+            "wrong_waves": {
+                title: "Re-evaluating Light Waves",
+                text: "If the light waves themselves were carrying the electricity, the current would go exactly where the beam goes.",
+                experiment: "Look closely at the beam of light and the movement of the dots. Do they travel along the exact same path?",
+                options: [
+                    { text: "No, the dots move straight right, while the light beam angles down. They are independent.", next: "start" }
+                ]
+            },
+            "charge_investigation": {
+                title: "Identifying the Particles",
+                text: "Excellent. We have established that the light causes particles to be emitted. But what are they? First, make sure your light is set back to a working state like 400nm and 50% Brightness on Material Alpha.\n\nNow, we can use the 'Tube Potential' (battery) to push or pull them. Set the Tube Potential to exactly -1.00 V. (Note: A negative Tube Potential means the right plate is negatively charged and the left plate is positively charged.)\n\nWhat happens to the particles?",
+                options: [
+                    { text: "They are pulled faster toward the right plate, so they must be positively charged.", next: "wrong_positive" },
+                    { text: "They are pushed back toward the left plate, so they must be negatively charged.", next: "intensity_paradox", correct: true },
+                    { text: "They slow down because the light is getting tired.", next: "wrong_tired" }
+                ]
+            },
+            "wrong_positive": {
+                title: "Checking Electrical Forces",
+                text: "Remember your basic electrical laws: Opposite charges attract, like charges repel.",
+                experiment: "A negative Tube Potential means the right plate is negative. If the particles slow down and turn back from a negative plate, what must their charge be?",
+                options: [
+                    { text: "Ah, they are repelled by negative, so they must be negative.", next: "charge_investigation" }
+                ]
+            },
+            "wrong_tired": {
+                title: "Checking Light Energy",
+                text: "Is the light actually changing, or is it an electrical effect?",
+                experiment: "Keep the light exactly the same (400nm). Turn the Tube Potential back to 0.00 V. Do the particles speed back up?",
+                options: [
+                    { text: "Yes, they speed up again. The light isn't tired, the battery is affecting them.", next: "charge_investigation" }
+                ]
+            },
+            "intensity_paradox": {
+                title: "The Classical Contradiction",
+                text: "We now know these are negative particles (electrons). Let's test classical physics. Classical theory says a brighter light has more energy. If we make the light brighter, it should give the electrons a harder 'kick' (more speed).\n\nFirst, set Wavelength to 400nm and Brightness to 50%. Adjust the Tube Potential to roughly -0.74V so the electrons just barely stop before hitting the right plate. Now, double the Source Brightness to 100%.",
+                options: [
+                    { text: "The electrons hit the plate now. Brighter light means faster electrons.", next: "wrong_intensity" },
+                    { text: "The electrons stop in the exact same place. Brighter light just creates MORE electrons, not faster ones.", next: "wavelength_discovery", correct: true }
+                ]
+            },
+            "wrong_intensity": {
+                title: "Look Closer",
+                text: "It's easy to be fooled by the increase in the *number* of particles.",
+                experiment: "Keep Voltage at -0.74V and Wavelength at 400nm. Toggle the brightness rapidly between 10% and 100%. Watch the 'leading edge' of the electron cloud. Does the absolute maximum distance they travel change?",
+                options: [
+                    { text: "I see it now. There are more of them, but their maximum distance (speed) is identical.", next: "intensity_paradox" }
+                ]
+            },
+            "wavelength_discovery": {
+                title: "Finding the Real 'Kick'",
+                text: "This is a massive problem! If making a light wave 'bigger' (brighter) doesn't give the electrons more energy, what does?\n\nMake sure your Wavelength is at 400nm and voltage is at -0.74V. Leave Brightness alone. Now, slowly slide the Source Color (Wavelength) to the RIGHT, toward 600nm (Red).",
+                options: [
+                    { text: "Longer wavelengths (redder light) make the electrons move faster and hit the plate.", next: "wrong_wavelength_fast" },
+                    { text: "Longer wavelengths make the electrons stop shorter and eventually not emit at all.", next: "trial_error_1", correct: true }
+                ]
+            },
+            "wrong_wavelength_fast": {
+                title: "Check the Current",
+                text: "Are you sure they are moving faster?",
+                experiment: "Set Wavelength to 600nm at -0.74V. Look at the particles. Are they crossing the gap, or barely making it off the left plate?",
+                options: [
+                    { text: "They are barely making it off the plate. They have less energy.", next: "wavelength_discovery" }
+                ]
+            },
+            "trial_error_1": {
+                title: "Experimental Trial 1: Threshold",
+                text: "Let's put this to the test. Set Emissive Target to Material Beta. Set Voltage to 0.00V.\n\nUse trial and error with the Wavelength slider to find the exact color where electrons JUST START being emitted. (This is called the threshold wavelength).",
+                options: [
+                    { text: "Around 525 nm", next: "wrong_te_1_a" },
+                    { text: "Around 287 nm", next: "wrong_te_1_b" },
+                    { text: "Around 432 nm", next: "trial_error_2", correct: true }
+                ]
+            },
+            "wrong_te_1_a": {
+                title: "Incorrect Target",
+                text: "That might be true for another material.",
+                experiment: "Make sure you have selected 'Material Beta' from the dropdown and try sliding the wavelength again.",
+                options: [{ text: "Let me try again.", next: "trial_error_1" }]
+            },
+            "wrong_te_1_b": {
+                title: "Too far into the UV",
+                text: "Electrons are definitely emitting at 287nm, but we want the highest wavelength (lowest energy) where they *just begin* to emit.",
+                experiment: "Start at 287nm and slowly slide to the right until emission completely stops.",
+                options: [{ text: "Let me try again.", next: "trial_error_1" }]
+            },
+            "trial_error_2": {
+                title: "Experimental Trial 2: Stopping Potential",
+                text: "Great. Now let's test the stopping potential. \n\nSwitch back to Material Alpha. Set Wavelength to 300nm. Adjust the Tube Potential until the electrons just barely stop before hitting the right plate (current meter drops to exactly 0.0000 A).",
+                options: [
+                    { text: "Around -0.74 V", next: "wrong_te_2" },
+                    { text: "Around -3.10 V", next: "wrong_te_2" },
+                    { text: "Around -1.78 V", next: "the_wave_prediction", correct: true }
+                ]
+            },
+            "wrong_te_2": {
+                title: "Check your settings",
+                text: "Make sure you are following the parameters exactly.",
+                experiment: "Target: Material Alpha. Wavelength: 300nm. Slide the voltage left until the current just hits 0.",
+                options: [{ text: "Let me try again.", next: "trial_error_2" }]
+            },
+            "the_wave_prediction": {
+                title: "The Wave Prediction",
+                text: "So color dictates speed/energy. But we still have a problem. The prevailing theory of the time was that light is a continuous, spreading wave (like ripples in a pond).\n\nIf light is a spreading wave, a very dim light has its energy spread extremely thin. What SHOULD happen if we shine a barely visible, ultra-dim light on a metal plate?",
+                options: [
+                    { text: "The energy will slowly 'wash' over an electron until it builds up enough to pop out.", next: "dim_light_test", correct: true },
+                    { text: "The electron will pop out instantly, but move extremely slowly.", next: "wrong_dim_speed" },
+                    { text: "The dim wave will just bounce off and do nothing.", next: "wrong_dim_bounce" }
+                ]
+            },
+            "wrong_dim_speed": {
+                title: "Reviewing Speed",
+                text: "We just discovered what controls the speed of the electrons. Is it the brightness?",
+                experiment: "Set Brightness to 10% and then to 100% at a working wavelength. Does the maximum distance/speed change?",
+                options: [
+                    { text: "Ah, speed only depends on color, not brightness. I remember.", next: "the_wave_prediction" }
+                ]
+            },
+            "wrong_dim_bounce": {
+                title: "Is there a minimum?",
+                text: "Let's see if a dim light does absolutely nothing.",
+                experiment: "Set Wavelength to 300nm. Set Brightness to 1%. Are any particles emitted?",
+                options: [
+                    { text: "Yes, particles are still emitted even at 1%.", next: "the_wave_prediction" }
+                ]
+            },
+            "dim_light_test": {
+                title: "The Time Delay Test",
+                text: "Exactly! A classical wave would take time to 'fill up' the electron's energy cup. Let's test this.\n\nSet Brightness to 0%. Set Wavelength to 400nm. Now, click Brightness up to just 1%. How long does it take for the *first* particle to appear?",
+                options: [
+                    { text: "It takes several seconds for the wave to build up energy.", next: "wrong_time_delay" },
+                    { text: "It appears instantly. There is no buildup time.", next: "stop_and_think", correct: true }
+                ]
+            },
+            "wrong_time_delay": {
+                title: "Watch Closely",
+                text: "Calculations show a classical wave at 1% intensity would take minutes to eject an electron. Are you seeing minutes of delay?",
+                experiment: "Turn intensity to 0, then immediately to 1%. Watch the left plate the very millisecond you change it.",
+                options: [
+                    { text: "Okay, particles start emitting immediately. There is no delay.", next: "dim_light_test" }
+                ]
+            },
+            "stop_and_think": {
+                title: "Stop and Think",
+                text: "You've made crucial discoveries that disprove the classical wave theory of light:\n\n1. Even the dimmest light instantly kicks out electrons (no buildup time).\n2. Dimmer light just kicks out FEWER electrons, but they have the exact SAME max energy as those kicked out by bright light.\n\nIf light cannot be a long continuous wave spreading out, how MUST light travel through space to produce these exact instant, highly concentrated results?",
+                type: "input",
+                onCorrect: "superlative_victory",
+                onIncorrect: "energy_concentration"
+            },
+            "energy_concentration": {
+                title: "The Concentration Problem",
+                text: "Let's break this down. It happens instantly! This completely breaks the wave theory. A dim wave spreading across the whole room cannot instantly deliver a concentrated punch to a single tiny particle.\n\nHow could the light deliver a full-energy punch instantly, even when the overall light is incredibly dim?",
+                options: [
+                    { text: "The metal plate acts as a funnel, gathering the wave instantly into one spot.", next: "wrong_funnel" },
+                    { text: "The energy isn't spreading out; it's traveling in concentrated 'bullets' or packets.", next: "the_grand_deduction", correct: true }
+                ]
+            },
+            "wrong_funnel": {
+                title: "The Funnel Problem",
+                text: "If the metal gathered the wave from all over the surface into one spot, changing the size of the plate would change the energy given to the electron.",
+                experiment: "This simulation doesn't let you change the plate size, but in actual historical experiments, making the plate larger just yielded MORE electrons, not faster ones.",
+                options: [
+                    { text: "I see, so the energy must already be concentrated before it hits the plate.", next: "energy_concentration" }
+                ]
+            },
+            "the_grand_deduction": {
+                title: "The Final Deduction",
+                text: "Yes! If the energy arrives instantly regardless of how 'dim' the overall beam is, the energy must be traveling in localized, indivisible packets.\n\nYou have discovered that light is not a continuous wave. It is quantized into discrete packets. Based on everything you've seen, what determines the energy of each individual packet?",
+                options: [
+                    { text: "The Brightness (Luminosity)", next: "wrong_packet_energy" },
+                    { text: "The Color (Wavelength)", next: "victory", correct: true }
+                ]
+            },
+            "wrong_packet_energy": {
+                title: "Reviewing Brightness",
+                text: "Wait, we just saw that 1% brightness kicks them out instantly with the same speed as 100% brightness.",
+                experiment: "If Brightness determined the packet's energy, 100% Brightness would create much faster electrons than 10%. Does it?",
+                options: [
+                    { text: "No, brightness just changes the number of electrons (number of packets). Let me try again.", next: "the_grand_deduction" }
+                ]
+            },
+            "victory": {
+                title: "Discovery Complete",
+                text: "",
+                options: [],
+                isEnd: true
+            },
+            "superlative_victory": {
+                title: "Exceptional Deduction!",
+                text: "",
+                options: [],
+                isEnd: true
+            }
+        };
+
+        let state = { 
+            studentName: "",
+            wavelength: 400, intensity: 50, voltage: 0, target: 'Sodium', 
+            current: 0, electrons: [], impactsThisFrame: 0, impactBuffer: [],
+            
+            // UI States
+            highlightStop: false, showGraph: false,
+
+            // Inquiry Engine State
+            currentNode: 'start',
+            penalties: 0, corrections: 0,
+            nodeAttempts: {},
+            timeNodeLoaded: Date.now()
+        };
+
+        const canvas = document.getElementById('labCanvas');
+        const ctx = canvas.getContext('2d');
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+        const currentDisplay = document.getElementById('current-display');
+        const penaltyBox = document.getElementById('penalty-box');
+        const penaltyText = document.getElementById('penalty-text');
+        const graphOverlay = document.getElementById('graph-overlay');
+        const graphMatLabel = document.getElementById('graph-mat-label');
+        const wavelengthInput = document.getElementById('input-wavelength');
+        const intensityInput = document.getElementById('input-intensity');
+        const voltageInput = document.getElementById('input-voltage');
+        const targetInput = document.getElementById('input-target');
+
+        function startGame() {
+            const nameIn = document.getElementById('student-name-input').value.trim();
+            if (!nameIn) {
+                document.getElementById('name-error').classList.remove('hidden');
+                return;
+            }
+            state.studentName = nameIn;
+            document.getElementById('start-overlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('start-overlay').classList.add('hidden');
+                state.timeNodeLoaded = Date.now(); // reset timer for first question
+                renderStoryNode(); // Render the first question to the panel
+            }, 500);
+        }
+
+        // Procedural 300+ Unique Message Generator
+        function generateMessage(percentage) {
+            const p1 = {
+                top: ["Astounding", "Incredible", "Phenomenal", "Stellar", "Exceptional", "Brilliant", "Outstanding", "Magnificent", "Superb", "Glorious"],
+                mid: ["Good", "Solid", "Great", "Nice", "Commendable", "Respectable", "Decent", "Worthy", "Fair", "Notable"],
+                low: ["Rough", "Tough", "Challenging", "Difficult", "Bumpy", "Hard", "Rocky", "Struggling", "Complex", "Tricky"]
+            };
+            const p2 = {
+                top: ["deduction", "analysis", "logic", "insight", "problem-solving", "reasoning", "investigation", "intellect", "scientific work", "breakthrough"],
+                mid: ["effort", "try", "attempt", "job", "work", "deduction", "reasoning", "progress", "exploration", "understanding"],
+                low: ["session", "run", "experiment", "attempt", "investigation", "exploration", "laboratory", "time", "analysis", "deduction"]
+            };
+            const p3 = {
+                top: [", future Nobel laureate!", "!", "—you mastered the quantum realm!", ", absolutely top-tier!", ", Albert Einstein would be proud!", "—a flawless performance!", ", what a brilliant mind!", "—simply perfection!", ", truly inspiring!", ", you cracked the code!"],
+                mid: [". Keep refining your logic.", ". You're getting there.", ". A few missteps, but solid.", ". Review the data closer next time.", ". Well done overall.", ". You're on the right track.", ". Just a bit more observation needed.", ". Good, but room for improvement.", ". You grasped the core concepts.", ". Almost quantum mastery."],
+                low: [". Please try again.", ". You need more practice. Please try again.", ". Let's re-examine the evidence. Try again.", ". Don't give up! Try again.", ". Science is about iteration. Try again.", ". Review the wave vs particle clues and try again.", ". Please reset and try again.", ". Go back to the drawing board and try again.", ". Let's reset the apparatus and try again.", ". Another attempt will clear things up. Try again."]
+            };
+            
+            let tier = 'top';
+            if (percentage < 90 && percentage >= 80) tier = 'mid';
+            else if (percentage < 80) tier = 'low';
+
+            const r1 = Math.floor(Math.random() * 10);
+            const r2 = Math.floor(Math.random() * 10);
+            const r3 = Math.floor(Math.random() * 10);
+
+            return `${p1[tier][r1]} ${p2[tier][r2]}${p3[tier][r3]}`;
+        }
+
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0, len = str.length; i < len; i++) {
+                let chr = str.charCodeAt(i);
+                hash = (hash << 5) - hash + chr;
+                hash |= 0;
+            }
+            return Math.abs(hash).toString(16).toUpperCase();
+        }
+
+        function fireConfetti(rounds) {
+            let fired = 0;
+            const interval = setInterval(() => {
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'] });
+                fired++;
+                if (fired >= rounds) clearInterval(interval);
+            }, 1000);
+        }
+
+        function showToast(msg, isPenalty) {
+            penaltyText.textContent = msg;
+            penaltyBox.classList.remove('hidden');
+            penaltyBox.classList.remove('shake');
+            void penaltyBox.offsetWidth;
+            
+            if (isPenalty) {
+                state.penalties++;
+                penaltyBox.classList.add('shake');
+            }
+        }
+
+        function handleOptionClick(optIndex) {
+            const node = STORY[state.currentNode];
+            const option = node.options[optIndex];
+            const timeSpent = Date.now() - state.timeNodeLoaded;
+
+            // Anti-guess logic
+            if (timeSpent < 1500 && !node.isEnd) {
+                showToast("-1 Point Penalty: Random clicking detected. Read and experiment!", true);
+                return;
+            }
+
+            penaltyBox.classList.add('hidden');
+
+            if (!option.correct && !node.isCorrection && !node.isEnd) {
+                state.corrections++;
+                state.nodeAttempts[state.currentNode] = (state.nodeAttempts[state.currentNode] || 0) + 1;
+                
+                // 6 Strike Rule
+                if (state.nodeAttempts[state.currentNode] >= 6) {
+                    const correctOpt = node.options.find(o => o.correct);
+                    const msg = `MAX HINTS REACHED. The correct scientific deduction is: "${correctOpt.text}". Please select it to proceed.`;
+                    showToast(msg, false); // Informational, don't penalize numerical score again for being stuck
+                    return; 
+                }
+            }
+
+            state.currentNode = option.next;
+            renderStoryNode();
+        }
+
+        async function handleTextInputSubmit(node) {
+            const inputField = document.getElementById('student-text-input');
+            const submitBtn = document.getElementById('submit-hypothesis-btn');
+            const text = inputField.value.trim();
+            
+            if (!text) return;
+
+            submitBtn.textContent = "Evaluating Hypothesis...";
+            submitBtn.disabled = true;
+            inputField.disabled = true;
+
+            let isCorrect = false;
+
+            // Regex Match
+            const regex = /packet|particle|photon|bullet|discrete|chunk|bundle|quant/i;
+            if (regex.test(text)) {
+                isCorrect = true;
+            } else {
+                // AI Grader
+                try {
+                    const aiResult = await fetchWithBackoff(text);
+                    const aiText = aiResult?.trim().toUpperCase();
+                    if (aiText && (aiText.includes("YES") || aiText.includes("TRUE"))) {
+                        isCorrect = true;
+                    }
+                } catch (err) {
+                    console.error("AI Grading unavailable. Failing safely to scaffold mode.");
+                    isCorrect = false;
+                }
+            }
+
+            state.currentNode = isCorrect ? node.onCorrect : node.onIncorrect;
+            renderStoryNode();
+        }
+
+        function restartLab() {
+            state.wavelength = 400; state.intensity = 50; state.voltage = 0; state.target = 'Sodium';
+            state.current = 0; state.electrons = []; state.impactsThisFrame = 0; state.impactBuffer = [];
+            state.currentNode = 'start'; state.penalties = 0; state.corrections = 0; state.nodeAttempts = {};
+            
+            wavelengthInput.value = 400; intensityInput.value = 50; voltageInput.value = 0; targetInput.value = "Sodium";
+            adjust('wavelength', 0); adjust('intensity', 0); adjust('voltage', 0);
+            
+            renderStoryNode();
+        }
+
+        function renderStoryNode() {
+            const node = STORY[state.currentNode];
+            state.timeNodeLoaded = Date.now();
+
+            const titleEl = document.getElementById('story-title');
+            titleEl.textContent = node.title;
+            
+            if (node.isSuperlative || state.currentNode === 'superlative_victory') {
+                titleEl.classList.add('pulse-text', 'text-blue-400');
+            } else {
+                titleEl.classList.remove('pulse-text', 'text-blue-400');
+            }
+
+            document.getElementById('story-text').textContent = node.text;
+
+            const expBox = document.getElementById('experiment-box');
+            if (node.experiment) {
+                document.getElementById('experiment-text').textContent = node.experiment;
+                expBox.classList.remove('hidden');
+                node.isCorrection = true; 
+            } else {
+                expBox.classList.add('hidden');
+            }
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            if (node.type === 'input') {
+                const inputWrap = document.createElement('div');
+                inputWrap.className = "flex flex-col gap-2 mt-4";
+                
+                const inputField = document.createElement('textarea');
+                inputField.className = 'w-full p-3 text-[12px] rounded border border-slate-700 bg-slate-900 text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner';
+                inputField.rows = 3;
+                inputField.placeholder = "Type your hypothesis here...";
+                inputField.id = 'student-text-input';
+
+                const submitBtn = document.createElement('button');
+                submitBtn.id = 'submit-hypothesis-btn';
+                submitBtn.className = 'w-full text-center p-3 text-sm rounded bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors shadow-lg';
+                submitBtn.textContent = "Submit Hypothesis";
+                submitBtn.onclick = () => handleTextInputSubmit(node);
+
+                inputWrap.appendChild(inputField);
+                inputWrap.appendChild(submitBtn);
+                container.appendChild(inputWrap);
+
+            } else if (node.isEnd) {
+                // Background calculation of final score
+                let ec = 0;
+                let base = 15;
+                if (state.corrections === 0) ec = 5;
+                else if (state.corrections === 1) ec = 4;
+                else if (state.corrections === 2) ec = 3;
+                else if (state.corrections === 3) ec = 2;
+                else if (state.corrections === 4) ec = 1;
+                else if (state.corrections >= 5 && state.corrections <= 10) ec = 0;
+                else base = Math.max(0, 15 - (state.corrections - 10)); // Penalize for >10 corrections
+                
+                let finalScore = Math.max(0, base - state.penalties);
+                let percentage = (finalScore / 15) * 100;
+                let totalScore = finalScore + ec;
+                
+                // Procedural Message
+                let msg = "";
+                if (state.currentNode === 'superlative_victory') {
+                    msg = "You independently deduced the exact concept that won Albert Einstein the Nobel Prize in Physics in 1921. Light does not travel as a continuous wave; it travels as a stream of localized, indivisible packets of energy called 'Photons'. Brighter light simply contains MORE photons, but the energy of each individual photon depends strictly on its color (wavelength). You have uncovered the Quantum nature of light!";
+                } else {
+                    msg = generateMessage(percentage);
+                }
+                document.getElementById('story-text').textContent = msg;
+
+                // Win Screen UI Injection
+                container.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-700 p-6 rounded-xl text-center shadow-inner mt-4">
+                        <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Final Laboratory Score</div>
+                        <div class="font-mono text-5xl font-bold text-white">${totalScore}<span class="text-2xl text-slate-500">/15</span></div>
+                        ${ec > 0 ? `<div class="text-sm font-bold text-green-400 mt-2">+${ec} Extra Credit Earned</div>` : ''}
+                        
+                        <div class="mt-6 pt-4 border-t border-slate-800">
+                            <div class="text-xs text-slate-400 uppercase tracking-widest font-bold">${state.studentName}</div>
+                            <div class="text-xs text-slate-500 uppercase tracking-widest mt-1">Hertzian Vacuum Lab</div>
+                            <div class="text-[10px] text-slate-600 font-mono mt-3">Auth: HZ-${hashCode(state.studentName + totalScore + new Date().toISOString().split('T')[0])}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Try Again Button
+                if (totalScore < 15) {
+                    const retryBtn = document.createElement('button');
+                    retryBtn.className = 'w-full text-center p-3 mt-4 text-sm rounded border border-slate-600 bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition-colors shadow-lg';
+                    retryBtn.textContent = "Restart Investigation";
+                    retryBtn.onclick = restartLab;
+                    container.appendChild(retryBtn);
+                }
+
+                // Confetti Logic
+                if (ec > 0) {
+                    fireConfetti(ec); // One burst for each point of extra credit
+                } else if (totalScore === 15) {
+                    fireConfetti(1); // Standard win
+                }
+
+            } else {
+                node.options.forEach((opt, i) => {
+                    const b = document.createElement('button');
+                    b.className = 'w-full text-left p-3 text-[12px] rounded border border-slate-700 bg-slate-900 hover:bg-slate-700 hover:border-blue-500 text-slate-300 font-medium transition-all shadow-sm';
+                    b.textContent = opt.text;
+                    b.onclick = () => handleOptionClick(i);
+                    container.appendChild(b);
+                });
+            }
+            
+            const navBox = document.getElementById('narrative-box');
+            if (node.isCorrection) {
+                navBox.classList.add('border-orange-500/50', 'bg-orange-900/10');
+                navBox.classList.remove('border-slate-700', 'bg-slate-800/40');
+            } else if (node.isSuperlative) {
+                navBox.classList.add('border-blue-500/50', 'bg-blue-900/20');
+                navBox.classList.remove('border-slate-700', 'bg-slate-800/40');
+            } else {
+                navBox.classList.remove('border-orange-500/50', 'bg-orange-900/10', 'border-blue-500/50', 'bg-blue-900/20');
+                navBox.classList.add('border-slate-700', 'bg-slate-800/40');
+            }
+        }
+
+        // --- Physics & Canvas Logic ---
+        function toggleHighlight() {
+            state.highlightStop = !state.highlightStop;
+            document.getElementById('btn-highlight-stop').classList.toggle('toggle-active', state.highlightStop);
+        }
+
+        function toggleGraph() {
+            state.showGraph = !state.showGraph;
+            const btn = document.getElementById('btn-toggle-graph');
+            if(state.showGraph) {
+                btn.classList.add('toggle-active');
+                graphOverlay.classList.remove('hidden');
+            } else {
+                btn.classList.remove('toggle-active');
+                graphOverlay.classList.add('hidden');
+            }
+        }
+
+        function adjust(param, delta) {
+            const input = document.getElementById('input-' + param);
+            const val = parseFloat(input.value) + delta;
+            input.value = Math.max(input.min, Math.min(input.max, val));
+            input.dispatchEvent(new Event('input'));
+        }
+
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        function nmToRGB(wavelength, alpha = 1) {
+            let r, g, b;
+            if (wavelength >= 380 && wavelength < 440) { r = -(wavelength - 440) / (440 - 380); g = 0; b = 1; } 
+            else if (wavelength >= 440 && wavelength < 490) { r = 0; g = (wavelength - 440) / (490 - 440); b = 1; } 
+            else if (wavelength >= 490 && wavelength < 510) { r = 0; g = 1; b = -(wavelength - 510) / (510 - 490); } 
+            else if (wavelength >= 510 && wavelength < 580) { r = (wavelength - 510) / (580 - 510); g = 1; b = 0; } 
+            else if (wavelength >= 580 && wavelength < 645) { r = 1; g = -(wavelength - 645) / (645 - 580); b = 0; } 
+            else if (wavelength >= 645 && wavelength <= 781) { r = 1; g = 0; b = 0; } 
+            else if (wavelength < 380) { r = 0.5; g = 0; b = 1; } 
+            else { r = 0.2; g = 0; b = 0; }
+            return `rgba(${r * 255}, ${g * 255}, ${b * 255}, ${alpha})`;
+        }
+
+        function drawGraph() {
+            if (!state.showGraph) return;
+            graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+            const workFunction = TARGETS[state.target];
+            
+            graphCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            graphCtx.lineWidth = 1;
+            for(let i=1; i<4; i++) {
+                let y = i * (graphCanvas.height / 4);
+                graphCtx.beginPath(); graphCtx.moveTo(0, y); graphCtx.lineTo(graphCanvas.width, y); graphCtx.stroke();
+            }
+
+            graphCtx.strokeStyle = '#3b82f6';
+            graphCtx.lineWidth = 2;
+            graphCtx.beginPath();
+            
+            let currentX = 0; let currentY = graphCanvas.height;
+
+            for(let wl = 100; wl <= 800; wl+=5) {
+                const photonEnergy = 1240.71 / wl;
+                const maxKE = Math.max(0, photonEnergy - workFunction);
+                let dist = 10.0; 
+                if (maxKE <= 0) dist = 0;
+                else if (state.voltage < 0) {
+                    if (maxKE < Math.abs(state.voltage)) dist = 10.0 * (maxKE / Math.abs(state.voltage));
+                }
+                
+                const x = ((wl - 100) / 700) * graphCanvas.width;
+                const y = graphCanvas.height - ((dist / 10.0) * graphCanvas.height);
+                
+                if (wl === 100) graphCtx.moveTo(x, y);
+                else graphCtx.lineTo(x, y);
+
+                if (Math.abs(wl - state.wavelength) < 5) { currentX = x; currentY = y; }
+            }
+            graphCtx.stroke();
+            graphCtx.fillStyle = '#facc15';
+            graphCtx.beginPath(); graphCtx.arc(currentX, currentY, 4, 0, Math.PI*2); graphCtx.fill();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const workFunction = TARGETS[state.target];
+            const photonEnergy = 1240.71 / state.wavelength; 
+            const maxKE = Math.max(0, photonEnergy - workFunction);
+            
+            const margin = 100; const tubeH = 140; const tubeY = (canvas.height / 2) - 40; 
+            const leftPlateX = margin + 10; const physicsRightX = canvas.width - (margin + 10); 
+            const gapWidth = physicsRightX - leftPlateX;
+            const visualAnodeOffset = 8; const visualRightX = physicsRightX + visualAnodeOffset;
+
+            const lampCenterX = physicsRightX + 40;
+            const lampCenterY = tubeY - 80;
+            const cathodeMidY = tubeY + tubeH / 2;
+            const angle = Math.atan2(cathodeMidY - lampCenterY, leftPlateX - lampCenterX);
+            const beamColor = nmToRGB(state.wavelength, state.intensity / 100);
+
+            ctx.fillStyle = beamColor; ctx.beginPath(); const apertureSize = 12;
+            ctx.moveTo(lampCenterX + Math.cos(angle + 0.5) * apertureSize, lampCenterY + Math.sin(angle + 0.5) * apertureSize);
+            ctx.lineTo(leftPlateX, tubeY + 20); ctx.lineTo(leftPlateX, tubeY + tubeH - 20);
+            ctx.lineTo(lampCenterX + Math.cos(angle - 0.5) * apertureSize, lampCenterY + Math.sin(angle - 0.5) * apertureSize);
+            ctx.fill();
+
+            ctx.save(); ctx.translate(lampCenterX, lampCenterY); ctx.rotate(angle);
+            ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 2;
+            ctx.fillRect(-35, -15, 40, 30); ctx.strokeRect(-35, -15, 40, 30);
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+            gradient.addColorStop(0, nmToRGB(state.wavelength, state.intensity/100)); gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(5, 0, 15, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)'; ctx.lineWidth = 1;
+            ctx.strokeRect(leftPlateX - 10, tubeY, (visualRightX - leftPlateX) + 20, tubeH);
+
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 1; ctx.beginPath();
+            ctx.moveTo(leftPlateX, tubeY + tubeH + 20); ctx.lineTo(physicsRightX, tubeY + tubeH + 20);
+            for(let i=0; i<=10; i++) {
+                const x = leftPlateX + (i / 10) * gapWidth;
+                ctx.moveTo(x, tubeY + tubeH + 20); ctx.lineTo(x, tubeY + tubeH + 28);
+                ctx.fillStyle = '#64748b'; ctx.font = '8px monospace'; ctx.fillText(i + 'cm', x - 8, tubeY + tubeH + 40);
+            }
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b'; ctx.fillRect(leftPlateX - 10, tubeY + 10, 10, tubeH - 20);
+            ctx.fillStyle = '#94a3b8'; ctx.fillRect(visualRightX, tubeY + 10, 10, tubeH - 20);
+
+            const visualSpeedScale = 16.0; const dt = 0.25;
+
+            if (maxKE > 0 && state.intensity > 0 && Math.random() < (state.intensity/100) * 0.5) {
+                const energyFraction = Math.random() < 0.2 ? 1.0 : (0.1 + Math.random() * 0.9);
+                state.electrons.push({
+                    y: tubeY + 20 + Math.random() * (tubeH - 40), v: Math.sqrt(energyFraction * maxKE) * visualSpeedScale,
+                    x: leftPlateX, redTimer: 0, hasTurnedRed: false
+                });
+            }
+
+            state.impactsThisFrame = 0;
+            state.electrons = state.electrons.filter(e => {
+                const acc = (state.voltage * (visualSpeedScale * visualSpeedScale)) / (2 * gapWidth);
+                const oldV = e.v; e.v += acc * dt; e.x += ((oldV + e.v) / 2) * dt;
+
+                if (state.highlightStop && Math.abs(e.v) <= 0.6 && state.voltage < 0 && !e.hasTurnedRed) { e.redTimer = 30; e.hasTurnedRed = true; }
+                if (e.x >= visualRightX) { if (e.v > 0) { state.impactsThisFrame++; return false; } }
+                if (e.x < leftPlateX - 5 && e.v < 0) return false;
+                if (e.x < leftPlateX - 50 || e.x > visualRightX + 50) return false;
+
+                ctx.fillStyle = (e.redTimer > 0) ? '#ef4444' : '#22d3ee';
+                if (e.redTimer > 0) e.redTimer--;
+                ctx.beginPath(); ctx.arc(e.x, e.y, 2.5, 0, Math.PI * 2); ctx.fill(); return true;
+            });
+
+            state.impactBuffer.push(state.impactsThisFrame);
+            if(state.impactBuffer.length > 20) state.impactBuffer.shift();
+            
+            const totalImpacts = state.impactBuffer.reduce((a, b) => a + b, 0);
+            const rawCurrent = (totalImpacts / 20) * 0.1;
+            state.current = state.current * 0.9 + rawCurrent * 0.1;
+            currentDisplay.textContent = state.current.toFixed(4) + " A";
+
+            drawGraph();
+            requestAnimationFrame(animate);
+        }
+
+        wavelengthInput.oninput = (e) => {
+            state.wavelength = parseInt(e.target.value); document.getElementById('label-wavelength').textContent = state.wavelength + " nm";
+            document.getElementById('val-energy').textContent = (1240.71 / state.wavelength).toFixed(2);
+            document.getElementById('val-wavelength').textContent = state.wavelength;
+        };
+        intensityInput.oninput = (e) => {
+            state.intensity = parseInt(e.target.value); document.getElementById('label-intensity').textContent = state.intensity + "%";
+        };
+        voltageInput.oninput = (e) => {
+            state.voltage = parseFloat(e.target.value); document.getElementById('label-voltage').textContent = state.voltage.toFixed(2) + " V";
+        };
+        targetInput.onchange = (e) => {
+            state.target = e.target.value; graphMatLabel.textContent = e.target.options[e.target.selectedIndex].text;
+        };
+
+        window.onresize = resize;
+        window.onload = () => { lucide.createIcons(); resize(); animate(); }; // node rendered by start button
+    </script>
+</body>
+</html>
