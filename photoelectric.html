@@ -61,18 +61,18 @@
     </div>
 
     <!-- Header -->
-    <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0">
+    <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shrink-0 flex-wrap gap-4">
         <div class="flex items-center gap-3">
             <i data-lucide="microscope" class="text-blue-400"></i>
             <h1 class="font-bold text-lg tracking-tight">Hertzian Vacuum Investigation</h1>
         </div>
-        <div class="flex gap-4 items-center">
+        <div class="flex gap-2 sm:gap-4 items-center flex-wrap justify-end">
             <!-- Score container is hidden during gameplay -->
             <button id="btn-toggle-graph" onclick="toggleGraph()" class="px-3 py-1 text-xs rounded border border-slate-700 bg-slate-800 text-slate-400 transition-all flex items-center gap-2">
-                <i data-lucide="line-chart" size="14"></i> Data Plot
+                <i data-lucide="line-chart" size="14"></i> <span class="hidden sm:inline">Data Plot</span>
             </button>
             <button id="btn-highlight-stop" onclick="toggleHighlight()" class="px-3 py-1 text-xs rounded border border-slate-700 bg-slate-800 text-slate-400 transition-all flex items-center gap-2">
-                <i data-lucide="eye" size="14"></i> Highlight Turning Point
+                <i data-lucide="eye" size="14"></i> <span class="hidden sm:inline">Highlight Turning Point</span>
             </button>
             <div class="bg-black px-4 py-1 rounded border border-slate-700">
                 <span class="text-xs text-slate-500 mr-2 uppercase">Meter</span>
@@ -81,9 +81,9 @@
         </div>
     </header>
 
-    <main class="flex flex-1 overflow-hidden">
-        <div class="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
-            <div class="flex-1 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden canvas-container">
+    <main class="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
+        <div class="flex-1 p-4 lg:p-6 flex flex-col gap-4 lg:gap-6 lg:overflow-hidden">
+            <div class="flex-1 min-h-[350px] lg:min-h-0 bg-slate-900 rounded-xl border border-slate-800 relative overflow-hidden canvas-container">
                 <canvas id="labCanvas" class="w-full h-full"></canvas>
                 
                 <!-- Graph Overlay -->
@@ -163,7 +163,7 @@
             </div>
         </div>
 
-        <div class="w-[420px] border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col gap-4 shrink-0 overflow-y-auto relative">
+        <div class="w-full lg:w-[420px] border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-900/50 p-4 lg:p-6 flex flex-col gap-4 shrink-0 lg:overflow-y-auto relative">
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2 text-blue-400">
                     <i data-lucide="book-open" size="18"></i>
@@ -217,7 +217,7 @@
                           !window.location.hostname.includes('usercontent') && 
                           !window.location.hostname.includes('localhost');
             
-            const systemInstruction = "Evaluate this student's physics answer in the context of the photoelectric effect. Does their answer deduce or clearly state that light travels as particles, packets, photons, bullets, or discrete/quantized amounts? Answer strictly with the single word YES or NO. Do not provide explanations. Reject vague metaphors like 'hops' or 'jumps'.";
+            const systemInstruction = "Evaluate this student's physics answer in the context of the photoelectric effect. Does their answer deduce or clearly state that light travels as particles, packets, packages, photons, bullets, or discrete/quantized amounts? Answer strictly with the single word YES or NO. Do not provide explanations. Reject vague metaphors like 'hops' or 'jumps', but accept valid synonyms for discrete amounts like 'packages'.";
             const delays = [1000, 2000, 4000, 8000, 16000];
             
             for (let i = 0; i <= delays.length; i++) {
@@ -326,7 +326,7 @@
                 text: "This is a massive problem! If making a light wave 'bigger' (brighter) doesn't give the electrons more energy, what does?\n\nMake sure your Wavelength is at 400nm and voltage is at -0.74V. Leave Brightness alone. Now, slowly slide the Source Color (Wavelength) to the RIGHT, toward 600nm (Red).",
                 options: [
                     { text: "Longer wavelengths (redder light) make the electrons move faster and hit the plate.", next: "wrong_wavelength_fast" },
-                    { text: "Longer wavelengths make the electrons stop shorter and eventually not emit at all.", next: "DYNAMIC_TRIAL_LINK", correct: true } // DYNAMIC_TRIAL_LINK replaced at runtime
+                    { text: "Longer wavelengths make the electrons stop shorter and eventually not emit at all.", next: "DYNAMIC_TRIAL_LINK", correct: true } 
                 ]
             },
             "wrong_wavelength_fast": {
@@ -337,7 +337,7 @@
                     { text: "They are barely making it off the plate. They have less energy.", next: "wavelength_discovery" }
                 ]
             },
-            // Note: trial_error_1_... and trial_error_2_... nodes are built dynamically by setupDynamicNodes()
+            // trial_error nodes injected below
             "the_wave_prediction": {
                 title: "The Wave Prediction",
                 text: "So color dictates speed/energy. But we still have a problem. The prevailing theory of the time was that light is a continuous, spreading wave (like ripples in a pond).\n\nIf light is a spreading wave, a very dim light has its energy spread extremely thin. What SHOULD happen if we shine a barely visible, ultra-dim light on a metal plate?",
@@ -505,7 +505,6 @@
                 const matKey = cycle2[i];
                 const matInfo = MAT_THRESHOLDS[matKey];
                 const isLast = (i === cycle2.length - 1);
-                // Link the final dynamically generated node back into the main story trunk
                 const nextNodeId = isLast ? "the_wave_prediction" : ("trial_error_2_" + cycle2[i + 1]);
 
                 const wrongMats = Object.keys(MAT_THRESHOLDS).filter(m => m !== matKey).sort(() => 0.5 - Math.random());
@@ -546,7 +545,9 @@
             history: [],
             historyPointer: -1,
             scoreCalculated: false,
-            timeNodeLoaded: Date.now()
+            timeNodeLoaded: Date.now(),
+            winningHypothesis: "",
+            winningKeyword: ""
         };
 
         const canvas = document.getElementById('labCanvas');
@@ -654,7 +655,7 @@
             }
         }
 
-        function handleOptionClick(optIndex) {
+        function handleOptionClick(optIndex, btnElement) {
             const historyItem = state.history[state.historyPointer];
             const node = STORY[historyItem.nodeId];
             const option = node.options[optIndex];
@@ -667,7 +668,10 @@
 
             penaltyBox.classList.add('hidden');
 
-            if (!option.correct && !node.isCorrection && !node.isEnd) {
+            const isWrong = !option.correct && !node.isCorrection && !node.isEnd;
+            let hitMaxHints = false;
+
+            if (isWrong) {
                 state.corrections++;
                 state.nodeAttempts[historyItem.nodeId] = (state.nodeAttempts[historyItem.nodeId] || 0) + 1;
                 
@@ -675,45 +679,64 @@
                     const correctOpt = node.options.find(o => o.correct);
                     const msg = `MAX HINTS REACHED. The correct scientific deduction is: "${correctOpt.text}". Please select it to proceed.`;
                     showToast(msg, false); 
-                    return; 
+                    hitMaxHints = true;
                 }
             }
+            
+            if (hitMaxHints) return; // Wait for them to actually click the right answer
 
-            // Save choice in history and push next
-            historyItem.selectedOptIndex = optIndex;
-            state.currentNode = option.next;
-            
-            state.history.push({ nodeId: state.currentNode });
-            state.historyPointer++;
-            
-            renderStoryNode();
+            // Visual feedback on the button
+            const isCorrect = option.correct || (!isWrong && option.next !== historyItem.nodeId);
+            if (isCorrect) {
+                btnElement.classList.remove('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
+                btnElement.classList.add('bg-green-600', 'border-green-400', 'text-white', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]');
+            } else {
+                btnElement.classList.remove('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
+                btnElement.classList.add('bg-red-900/80', 'border-red-500', 'text-red-200');
+            }
+
+            // Disable all buttons during visual transition
+            const container = document.getElementById('options-container');
+            const btns = container.querySelectorAll('button');
+            btns.forEach(b => b.disabled = true);
+
+            // Delay the transition slightly to show the color change
+            setTimeout(() => {
+                historyItem.selectedOptIndex = optIndex;
+                state.currentNode = option.next;
+                state.history.push({ nodeId: state.currentNode });
+                state.historyPointer++;
+                renderStoryNode();
+            }, 600);
         }
 
-        async function handleTextInputSubmit() {
+        async function handleTextInputSubmit(btnElement) {
             const historyItem = state.history[state.historyPointer];
             const node = STORY[historyItem.nodeId];
             const inputField = document.getElementById('student-text-input');
-            const submitBtn = document.getElementById('submit-hypothesis-btn');
             const text = inputField.value.trim();
             
             if (!text) return;
 
-            submitBtn.textContent = "Evaluating Hypothesis...";
-            submitBtn.disabled = true;
+            btnElement.textContent = "Evaluating Hypothesis...";
+            btnElement.disabled = true;
             inputField.disabled = true;
 
             let isCorrect = false;
+            let matchedWord = "";
 
-            const regex = /packet|particle|photon|bullet|discrete|chunk|bundle|quant/i;
-            if (regex.test(text)) {
+            const regex = /(packet|package|particle|photon|bullet|discrete|chunk|bundle|quant[a-z]*)/i;
+            const match = text.match(regex);
+            if (match) {
                 isCorrect = true;
+                matchedWord = match[0].toLowerCase();
             } else {
                 try {
                     const aiResult = await fetchWithBackoff(text);
                     const aiText = aiResult?.trim().toUpperCase();
-                    // Stricter checking of the AI's YES/NO response
                     if (aiText && (aiText === "YES" || aiText.startsWith("YES"))) {
                         isCorrect = true;
+                        matchedWord = "discrete amount"; 
                     }
                 } catch (err) {
                     console.error("AI Grading unavailable. Failing safely to scaffold mode.");
@@ -721,18 +744,29 @@
                 }
             }
 
-            historyItem.textInput = text;
-            state.currentNode = isCorrect ? node.onCorrect : node.onIncorrect;
-            state.history.push({ nodeId: state.currentNode });
-            state.historyPointer++;
-            
-            renderStoryNode();
+            if (isCorrect) {
+                state.winningHypothesis = text;
+                state.winningKeyword = matchedWord;
+                btnElement.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+                btnElement.classList.add('bg-green-600', 'shadow-[0_0_15px_rgba(34,197,94,0.5)]');
+                btnElement.textContent = "Correct! Outstanding Hypothesis!";
+            } else {
+                btnElement.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+                btnElement.classList.add('bg-red-600');
+                btnElement.textContent = "Incorrect. Let's analyze further...";
+            }
+
+            setTimeout(() => {
+                historyItem.textInput = text;
+                state.currentNode = isCorrect ? node.onCorrect : node.onIncorrect;
+                state.history.push({ nodeId: state.currentNode });
+                state.historyPointer++;
+                renderStoryNode();
+            }, 1200); // Give them time to read the button result
         }
 
         function restartLab() {
-            // Keep student name
             const savedName = state.studentName;
-            
             state = {
                 studentName: savedName,
                 wavelength: 400, intensity: 50, voltage: 0, target: 'Sodium', 
@@ -740,7 +774,8 @@
                 highlightStop: false, showGraph: false,
                 currentNode: 'start', penalties: 0, corrections: 0, nodeAttempts: {},
                 history: [{ nodeId: 'start' }], historyPointer: 0, scoreCalculated: false,
-                timeNodeLoaded: Date.now()
+                timeNodeLoaded: Date.now(),
+                winningHypothesis: "", winningKeyword: ""
             };
             
             wavelengthInput.value = 400; intensityInput.value = 50; voltageInput.value = 0; targetInput.value = "Sodium";
@@ -757,7 +792,6 @@
             
             if (!isReview) state.timeNodeLoaded = Date.now();
 
-            // Nav Buttons
             document.getElementById('btn-back-story').disabled = (state.historyPointer === 0);
             document.getElementById('btn-fwd-story').disabled = (state.historyPointer === state.history.length - 1);
 
@@ -804,7 +838,7 @@
                     submitBtn.id = 'submit-hypothesis-btn';
                     submitBtn.className = 'w-full text-center p-3 text-sm rounded bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors shadow-lg';
                     submitBtn.textContent = "Submit Hypothesis";
-                    submitBtn.onclick = () => handleTextInputSubmit();
+                    submitBtn.onclick = (e) => handleTextInputSubmit(e.currentTarget);
                     inputWrap.appendChild(inputField);
                     inputWrap.appendChild(submitBtn);
                 }
@@ -822,15 +856,19 @@
                 else if (state.corrections >= 5 && state.corrections <= 10) ec = 0;
                 else base = Math.max(0, 15 - (state.corrections - 10));
                 
+                let isSuperlative = (historyItem.nodeId === 'superlative_victory');
+                if (isSuperlative) {
+                    ec += 2; 
+                }
+
                 let finalScore = Math.max(0, base - state.penalties);
                 let totalScore = finalScore + ec;
                 
-                // Calculate only once
                 if (!isReview && !state.scoreCalculated) {
                     state.scoreCalculated = true;
                     
                     let msg = "";
-                    if (historyItem.nodeId === 'superlative_victory') {
+                    if (isSuperlative) {
                         msg = "You independently deduced the exact concept that won Albert Einstein the Nobel Prize in Physics in 1921. Light does not travel as a continuous wave; it travels as a stream of localized, indivisible packets of energy called 'Photons'. Brighter light simply contains MORE photons, but the energy of each individual photon depends strictly on its color (wavelength). You have uncovered the Quantum nature of light!";
                     } else {
                         let percentage = (finalScore / 15) * 100;
@@ -839,6 +877,7 @@
                     historyItem.endMessage = msg;
                     historyItem.totalScore = totalScore;
                     historyItem.ec = ec;
+                    historyItem.isSuperlative = isSuperlative;
 
                     if (ec > 0) fireConfetti(ec);
                     else if (totalScore === 15) fireConfetti(1);
@@ -846,12 +885,25 @@
 
                 document.getElementById('story-text').textContent = historyItem.endMessage || "";
 
+                let specialMsg = '';
+                if (historyItem.isSuperlative || isSuperlative) {
+                    specialMsg = `
+                        <div class="text-xs font-bold text-blue-400 mt-2 pulse-text">🌟 Brilliant Deduction Bonus: +2 EC</div>
+                        ${state.winningHypothesis ? `
+                        <div class="mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded text-left shadow-inner">
+                            <span class="text-[10px] uppercase text-blue-400 font-bold block mb-1">Your Groundbreaking Hypothesis:</span>
+                            <span class="text-xs text-slate-300 italic">"${state.winningHypothesis}"</span>
+                            <div class="text-[10px] text-slate-500 mt-2">Identified concept: <span class="font-bold text-blue-300 uppercase">${state.winningKeyword}</span></div>
+                        </div>` : ''}
+                    `;
+                }
+
                 container.innerHTML = `
                     <div class="bg-slate-900 border border-slate-700 p-6 rounded-xl text-center shadow-inner mt-4">
                         <div class="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Final Laboratory Score</div>
                         <div class="font-mono text-5xl font-bold text-white">${historyItem.totalScore || totalScore}<span class="text-2xl text-slate-500">/15</span></div>
                         ${(historyItem.ec || ec) > 0 ? `<div class="text-sm font-bold text-green-400 mt-2">+${historyItem.ec || ec} Extra Credit Earned</div>` : ''}
-                        
+                        ${specialMsg}
                         <div class="mt-6 pt-4 border-t border-slate-800">
                             <div class="text-xs text-slate-400 uppercase tracking-widest font-bold">${state.studentName}</div>
                             <div class="text-xs text-slate-500 uppercase tracking-widest mt-1">Hertzian Vacuum Lab</div>
@@ -883,7 +935,7 @@
                         }
                     } else {
                         b.classList.add('hover:bg-slate-700', 'hover:border-blue-500', 'text-slate-300');
-                        b.onclick = () => handleOptionClick(i);
+                        b.onclick = (e) => handleOptionClick(i, e.currentTarget);
                     }
                     container.appendChild(b);
                 });
