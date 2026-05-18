@@ -67,7 +67,6 @@
             <h1 class="font-bold text-lg tracking-tight">Hertzian Vacuum Investigation</h1>
         </div>
         <div class="flex gap-2 sm:gap-4 items-center flex-wrap justify-end">
-            <!-- Score container is hidden during gameplay -->
             <button id="btn-toggle-graph" onclick="toggleGraph()" class="px-3 py-1 text-xs rounded border border-slate-700 bg-slate-800 text-slate-400 transition-all flex items-center gap-2">
                 <i data-lucide="line-chart" size="14"></i> <span class="hidden sm:inline">Data Plot</span>
             </button>
@@ -188,7 +187,7 @@
                 <p id="story-text" class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap"></p>
                 
                 <div id="experiment-box" class="hidden bg-blue-900/20 border border-blue-500/30 p-3 rounded-md text-sm text-blue-200">
-                    <span class="font-bold text-blue-400 flex items-center gap-2 mb-1"><i data-lucide="beaker" size="14"></i> Try this:</span>
+                    <span class="font-bold text-blue-400 flex items-center gap-2 mb-1"><i data-lucide="beaker" size="14"></i> Hint:</span>
                     <span id="experiment-text"></span>
                 </div>
 
@@ -206,11 +205,10 @@
     </main>
 
     <script>
-        const apiKey = ""; // API Key supplied by environment fallback
+        const apiKey = ""; 
         const H = 4.1357e-15, C = 3e8;
         const TARGETS = { Sodium: 2.36, Calcium: 2.87, Zinc: 4.31, Copper: 4.70, Platinum: 6.35 };
 
-        // --- EXPONENTIAL BACKOFF & ROUTING FOR AI CALLS ---
         async function fetchWithBackoff(studentText) {
             const isWeb = window.location.hostname && 
                           !window.location.hostname.includes('google') && 
@@ -253,185 +251,9 @@
             }
         }
 
-        // --- INQUIRY ENGINE STORY TREE ---
-        let STORY = {
-            "start": {
-                title: "The Vacuum Spark",
-                text: "In the late 19th century, scientists noticed that electrical sparks jumped across a vacuum gap more easily when a bright light was shone on the metal plates.\n\nEnsure the light is set to 400nm and 50% brightness. Based on the visual evidence in the vacuum tube, what is the light actually doing?",
-                options: [
-                    { text: "The light is heating the vacuum, creating a conductive bridge.", next: "wrong_heat" },
-                    { text: "The light waves are physically carrying electricity across the gap.", next: "wrong_waves" },
-                    { text: "The light is dislodging particles (represented as dots in our sim) from the left plate.", next: "charge_investigation", correct: true }
-                ]
-            },
-            "wrong_heat": {
-                title: "Re-evaluating Heat",
-                text: "If the effect was caused by heat, we should test it with light that produces more heat.",
-                experiment: "Infrared (red) light transmits more heat than violet light. Change the Source Color to 750nm. Increase brightness to 100%. Does the current increase?",
-                options: [
-                    { text: "No, the current dropped to exactly 0. Heat isn't the cause.", next: "start" }
-                ]
-            },
-            "wrong_waves": {
-                title: "Re-evaluating Light Waves",
-                text: "If the light waves themselves were carrying the electricity, the current would go exactly where the beam goes.",
-                experiment: "Look closely at the beam of light and the movement of the dots. Do they travel along the exact same path?",
-                options: [
-                    { text: "No, the dots move straight right, while the light beam angles down. They are independent.", next: "start" }
-                ]
-            },
-            "charge_investigation": {
-                title: "Identifying the Particles",
-                text: "Excellent. We have established that the light causes particles to be emitted. But what are they? First, make sure your light is set back to a working state like 400nm and 50% Brightness on Material Alpha.\n\nNow, we can use the 'Tube Potential' (battery) to push or pull them. Set the Tube Potential to exactly -1.00 V. (Note: A negative Tube Potential means the right plate is negatively charged and the left plate is positively charged.)\n\nWhat happens to the particles?",
-                options: [
-                    { text: "They are pulled faster toward the right plate, so they must be positively charged.", next: "wrong_positive" },
-                    { text: "They are pushed back toward the left plate, so they must be negatively charged.", next: "intensity_paradox", correct: true },
-                    { text: "They slow down because the light is getting tired.", next: "wrong_tired" }
-                ]
-            },
-            "wrong_positive": {
-                title: "Checking Electrical Forces",
-                text: "Remember your basic electrical laws: Opposite charges attract, like charges repel.",
-                experiment: "A negative Tube Potential means the right plate is negative. If the particles slow down and turn back from a negative plate, what must their charge be?",
-                options: [
-                    { text: "Ah, they are repelled by negative, so they must be negative.", next: "charge_investigation" }
-                ]
-            },
-            "wrong_tired": {
-                title: "Checking Light Energy",
-                text: "Is the light actually changing, or is it an electrical effect?",
-                experiment: "Keep the light exactly the same (400nm). Turn the Tube Potential back to 0.00 V. Do the particles speed back up?",
-                options: [
-                    { text: "Yes, they speed up again. The light isn't tired, the battery is affecting them.", next: "charge_investigation" }
-                ]
-            },
-            "intensity_paradox": {
-                title: "The Classical Contradiction",
-                text: "We now know these are negative particles (electrons). Let's test classical physics. Classical theory says a brighter light has more energy. If we make the light brighter, it should give the electrons a harder 'kick' (more speed).\n\nFirst, set Wavelength to 400nm and Brightness to 50%. Adjust the Tube Potential to roughly -0.74V so the electrons just barely stop before hitting the right plate. Now, double the Source Brightness to 100%.",
-                options: [
-                    { text: "The electrons hit the plate now. Brighter light means faster electrons.", next: "wrong_intensity" },
-                    { text: "The electrons stop in the exact same place. Brighter light just creates MORE electrons, not faster ones.", next: "wavelength_discovery", correct: true }
-                ]
-            },
-            "wrong_intensity": {
-                title: "Look Closer",
-                text: "It's easy to be fooled by the increase in the *number* of particles.",
-                experiment: "Keep Voltage at -0.74V and Wavelength at 400nm. Toggle the brightness rapidly between 10% and 100%. Watch the 'leading edge' of the electron cloud. Does the absolute maximum distance they travel change?",
-                options: [
-                    { text: "I see it now. There are more of them, but their maximum distance (speed) is identical.", next: "intensity_paradox" }
-                ]
-            },
-            "wavelength_discovery": {
-                title: "Finding the Real 'Kick'",
-                text: "This is a massive problem! If making a light wave 'bigger' (brighter) doesn't give the electrons more energy, what does?\n\nMake sure your Wavelength is at 400nm and voltage is at -0.74V. Leave Brightness alone. Now, slowly slide the Source Color (Wavelength) to the RIGHT, toward 600nm (Red).",
-                options: [
-                    { text: "Longer wavelengths (redder light) make the electrons move faster and hit the plate.", next: "wrong_wavelength_fast" },
-                    { text: "Longer wavelengths make the electrons stop shorter and eventually not emit at all.", next: "DYNAMIC_TRIAL_LINK", correct: true } 
-                ]
-            },
-            "wrong_wavelength_fast": {
-                title: "Check the Current",
-                text: "Are you sure they are moving faster?",
-                experiment: "Set Wavelength to 600nm at -0.74V. Look at the particles. Are they crossing the gap, or barely making it off the left plate?",
-                options: [
-                    { text: "They are barely making it off the plate. They have less energy.", next: "wavelength_discovery" }
-                ]
-            },
-            // trial_error nodes injected below
-            "the_wave_prediction": {
-                title: "The Wave Prediction",
-                text: "So color dictates speed/energy. But we still have a problem. The prevailing theory of the time was that light is a continuous, spreading wave (like ripples in a pond).\n\nIf light is a spreading wave, a very dim light has its energy spread extremely thin. What SHOULD happen if we shine a barely visible, ultra-dim light on a metal plate?",
-                options: [
-                    { text: "The energy will slowly 'wash' over an electron until it builds up enough to pop out.", next: "dim_light_test", correct: true },
-                    { text: "The electron will pop out instantly, but move extremely slowly.", next: "wrong_dim_speed" },
-                    { text: "The dim wave will just bounce off and do nothing.", next: "wrong_dim_bounce" }
-                ]
-            },
-            "wrong_dim_speed": {
-                title: "Reviewing Speed",
-                text: "We just discovered what controls the speed of the electrons. Is it the brightness?",
-                experiment: "Set Brightness to 10% and then to 100% at a working wavelength. Does the maximum distance/speed change?",
-                options: [
-                    { text: "Ah, speed only depends on color, not brightness. I remember.", next: "the_wave_prediction" }
-                ]
-            },
-            "wrong_dim_bounce": {
-                title: "Is there a minimum?",
-                text: "Let's see if a dim light does absolutely nothing.",
-                experiment: "Set Wavelength to 300nm. Set Brightness to 1%. Are any particles emitted?",
-                options: [
-                    { text: "Yes, particles are still emitted even at 1%.", next: "the_wave_prediction" }
-                ]
-            },
-            "dim_light_test": {
-                title: "The Time Delay Test",
-                text: "Exactly! A classical wave would take time to 'fill up' the electron's energy cup. Let's test this.\n\nSet Brightness to 0%. Set Wavelength to 400nm. Now, click Brightness up to just 1%. How long does it take for the *first* particle to appear?",
-                options: [
-                    { text: "It takes several seconds for the wave to build up energy.", next: "wrong_time_delay" },
-                    { text: "It appears instantly. There is no buildup time.", next: "stop_and_think", correct: true }
-                ]
-            },
-            "wrong_time_delay": {
-                title: "Watch Closely",
-                text: "Calculations show a classical wave at 1% intensity would take minutes to eject an electron. Are you seeing minutes of delay?",
-                experiment: "Turn intensity to 0, then immediately to 1%. Watch the left plate the very millisecond you change it.",
-                options: [
-                    { text: "Okay, particles start emitting immediately. There is no delay.", next: "dim_light_test" }
-                ]
-            },
-            "stop_and_think": {
-                title: "Stop and Think",
-                text: "You've made crucial discoveries that disprove the classical wave theory of light:\n\n1. Even the dimmest light instantly kicks out electrons (no buildup time).\n2. Dimmer light just kicks out FEWER electrons, but they have the exact SAME max energy as those kicked out by bright light.\n\nIf light cannot be a long continuous wave spreading out, how MUST light travel through space to produce these exact instant, highly concentrated results?",
-                type: "input",
-                onCorrect: "superlative_victory",
-                onIncorrect: "energy_concentration"
-            },
-            "energy_concentration": {
-                title: "The Concentration Problem",
-                text: "Let's break this down. It happens instantly! This completely breaks the wave theory. A dim wave spreading across the whole room cannot instantly deliver a concentrated punch to a single tiny particle.\n\nHow could the light deliver a full-energy punch instantly, even when the overall light is incredibly dim?",
-                options: [
-                    { text: "The metal plate acts as a funnel, gathering the wave instantly into one spot.", next: "wrong_funnel" },
-                    { text: "The energy isn't spreading out; it's traveling in concentrated 'bullets' or packets.", next: "the_grand_deduction", correct: true }
-                ]
-            },
-            "wrong_funnel": {
-                title: "The Funnel Problem",
-                text: "If the metal gathered the wave from all over the surface into one spot, changing the size of the plate would change the energy given to the electron.",
-                experiment: "This simulation doesn't let you change the plate size, but in actual historical experiments, making the plate larger just yielded MORE electrons, not faster ones.",
-                options: [
-                    { text: "I see, so the energy must already be concentrated before it hits the plate.", next: "energy_concentration" }
-                ]
-            },
-            "the_grand_deduction": {
-                title: "The Final Deduction",
-                text: "Yes! If the energy arrives instantly regardless of how 'dim' the overall beam is, the energy must be traveling in localized, indivisible packets.\n\nYou have discovered that light is not a continuous wave. It is quantized into discrete packets. Based on everything you've seen, what determines the energy of each individual packet?",
-                options: [
-                    { text: "The Brightness (Luminosity)", next: "wrong_packet_energy" },
-                    { text: "The Color (Wavelength)", next: "victory", correct: true }
-                ]
-            },
-            "wrong_packet_energy": {
-                title: "Reviewing Brightness",
-                text: "Wait, we just saw that 1% brightness kicks them out instantly with the same speed as 100% brightness.",
-                experiment: "If Brightness determined the packet's energy, 100% Brightness would create much faster electrons than 10%. Does it?",
-                options: [
-                    { text: "No, brightness just changes the number of electrons (number of packets). Let me try again.", next: "the_grand_deduction" }
-                ]
-            },
-            "victory": {
-                title: "Discovery Complete",
-                text: "",
-                options: [],
-                isEnd: true
-            },
-            "superlative_victory": {
-                title: "Exceptional Deduction!",
-                text: "",
-                options: [],
-                isEnd: true,
-                isSuperlative: true
-            }
-        };
+        // --- DYNAMIC INQUIRY ENGINE ---
+        let STAGE_SEQUENCE = [];
+        let POOLS = {};
 
         const MAT_THRESHOLDS = {
             Sodium: { name: 'Alpha', val: 526, testWl: 300, testVs: -1.78 },
@@ -441,113 +263,543 @@
             Platinum: { name: 'Epsilon', val: 195, testWl: 150, testVs: -1.92 }
         };
 
-        function setupDynamicNodes() {
+        const HINT_INTRO = "Because the particles shoot off the plate right where the light is shining, it provides direct visual evidence that the light itself is causing the particles to be ejected from the material.";
+        const HINT_CHARGE = "When you apply a negative voltage to the right plate, the particles are pushed back. Since 'like charges repel,' the particles must be negatively charged electrons.";
+        const HINT_INTENSITY = "Increasing the brightness creates a denser cloud of particles, but the leading edge stops at the exact same distance. This proves brightness only affects the quantity of particles, not their maximum energy.";
+        const HINT_WAVELENGTH = "When you shift the color to a shorter wavelength (like UV), the particles suddenly gain enough speed to cross the gap. Color (wavelength) is the only setting that increases their actual energy.";
+        const HINT_WAVE = "If light were a continuous, spreading wave, its energy would be diluted over a large area. A very dim wave would therefore need significant time to 'wash' over an electron and build up enough energy to eject it.";
+        const HINT_TIME = "Even at an extremely dim setting (5%), the very first particle pops out immediately. This completely breaks the classical prediction that a dim wave needs time to build up energy.";
+        const HINT_CONC = "Since the energy arrives instantly regardless of how 'dim' the overall beam is, it cannot be spreading out. The energy must be traveling in localized, indivisible packets.";
+        const HINT_FINAL = "Since brighter light only increases the number of packets, but bluer light increases the speed of the particles, the energy of a single packet must be determined solely by its color (wavelength).";
+
+        function initializeEngine() {
+            POOLS.intro = [
+                {
+                    title: "The Vacuum Spark (Variation A)",
+                    text: "Ensure the light is set to 400nm and 50% brightness. Based on the visual evidence in the vacuum tube, what is the light actually doing?",
+                    options: [
+                        { text: "The light is heating the vacuum, creating a conductive bridge.", correct: false, experiment: "Infrared (red) light transmits more heat. Change the Source Color to 750nm at 100% brightness. Does current flow? No, heat isn't the cause." },
+                        { text: "The light waves are physically carrying electricity across the gap.", correct: false, experiment: "Look closely at the beam. The dots move straight right, while the light beam angles down. They are independent." },
+                        { text: "The light is dislodging particles from the left plate.", correct: true, hint: HINT_INTRO }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Vacuum Spark (Variation B)",
+                    text: "When the 400nm light hits the left plate, you see discrete dots moving. What do these dots most likely represent?",
+                    options: [
+                        { text: "Thermal distortion waves in the vacuum.", correct: false, experiment: "Thermal waves would bend light, not register as electrical current on the meter." },
+                        { text: "Light waves bending toward the positive plate.", correct: false, experiment: "Light travels in straight lines; it wouldn't be pulled by a battery." },
+                        { text: "Physical particles ejected by the light.", correct: true, hint: HINT_INTRO }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Vacuum Spark (Variation C)",
+                    text: "Observe the vacuum gap. The meter shows electricity is flowing because...",
+                    options: [
+                        { text: "The vacuum itself has become conductive.", correct: false, experiment: "If the vacuum were conductive, current would flow even without the light." },
+                        { text: "The light is knocking physical pieces off the metal.", correct: true, hint: HINT_INTRO },
+                        { text: "The light beam is acting as a solid wire bridging the plates.", correct: false, experiment: "The beam hits the bottom of the plate, but current flows straight across the middle." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Vacuum Spark (Variation D)",
+                    text: "If the vacuum is completely empty space, how is current crossing the gap when the light is turned on?",
+                    options: [
+                        { text: "The light beam frees charged particles from the surface.", correct: true, hint: HINT_INTRO },
+                        { text: "The light heats the vacuum, allowing sparks to jump.", correct: false, experiment: "Test heat with 750nm light (IR). It creates zero current." },
+                        { text: "The battery pulls electricity through the light beam.", correct: false, experiment: "Turn the voltage to 0.00V. The particles still cross the gap." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Vacuum Spark (Variation E)",
+                    text: "Scientists called this the Hertzian effect. What physical process is visible in your simulation?",
+                    options: [
+                        { text: "Invisible particles are being released by the light.", correct: true, hint: HINT_INTRO },
+                        { text: "A thermal bridge forms between the plates.", correct: false, experiment: "Heat (750nm light) produces no effect at all." },
+                        { text: "Light is reflecting back and forth, carrying charge.", correct: false, experiment: "The dots only move in one direction." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Vacuum Spark (Variation F)",
+                    text: "Look at the left plate. The light causes a flow of current by...",
+                    options: [
+                        { text: "Heating the metal until it melts.", correct: false, experiment: "If it were melting, the plate would disappear over time." },
+                        { text: "Ejecting distinct particles into the vacuum.", correct: true, hint: HINT_INTRO },
+                        { text: "Creating a wave vortex in the empty space.", correct: false, experiment: "Vortices would spin, but these move in straight lines." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.charge = [
+                {
+                    title: "Identifying the Particles (Variation A)",
+                    text: "Make sure your light is at 400nm and 50% Brightness on Material Alpha.\n\nSet the Tube Potential to exactly -1.00 V. (A negative Tube Potential means the right plate is negative). What happens to the particles?",
+                    options: [
+                        { text: "They are pulled faster, so they must be positively charged.", correct: false, experiment: "Watch the simulation closely. At -1.00V, they slow down and turn around." },
+                        { text: "They are pushed back, so they must be negatively charged.", correct: true, hint: HINT_CHARGE },
+                        { text: "They slow down because the light is getting tired.", correct: false, experiment: "Set Voltage back to 0.00V. They speed back up, so the light isn't tired." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Identifying the Particles (Variation B)",
+                    text: "A negative voltage (-1.00V) repels the emitted particles before they reach the right plate. This proves the particles are:",
+                    options: [
+                        { text: "Positively charged.", correct: false, experiment: "Opposite charges attract. If they were positive, they would speed up toward the negative plate." },
+                        { text: "Negatively charged.", correct: true, hint: HINT_CHARGE },
+                        { text: "Electrically neutral.", correct: false, experiment: "If they were neutral, the battery voltage would have no effect on them." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Identifying the Particles (Variation C)",
+                    text: "Notice how the dots slow down and reverse when the right plate is made negative (-1.00V). Why?",
+                    options: [
+                        { text: "Like charges repel, so the dots must be negatively charged.", correct: true, hint: HINT_CHARGE },
+                        { text: "They ran out of momentum halfway across.", correct: false, experiment: "At 0.00V they cross easily. The voltage is what stops them." },
+                        { text: "The vacuum pushed them back.", correct: false, experiment: "A vacuum is empty; it cannot push." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Identifying the Particles (Variation D)",
+                    text: "Apply a -1.00V potential. The particles turn back and don't reach the other side. This indicates:",
+                    options: [
+                        { text: "They carry a negative electrical charge.", correct: true, hint: HINT_CHARGE },
+                        { text: "They are too heavy to make the jump.", correct: false, experiment: "Weight doesn't change based on the battery voltage." },
+                        { text: "The light is too dim.", correct: false, experiment: "Change brightness to 100%. They still turn around at the same spot." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Identifying the Particles (Variation E)",
+                    text: "Because the particles are pushed away by a negative battery setting on the right plate, they must be...",
+                    options: [
+                        { text: "Protons (positive charges).", correct: false, experiment: "Protons would be attracted to a negative plate." },
+                        { text: "Photons (neutral charges).", correct: false, experiment: "Photons are unaffected by electrical fields." },
+                        { text: "Electrons (negative charges).", correct: true, hint: HINT_CHARGE }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Identifying the Particles (Variation F)",
+                    text: "What happens to the emitted particles when they encounter a negative potential?",
+                    options: [
+                        { text: "They accelerate rapidly.", correct: false, experiment: "Watch the animation at -1.00V. They clearly decelerate." },
+                        { text: "They are repelled because they are negatively charged.", correct: true, hint: HINT_CHARGE },
+                        { text: "They turn back into light.", correct: false, experiment: "They return to the left plate, they don't vanish." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.intensity = [
+                {
+                    title: "The Classical Contradiction (Variation A)",
+                    text: "Set Wavelength to 400nm and Brightness to 50%. Adjust the Tube Potential to roughly -0.74V so the electrons just barely stop. Now, double the Brightness to 100%. What happens?",
+                    options: [
+                        { text: "The electrons hit the plate now. Brighter light means faster electrons.", correct: false, experiment: "Toggle between 10% and 100%. The maximum distance they travel is identical." },
+                        { text: "They stop in the exact same place. Brighter light just creates MORE electrons.", correct: true, hint: HINT_INTENSITY },
+                        { text: "They stop shorter. Bright light slows them down.", correct: false, experiment: "Look at the leading edge of the electron cloud. It reaches the exact same point." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Classical Contradiction (Variation B)",
+                    text: "Does increasing the Source Brightness to 100% give the particles enough energy to overcome the -0.74V barrier?",
+                    options: [
+                        { text: "Yes, they go faster and hit the plate.", correct: false, experiment: "Watch the current meter. It remains at 0.0000 A because none reach the plate." },
+                        { text: "No, it only increases the total number of particles emitted.", correct: true, hint: HINT_INTENSITY },
+                        { text: "Yes, because they get heavier.", correct: false, experiment: "Electrons always have the exact same mass." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Classical Contradiction (Variation C)",
+                    text: "Classical physics says a brighter light hits harder. Does 100% brightness make the particles travel further than 50% brightness?",
+                    options: [
+                        { text: "Yes, the bright light pushes them across.", correct: false, experiment: "Toggle brightness. The leading edge of the swarm doesn't move forward." },
+                        { text: "No, their maximum reach remains identical.", correct: true, hint: HINT_INTENSITY },
+                        { text: "No, they don't emit at all at 100%.", correct: false, experiment: "At 100% brightness, there are clearly many more particles." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Classical Contradiction (Variation D)",
+                    text: "Observe the 'leading edge' of the particles at -0.74V. When you maximize the brightness slider, the leading edge...",
+                    options: [
+                        { text: "Pushes further right into the plate.", correct: false, experiment: "Look closely. It stops exactly where it did before." },
+                        { text: "Stays at the exact same distance.", correct: true, hint: HINT_INTENSITY },
+                        { text: "Retreats back to the left.", correct: false, experiment: "The distance does not decrease." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Classical Contradiction (Variation E)",
+                    text: "Toggle Brightness from 10% to 100%. The current meter changes, but does the absolute stopping distance change?",
+                    options: [
+                        { text: "Yes, the stopping distance increases.", correct: false, experiment: "They still stop before hitting the right plate." },
+                        { text: "The stopping distance does not change.", correct: true, hint: HINT_INTENSITY },
+                        { text: "Yes, the stopping distance decreases.", correct: false, experiment: "The distance does not decrease." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Classical Contradiction (Variation F)",
+                    text: "If brighter light doesn't make the particles faster (more energetic), what DOES it do?",
+                    options: [
+                        { text: "It makes the particles physically bigger.", correct: false, experiment: "Electrons are fundamental particles; their size doesn't change." },
+                        { text: "It just ejects a larger quantity of particles.", correct: true, hint: HINT_INTENSITY },
+                        { text: "It makes the metal glow hot.", correct: false, experiment: "We already proved heat isn't causing this." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.wavelength = [
+                {
+                    title: "Finding the Real 'Kick' (Variation A)",
+                    text: "Make sure Wavelength is 400nm and voltage is -0.74V. Leave Brightness alone. Slowly slide the Source Color (Wavelength) to the LEFT, toward 300nm (UV).",
+                    options: [
+                        { text: "Shorter wavelengths (bluer light) make the electrons move faster and cross the gap.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "Shorter wavelengths just create more electrons, like brightness did.", correct: false, experiment: "Look at the current meter. They are now hitting the plate! They must have more speed." },
+                        { text: "Shorter wavelengths slow the electrons down.", correct: false, experiment: "If they slowed down, they wouldn't reach the plate. At 300nm, they easily hit it." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Finding the Real 'Kick' (Variation B)",
+                    text: "What happens to the kinetic energy of the particles when you use a shorter wavelength (bluer light)?",
+                    options: [
+                        { text: "It increases, allowing them to cross the gap.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "It decreases.", correct: false, experiment: "At 300nm they hit the plate. They must have more energy, not less." },
+                        { text: "It stays exactly the same.", correct: false, experiment: "If it stayed the same, they would still stop at the exact same spot." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Finding the Real 'Kick' (Variation C)",
+                    text: "If increasing brightness doesn't increase their speed, what parameter DOES give the particles more energy?",
+                    options: [
+                        { text: "Increasing brightness to maximum.", correct: false, experiment: "We just proved in the last step that brightness doesn't change speed." },
+                        { text: "Using a shorter wavelength.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "Using a longer wavelength.", correct: false, experiment: "Try sliding to 600nm (Red). They stop emitting entirely." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Finding the Real 'Kick' (Variation D)",
+                    text: "Change the color from Purple (400nm) to UV (300nm) while keeping voltage at -0.74V. How do the particles react?",
+                    options: [
+                        { text: "They slow down even more.", correct: false, experiment: "They are hitting the plate now! They must be faster." },
+                        { text: "They gain more speed and overcome the voltage.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "They stop emitting entirely.", correct: false, experiment: "There is clearly a steady stream of particles at 300nm." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Finding the Real 'Kick' (Variation E)",
+                    text: "To give a single particle a stronger 'kick' and overcome the negative voltage, you must...",
+                    options: [
+                        { text: "Decrease the wavelength.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "Increase the wavelength.", correct: false, experiment: "Higher wavelengths (like 700nm) provide no kick at all." },
+                        { text: "Increase the intensity.", correct: false, experiment: "Intensity only provides MORE particles, not faster ones." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "Finding the Real 'Kick' (Variation F)",
+                    text: "Which adjustment successfully pushes the particles past the -0.74V barrier?",
+                    options: [
+                        { text: "Shifting the color towards the blue/UV spectrum.", correct: true, hint: HINT_WAVELENGTH },
+                        { text: "Shifting the color towards the red spectrum.", correct: false, experiment: "Red light has no effect on this material." },
+                        { text: "Maxing out the brightness slider.", correct: false, experiment: "Brightness increases volume, but not speed." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.wave_prediction = [
+                {
+                    title: "The Wave Prediction (Variation A)",
+                    text: "The prevailing theory of the time was that light is a continuous, spreading wave (like ripples in a pond).\n\nIf light is a spreading wave, what SHOULD happen with a barely visible, ultra-dim light?",
+                    options: [
+                        { text: "The energy will slowly 'wash' over an electron until it builds up enough to pop out.", correct: true, hint: HINT_WAVE },
+                        { text: "The electron will pop out instantly, but move extremely slowly.", correct: false, experiment: "If the energy is spread thin, a single electron wouldn't get a full 'instant' dose." },
+                        { text: "The dim wave will just bounce off and do nothing.", correct: false, experiment: "Waves don't just bounce; they transfer energy over time." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Wave Prediction (Variation B)",
+                    text: "Classical wave theory predicts that a very dim light would...",
+                    options: [
+                        { text: "Take a long time to build up enough energy to eject a particle.", correct: true, hint: HINT_WAVE },
+                        { text: "Eject particles instantly, without delay.", correct: false, experiment: "A spreading wave dilutes energy, so an instant kick shouldn't be possible." },
+                        { text: "Have no effect ever, no matter how long it shines.", correct: false, experiment: "Even small waves in a pond eventually rock a boat." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Wave Prediction (Variation C)",
+                    text: "If light energy spreads out evenly like ripples in a pond, how should a low-intensity light behave?",
+                    options: [
+                        { text: "It would require a measurable time delay before emission begins.", correct: true, hint: HINT_WAVE },
+                        { text: "It would eject faster particles.", correct: false, experiment: "Dim light has less total energy, so it wouldn't make things faster." },
+                        { text: "It would create heavier particles.", correct: false, experiment: "Particle mass is constant." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Wave Prediction (Variation D)",
+                    text: "According to the old continuous wave model, a dim beam of light...",
+                    options: [
+                        { text: "Delivers energy gradually, causing a delay.", correct: true, hint: HINT_WAVE },
+                        { text: "Hits the plate like a single solid hammer.", correct: false, experiment: "Waves spread out; they don't hit like localized solid objects." },
+                        { text: "Creates instant current across the gap.", correct: false, experiment: "A spread-out wave would need time to gather enough energy on one electron." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Wave Prediction (Variation E)",
+                    text: "What is the classical expectation for a very weak, spreading light wave hitting the metal?",
+                    options: [
+                        { text: "It slowly fills the electron's energy requirement.", correct: true, hint: HINT_WAVE },
+                        { text: "It instantly ejects a high-speed electron.", correct: false, experiment: "Weak waves lack the instant power for a high-speed ejection." },
+                        { text: "It reflects completely without transferring energy.", correct: false, experiment: "Metals absorb light energy." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Wave Prediction (Variation F)",
+                    text: "If energy is spread thinly across a wave, an electron hit by dim light would...",
+                    options: [
+                        { text: "Have to wait for the energy to accumulate over time.", correct: true, hint: HINT_WAVE },
+                        { text: "Be ejected instantly.", correct: false, experiment: "Thin energy means a slow fill-up time." },
+                        { text: "Lose energy to the vacuum.", correct: false, experiment: "Electrons absorb energy from light, they don't lose it." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.time_delay = [
+                {
+                    title: "The Time Delay Test (Variation A)",
+                    text: "Let's test the wave theory. Ensure the Emissive Target is Material Alpha. Set Wavelength to 400nm. Set Brightness to 0%. Now, click Brightness up to just 5%. How long does it take for the *first* particle to appear?",
+                    options: [
+                        { text: "It takes several seconds for the wave to build up energy.", correct: false, experiment: "Watch the left plate the millisecond you change it to 5%. It happens immediately." },
+                        { text: "It appears instantly. There is no buildup time.", correct: true, hint: HINT_TIME },
+                        { text: "It never appears.", correct: false, experiment: "Particles are definitely emitting at 5%, just very few of them." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Time Delay Test (Variation B)",
+                    text: "Let's use a different target. Switch to Material Beta. Set Wavelength to 350nm. Start at 0% Brightness, then toggle to 5%. Does the dim light take minutes to build up energy, as predicted by classical physics?",
+                    options: [
+                        { text: "Yes, it takes a long time.", correct: false, experiment: "Toggle between 0% and 5%. The response is instantaneous." },
+                        { text: "No, emission begins immediately.", correct: true, hint: HINT_TIME },
+                        { text: "Yes, but only for UV light.", correct: false, experiment: "UV light also causes instantaneous emission." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Time Delay Test (Variation C)",
+                    text: "Switch to Material Gamma. Set Wavelength to 250nm. Watch closely as you switch from 0% to 5% brightness. The emission is...",
+                    options: [
+                        { text: "Gradual and delayed.", correct: false, experiment: "There is no delay. The first particle appears right away." },
+                        { text: "Instantaneous.", correct: true, hint: HINT_TIME },
+                        { text: "Non-existent.", correct: false, experiment: "There is a small, but steady stream of particles at 5%." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Time Delay Test (Variation D)",
+                    text: "Let's test Material Delta at 200nm. Does the simulation show a gradual buildup of energy before the first dot appears when you switch from 0% to 5% intensity?",
+                    options: [
+                        { text: "Yes, you have to wait for the wave.", correct: false, experiment: "Try it again. The very first dot ejects the moment you click 5%." },
+                        { text: "No buildup; the first dot is immediate.", correct: true, hint: HINT_TIME },
+                        { text: "It takes exactly 5 seconds.", correct: false, experiment: "It does not take 5 seconds. It is instant." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Time Delay Test (Variation E)",
+                    text: "Select Material Epsilon and set Wavelength to 150nm. Test the time delay by toggling Brightness from 0% to 5%. You will find that...",
+                    options: [
+                        { text: "Particles are ejected without any measurable wait time.", correct: true, hint: HINT_TIME },
+                        { text: "Particles slowly gather speed over time.", correct: false, experiment: "They pop out at maximum speed immediately." },
+                        { text: "No particles ever emit at 5%.", correct: false, experiment: "They definitely emit at 5%." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Time Delay Test (Variation F)",
+                    text: "Let's do one last test on Material Alpha at a much lower 300nm wavelength. Switching from 0% to 5% brightness reveals that, contrary to wave theory, even dim light causes...",
+                    options: [
+                        { text: "Immediate particle emission.", correct: true, hint: HINT_TIME },
+                        { text: "A massive delay.", correct: false, experiment: "There is absolutely no delay." },
+                        { text: "Zero emission.", correct: false, experiment: "Emission occurs at 5%." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.concentration = [
+                {
+                    title: "The Concentration Problem (Variation A)",
+                    text: "It happens instantly! This completely breaks the wave theory. A dim wave spreading across the whole room cannot instantly deliver a concentrated punch to a single tiny particle. How is it possible?",
+                    options: [
+                        { text: "The metal plate acts as a funnel, gathering the wave instantly into one spot.", correct: false, experiment: "Historically, making the plate larger just yielded MORE electrons, not faster ones. It's not a funnel." },
+                        { text: "The energy isn't spreading out; it's traveling in concentrated 'bullets' or packets.", correct: true, hint: HINT_CONC },
+                        { text: "The vacuum speeds up the light wave.", correct: false, experiment: "Light speed is constant; it doesn't change how the energy is delivered." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Concentration Problem (Variation B)",
+                    text: "If there's no time delay for dim light, the light's energy must be...",
+                    options: [
+                        { text: "Bundled into discrete packets.", correct: true, hint: HINT_CONC },
+                        { text: "Spreading infinitely across the tube.", correct: false, experiment: "If it spread infinitely, it would be too weak to eject an electron instantly." },
+                        { text: "Reflecting off the glass.", correct: false, experiment: "Reflections would cause a delay, not instant emission." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Concentration Problem (Variation C)",
+                    text: "The instant emission at 5% brightness proves that light energy...",
+                    options: [
+                        { text: "Stays localized in packets.", correct: true, hint: HINT_CONC },
+                        { text: "Acts exactly like a continuous water wave.", correct: false, experiment: "Water waves take time to lift a heavy object." },
+                        { text: "Comes from the battery, not the light.", correct: false, experiment: "Turn off the light (0%). The emission stops, so it's not the battery." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Concentration Problem (Variation D)",
+                    text: "To deliver a full-energy punch instantly, the light beam must consist of...",
+                    options: [
+                        { text: "Concentrated, indivisible packets of energy.", correct: true, hint: HINT_CONC },
+                        { text: "Continuous, unbroken waves.", correct: false, experiment: "Continuous waves would require a time delay to build up." },
+                        { text: "Thermal radiation only.", correct: false, experiment: "We already proved thermal (IR) radiation does nothing." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Concentration Problem (Variation E)",
+                    text: "What is the only logical explanation for a dim light instantly ejecting a high-speed particle?",
+                    options: [
+                        { text: "The light's energy is already packed into concentrated chunks.", correct: true, hint: HINT_CONC },
+                        { text: "The particle was already moving inside the metal.", correct: false, experiment: "If it was already moving, it would eject without the light." },
+                        { text: "The metal generates its own light.", correct: false, experiment: "If you turn the lamp off, nothing happens." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Concentration Problem (Variation F)",
+                    text: "Because the energy doesn't need time to 'pool' together on the surface, it must arrive as...",
+                    options: [
+                        { text: "A discrete packet or photon.", correct: true, hint: HINT_CONC },
+                        { text: "A continuous ripple.", correct: false, experiment: "Ripples dilute their energy as they spread." },
+                        { text: "A magnetic field.", correct: false, experiment: "Magnetic fields don't eject electrons like this." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.final_deduction = [
+                {
+                    title: "The Final Deduction (Variation A)",
+                    text: "Yes! If the energy arrives instantly regardless of how 'dim' the overall beam is, the energy must be traveling in localized, indivisible packets. Based on everything you've seen, what determines the energy of each individual packet?",
+                    options: [
+                        { text: "The Brightness (Luminosity)", correct: false, experiment: "Brightness just adds MORE packets, not stronger ones." },
+                        { text: "The Color (Wavelength)", correct: true, hint: HINT_FINAL },
+                        { text: "The Target Material", correct: false, experiment: "The material determines the barrier, but the light's color provides the 'kick'." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Final Deduction (Variation B)",
+                    text: "Brighter light means more packets. What makes the packets 'stronger' (faster electrons)?",
+                    options: [
+                        { text: "Higher intensity.", correct: false, experiment: "Higher intensity just gives you a higher quantity of particles." },
+                        { text: "Shorter wavelength (bluer color).", correct: true, hint: HINT_FINAL },
+                        { text: "Longer wavelength.", correct: false, experiment: "Longer wavelengths (red) provide less energy." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Final Deduction (Variation C)",
+                    text: "You proved brightness just adds MORE packets. What gives a SINGLE packet more energy?",
+                    options: [
+                        { text: "The wavelength of the light source.", correct: true, hint: HINT_FINAL },
+                        { text: "The voltage of the battery.", correct: false, experiment: "The battery slows them down or speeds them up AFTER they emit. It doesn't change the photon's energy." },
+                        { text: "The intensity of the light.", correct: false, experiment: "Intensity is just the volume of packets." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Final Deduction (Variation D)",
+                    text: "In the quantum model of light, the kinetic energy of the ejected particle depends strictly on...",
+                    options: [
+                        { text: "The light's color (wavelength).", correct: true, hint: HINT_FINAL },
+                        { text: "The brightness slider.", correct: false, experiment: "Brightness controls current (volume), not kinetic energy (speed)." },
+                        { text: "The size of the vacuum tube.", correct: false, experiment: "Tube size is irrelevant to the initial ejection energy." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Final Deduction (Variation E)",
+                    text: "What controls the 'punch' of an individual photon?",
+                    options: [
+                        { text: "The wavelength of the light.", correct: true, hint: HINT_FINAL },
+                        { text: "The number of photons.", correct: false, experiment: "1 million weak punches still won't knock out an electron if each punch is too weak." },
+                        { text: "The temperature of the room.", correct: false, experiment: "Temperature/Heat (IR light) had no effect." }
+                    ].sort(() => 0.5 - Math.random())
+                },
+                {
+                    title: "The Final Deduction (Variation F)",
+                    text: "To increase the energy of a single photon in this simulation, you must...",
+                    options: [
+                        { text: "Shift the wavelength to the left (shorter).", correct: true, hint: HINT_FINAL },
+                        { text: "Maximize the brightness.", correct: false, experiment: "Brightness doesn't change photon energy." },
+                        { text: "Increase the tube potential.", correct: false, experiment: "That affects the electron after it leaves, not the photon before it hits." }
+                    ].sort(() => 0.5 - Math.random())
+                }
+            ];
+
+            POOLS.stop_and_think = [
+                {
+                    title: "Stop and Think",
+                    text: "You've made crucial discoveries that disprove the classical wave theory of light:\n\n1. Even the dimmest light instantly kicks out electrons (no buildup time).\n2. Dimmer light just kicks out FEWER electrons, but they have the exact SAME max energy as those kicked out by bright light.\n\nIf light cannot be a long continuous wave spreading out, how MUST light travel through space to produce these exact instant, highly concentrated results?",
+                    type: "input",
+                    onCorrect: "superlative_victory",
+                    onIncorrect: "concentration"
+                }
+            ];
+            
+            POOLS.victory = [{ title: "Discovery Complete", text: "", options: [], isEnd: true }];
+
+            // Build Dynamic Trial Pools
             const mats = Object.keys(MAT_THRESHOLDS);
             
-            // Cycle 1: Threshold Wavelength (2 materials)
-            mats.sort(() => 0.5 - Math.random());
-            const cycle1 = mats.slice(0, 2);
-
-            // Cycle 2: Stopping Potential (2 materials)
-            mats.sort(() => 0.5 - Math.random());
-            const cycle2 = mats.slice(0, 2);
-
-            // Link the previous correct answer into the first dynamic cycle
-            STORY["wavelength_discovery"].options.find(o => o.correct).next = "trial_error_1_" + cycle1[0];
-
-            // Build Trial 1 Nodes
-            for (let i = 0; i < cycle1.length; i++) {
-                const matKey = cycle1[i];
+            POOLS.threshold_mapping = mats.map(matKey => {
                 const matInfo = MAT_THRESHOLDS[matKey];
-                const isLast = (i === cycle1.length - 1);
-                const nextNodeId = isLast ? "material_summary" : ("trial_error_1_" + cycle1[i + 1]);
-
-                // Generate wrong options randomly from the other materials
-                const wrongMats = Object.keys(MAT_THRESHOLDS).filter(m => m !== matKey).sort(() => 0.5 - Math.random());
-                
-                let options = [
-                    { text: `Around ${matInfo.val} nm`, next: nextNodeId, correct: true },
-                    { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].val} nm`, next: `wrong_te_1_a_${matKey}` },
-                    { text: `Around ${MAT_THRESHOLDS[wrongMats[1]].val} nm`, next: `wrong_te_1_b_${matKey}` }
-                ].sort(() => 0.5 - Math.random());
-
-                STORY[`trial_error_1_${matKey}`] = {
-                    title: `Threshold Mapping (${i + 1}/${cycle1.length})`,
-                    text: `Let's map the materials. Set Emissive Target to Material ${matInfo.name}. Set Voltage to 0.00V.\n\nUse trial and error with the Wavelength slider to find the exact color where electrons JUST START being emitted. (This is called the threshold wavelength).`,
-                    options: options
+                const wrongMats = mats.filter(m => m !== matKey).sort(() => 0.5 - Math.random());
+                return {
+                    title: `Threshold Mapping`, // (number dynamically added at render)
+                    text: `Let's map the materials. Set Emissive Target to Material ${matInfo.name}. Set Voltage to 0.00V.\n\nUse trial and error with the Wavelength slider to find the exact color where electrons JUST START being emitted.`,
+                    options: [
+                        { text: `Around ${matInfo.val} nm`, correct: true, hint: `Different metals have different atomic structures. This means the electrons are held with different binding energies, so Material ${matInfo.name} requires its own specific minimum photon energy (wavelength) to break that grip.` },
+                        { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].val} nm`, correct: false, experiment: `Make sure you have selected 'Material ${matInfo.name}' from the dropdown and try sliding the wavelength again.` },
+                        { text: `Around ${MAT_THRESHOLDS[wrongMats[1]].val} nm`, correct: false, experiment: `Start at that wavelength and slowly slide to the right until emission completely stops for Material ${matInfo.name}.` }
+                    ].sort(() => 0.5 - Math.random())
                 };
+            });
 
-                STORY[`wrong_te_1_a_${matKey}`] = {
-                    title: "Incorrect Target",
-                    text: "That might be true for another material.",
-                    experiment: `Make sure you have selected 'Material ${matInfo.name}' from the dropdown and try sliding the wavelength again.`,
-                    options: [{ text: "Let me try again.", next: `trial_error_1_${matKey}` }]
-                };
-                STORY[`wrong_te_1_b_${matKey}`] = {
-                    title: "Check Emission",
-                    text: "We want the highest wavelength (lowest energy) where they *just begin* to emit.",
-                    experiment: `Start at that wavelength and slowly slide to the right until emission completely stops for Material ${matInfo.name}.`,
-                    options: [{ text: "Let me try again.", next: `trial_error_1_${matKey}` }]
-                };
-            }
-
-            // Summary node bridging Trial 1 to Trial 2
-            STORY["material_summary"] = {
+            POOLS.material_summary = [{
                 title: "Material Thresholds",
                 text: "Excellent work! As you have just demonstrated, different materials require different wavelengths of light to kick out an electron.\n\nThis tells us that each metal holds onto its electrons with a different 'grip' (Work Function).",
-                options: [
-                    { text: "Continue to the next trial.", next: "trial_error_2_" + cycle2[0], correct: true }
-                ]
-            };
+                options: [{ text: "Continue to the next trial.", correct: true }]
+            }];
 
-            // Build Trial 2 Nodes
-            for (let i = 0; i < cycle2.length; i++) {
-                const matKey = cycle2[i];
+            POOLS.stopping_potential = mats.map(matKey => {
                 const matInfo = MAT_THRESHOLDS[matKey];
-                const isLast = (i === cycle2.length - 1);
-                const nextNodeId = isLast ? "the_wave_prediction" : ("trial_error_2_" + cycle2[i + 1]);
-
-                const wrongMats = Object.keys(MAT_THRESHOLDS).filter(m => m !== matKey).sort(() => 0.5 - Math.random());
-                
-                let options = [
-                    { text: `Around ${matInfo.testVs} V`, next: nextNodeId, correct: true },
-                    { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].testVs} V`, next: `wrong_te_2_${matKey}` },
-                    { text: `Around ${(matInfo.testVs - 1.25).toFixed(2)} V`, next: `wrong_te_2_${matKey}` }
-                ].sort(() => 0.5 - Math.random());
-
-                STORY[`trial_error_2_${matKey}`] = {
-                    title: `Stopping Potential Mapping (${i + 1}/${cycle2.length})`,
+                const wrongMats = mats.filter(m => m !== matKey).sort(() => 0.5 - Math.random());
+                return {
+                    title: `Stopping Potential Mapping`, // (number dynamically added at render)
                     text: `Now let's test stopping potential directly.\n\nSwitch to Material ${matInfo.name}. Set Wavelength to ${matInfo.testWl}nm. Adjust the Tube Potential until the electrons just barely stop before hitting the right plate (current meter drops to exactly 0.0000 A).`,
-                    options: options
+                    options: [
+                        { text: `Around ${matInfo.testVs} V`, correct: true, hint: `The exact stopping potential reveals the maximum kinetic energy the electrons have after escaping. This energy depends entirely on the wavelength of light and the specific material (${matInfo.name}).` },
+                        { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].testVs} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` },
+                        { text: `Around ${(matInfo.testVs - 1.25).toFixed(2)} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` }
+                    ].sort(() => 0.5 - Math.random())
                 };
+            });
 
-                STORY[`wrong_te_2_${matKey}`] = {
-                    title: "Check your settings",
-                    text: "Make sure you are following the parameters exactly.",
-                    experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.`,
-                    options: [{ text: "Let me try again.", next: `trial_error_2_${matKey}` }]
-                };
-            }
+            STAGE_SEQUENCE = [
+                'intro', 'charge', 'intensity', 'wavelength',
+                'threshold_mapping',
+                'material_summary',
+                'stopping_potential',
+                'wave_prediction', 'time_delay', 'stop_and_think',
+                'concentration', 'final_deduction', 'victory'
+            ];
         }
 
         let state = { 
             studentName: "",
             wavelength: 400, intensity: 50, voltage: 0, target: 'Sodium', 
             current: 0, electrons: [], impactsThisFrame: 0, impactBuffer: [],
-            
-            // UI States
             highlightStop: false, showGraph: false,
-
-            // Inquiry Engine History & State
-            currentNode: 'start',
             penalties: 0, corrections: 0,
-            nodeAttempts: {},
-            history: [],
-            historyPointer: -1,
+            history: [], historyPointer: -1,
+            stageIndex: 0,
             scoreCalculated: false,
             timeNodeLoaded: Date.now(),
-            winningHypothesis: "",
-            winningKeyword: ""
+            winningHypothesis: "", winningKeyword: "",
+            t1_completed: [], t2_completed: []
         };
 
         const canvas = document.getElementById('labCanvas');
@@ -574,8 +826,13 @@
             document.getElementById('start-overlay').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('start-overlay').classList.add('hidden');
-                setupDynamicNodes();
-                state.history = [{ nodeId: 'start' }];
+                initializeEngine();
+                state.stageIndex = 0;
+                state.history = [{ 
+                    stageId: STAGE_SEQUENCE[state.stageIndex], 
+                    variantIndex: Math.floor(Math.random() * POOLS[STAGE_SEQUENCE[state.stageIndex]].length),
+                    attempts: 0
+                }];
                 state.historyPointer = 0;
                 state.timeNodeLoaded = Date.now();
                 renderStoryNode();
@@ -655,9 +912,65 @@
             }
         }
 
+        function advanceStageLogic(historyItem) {
+            let advanceStage = true;
+            const currentStageId = historyItem.stageId;
+
+            if (currentStageId === 'threshold_mapping') {
+                if (!state.t1_completed.includes(historyItem.variantIndex)) {
+                    state.t1_completed.push(historyItem.variantIndex);
+                }
+                if (state.t1_completed.length < 2) advanceStage = false;
+            } else if (currentStageId === 'stopping_potential') {
+                if (!state.t2_completed.includes(historyItem.variantIndex)) {
+                    state.t2_completed.push(historyItem.variantIndex);
+                }
+                if (state.t2_completed.length < 2) advanceStage = false;
+            }
+
+            let nextStageId, nextVariantIndex;
+            if (advanceStage) {
+                state.stageIndex++;
+                nextStageId = STAGE_SEQUENCE[state.stageIndex];
+                nextVariantIndex = Math.floor(Math.random() * (POOLS[nextStageId]?.length || 1));
+            } else {
+                nextStageId = currentStageId;
+                let completed = currentStageId === 'threshold_mapping' ? state.t1_completed : state.t2_completed;
+                let availableVariants = POOLS[nextStageId].map((_, i) => i).filter(i => !completed.includes(i));
+                nextVariantIndex = availableVariants[Math.floor(Math.random() * availableVariants.length)];
+            }
+            
+            state.history.push({ 
+                stageId: nextStageId, 
+                variantIndex: nextVariantIndex,
+                attempts: 0
+            });
+            state.historyPointer++;
+            renderStoryNode();
+        }
+
+        function forceBypass(correctOpt, historyItem, container) {
+            const hintMsg = correctOpt.hint || "Review the parameters carefully to see why this is true.";
+            container.innerHTML = `
+                <div class="bg-red-900/30 border border-red-500/50 p-4 rounded-lg mt-2 text-center shadow-lg">
+                    <h4 class="text-red-400 font-bold mb-2 uppercase text-[10px] tracking-wider"><i data-lucide="alert-triangle" size="14" class="inline mr-1"></i>Maximum Attempts Reached</h4>
+                    <p class="text-sm text-slate-200 mb-3">The correct deduction is: <strong class="text-white block mt-1">${correctOpt.text}</strong></p>
+                    <p class="text-xs text-blue-300 mb-4 bg-blue-900/20 p-2 rounded border border-blue-500/30">${hintMsg}</p>
+                    <button id="btn-force-proceed" class="w-full text-center p-3 text-sm rounded bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors shadow-lg">Acknowledge & Proceed</button>
+                </div>
+            `;
+            lucide.createIcons();
+            document.getElementById('btn-force-proceed').onclick = () => {
+                historyItem.resolved = true;
+                historyItem.forced = true;
+                historyItem.selectedOptIndex = POOLS[historyItem.stageId][historyItem.variantIndex].options.indexOf(correctOpt);
+                advanceStageLogic(historyItem);
+            };
+        }
+
         function handleOptionClick(optIndex, btnElement) {
             const historyItem = state.history[state.historyPointer];
-            const node = STORY[historyItem.nodeId];
+            const node = POOLS[historyItem.stageId][historyItem.variantIndex];
             const option = node.options[optIndex];
             const timeSpent = Date.now() - state.timeNodeLoaded;
 
@@ -668,51 +981,44 @@
 
             penaltyBox.classList.add('hidden');
 
-            const isWrong = !option.correct && !node.isCorrection && !node.isEnd;
-            let hitMaxHints = false;
-
-            if (isWrong) {
+            if (!option.correct && !node.isEnd) {
                 state.corrections++;
-                state.nodeAttempts[historyItem.nodeId] = (state.nodeAttempts[historyItem.nodeId] || 0) + 1;
+                historyItem.attempts = (historyItem.attempts || 0) + 1;
                 
-                if (state.nodeAttempts[historyItem.nodeId] >= 6) {
+                if (historyItem.attempts >= 3) {
                     const correctOpt = node.options.find(o => o.correct);
-                    const msg = `MAX HINTS REACHED. The correct scientific deduction is: "${correctOpt.text}". Please select it to proceed.`;
-                    showToast(msg, false); 
-                    hitMaxHints = true;
+                    forceBypass(correctOpt, historyItem, document.getElementById('options-container'));
+                    return; 
                 }
-            }
-            
-            if (hitMaxHints) return; // Wait for them to actually click the right answer
+                
+                document.getElementById('experiment-text').textContent = option.experiment || "Review your parameters.";
+                document.getElementById('experiment-box').classList.remove('hidden');
 
-            // Visual feedback on the button
-            const isCorrect = option.correct || (!isWrong && option.next !== historyItem.nodeId);
-            if (isCorrect) {
-                btnElement.classList.remove('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
-                btnElement.classList.add('bg-green-600', 'border-green-400', 'text-white', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]');
-            } else {
                 btnElement.classList.remove('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
                 btnElement.classList.add('bg-red-900/80', 'border-red-500', 'text-red-200');
+                setTimeout(() => {
+                    btnElement.classList.add('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
+                    btnElement.classList.remove('bg-red-900/80', 'border-red-500', 'text-red-200');
+                }, 1000);
+                return;
             }
 
-            // Disable all buttons during visual transition
+            btnElement.classList.remove('bg-slate-900', 'hover:bg-slate-700', 'border-slate-700', 'text-slate-300');
+            btnElement.classList.add('bg-green-600', 'border-green-400', 'text-white', 'shadow-[0_0_15px_rgba(34,197,94,0.4)]');
+
             const container = document.getElementById('options-container');
             const btns = container.querySelectorAll('button');
             btns.forEach(b => b.disabled = true);
 
-            // Delay the transition slightly to show the color change
             setTimeout(() => {
+                historyItem.resolved = true;
                 historyItem.selectedOptIndex = optIndex;
-                state.currentNode = option.next;
-                state.history.push({ nodeId: state.currentNode });
-                state.historyPointer++;
-                renderStoryNode();
+                advanceStageLogic(historyItem);
             }, 600);
         }
 
         async function handleTextInputSubmit(btnElement) {
             const historyItem = state.history[state.historyPointer];
-            const node = STORY[historyItem.nodeId];
             const inputField = document.getElementById('student-text-input');
             const text = inputField.value.trim();
             
@@ -758,11 +1064,24 @@
 
             setTimeout(() => {
                 historyItem.textInput = text;
-                state.currentNode = isCorrect ? node.onCorrect : node.onIncorrect;
-                state.history.push({ nodeId: state.currentNode });
+                historyItem.resolved = true;
+                
+                if (isCorrect) {
+                    state.stageIndex = STAGE_SEQUENCE.length - 1; // Jump to victory
+                    historyItem.isSuperlative = true;
+                } else {
+                    state.stageIndex++; // Jump to concentration
+                }
+
+                const nextStageId = STAGE_SEQUENCE[state.stageIndex];
+                state.history.push({ 
+                    stageId: nextStageId,
+                    variantIndex: Math.floor(Math.random() * (POOLS[nextStageId]?.length || 1)),
+                    attempts: 0
+                });
                 state.historyPointer++;
                 renderStoryNode();
-            }, 1200); // Give them time to read the button result
+            }, 1500); 
         }
 
         function restartLab() {
@@ -772,23 +1091,29 @@
                 wavelength: 400, intensity: 50, voltage: 0, target: 'Sodium', 
                 current: 0, electrons: [], impactsThisFrame: 0, impactBuffer: [],
                 highlightStop: false, showGraph: false,
-                currentNode: 'start', penalties: 0, corrections: 0, nodeAttempts: {},
-                history: [{ nodeId: 'start' }], historyPointer: 0, scoreCalculated: false,
-                timeNodeLoaded: Date.now(),
-                winningHypothesis: "", winningKeyword: ""
+                penalties: 0, corrections: 0, nodeAttempts: {}, history: [], historyPointer: 0,
+                stageIndex: 0, scoreCalculated: false, timeNodeLoaded: Date.now(),
+                winningHypothesis: "", winningKeyword: "",
+                t1_completed: [], t2_completed: []
             };
             
             wavelengthInput.value = 400; intensityInput.value = 50; voltageInput.value = 0; targetInput.value = "Sodium";
             adjust('wavelength', 0); adjust('intensity', 0); adjust('voltage', 0);
             
-            setupDynamicNodes();
+            initializeEngine();
+            state.history = [{ 
+                stageId: STAGE_SEQUENCE[0], 
+                variantIndex: Math.floor(Math.random() * POOLS[STAGE_SEQUENCE[0]].length),
+                attempts: 0
+            }];
             renderStoryNode();
         }
 
         function renderStoryNode() {
             const historyItem = state.history[state.historyPointer];
-            const node = STORY[historyItem.nodeId];
+            const node = POOLS[historyItem.stageId][historyItem.variantIndex];
             const isReview = state.historyPointer < state.history.length - 1;
+            const isEnd = (historyItem.stageId === 'victory');
             
             if (!isReview) state.timeNodeLoaded = Date.now();
 
@@ -796,24 +1121,29 @@
             document.getElementById('btn-fwd-story').disabled = (state.historyPointer === state.history.length - 1);
 
             const titleEl = document.getElementById('story-title');
-            titleEl.textContent = node.title;
             
-            if (node.isSuperlative || historyItem.nodeId === 'superlative_victory') {
+            let displayTitle = node.title || "Victory";
+            if (historyItem.stageId === 'threshold_mapping') {
+                let num = isReview ? state.t1_completed.indexOf(historyItem.variantIndex) + 1 : state.t1_completed.length + 1;
+                if (num === 0) num = 1; 
+                displayTitle = `Threshold Mapping (${num}/2)`;
+            } else if (historyItem.stageId === 'stopping_potential') {
+                let num = isReview ? state.t2_completed.indexOf(historyItem.variantIndex) + 1 : state.t2_completed.length + 1;
+                if (num === 0) num = 1;
+                displayTitle = `Stopping Potential Mapping (${num}/2)`;
+            }
+            titleEl.textContent = displayTitle;
+            
+            if (historyItem.isSuperlative || state.winningHypothesis) {
                 titleEl.classList.add('pulse-text', 'text-blue-400');
             } else {
                 titleEl.classList.remove('pulse-text', 'text-blue-400');
             }
 
-            document.getElementById('story-text').textContent = node.text;
+            document.getElementById('story-text').textContent = node.text || "";
 
             const expBox = document.getElementById('experiment-box');
-            if (node.experiment) {
-                document.getElementById('experiment-text').textContent = node.experiment;
-                expBox.classList.remove('hidden');
-                node.isCorrection = true; 
-            } else {
-                expBox.classList.add('hidden');
-            }
+            expBox.classList.add('hidden');
 
             const container = document.getElementById('options-container');
             container.innerHTML = '';
@@ -827,7 +1157,7 @@
                 inputField.rows = 3;
                 inputField.id = 'student-text-input';
                 
-                if (isReview) {
+                if (isReview || historyItem.resolved) {
                     inputField.value = historyItem.textInput || "";
                     inputField.disabled = true;
                     inputField.classList.add('opacity-70');
@@ -845,7 +1175,7 @@
                 
                 container.appendChild(inputWrap);
 
-            } else if (node.isEnd) {
+            } else if (isEnd) {
                 let ec = 0;
                 let base = 15;
                 if (state.corrections === 0) ec = 5;
@@ -856,10 +1186,8 @@
                 else if (state.corrections >= 5 && state.corrections <= 10) ec = 0;
                 else base = Math.max(0, 15 - (state.corrections - 10));
                 
-                let isSuperlative = (historyItem.nodeId === 'superlative_victory');
-                if (isSuperlative) {
-                    ec += 2; 
-                }
+                let isSuperlative = !!state.winningHypothesis;
+                if (isSuperlative) ec += 2; 
 
                 let finalScore = Math.max(0, base - state.penalties);
                 let totalScore = finalScore + ec;
@@ -884,6 +1212,7 @@
                 }
 
                 document.getElementById('story-text').textContent = historyItem.endMessage || "";
+                titleEl.textContent = isSuperlative ? "Exceptional Deduction!" : "Discovery Complete";
 
                 let specialMsg = '';
                 if (historyItem.isSuperlative || isSuperlative) {
@@ -904,10 +1233,10 @@
                         <div class="font-mono text-5xl font-bold text-white">${historyItem.totalScore || totalScore}<span class="text-2xl text-slate-500">/15</span></div>
                         ${(historyItem.ec || ec) > 0 ? `<div class="text-sm font-bold text-green-400 mt-2">+${historyItem.ec || ec} Extra Credit Earned</div>` : ''}
                         ${specialMsg}
-                        <div class="mt-6 pt-4 border-t border-slate-800">
-                            <div class="text-xs text-slate-400 uppercase tracking-widest font-bold">${state.studentName}</div>
-                            <div class="text-xs text-slate-500 uppercase tracking-widest mt-1">Hertzian Vacuum Lab</div>
-                            <div class="text-[10px] text-slate-600 font-mono mt-3">Auth: HZ-${hashCode(state.studentName + (historyItem.totalScore || totalScore) + new Date().toISOString().split('T')[0])}</div>
+                        <div class="mt-6 pt-4 border-t border-slate-800 flex flex-col gap-1">
+                            <div class="text-sm text-slate-400 font-bold tracking-wider uppercase">${state.studentName}</div>
+                            <div class="text-xs text-slate-500 uppercase tracking-widest">Hertzian Vacuum Lab</div>
+                            <div class="text-[10px] text-slate-600 font-mono mt-1">Auth: HZ-${hashCode(state.studentName + (historyItem.totalScore || totalScore) + new Date().toISOString().split('T')[0])}</div>
                         </div>
                     </div>
                 `;
@@ -921,24 +1250,35 @@
                 }
 
             } else {
-                node.options.forEach((opt, i) => {
-                    const b = document.createElement('button');
-                    b.className = 'w-full text-left p-3 text-[12px] rounded border border-slate-700 bg-slate-900 font-medium transition-all shadow-sm';
-                    b.textContent = opt.text;
-                    
-                    if (isReview) {
-                        b.disabled = true;
-                        if (historyItem.selectedOptIndex === i) {
-                            b.classList.add('bg-blue-900/50', 'border-blue-500', 'text-white');
+                if (historyItem.attempts >= 3 && !historyItem.resolved) {
+                    const correctOpt = node.options.find(o => o.correct);
+                    forceBypass(correctOpt, historyItem, container);
+                } else {
+                    node.options.forEach((opt, i) => {
+                        const b = document.createElement('button');
+                        b.className = 'w-full text-left p-3 text-[12px] rounded border border-slate-700 bg-slate-900 font-medium transition-all shadow-sm';
+                        b.textContent = opt.text;
+                        
+                        if (historyItem.resolved || isReview) {
+                            b.disabled = true;
+                            if (historyItem.selectedOptIndex === i) {
+                                if (historyItem.forced && opt.correct) {
+                                    b.classList.add('bg-blue-900/50', 'border-blue-500', 'text-white');
+                                } else if (opt.correct) {
+                                    b.classList.add('bg-green-600', 'border-green-400', 'text-white');
+                                } else {
+                                    b.classList.add('bg-red-900/50', 'border-red-500', 'text-red-200');
+                                }
+                            } else {
+                                b.classList.add('opacity-40');
+                            }
                         } else {
-                            b.classList.add('opacity-40');
+                            b.classList.add('hover:bg-slate-700', 'hover:border-blue-500', 'text-slate-300');
+                            b.onclick = (e) => handleOptionClick(i, e.currentTarget);
                         }
-                    } else {
-                        b.classList.add('hover:bg-slate-700', 'hover:border-blue-500', 'text-slate-300');
-                        b.onclick = (e) => handleOptionClick(i, e.currentTarget);
-                    }
-                    container.appendChild(b);
-                });
+                        container.appendChild(b);
+                    });
+                }
             }
             
             const navBox = document.getElementById('narrative-box');
@@ -1000,7 +1340,7 @@
         function drawGraph() {
             if (!state.showGraph) return;
             graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
-            const workFunction = TARGETS[state.target];
+            const workFunction = TARGETS[state.target].val ? (1240.71 / TARGETS[state.target].val) : TARGETS[state.target];
             
             graphCtx.strokeStyle = 'rgba(255,255,255,0.1)';
             graphCtx.lineWidth = 1;
@@ -1017,7 +1357,8 @@
 
             for(let wl = 100; wl <= 800; wl+=5) {
                 const photonEnergy = 1240.71 / wl;
-                const maxKE = Math.max(0, photonEnergy - workFunction);
+                const wf = (typeof workFunction === 'object') ? (1240.71 / workFunction.val) : workFunction;
+                const maxKE = Math.max(0, photonEnergy - wf);
                 let dist = 10.0; 
                 if (maxKE <= 0) dist = 0;
                 else if (state.voltage < 0) {
@@ -1039,7 +1380,9 @@
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const workFunction = TARGETS[state.target];
+            let workFunction = TARGETS[state.target];
+            if (typeof workFunction === 'object') workFunction = 1240.71 / workFunction.val;
+            
             const photonEnergy = 1240.71 / state.wavelength; 
             const maxKE = Math.max(0, photonEnergy - workFunction);
             
