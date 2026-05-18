@@ -271,6 +271,8 @@
         const HINT_TIME = "Even at an extremely dim setting (5%), the very first particle pops out immediately. This completely breaks the classical prediction that a dim wave needs time to build up energy.";
         const HINT_CONC = "Since the energy arrives instantly regardless of how 'dim' the overall beam is, it cannot be spreading out. The energy must be traveling in localized, indivisible packets.";
         const HINT_FINAL = "Since brighter light only increases the number of packets, but bluer light increases the speed of the particles, the energy of a single packet must be determined solely by its color (wavelength).";
+        
+        const SETUP_CHARGE = "Make sure your light is at 400nm and 50% Brightness on Material Alpha. Set the Tube Potential to exactly -1.00 V. (A negative Tube Potential means the right plate is negative).";
 
         function initializeEngine() {
             POOLS.intro = [
@@ -280,7 +282,8 @@
                     options: [
                         { text: "The light is heating the vacuum, creating a conductive bridge.", correct: false, experiment: "Infrared (red) light transmits more heat. Change the Source Color to 750nm at 100% brightness. Does current flow? No, heat isn't the cause." },
                         { text: "The light waves are physically carrying electricity across the gap.", correct: false, experiment: "Look closely at the beam. The dots move straight right, while the light beam angles down. They are independent." },
-                        { text: "The light is dislodging particles from the left plate.", correct: true, hint: HINT_INTRO }
+                        { text: "The light is dislodging particles from the left plate.", correct: true, hint: HINT_INTRO },
+                        { text: "The light is magnetically attracting the plates.", correct: false, experiment: "Light is not a magnet, and the plates don't move." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -289,7 +292,8 @@
                     options: [
                         { text: "Thermal distortion waves in the vacuum.", correct: false, experiment: "Thermal waves would bend light, not register as electrical current on the meter." },
                         { text: "Light waves bending toward the positive plate.", correct: false, experiment: "Light travels in straight lines; it wouldn't be pulled by a battery." },
-                        { text: "Physical particles ejected by the light.", correct: true, hint: HINT_INTRO }
+                        { text: "Physical particles ejected by the light.", correct: true, hint: HINT_INTRO },
+                        { text: "Drops of condensation from the vacuum.", correct: false, experiment: "There is no moisture in a vacuum." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -298,7 +302,8 @@
                     options: [
                         { text: "The vacuum itself has become conductive.", correct: false, experiment: "If the vacuum were conductive, current would flow even without the light." },
                         { text: "The light is knocking physical pieces off the metal.", correct: true, hint: HINT_INTRO },
-                        { text: "The light beam is acting as a solid wire bridging the plates.", correct: false, experiment: "The beam hits the bottom of the plate, but current flows straight across the middle." }
+                        { text: "The light beam is acting as a solid wire bridging the plates.", correct: false, experiment: "The beam hits the bottom of the plate, but current flows straight across the middle." },
+                        { text: "The battery is shooting sparks through the light.", correct: false, experiment: "Turn the voltage to 0V. It still happens, so it's not the battery's sparks." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -307,7 +312,8 @@
                     options: [
                         { text: "The light beam frees charged particles from the surface.", correct: true, hint: HINT_INTRO },
                         { text: "The light heats the vacuum, allowing sparks to jump.", correct: false, experiment: "Test heat with 750nm light (IR). It creates zero current." },
-                        { text: "The battery pulls electricity through the light beam.", correct: false, experiment: "Turn the voltage to 0.00V. The particles still cross the gap." }
+                        { text: "The battery pulls electricity through the light beam.", correct: false, experiment: "Turn the voltage to 0.00V. The particles still cross the gap." },
+                        { text: "The light creates a gravitational pull.", correct: false, experiment: "Gravity pulls down, but these move straight across." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -316,7 +322,8 @@
                     options: [
                         { text: "Invisible particles are being released by the light.", correct: true, hint: HINT_INTRO },
                         { text: "A thermal bridge forms between the plates.", correct: false, experiment: "Heat (750nm light) produces no effect at all." },
-                        { text: "Light is reflecting back and forth, carrying charge.", correct: false, experiment: "The dots only move in one direction." }
+                        { text: "Light is reflecting back and forth, carrying charge.", correct: false, experiment: "The dots only move in one direction." },
+                        { text: "The glass is melting and spraying.", correct: false, experiment: "The glass remains perfectly intact." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -325,7 +332,8 @@
                     options: [
                         { text: "Heating the metal until it melts.", correct: false, experiment: "If it were melting, the plate would disappear over time." },
                         { text: "Ejecting distinct particles into the vacuum.", correct: true, hint: HINT_INTRO },
-                        { text: "Creating a wave vortex in the empty space.", correct: false, experiment: "Vortices would spin, but these move in straight lines." }
+                        { text: "Creating a wave vortex in the empty space.", correct: false, experiment: "Vortices would spin, but these move in straight lines." },
+                        { text: "Pushing the air across the tube.", correct: false, experiment: "It's a vacuum tube. There is no air inside." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -333,56 +341,62 @@
             POOLS.charge = [
                 {
                     title: "Identifying the Particles (Variation A)",
-                    text: "Make sure your light is at 400nm and 50% Brightness on Material Alpha.\n\nSet the Tube Potential to exactly -1.00 V. (A negative Tube Potential means the right plate is negative). What happens to the particles?",
+                    text: `${SETUP_CHARGE}\n\nWhat happens to the particles?`,
                     options: [
                         { text: "They are pulled faster, so they must be positively charged.", correct: false, experiment: "Watch the simulation closely. At -1.00V, they slow down and turn around." },
                         { text: "They are pushed back, so they must be negatively charged.", correct: true, hint: HINT_CHARGE },
-                        { text: "They slow down because the light is getting tired.", correct: false, experiment: "Set Voltage back to 0.00V. They speed back up, so the light isn't tired." }
+                        { text: "They slow down because the light is getting tired.", correct: false, experiment: "Set Voltage back to 0.00V. They speed back up, so the light isn't tired." },
+                        { text: "They stop because they hit an invisible wall.", correct: false, experiment: "They turn around smoothly due to a field, they don't bounce off a hard surface." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
                     title: "Identifying the Particles (Variation B)",
-                    text: "A negative voltage (-1.00V) repels the emitted particles before they reach the right plate. This proves the particles are:",
+                    text: `${SETUP_CHARGE}\n\nThis negative voltage repels the emitted particles before they reach the right plate. This proves the particles are:`,
                     options: [
                         { text: "Positively charged.", correct: false, experiment: "Opposite charges attract. If they were positive, they would speed up toward the negative plate." },
                         { text: "Negatively charged.", correct: true, hint: HINT_CHARGE },
-                        { text: "Electrically neutral.", correct: false, experiment: "If they were neutral, the battery voltage would have no effect on them." }
+                        { text: "Electrically neutral.", correct: false, experiment: "If they were neutral, the battery voltage would have no effect on them." },
+                        { text: "Made of pure light energy.", correct: false, experiment: "Light (photons) has no mass and isn't repelled by electrical battery voltage." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
                     title: "Identifying the Particles (Variation C)",
-                    text: "Notice how the dots slow down and reverse when the right plate is made negative (-1.00V). Why?",
+                    text: `${SETUP_CHARGE}\n\nNotice how the dots slow down and reverse when the right plate is made negative. Why?`,
                     options: [
                         { text: "Like charges repel, so the dots must be negatively charged.", correct: true, hint: HINT_CHARGE },
                         { text: "They ran out of momentum halfway across.", correct: false, experiment: "At 0.00V they cross easily. The voltage is what stops them." },
-                        { text: "The vacuum pushed them back.", correct: false, experiment: "A vacuum is empty; it cannot push." }
+                        { text: "The vacuum pushed them back.", correct: false, experiment: "A vacuum is empty; it cannot push." },
+                        { text: "The negative plate absorbed them from a distance.", correct: false, experiment: "If they were absorbed, they would disappear, not turn around and fly back." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
                     title: "Identifying the Particles (Variation D)",
-                    text: "Apply a -1.00V potential. The particles turn back and don't reach the other side. This indicates:",
+                    text: `${SETUP_CHARGE}\n\nThe particles turn back and don't reach the other side. This indicates:`,
                     options: [
                         { text: "They carry a negative electrical charge.", correct: true, hint: HINT_CHARGE },
                         { text: "They are too heavy to make the jump.", correct: false, experiment: "Weight doesn't change based on the battery voltage." },
-                        { text: "The light is too dim.", correct: false, experiment: "Change brightness to 100%. They still turn around at the same spot." }
+                        { text: "The light is too dim.", correct: false, experiment: "Change brightness to 100%. They still turn around at the same spot." },
+                        { text: "The glass tube is repelling them.", correct: false, experiment: "The battery creates the potential between the plates, not the glass." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
                     title: "Identifying the Particles (Variation E)",
-                    text: "Because the particles are pushed away by a negative battery setting on the right plate, they must be...",
+                    text: `${SETUP_CHARGE}\n\nBecause the particles are pushed away by a negative battery setting on the right plate, they must be...`,
                     options: [
                         { text: "Protons (positive charges).", correct: false, experiment: "Protons would be attracted to a negative plate." },
                         { text: "Photons (neutral charges).", correct: false, experiment: "Photons are unaffected by electrical fields." },
-                        { text: "Electrons (negative charges).", correct: true, hint: HINT_CHARGE }
+                        { text: "Electrons (negative charges).", correct: true, hint: HINT_CHARGE },
+                        { text: "Neutrons (neutral charges).", correct: false, experiment: "Neutral particles are completely unaffected by electrical voltage." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
                     title: "Identifying the Particles (Variation F)",
-                    text: "What happens to the emitted particles when they encounter a negative potential?",
+                    text: `${SETUP_CHARGE}\n\nWhat happens to the emitted particles when they encounter this negative potential?`,
                     options: [
                         { text: "They accelerate rapidly.", correct: false, experiment: "Watch the animation at -1.00V. They clearly decelerate." },
                         { text: "They are repelled because they are negatively charged.", correct: true, hint: HINT_CHARGE },
-                        { text: "They turn back into light.", correct: false, experiment: "They return to the left plate, they don't vanish." }
+                        { text: "They turn back into light.", correct: false, experiment: "They return to the left plate, they don't vanish." },
+                        { text: "They are attracted to the right plate.", correct: false, experiment: "Look at their paths. They curve back to the left, moving away from the right plate." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -394,7 +408,8 @@
                     options: [
                         { text: "The electrons hit the plate now. Brighter light means faster electrons.", correct: false, experiment: "Toggle between 10% and 100%. The maximum distance they travel is identical." },
                         { text: "They stop in the exact same place. Brighter light just creates MORE electrons.", correct: true, hint: HINT_INTENSITY },
-                        { text: "They stop shorter. Bright light slows them down.", correct: false, experiment: "Look at the leading edge of the electron cloud. It reaches the exact same point." }
+                        { text: "They stop shorter. Bright light slows them down.", correct: false, experiment: "Look at the leading edge of the electron cloud. It reaches the exact same point." },
+                        { text: "They move in a wider spread.", correct: false, experiment: "The beam width of the particles stays the same." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -403,7 +418,8 @@
                     options: [
                         { text: "Yes, they go faster and hit the plate.", correct: false, experiment: "Watch the current meter. It remains at 0.0000 A because none reach the plate." },
                         { text: "No, it only increases the total number of particles emitted.", correct: true, hint: HINT_INTENSITY },
-                        { text: "Yes, because they get heavier.", correct: false, experiment: "Electrons always have the exact same mass." }
+                        { text: "Yes, because they get heavier.", correct: false, experiment: "Electrons always have the exact same mass." },
+                        { text: "Yes, because brighter light is hotter.", correct: false, experiment: "We already proved heat doesn't cause the emission." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -412,7 +428,8 @@
                     options: [
                         { text: "Yes, the bright light pushes them across.", correct: false, experiment: "Toggle brightness. The leading edge of the swarm doesn't move forward." },
                         { text: "No, their maximum reach remains identical.", correct: true, hint: HINT_INTENSITY },
-                        { text: "No, they don't emit at all at 100%.", correct: false, experiment: "At 100% brightness, there are clearly many more particles." }
+                        { text: "No, they don't emit at all at 100%.", correct: false, experiment: "At 100% brightness, there are clearly many more particles." },
+                        { text: "Yes, the brighter light pulls them.", correct: false, experiment: "Light pushes, if anything. But their distance doesn't change here." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -421,7 +438,8 @@
                     options: [
                         { text: "Pushes further right into the plate.", correct: false, experiment: "Look closely. It stops exactly where it did before." },
                         { text: "Stays at the exact same distance.", correct: true, hint: HINT_INTENSITY },
-                        { text: "Retreats back to the left.", correct: false, experiment: "The distance does not decrease." }
+                        { text: "Retreats back to the left.", correct: false, experiment: "The distance does not decrease." },
+                        { text: "Moves randomly.", correct: false, experiment: "The leading edge is very consistent and stops at a specific distance." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -430,7 +448,8 @@
                     options: [
                         { text: "Yes, the stopping distance increases.", correct: false, experiment: "They still stop before hitting the right plate." },
                         { text: "The stopping distance does not change.", correct: true, hint: HINT_INTENSITY },
-                        { text: "Yes, the stopping distance decreases.", correct: false, experiment: "The distance does not decrease." }
+                        { text: "Yes, the stopping distance decreases.", correct: false, experiment: "The distance does not decrease." },
+                        { text: "Yes, they turn around instantly.", correct: false, experiment: "They still travel the same distance before turning." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -439,7 +458,8 @@
                     options: [
                         { text: "It makes the particles physically bigger.", correct: false, experiment: "Electrons are fundamental particles; their size doesn't change." },
                         { text: "It just ejects a larger quantity of particles.", correct: true, hint: HINT_INTENSITY },
-                        { text: "It makes the metal glow hot.", correct: false, experiment: "We already proved heat isn't causing this." }
+                        { text: "It makes the metal glow hot.", correct: false, experiment: "We already proved heat isn't causing this." },
+                        { text: "It increases their electrical charge.", correct: false, experiment: "All electrons have the exact same fundamental charge." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -451,7 +471,8 @@
                     options: [
                         { text: "Shorter wavelengths (bluer light) make the electrons move faster and cross the gap.", correct: true, hint: HINT_WAVELENGTH },
                         { text: "Shorter wavelengths just create more electrons, like brightness did.", correct: false, experiment: "Look at the current meter. They are now hitting the plate! They must have more speed." },
-                        { text: "Shorter wavelengths slow the electrons down.", correct: false, experiment: "If they slowed down, they wouldn't reach the plate. At 300nm, they easily hit it." }
+                        { text: "Shorter wavelengths slow the electrons down.", correct: false, experiment: "If they slowed down, they wouldn't reach the plate. At 300nm, they easily hit it." },
+                        { text: "Shorter wavelengths make the particles heavier.", correct: false, experiment: "Electrons always have the same mass." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -460,7 +481,8 @@
                     options: [
                         { text: "It increases, allowing them to cross the gap.", correct: true, hint: HINT_WAVELENGTH },
                         { text: "It decreases.", correct: false, experiment: "At 300nm they hit the plate. They must have more energy, not less." },
-                        { text: "It stays exactly the same.", correct: false, experiment: "If it stayed the same, they would still stop at the exact same spot." }
+                        { text: "It stays exactly the same.", correct: false, experiment: "If it stayed the same, they would still stop at the exact same spot." },
+                        { text: "It makes them vibrate in place.", correct: false, experiment: "They clearly move across the gap." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -469,7 +491,8 @@
                     options: [
                         { text: "Increasing brightness to maximum.", correct: false, experiment: "We just proved in the last step that brightness doesn't change speed." },
                         { text: "Using a shorter wavelength.", correct: true, hint: HINT_WAVELENGTH },
-                        { text: "Using a longer wavelength.", correct: false, experiment: "Try sliding to 600nm (Red). They stop emitting entirely." }
+                        { text: "Using a longer wavelength.", correct: false, experiment: "Try sliding to 600nm (Red). They stop emitting entirely." },
+                        { text: "Increasing the battery voltage above 0V.", correct: false, experiment: "The battery just pulls them after they are ejected. It doesn't give them a stronger initial 'kick' off the plate." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -478,7 +501,8 @@
                     options: [
                         { text: "They slow down even more.", correct: false, experiment: "They are hitting the plate now! They must be faster." },
                         { text: "They gain more speed and overcome the voltage.", correct: true, hint: HINT_WAVELENGTH },
-                        { text: "They stop emitting entirely.", correct: false, experiment: "There is clearly a steady stream of particles at 300nm." }
+                        { text: "They stop emitting entirely.", correct: false, experiment: "There is clearly a steady stream of particles at 300nm." },
+                        { text: "They get larger.", correct: false, experiment: "Electrons are point particles; they don't change size." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -487,7 +511,8 @@
                     options: [
                         { text: "Decrease the wavelength.", correct: true, hint: HINT_WAVELENGTH },
                         { text: "Increase the wavelength.", correct: false, experiment: "Higher wavelengths (like 700nm) provide no kick at all." },
-                        { text: "Increase the intensity.", correct: false, experiment: "Intensity only provides MORE particles, not faster ones." }
+                        { text: "Increase the intensity.", correct: false, experiment: "Intensity only provides MORE particles, not faster ones." },
+                        { text: "Change to a different material.", correct: false, experiment: "While different materials have different thresholds, you want to give a stronger kick to the *same* particle, so use a shorter wavelength." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -496,7 +521,8 @@
                     options: [
                         { text: "Shifting the color towards the blue/UV spectrum.", correct: true, hint: HINT_WAVELENGTH },
                         { text: "Shifting the color towards the red spectrum.", correct: false, experiment: "Red light has no effect on this material." },
-                        { text: "Maxing out the brightness slider.", correct: false, experiment: "Brightness increases volume, but not speed." }
+                        { text: "Maxing out the brightness slider.", correct: false, experiment: "Brightness increases volume, but not speed." },
+                        { text: "Setting voltage to exactly 0.00V.", correct: false, experiment: "At 0V, 400nm electrons still won't reach the plate if they don't have enough energy." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -508,7 +534,8 @@
                     options: [
                         { text: "The energy will slowly 'wash' over an electron until it builds up enough to pop out.", correct: true, hint: HINT_WAVE },
                         { text: "The electron will pop out instantly, but move extremely slowly.", correct: false, experiment: "If the energy is spread thin, a single electron wouldn't get a full 'instant' dose." },
-                        { text: "The dim wave will just bounce off and do nothing.", correct: false, experiment: "Waves don't just bounce; they transfer energy over time." }
+                        { text: "The dim wave will just bounce off and do nothing.", correct: false, experiment: "Waves don't just bounce; they transfer energy over time." },
+                        { text: "The wave would shatter the metal plate.", correct: false, experiment: "Dim light definitely doesn't shatter metal." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -517,7 +544,8 @@
                     options: [
                         { text: "Take a long time to build up enough energy to eject a particle.", correct: true, hint: HINT_WAVE },
                         { text: "Eject particles instantly, without delay.", correct: false, experiment: "A spreading wave dilutes energy, so an instant kick shouldn't be possible." },
-                        { text: "Have no effect ever, no matter how long it shines.", correct: false, experiment: "Even small waves in a pond eventually rock a boat." }
+                        { text: "Have no effect ever, no matter how long it shines.", correct: false, experiment: "Even small waves in a pond eventually rock a boat." },
+                        { text: "Only eject particles from the right plate.", correct: false, experiment: "The light is shining on the left plate." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -526,7 +554,8 @@
                     options: [
                         { text: "It would require a measurable time delay before emission begins.", correct: true, hint: HINT_WAVE },
                         { text: "It would eject faster particles.", correct: false, experiment: "Dim light has less total energy, so it wouldn't make things faster." },
-                        { text: "It would create heavier particles.", correct: false, experiment: "Particle mass is constant." }
+                        { text: "It would create heavier particles.", correct: false, experiment: "Particle mass is constant." },
+                        { text: "It would eject heavy protons instead.", correct: false, experiment: "Only electrons are ejected." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -535,7 +564,8 @@
                     options: [
                         { text: "Delivers energy gradually, causing a delay.", correct: true, hint: HINT_WAVE },
                         { text: "Hits the plate like a single solid hammer.", correct: false, experiment: "Waves spread out; they don't hit like localized solid objects." },
-                        { text: "Creates instant current across the gap.", correct: false, experiment: "A spread-out wave would need time to gather enough energy on one electron." }
+                        { text: "Creates instant current across the gap.", correct: false, experiment: "A spread-out wave would need time to gather enough energy on one electron." },
+                        { text: "Causes the metal to change color.", correct: false, experiment: "The metal stays the same color." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -544,7 +574,8 @@
                     options: [
                         { text: "It slowly fills the electron's energy requirement.", correct: true, hint: HINT_WAVE },
                         { text: "It instantly ejects a high-speed electron.", correct: false, experiment: "Weak waves lack the instant power for a high-speed ejection." },
-                        { text: "It reflects completely without transferring energy.", correct: false, experiment: "Metals absorb light energy." }
+                        { text: "It reflects completely without transferring energy.", correct: false, experiment: "Metals absorb light energy." },
+                        { text: "It would eventually melt the glass.", correct: false, experiment: "Glass is transparent to this light." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -553,7 +584,8 @@
                     options: [
                         { text: "Have to wait for the energy to accumulate over time.", correct: true, hint: HINT_WAVE },
                         { text: "Be ejected instantly.", correct: false, experiment: "Thin energy means a slow fill-up time." },
-                        { text: "Lose energy to the vacuum.", correct: false, experiment: "Electrons absorb energy from light, they don't lose it." }
+                        { text: "Lose energy to the vacuum.", correct: false, experiment: "Electrons absorb energy from light, they don't lose it." },
+                        { text: "Absorb electrons from the vacuum.", correct: false, experiment: "The vacuum is empty, there are no electrons to absorb." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -565,7 +597,8 @@
                     options: [
                         { text: "It takes several seconds for the wave to build up energy.", correct: false, experiment: "Watch the left plate the millisecond you change it to 5%. It happens immediately." },
                         { text: "It appears instantly. There is no buildup time.", correct: true, hint: HINT_TIME },
-                        { text: "It never appears.", correct: false, experiment: "Particles are definitely emitting at 5%, just very few of them." }
+                        { text: "It never appears.", correct: false, experiment: "Particles are definitely emitting at 5%, just very few of them." },
+                        { text: "It takes exactly 10 seconds.", correct: false, experiment: "There is no 10-second delay. It's instant." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -574,7 +607,8 @@
                     options: [
                         { text: "Yes, it takes a long time.", correct: false, experiment: "Toggle between 0% and 5%. The response is instantaneous." },
                         { text: "No, emission begins immediately.", correct: true, hint: HINT_TIME },
-                        { text: "Yes, but only for UV light.", correct: false, experiment: "UV light also causes instantaneous emission." }
+                        { text: "Yes, but only for UV light.", correct: false, experiment: "UV light also causes instantaneous emission." },
+                        { text: "No, it takes a few milliseconds.", correct: false, experiment: "In this sim, and in reality, it's virtually instantaneous (billionths of a second)." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -583,7 +617,8 @@
                     options: [
                         { text: "Gradual and delayed.", correct: false, experiment: "There is no delay. The first particle appears right away." },
                         { text: "Instantaneous.", correct: true, hint: HINT_TIME },
-                        { text: "Non-existent.", correct: false, experiment: "There is a small, but steady stream of particles at 5%." }
+                        { text: "Non-existent.", correct: false, experiment: "There is a small, but steady stream of particles at 5%." },
+                        { text: "Random and unpredictable.", correct: false, experiment: "It's highly predictable and immediate." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -592,7 +627,8 @@
                     options: [
                         { text: "Yes, you have to wait for the wave.", correct: false, experiment: "Try it again. The very first dot ejects the moment you click 5%." },
                         { text: "No buildup; the first dot is immediate.", correct: true, hint: HINT_TIME },
-                        { text: "It takes exactly 5 seconds.", correct: false, experiment: "It does not take 5 seconds. It is instant." }
+                        { text: "It takes exactly 5 seconds.", correct: false, experiment: "It does not take 5 seconds. It is instant." },
+                        { text: "Only if the voltage is positive.", correct: false, experiment: "Voltage doesn't change when the first dot is emitted." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -601,7 +637,8 @@
                     options: [
                         { text: "Particles are ejected without any measurable wait time.", correct: true, hint: HINT_TIME },
                         { text: "Particles slowly gather speed over time.", correct: false, experiment: "They pop out at maximum speed immediately." },
-                        { text: "No particles ever emit at 5%.", correct: false, experiment: "They definitely emit at 5%." }
+                        { text: "No particles ever emit at 5%.", correct: false, experiment: "They definitely emit at 5%." },
+                        { text: "Particles wait for a 'wave peak'.", correct: false, experiment: "They pop out immediately, regardless of wave phase." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -610,7 +647,8 @@
                     options: [
                         { text: "Immediate particle emission.", correct: true, hint: HINT_TIME },
                         { text: "A massive delay.", correct: false, experiment: "There is absolutely no delay." },
-                        { text: "Zero emission.", correct: false, experiment: "Emission occurs at 5%." }
+                        { text: "Zero emission.", correct: false, experiment: "Emission occurs at 5%." },
+                        { text: "A change in the particle's charge.", correct: false, experiment: "The charge is always negative." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -622,7 +660,8 @@
                     options: [
                         { text: "The metal plate acts as a funnel, gathering the wave instantly into one spot.", correct: false, experiment: "Historically, making the plate larger just yielded MORE electrons, not faster ones. It's not a funnel." },
                         { text: "The energy isn't spreading out; it's traveling in concentrated 'bullets' or packets.", correct: true, hint: HINT_CONC },
-                        { text: "The vacuum speeds up the light wave.", correct: false, experiment: "Light speed is constant; it doesn't change how the energy is delivered." }
+                        { text: "The vacuum speeds up the light wave.", correct: false, experiment: "Light speed is constant; it doesn't change how the energy is delivered." },
+                        { text: "The battery provides the instant punch.", correct: false, experiment: "Turn the voltage to 0V. The instant punch still happens." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -631,7 +670,8 @@
                     options: [
                         { text: "Bundled into discrete packets.", correct: true, hint: HINT_CONC },
                         { text: "Spreading infinitely across the tube.", correct: false, experiment: "If it spread infinitely, it would be too weak to eject an electron instantly." },
-                        { text: "Reflecting off the glass.", correct: false, experiment: "Reflections would cause a delay, not instant emission." }
+                        { text: "Reflecting off the glass.", correct: false, experiment: "Reflections would cause a delay, not instant emission." },
+                        { text: "Moving faster than the speed of light.", correct: false, experiment: "Nothing moves faster than light." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -640,7 +680,8 @@
                     options: [
                         { text: "Stays localized in packets.", correct: true, hint: HINT_CONC },
                         { text: "Acts exactly like a continuous water wave.", correct: false, experiment: "Water waves take time to lift a heavy object." },
-                        { text: "Comes from the battery, not the light.", correct: false, experiment: "Turn off the light (0%). The emission stops, so it's not the battery." }
+                        { text: "Comes from the battery, not the light.", correct: false, experiment: "Turn off the light (0%). The emission stops, so it's not the battery." },
+                        { text: "Is generated by the vacuum.", correct: false, experiment: "A vacuum is empty space; it doesn't generate energy." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -649,7 +690,8 @@
                     options: [
                         { text: "Concentrated, indivisible packets of energy.", correct: true, hint: HINT_CONC },
                         { text: "Continuous, unbroken waves.", correct: false, experiment: "Continuous waves would require a time delay to build up." },
-                        { text: "Thermal radiation only.", correct: false, experiment: "We already proved thermal (IR) radiation does nothing." }
+                        { text: "Thermal radiation only.", correct: false, experiment: "We already proved thermal (IR) radiation does nothing." },
+                        { text: "Magnetic fields concentrating the wave.", correct: false, experiment: "There are no magnetic fields applied here." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -658,7 +700,8 @@
                     options: [
                         { text: "The light's energy is already packed into concentrated chunks.", correct: true, hint: HINT_CONC },
                         { text: "The particle was already moving inside the metal.", correct: false, experiment: "If it was already moving, it would eject without the light." },
-                        { text: "The metal generates its own light.", correct: false, experiment: "If you turn the lamp off, nothing happens." }
+                        { text: "The metal generates its own light.", correct: false, experiment: "If you turn the lamp off, nothing happens." },
+                        { text: "The glass tube amplifies the light.", correct: false, experiment: "Glass doesn't amplify light; it just lets it pass through." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -667,7 +710,8 @@
                     options: [
                         { text: "A discrete packet or photon.", correct: true, hint: HINT_CONC },
                         { text: "A continuous ripple.", correct: false, experiment: "Ripples dilute their energy as they spread." },
-                        { text: "A magnetic field.", correct: false, experiment: "Magnetic fields don't eject electrons like this." }
+                        { text: "A magnetic field.", correct: false, experiment: "Magnetic fields don't eject electrons like this." },
+                        { text: "A continuous stream of liquid.", correct: false, experiment: "Liquids can't exist in a vacuum, and they arrive as distinct dots." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -679,7 +723,8 @@
                     options: [
                         { text: "The Brightness (Luminosity)", correct: false, experiment: "Brightness just adds MORE packets, not stronger ones." },
                         { text: "The Color (Wavelength)", correct: true, hint: HINT_FINAL },
-                        { text: "The Target Material", correct: false, experiment: "The material determines the barrier, but the light's color provides the 'kick'." }
+                        { text: "The Target Material", correct: false, experiment: "The material determines the barrier, but the light's color provides the 'kick'." },
+                        { text: "The size of the particle.", correct: false, experiment: "All electrons are the same size." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -688,7 +733,8 @@
                     options: [
                         { text: "Higher intensity.", correct: false, experiment: "Higher intensity just gives you a higher quantity of particles." },
                         { text: "Shorter wavelength (bluer color).", correct: true, hint: HINT_FINAL },
-                        { text: "Longer wavelength.", correct: false, experiment: "Longer wavelengths (red) provide less energy." }
+                        { text: "Longer wavelength.", correct: false, experiment: "Longer wavelengths (red) provide less energy." },
+                        { text: "Higher battery voltage.", correct: false, experiment: "Voltage just pulls them after they are born; it doesn't change the photon's strength." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -697,7 +743,8 @@
                     options: [
                         { text: "The wavelength of the light source.", correct: true, hint: HINT_FINAL },
                         { text: "The voltage of the battery.", correct: false, experiment: "The battery slows them down or speeds them up AFTER they emit. It doesn't change the photon's energy." },
-                        { text: "The intensity of the light.", correct: false, experiment: "Intensity is just the volume of packets." }
+                        { text: "The intensity of the light.", correct: false, experiment: "Intensity is just the volume of packets." },
+                        { text: "The time spent shining the light.", correct: false, experiment: "We proved time delay doesn't exist." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -706,7 +753,8 @@
                     options: [
                         { text: "The light's color (wavelength).", correct: true, hint: HINT_FINAL },
                         { text: "The brightness slider.", correct: false, experiment: "Brightness controls current (volume), not kinetic energy (speed)." },
-                        { text: "The size of the vacuum tube.", correct: false, experiment: "Tube size is irrelevant to the initial ejection energy." }
+                        { text: "The size of the vacuum tube.", correct: false, experiment: "Tube size is irrelevant to the initial ejection energy." },
+                        { text: "The temperature of the metal.", correct: false, experiment: "Temperature had no effect on the ejection speed." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -715,7 +763,8 @@
                     options: [
                         { text: "The wavelength of the light.", correct: true, hint: HINT_FINAL },
                         { text: "The number of photons.", correct: false, experiment: "1 million weak punches still won't knock out an electron if each punch is too weak." },
-                        { text: "The temperature of the room.", correct: false, experiment: "Temperature/Heat (IR light) had no effect." }
+                        { text: "The temperature of the room.", correct: false, experiment: "Temperature/Heat (IR light) had no effect." },
+                        { text: "The size of the metal plate.", correct: false, experiment: "Plate size just provides more area, not more energy per photon." }
                     ].sort(() => 0.5 - Math.random())
                 },
                 {
@@ -724,7 +773,8 @@
                     options: [
                         { text: "Shift the wavelength to the left (shorter).", correct: true, hint: HINT_FINAL },
                         { text: "Maximize the brightness.", correct: false, experiment: "Brightness doesn't change photon energy." },
-                        { text: "Increase the tube potential.", correct: false, experiment: "That affects the electron after it leaves, not the photon before it hits." }
+                        { text: "Increase the tube potential.", correct: false, experiment: "That affects the electron after it leaves, not the photon before it hits." },
+                        { text: "Use a dimmer light.", correct: false, experiment: "Dimmer light just produces fewer photons." }
                     ].sort(() => 0.5 - Math.random())
                 }
             ];
@@ -748,12 +798,13 @@
                 const matInfo = MAT_THRESHOLDS[matKey];
                 const wrongMats = mats.filter(m => m !== matKey).sort(() => 0.5 - Math.random());
                 return {
-                    title: `Threshold Mapping`, // (number dynamically added at render)
+                    title: `Threshold Mapping`, 
                     text: `Let's map the materials. Set Emissive Target to Material ${matInfo.name}. Set Voltage to 0.00V.\n\nUse trial and error with the Wavelength slider to find the exact color where electrons JUST START being emitted.`,
                     options: [
                         { text: `Around ${matInfo.val} nm`, correct: true, hint: `Different metals have different atomic structures. This means the electrons are held with different binding energies, so Material ${matInfo.name} requires its own specific minimum photon energy (wavelength) to break that grip.` },
                         { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].val} nm`, correct: false, experiment: `Make sure you have selected 'Material ${matInfo.name}' from the dropdown and try sliding the wavelength again.` },
-                        { text: `Around ${MAT_THRESHOLDS[wrongMats[1]].val} nm`, correct: false, experiment: `Start at that wavelength and slowly slide to the right until emission completely stops for Material ${matInfo.name}.` }
+                        { text: `Around ${MAT_THRESHOLDS[wrongMats[1]].val} nm`, correct: false, experiment: `Start at that wavelength and slowly slide to the right until emission completely stops for Material ${matInfo.name}.` },
+                        { text: `Around ${MAT_THRESHOLDS[wrongMats[2]].val} nm`, correct: false, experiment: `This threshold belongs to a different metal. Reset to Material ${matInfo.name} and try again.` }
                     ].sort(() => 0.5 - Math.random())
                 };
             });
@@ -768,12 +819,13 @@
                 const matInfo = MAT_THRESHOLDS[matKey];
                 const wrongMats = mats.filter(m => m !== matKey).sort(() => 0.5 - Math.random());
                 return {
-                    title: `Stopping Potential Mapping`, // (number dynamically added at render)
+                    title: `Stopping Potential Mapping`, 
                     text: `Now let's test stopping potential directly.\n\nSwitch to Material ${matInfo.name}. Set Wavelength to ${matInfo.testWl}nm. Adjust the Tube Potential until the electrons just barely stop before hitting the right plate (current meter drops to exactly 0.0000 A).`,
                     options: [
                         { text: `Around ${matInfo.testVs} V`, correct: true, hint: `The exact stopping potential reveals the maximum kinetic energy the electrons have after escaping. This energy depends entirely on the wavelength of light and the specific material (${matInfo.name}).` },
                         { text: `Around ${MAT_THRESHOLDS[wrongMats[0]].testVs} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` },
-                        { text: `Around ${(matInfo.testVs - 1.25).toFixed(2)} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` }
+                        { text: `Around ${(matInfo.testVs - 1.25).toFixed(2)} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` },
+                        { text: `Around ${(matInfo.testVs + 0.85).toFixed(2)} V`, correct: false, experiment: `Target: Material ${matInfo.name}. Wavelength: ${matInfo.testWl}nm. Slide the voltage left until the current just hits 0.` }
                     ].sort(() => 0.5 - Math.random())
                 };
             });
