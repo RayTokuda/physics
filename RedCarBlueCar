@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Race Game</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem; /* Responsive padding */
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .car-section {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            background-color: #2d3748;
+            padding: 1rem;
+            border-bottom: 2px solid #4a5568;
+        }
+
+        .car-section:last-child {
+            border-bottom: none;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        .button-primary, .button-secondary {
+            padding: 0.5rem 1rem; /* Smaller padding for mobile */
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            white-space: nowrap;
+        }
+
+        .button-primary {
+            background-color: #48bb78;
+            color: #1a202c;
+        }
+
+        .button-primary:hover {
+            background-color: #38a169;
+        }
+
+        .button-secondary {
+            background-color: #a0aec0;
+            color: #1a202c;
+        }
+
+        .button-secondary:hover {
+            background-color: #718096;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 250px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #blue-car-section .car-section-title {
+            color: #63b3ed;
+        }
+
+        #red-car-section .car-section-title {
+            color: #fc8181;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal {
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .track-marker {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background-color: #cbd5e0;
+            top: 0;
+            z-index: 1;
+        }
+
+        .info-card {
+            background-color: #1f2937;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-4 min-h-screen">
+    <div id="game-intro" class="text-center p-8 rounded-xl bg-gray-800 shadow-lg max-w-lg mb-8">
+        <h1 class="text-3xl font-bold mb-4">Physics Race Challenge</h1>
+        <p class="text-gray-300 mb-6">
+            Your task is to observe the animation and predict the exact time and distance where the red car catches up to the blue car.
+        </p>
+        <button id="start-game-button" class="button-primary">Start Game</button>
+    </div>
+
+    <div id="game-ui" class="game-container hidden">
+        <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4 mb-4">
+            <div class="info-card">
+                <label for="simulationSpeed" class="text-sm font-semibold block mb-1">Simulation Speed:</label>
+                <input type="range" id="simulationSpeed" min="0.1" max="2" step="0.1" value="1" class="w-full md:w-40">
+            </div>
+            <div class="info-card">
+                <span class="text-sm font-semibold block mb-1">Blue Car Head Start:</span>
+                <span id="blue-headstart" class="font-bold text-lg text-blue-400"></span> m
+            </div>
+        </div>
+
+        <div id="red-car-section" class="car-section relative rounded-xl">
+            <h2 class="car-section-title text-xl font-bold mb-2 text-red-400">Red Car</h2>
+            <div class="flex items-center justify-between mb-2 text-sm">
+                <span>Time: <span id="red-time" class="font-bold">0.00</span> s</span>
+            </div>
+            <div class="canvas-container relative rounded-lg bg-gray-700">
+                <canvas id="redCanvas" class="rounded-lg"></canvas>
+            </div>
+            <div class="controls mt-4">
+                <button id="red-start-pause" class="button-primary">Start</button>
+                <button id="red-prev-frame" class="button-secondary">Prev Frame</button>
+                <button id="red-next-frame" class="button-secondary">Next Frame</button>
+                <button id="red-reset" class="button-secondary">Reset</button>
+            </div>
+        </div>
+
+        <div id="blue-car-section" class="car-section relative rounded-xl mt-4">
+            <h2 class="car-section-title text-xl font-bold mb-2 text-blue-400">Blue Car</h2>
+            <div class="flex items-center justify-between mb-2 text-sm">
+                <span>Time: <span id="blue-time" class="font-bold">0.00</span> s</span>
+            </div>
+            <div class="canvas-container relative rounded-lg bg-gray-700">
+                <canvas id="blueCanvas" class="rounded-lg"></canvas>
+            </div>
+            <div class="controls mt-4">
+                <button id="blue-start-pause" class="button-primary">Start</button>
+                <button id="blue-prev-frame" class="button-secondary">Prev Frame</button>
+                <button id="blue-next-frame" class="button-secondary">Next Frame</button>
+                <button id="blue-reset" class="button-secondary">Reset</button>
+            </div>
+        </div>
+
+        <div id="prediction-section" class="car-section bg-gray-800 p-4 mt-4 rounded-xl w-full">
+            <h3 class="text-xl font-bold text-center mb-4">Your Prediction</h3>
+            <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
+                <div class="flex flex-col w-full md:w-auto">
+                    <label for="predict-time" class="mb-1 text-sm text-gray-300">Catch-up Time (s):</label>
+                    <input type="number" id="predict-time" class="w-full md:w-40 p-2 rounded-md bg-gray-700 border border-gray-600 text-gray-100" placeholder="Enter time">
+                </div>
+                <div class="flex flex-col w-full md:w-auto">
+                    <label for="predict-distance" class="mb-1 text-sm text-gray-300">Catch-up Distance (m):</label>
+                    <input type="number" id="predict-distance" class="w-full md:w-40 p-2 rounded-md bg-gray-700 border border-gray-600 text-gray-100" placeholder="Enter distance">
+                </div>
+            </div>
+            <div class="flex justify-center mt-4">
+                <button id="submit-prediction" class="button-primary">Submit Prediction</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Win/Loss Modal -->
+    <div id="resultModal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modalTitle" class="modal-title"></h3>
+            <p id="modalMessage" class="text-gray-300 mb-4"></p>
+            <button id="restartGame" class="button-primary">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Use a single game state object to manage everything
+        const gameState = {
+            carSize: 4, // in meters
+            red: {
+                time: 0,
+                position: 0,
+                acceleration: 0,
+                isPlaying: false,
+                requestAnimFrameId: null,
+                lastFrameTime: null,
+                cameraOffset: 0,
+            },
+            blue: {
+                time: 0,
+                position: 0,
+                velocity: 0,
+                headStart: 0,
+                isPlaying: false,
+                requestAnimFrameId: null,
+                lastFrameTime: null,
+                cameraOffset: 0,
+            },
+            simulationSpeed: 1, // Controls the animation speed (1 = real time)
+            trackLength: 500, // Maximum length of the track in meters
+            visibleTrackLength: 60, // The amount of track visible on the screen in meters
+            pixelsPerMeter: 2, // Scale factor for drawing on canvas
+            catchup: {
+                time: 0,
+                distance: 0,
+                stopTime: 0,
+            },
+            animMode: 'observation', // 'observation' or 'catchup'
+            fixedCarScreenPos: 0.2, // The fixed screen position (as a percentage of width) where the car is centered
+        };
+
+        // DOM elements
+        const redCanvas = document.getElementById('redCanvas');
+        const blueCanvas = document.getElementById('blueCanvas');
+        const redCtx = redCanvas.getContext('2d');
+        const blueCtx = blueCanvas.getContext('2d');
+        const redTimeEl = document.getElementById('red-time');
+        const blueTimeEl = document.getElementById('blue-time');
+        const blueHeadStartEl = document.getElementById('blue-headstart');
+        const startGameButton = document.getElementById('start-game-button');
+        const gameIntro = document.getElementById('game-intro');
+        const gameUI = document.getElementById('game-ui');
+        const submitPredictionButton = document.getElementById('submit-prediction');
+        const predictTimeInput = document.getElementById('predict-time');
+        const predictDistanceInput = document.getElementById('predict-distance');
+        const resultModal = document.getElementById('resultModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const restartGameButton = document.getElementById('restartGame');
+        const simulationSpeedInput = document.getElementById('simulationSpeed');
+
+        // Buttons for each car
+        const redButtons = {
+            startPause: document.getElementById('red-start-pause'),
+            prevFrame: document.getElementById('red-prev-frame'),
+            nextFrame: document.getElementById('red-next-frame'),
+            reset: document.getElementById('red-reset'),
+        };
+
+        const blueButtons = {
+            startPause: document.getElementById('blue-start-pause'),
+            prevFrame: document.getElementById('blue-prev-frame'),
+            nextFrame: document.getElementById('blue-next-frame'),
+            reset: document.getElementById('blue-reset'),
+        };
+        
+        // --- Game Logic Functions ---
+
+        /**
+         * Initializes the game with random parameters for the cars.
+         * Resets all game state variables.
+         */
+        function initializeGame() {
+            // Generate random physics parameters for each car
+            // Red car: Random acceleration from 0.5 to 11 m/s^2
+            gameState.red.acceleration = (Math.random() * (11 - 0.5) + 0.5).toFixed(2);
+            // Blue car: Random constant velocity from 15 to 35 m/s
+            gameState.blue.velocity = (Math.random() * (35 - 15) + 15).toFixed(2);
+            // Blue car: Random head start from 20 to 100 meters, rounded to a whole number
+            gameState.blue.headStart = Math.round(Math.random() * (100 - 20) + 20);
+
+            // Reset car positions and times for observation phase
+            gameState.red.time = 0;
+            gameState.red.position = 0;
+            gameState.blue.time = 0;
+            gameState.blue.position = 0;
+            
+            // Set initial camera offsets for both cars
+            gameState.red.cameraOffset = 0;
+            gameState.blue.cameraOffset = 0;
+
+            // Stop any running animations
+            stopAnimation('red');
+            stopAnimation('blue');
+
+            // Calculate the correct catch-up time and distance
+            // Use the quadratic formula: t = (v + sqrt(v^2 + 2 * a * x_0)) / a
+            const a = parseFloat(gameState.red.acceleration);
+            const v = parseFloat(gameState.blue.velocity);
+            const x0 = parseFloat(gameState.blue.headStart);
+            const t_catchup = (v + Math.sqrt(v * v + 2 * a * x0)) / a;
+            gameState.catchup.time = t_catchup;
+            // The catch-up distance is the red car's position at that time: x = 0.5 * a * t^2
+            gameState.catchup.distance = 0.5 * a * t_catchup * t_catchup;
+
+            // Determine the time to stop the observation animation (60-85% of catch-up time)
+            const stopPercentage = Math.random() * (0.85 - 0.6) + 0.6;
+            gameState.catchup.stopTime = t_catchup * stopPercentage;
+
+            // Update UI elements with the new parameters
+            blueHeadStartEl.textContent = gameState.blue.headStart;
+
+            // Clear prediction inputs
+            predictTimeInput.value = '';
+            predictDistanceInput.value = '';
+
+            // Initial drawing
+            draw();
+        }
+
+        /**
+         * The main animation loop for the cars.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function animate(car) {
+            const now = performance.now();
+            const carState = gameState[car];
+            const otherCarState = car === 'red' ? gameState.blue : gameState.red;
+
+            if (carState.isPlaying) {
+                // Calculate time elapsed in seconds since the last frame
+                const deltaTime = (now - (carState.lastFrameTime || now)) / 1000 * gameState.simulationSpeed;
+                
+                // Update car's internal time using real delta time
+                carState.time += deltaTime;
+                carState.lastFrameTime = now;
+
+                // Update position based on animMode
+                if (gameState.animMode === 'observation') {
+                    if (car === 'red') {
+                        carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                    } else if (car === 'blue') {
+                        carState.position = parseFloat(carState.velocity) * carState.time;
+                    }
+
+                    // Auto-stop observation phase
+                    if (car === 'red' && carState.time >= gameState.catchup.stopTime) {
+                        pauseAnimation('red');
+                        pauseAnimation('blue');
+                        return;
+                    }
+                } else if (gameState.animMode === 'catchup') {
+                     if (car === 'red') {
+                        carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                    } else if (car === 'blue') {
+                        const startPos = parseFloat(carState.headStart);
+                        carState.position = startPos + parseFloat(carState.velocity) * carState.time;
+                    }
+
+                    // Check for catchup animation stop
+                    if (car === 'red' && carState.time >= gameState.catchup.time) {
+                        stopAnimation('red');
+                        stopAnimation('blue');
+                        setTimeout(checkPrediction, 500);
+                        return;
+                    }
+                }
+
+                updateCamera(car);
+                draw();
+                carState.requestAnimFrameId = requestAnimationFrame(() => animate(car));
+            }
+        }
+
+        /**
+         * Updates the camera offset to keep the car's front bumper centered.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function updateCamera(car) {
+            const carState = gameState[car];
+            // The screen position where the car's front bumper should be
+            const fixedScreenPositionMeters = document.getElementById(`${car}Canvas`).width * gameState.fixedCarScreenPos / gameState.pixelsPerMeter;
+
+            // The desired camera offset is the car's position minus the fixed screen position
+            const targetOffset = carState.position - fixedScreenPositionMeters;
+            carState.cameraOffset = Math.max(0, targetOffset);
+        }
+
+        /**
+         * Pauses the animation for a specific car.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function pauseAnimation(car) {
+            if (gameState[car].isPlaying) {
+                cancelAnimationFrame(gameState[car].requestAnimFrameId);
+                gameState[car].isPlaying = false;
+                document.getElementById(`${car}-start-pause`).textContent = 'Start';
+                gameState[car].lastFrameTime = null; // Reset lastFrameTime to prevent a time jump
+            }
+        }
+
+        /**
+         * Stops the animation and resets the state.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function stopAnimation(car) {
+            if (gameState[car].requestAnimFrameId) {
+                cancelAnimationFrame(gameState[car].requestAnimFrameId);
+                gameState[car].requestAnimFrameId = null;
+            }
+            gameState[car].isPlaying = false;
+            document.getElementById(`${car}-start-pause`).textContent = 'Start';
+            gameState[car].lastFrameTime = null;
+        }
+
+        /**
+         * Advances the animation by a single frame (0.1 seconds).
+         * @param {string} car - 'red' or 'blue'
+         */
+        function advanceFrame(car) {
+            if (gameState.red.isPlaying || gameState.blue.isPlaying) return;
+            const carState = gameState[car];
+            carState.time += 0.1;
+            if (gameState.animMode === 'observation') {
+                if (car === 'red') {
+                    carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                } else if (car === 'blue') {
+                    carState.position = parseFloat(carState.velocity) * carState.time;
+                }
+            } else if (gameState.animMode === 'catchup') {
+                if (car === 'red') {
+                    carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                } else if (car === 'blue') {
+                    carState.position = parseFloat(carState.headStart) + parseFloat(carState.velocity) * carState.time;
+                }
+            }
+            updateCamera(car);
+            draw();
+        }
+
+        /**
+         * Reverts the animation by a single frame (0.1 seconds).
+         * @param {string} car - 'red' or 'blue'
+         */
+        function prevFrame(car) {
+            if (gameState.red.isPlaying || gameState.blue.isPlaying) return;
+            const carState = gameState[car];
+            if (carState.time > 0) {
+                carState.time = Math.max(0, carState.time - 0.1);
+                if (gameState.animMode === 'observation') {
+                    if (car === 'red') {
+                        carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                    } else if (car === 'blue') {
+                        carState.position = parseFloat(carState.velocity) * carState.time;
+                    }
+                } else if (gameState.animMode === 'catchup') {
+                    if (car === 'red') {
+                        carState.position = 0.5 * parseFloat(carState.acceleration) * Math.pow(carState.time, 2);
+                    } else if (car === 'blue') {
+                        carState.position = parseFloat(carState.headStart) + parseFloat(carState.velocity) * carState.time;
+                    }
+                }
+                updateCamera(car);
+                draw();
+            }
+        }
+
+        /**
+         * Resets a car's animation to the start.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function resetCar(car) {
+            stopAnimation(car);
+            gameState[car].time = 0;
+            if (gameState.animMode === 'observation') {
+                gameState[car].position = 0;
+            } else { // catchup mode
+                if (car === 'red') {
+                    gameState.red.position = 0;
+                } else if (car === 'blue') {
+                    gameState.blue.position = parseFloat(gameState.blue.headStart);
+                }
+            }
+            updateCamera(car);
+            draw();
+        }
+        
+        // --- Drawing Functions ---
+
+        /**
+         * Main draw function. Clears canvases and draws cars and track.
+         */
+        function draw() {
+            // Get the current width and height of the canvas container
+            const redContainer = redCanvas.parentElement;
+            const blueContainer = blueCanvas.parentElement;
+            const containerWidth = redContainer.clientWidth;
+            const containerHeight = redContainer.clientHeight;
+            
+            // Set canvas dimensions
+            redCanvas.width = containerWidth;
+            redCanvas.height = containerHeight;
+            blueCanvas.width = containerWidth;
+            blueCanvas.height = containerHeight;
+            
+            // Calculate a new pixels per meter based on screen width to keep it responsive
+            gameState.pixelsPerMeter = redCanvas.width / gameState.visibleTrackLength;
+
+            // Clear canvases
+            redCtx.clearRect(0, 0, redCanvas.width, redCanvas.height);
+            blueCtx.clearRect(0, 0, blueCanvas.width, blueCanvas.height);
+
+            // Draw track lines and markers
+            drawTrack(redCtx, redCanvas.height, gameState.red.cameraOffset);
+            drawTrack(blueCtx, blueCanvas.height, gameState.blue.cameraOffset);
+
+            // Draw cars
+            drawCar(redCtx, gameState.red, redCanvas.width, redCanvas.height);
+            drawCar(blueCtx, gameState.blue, blueCanvas.width, blueCanvas.height);
+
+            // Update time display
+            redTimeEl.textContent = gameState.red.time.toFixed(2);
+            blueTimeEl.textContent = gameState.blue.time.toFixed(2);
+        }
+
+        /**
+         * Draws the track markers.
+         * @param {CanvasRenderingContext2D} ctx - The canvas context to draw on.
+         * @param {number} canvasHeight - The height of the canvas.
+         * @param {number} cameraOffset - The camera offset in meters.
+         */
+        function drawTrack(ctx, canvasHeight, cameraOffset) {
+            ctx.fillStyle = '#cbd5e0';
+            const markerInterval = 10; // meters
+            
+            const startMarker = Math.floor((cameraOffset - 10) / markerInterval) * markerInterval;
+            const endMarker = startMarker + gameState.visibleTrackLength + markerInterval + 10;
+
+            for (let positionMeters = startMarker; positionMeters <= endMarker; positionMeters += markerInterval) {
+                // Adjust x position based on the camera offset
+                const xPos = (positionMeters - cameraOffset) * gameState.pixelsPerMeter;
+                
+                if (xPos < -20 || xPos > ctx.canvas.width + 20) continue;
+
+                // Draw the vertical marker line
+                ctx.beginPath();
+                ctx.moveTo(xPos, 0);
+                ctx.lineTo(xPos, canvasHeight);
+                ctx.strokeStyle = '#4a5568';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Draw the text label
+                ctx.fillStyle = '#cbd5e0';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${positionMeters} m`, xPos, 15);
+            }
+        }
+
+        /**
+         * Draws a car on the canvas.
+         * @param {CanvasRenderingContext2D} ctx - The canvas context to draw on.
+         * @param {object} carState - The state object for the car ('red' or 'blue').
+         * @param {number} canvasWidth - The width of the canvas.
+         * @param {number} canvasHeight - The height of the canvas.
+         */
+        function drawCar(ctx, carState, canvasWidth, canvasHeight) {
+            // Calculate the car's on-screen position based on its logical position and camera offset
+            const xPosScreen = (carState.position - carState.cameraOffset) * gameState.pixelsPerMeter;
+            
+            const carWidth = gameState.carSize * gameState.pixelsPerMeter;
+            const carHeight = gameState.carSize * 0.5 * gameState.pixelsPerMeter;
+            const yOffset = (canvasHeight / 2) - (carHeight / 2);
+
+            // Car body (drawn so that the front bumper is at xPosScreen)
+            ctx.fillStyle = carState === gameState.red ? '#ef4444' : '#3b82f6';
+            ctx.beginPath();
+            ctx.roundRect(xPosScreen - carWidth, yOffset, carWidth, carHeight, 3);
+            ctx.fill();
+
+            // Cockpit/window
+            ctx.fillStyle = '#4a5568';
+            ctx.fillRect(xPosScreen - carWidth * 0.8, yOffset + carHeight * 0.1, carWidth * 0.6, carHeight * 0.8);
+            
+            // Headlights
+            ctx.fillStyle = '#ffeb3b';
+            ctx.fillRect(xPosScreen - 1, yOffset + carHeight * 0.1, 1, carHeight * 0.2);
+            ctx.fillRect(xPosScreen - 1, yOffset + carHeight * 0.7, 1, carHeight * 0.2);
+        }
+
+        // --- Event Listeners ---
+
+        /**
+         * Handles the start/pause button click for a given car.
+         * @param {string} car - 'red' or 'blue'
+         */
+        function handleStartPause(car) {
+            if (gameState[car].isPlaying) {
+                pauseAnimation(car);
+            } else {
+                gameState[car].isPlaying = true;
+                document.getElementById(`${car}-start-pause`).textContent = 'Pause';
+                animate(car);
+            }
+        }
+        
+        // Add listeners for all buttons
+        redButtons.startPause.addEventListener('click', () => handleStartPause('red'));
+        redButtons.prevFrame.addEventListener('click', () => prevFrame('red'));
+        redButtons.nextFrame.addEventListener('click', () => advanceFrame('red'));
+        redButtons.reset.addEventListener('click', () => resetCar('red'));
+
+        blueButtons.startPause.addEventListener('click', () => handleStartPause('blue'));
+        blueButtons.prevFrame.addEventListener('click', () => prevFrame('blue'));
+        blueButtons.nextFrame.addEventListener('click', () => advanceFrame('blue'));
+        blueButtons.reset.addEventListener('click', () => resetCar('blue'));
+
+        // Start game button
+        startGameButton.addEventListener('click', () => {
+            gameIntro.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+            initializeGame();
+        });
+
+        // Submit prediction button
+        submitPredictionButton.addEventListener('click', () => {
+            const predictedTime = parseFloat(predictTimeInput.value);
+            const predictedDistance = parseFloat(predictDistanceInput.value);
+
+            if (isNaN(predictedTime) || isNaN(predictedDistance)) {
+                showCustomModal('Invalid Input', 'Please enter a valid time and distance.');
+                return;
+            }
+            
+            // This is the key logic for the user's request:
+            // 1. We change the animation mode to 'catchup'
+            gameState.animMode = 'catchup';
+            
+            // 2. We reset the car's time and positions for the new simulation
+            gameState.red.time = 0;
+            gameState.blue.time = 0;
+            gameState.red.position = 0;
+            gameState.blue.position = parseFloat(gameState.blue.headStart);
+            gameState.red.cameraOffset = 0;
+            gameState.blue.cameraOffset = 0;
+
+            // 3. We start both animations simultaneously
+            gameState.red.isPlaying = true;
+            gameState.blue.isPlaying = true;
+            redButtons.startPause.textContent = 'Pause';
+            blueButtons.startPause.textContent = 'Pause';
+            animate('red');
+            animate('blue');
+        });
+        
+        // Simulation speed input listener
+        simulationSpeedInput.addEventListener('input', (event) => {
+            gameState.simulationSpeed = parseFloat(event.target.value);
+        });
+
+        /**
+         * Checks the player's prediction against the calculated correct values.
+         */
+        function checkPrediction() {
+            const predictedTime = parseFloat(predictTimeInput.value);
+            const predictedDistance = parseFloat(predictDistanceInput.value);
+            
+            const timeDiff = Math.abs(predictedTime - gameState.catchup.time);
+            const distanceDiff = Math.abs(predictedDistance - gameState.catchup.distance);
+
+            const timeError = (timeDiff / gameState.catchup.time) * 100;
+            const distanceError = (distanceDiff / gameState.catchup.distance) * 100;
+            
+            // Calculate the combined error as the average of time and distance errors
+            const combinedError = (timeError + distanceError) / 2;
+
+            let titleText = '';
+            let messageText = '';
+            let titleColor = '';
+
+            // --- Updated logic to fix the bug and add new messages ---
+            if (combinedError <= 3) {
+                titleText = 'You are amazing!';
+                titleColor = '#48bb78';
+            } else if (combinedError <= 5) {
+                titleText = 'Total Victory!';
+                titleColor = '#48bb78';
+            } else if (combinedError <= 7) {
+                titleText = 'Winner!';
+                titleColor = '#48bb78';
+            } else if (combinedError <= 10) {
+                titleText = 'Pretty good but try again for full points.';
+                titleColor = '#f6e05e';
+            } else if (combinedError <= 15) {
+                titleText = 'Are you just guessing?';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 20) {
+                titleText = 'Hmm...the red car is accelerating but the blue car is moving with constant velocity.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 25) {
+                titleText = 'Remember the blue car is getting a head start.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 30) {
+                titleText = 'Keep trying you can do it! Also maybe use physics.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 40) {
+                titleText = 'Maybe you should ask your teacher how to do this.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 50) {
+                titleText = 'Okay now I know you\'re guessing.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 60) {
+                titleText = 'Keep trying I know you can do this!';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 70) {
+                titleText = 'The journey of a 1000 miles begins with one step--this is your first step in learning physics.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 80) {
+                titleText = 'Okay you got a big percent error this time but you can really do this.';
+                titleColor = '#ef4444';
+            } else if (combinedError <= 90) {
+                titleText = 'Adversity will make you stronger!';
+                titleColor = '#ef4444';
+            } else { // This is the final catch-all for > 90% error
+                titleText = 'Okay try again.';
+                titleColor = '#ef4444';
+            }
+
+            modalTitle.textContent = titleText;
+            modalTitle.style.color = titleColor;
+
+            modalMessage.innerHTML = `
+                <p>Correct Catch-up Time: ${gameState.catchup.time.toFixed(2)} s</p>
+                <p>Your Time: ${predictedTime.toFixed(2)} s</p>
+                <p>Time Error: ${timeError.toFixed(2)}%</p>
+                <p class="mt-4">Correct Catch-up Distance: ${gameState.catchup.distance.toFixed(2)} m</p>
+                <p>Your Distance: ${predictedDistance.toFixed(2)} m</p>
+                <p>Distance Error: ${distanceError.toFixed(2)}%</p>
+                <p class="mt-4 font-bold">Combined Error: ${combinedError.toFixed(2)}%</p>
+            `;
+
+            resultModal.style.display = 'flex';
+        }
+
+        // Restart button
+        restartGameButton.addEventListener('click', () => {
+            resultModal.style.display = 'none';
+            gameState.animMode = 'observation';
+            initializeGame();
+        });
+
+        /**
+         * Displays a custom modal message.
+         * @param {string} title - The title of the modal.
+         * @param {string} message - The message to display.
+         */
+        function showCustomModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            restartGameButton.style.display = 'none';
+            resultModal.style.display = 'flex';
+        }
+        
+        // Ensure initial draw is called when the window loads
+        window.addEventListener('load', () => {
+            // Draw once to set up the initial state and sizing
+            draw();
+        });
+
+        // Event listener for window resize to redraw everything
+        window.addEventListener('resize', draw);
+    </script>
+</body>
+</html>
