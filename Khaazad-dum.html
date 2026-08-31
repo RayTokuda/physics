@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Bridge of Khazaad-dûm</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 95vw;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #1e1e1e, #0e0e0e);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            background-color: transparent;
+            display: block;
+            border-radius: 10px;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.4);
+            transition: opacity 1s ease-in-out;
+        }
+
+        h1 {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: clamp(0.8rem, 2vw, 1.2rem);
+            line-height: 1.5;
+            max-width: 80%;
+            margin-bottom: 20px;
+        }
+        
+        #intro-text, #feedback-screen, #input-area {
+            background: rgba(30, 30, 30, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            width: 80%; /* Use a flexible width */
+            max-width: 500px;
+        }
+        
+        /* Media query for smaller screens to ensure readability */
+        @media (max-width: 600px) {
+            #intro-text, #feedback-screen, #input-area {
+                width: 90%;
+                padding: 15px;
+            }
+        }
+
+        .input-group {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            width: 45%;
+        }
+
+        .input-container label {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+            text-align: left;
+        }
+
+        input[type="number"] {
+            padding: 12px;
+            margin: 0;
+            border: 2px solid #555;
+            border-radius: 8px;
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            font-size: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #121212;
+            background-color: #5d5d5d;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        button.start-button { background-color: #4CAF50; }
+        button.submit-button { background-color: #2196F3; }
+        button.try-again-button { background-color: #ff5252; }
+        button.replay-button { background-color: #6a0dad; }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        #attempt-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+        
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .message-box button {
+            margin-top: 10px;
+        }
+
+        #win-message {
+            color: #4CAF50;
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-overlay">
+            <div id="intro-text">
+               
+                <p>A wizard falls from rest from the edge of a ruined bridge while at the same time a sword is already falling at a constant velocity from a given distance below the bridge. Your quest is to determine the time and distance where the wizard catches up to the sword.</p>
+                <button id="start-button" class="start-button">Begin</button>
+            </div>
+
+            <div id="input-area" style="display: none;">
+                
+                <p id="problem-statement"></p>
+                <div class="input-group">
+                    <div class="input-container">
+                        <label for="time-input">Time (s):</label>
+                        <input type="number" id="time-input" placeholder="Enter your time" step="0.01">
+                    </div>
+                    <div class="input-container">
+                        <label for="distance-input">Distance (m):</label>
+                        <input type="number" id="distance-input" placeholder="Enter your distance" step="0.01">
+                    </div>
+                </div>
+                <button id="submit-button" class="submit-button">Submit Answers</button>
+                <button id="replay-button" class="replay-button">Replay Animation</button>
+            </div>
+            
+            <div id="feedback-screen" style="display: none;">
+                <h3 id="win-message"></h3>
+                <h2 id="feedback-title"></h2>
+                <p id="feedback-message"></p>
+                <p>Time Error: <span id="time-error"></span>%</p>
+                <p>Distance Error: <span id="distance-error"></span>%</p>
+                <p>The correct time was <span id="correct-time"></span> seconds.</p>
+                <p>The correct distance was <span id="correct-distance"></span> meters below the bridge.</p>
+                <button id="try-again-button" class="try-again-button">Try Again</button>
+            </div>
+        </div>
+        <div id="attempt-counter">Attempts: 0</div>
+    </div>
+    
+    <script>
+        // Game variables
+        const game = {
+            state: 'intro',
+            g: 9.8, // Gravity is now positive (pulling down)
+            initialSwordY: 0,
+            v_s: 0,
+            true_t: 0,
+            true_h: 0,
+            attempts: 0,
+            wizardY: 0,
+            swordY: 0,
+            isAnimating: false,
+        };
+        let animationFrameId = null;
+        let clouds = [];
+        // Increased cloud count for a more dramatic effect
+        const CLOUD_COUNT = 50;
+        // Increased speed for more obvious movement
+        const CLOUD_SPEED_FACTOR = 2.0;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const uiOverlay = document.getElementById('ui-overlay');
+        const introText = document.getElementById('intro-text');
+        const inputArea = document.getElementById('input-area');
+        const feedbackScreen = document.getElementById('feedback-screen');
+        const problemStatement = document.getElementById('problem-statement');
+        const timeInput = document.getElementById('time-input');
+        const distanceInput = document.getElementById('distance-input');
+        const submitButton = document.getElementById('submit-button');
+        const tryAgainButton = document.getElementById('try-again-button');
+        const replayButton = document.getElementById('replay-button');
+        const attemptCounter = document.getElementById('attempt-counter');
+        const correctTimeSpan = document.getElementById('correct-time');
+        const correctDistanceSpan = document.getElementById('correct-distance');
+        const winMessage = document.getElementById('win-message');
+        const timeErrorSpan = document.getElementById('time-error');
+        const distanceErrorSpan = document.getElementById('distance-error');
+
+
+        // Drawing parameters
+        // Setting the bridge position to a small fixed value to place it at the top of the canvas
+        const BRIDGE_Y = 50; 
+        let WIZARD_W, WIZARD_H, SWORD_W, SWORD_H;
+        let scale = 1;
+
+        // Constants for animation scaling
+        const WIZARD_HEIGHT_METERS = 2;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth * 0.9;
+            canvas.height = window.innerHeight * 0.8;
+            
+            // Character sizes remain responsive
+            WIZARD_H = canvas.height * 0.05;
+            WIZARD_W = WIZARD_H / 2;
+            SWORD_H = canvas.height * 0.03;
+            SWORD_W = SWORD_H / 2.5;
+
+            // New scaling logic: 1 meter = X pixels
+            scale = WIZARD_H / WIZARD_HEIGHT_METERS;
+            draw();
+        }
+
+        // Utility functions
+        function getRandom(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function showMessage(message) {
+            const msgBox = document.createElement('div');
+            msgBox.className = 'message-box';
+            msgBox.innerHTML = `
+                <p>${message}</p>
+                <button onclick="this.parentNode.remove()">OK</button>
+            `;
+            document.body.appendChild(msgBox);
+        }
+
+        // Physics calculations
+        function calculateSolutions() {
+            const { initialSwordY, v_s, g } = game;
+            
+            // Positions are relative to the bridge, with down being positive.
+            // Wizard: y_w(t) = 0.5 * g * t^2
+            // Sword: y_s(t) = initialSwordY + v_s * t
+            // Catch happens when y_w(t) = y_s(t)
+            // 0.5 * g * t^2 = initialSwordY + v_s * t
+            // 0.5 * g * t^2 - v_s * t - initialSwordY = 0
+            
+            const a = 0.5 * g;
+            const b = -v_s;
+            const c = -initialSwordY;
+            
+            const discriminant = b * b - 4 * a * c;
+            
+            if (discriminant < 0) {
+                return false;
+            }
+
+            const sqrtDisc = Math.sqrt(discriminant);
+            const t1 = (-b - sqrtDisc) / (2 * a);
+            const t2 = (-b + sqrtDisc) / (2 * a);
+            
+            game.true_t = Math.max(t1, t2);
+            
+            const y_catch = 0.5 * g * game.true_t * game.true_t;
+            game.true_h = y_catch;
+            
+            return true;
+        }
+
+        function updateUI(state) {
+            introText.style.display = 'none';
+            inputArea.style.display = 'none';
+            feedbackScreen.style.display = 'none';
+            
+            switch (state) {
+                case 'intro':
+                    introText.style.display = 'block';
+                    uiOverlay.style.opacity = '1';
+                    uiOverlay.style.display = 'flex';
+                    break;
+                case 'problem':
+                    inputArea.style.display = 'block';
+                    uiOverlay.style.opacity = '1';
+                    uiOverlay.style.display = 'flex';
+                    problemStatement.innerHTML = `
+                        The wizard falls from rest when the sword is at an initial position of <span style="color:#ffcc00;">-${game.initialSwordY.toFixed(2)} m</span> relative to the bridge and moving with a constant velocity of <span style="color:#ffcc00;">-${game.v_s.toFixed(0)} m/s</span>.<br><br>Time to catch the sword?<br>How far below the bridge is the catch?
+                    `;
+                    break;
+                case 'feedback':
+                    feedbackScreen.style.display = 'block';
+                    uiOverlay.style.opacity = '1';
+                    uiOverlay.style.display = 'flex';
+                    correctTimeSpan.textContent = game.true_t.toFixed(2);
+                    correctDistanceSpan.textContent = game.true_h.toFixed(2);
+                    break;
+            }
+        }
+
+        function initGame() {
+            game.attempts = 0;
+            attemptCounter.textContent = `Attempts: ${game.attempts}`;
+            newProblem();
+        }
+
+        function newProblem() {
+            clouds = [];
+            for (let i = 0; i < CLOUD_COUNT; i++) {
+                // Initialize clouds to be visible on the screen from the start
+                clouds.push({
+                    x: getRandom(0, canvas.width),
+                    y: getRandom(0, canvas.height),
+                    radius: getRandom(10, 30),
+                    speed: getRandom(1, 3) * CLOUD_SPEED_FACTOR,
+                    opacity: getRandom(0.2, 0.4)
+                });
+            }
+
+            let isSolvable = false;
+            do {
+                const maxInitialY = (canvas.height * 0.5) / scale;
+                game.initialSwordY = getRandom(2, Math.min(20, maxInitialY));
+                
+                game.v_s = Math.floor(getRandom(20, 60));
+                
+                const a = 0.5 * game.g;
+                const b = -game.v_s;
+                const c = -game.initialSwordY;
+                const discriminant = b * b - 4 * a * c;
+
+                if (discriminant >= 0) {
+                    const sqrtDisc = Math.sqrt(discriminant);
+                    const t1 = (-b - sqrtDisc) / (2 * a);
+                    const t2 = (-b + sqrtDisc) / (2 * a);
+                    if (t1 > 0 || t2 > 0) {
+                        isSolvable = true;
+                    }
+                }
+                
+            } while (!isSolvable);
+            
+            calculateSolutions();
+            replayAnimation();
+        }
+
+        function replayAnimation() {
+            game.wizardY = 0;
+            game.swordY = game.initialSwordY;
+            game.isAnimating = true;
+
+            uiOverlay.style.opacity = '0';
+            uiOverlay.style.display = 'none';
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            const startTime = performance.now();
+            
+            scale = WIZARD_H / WIZARD_HEIGHT_METERS;
+
+            const animateLoop = (currentTime) => {
+                const elapsed = (currentTime - startTime) / 1000;
+                
+                if (elapsed >= game.true_t) {
+                    game.wizardY = 0.5 * game.g * game.true_t * game.true_t;
+                    game.swordY = game.initialSwordY + game.v_s * game.true_t;
+                    game.isAnimating = false;
+                    draw(game.true_t);
+                    setTimeout(() => { updateUI('problem'); }, 1000); // Pause for a second before showing UI
+                    return;
+                }
+                
+                game.wizardY = 0.5 * game.g * elapsed * elapsed;
+                game.swordY = game.initialSwordY + game.v_s * elapsed;
+
+                draw(elapsed);
+                animationFrameId = requestAnimationFrame(animateLoop);
+            };
+            
+            requestAnimationFrame(animateLoop);
+        }
+        
+        function draw(elapsed) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const WIZARD_TARGET_Y = canvas.height * 0.4;
+            const cameraPanY = (BRIDGE_Y + game.wizardY * scale) - WIZARD_TARGET_Y;
+            
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            clouds.forEach(cloud => {
+                cloud.y -= cloud.speed;
+                
+                // If cloud moves above the visible screen, recycle it to the bottom
+                if (cloud.y - cameraPanY < -cloud.radius * 2) {
+                    cloud.y = cameraPanY + canvas.height + cloud.radius * 2 + getRandom(0, 500);
+                    cloud.x = getRandom(0, canvas.width);
+                }
+
+                ctx.fillStyle = `rgba(224, 224, 224, ${cloud.opacity})`;
+                
+                ctx.beginPath();
+                ctx.arc(cloud.x - 2 * cloud.radius, cloud.y - cameraPanY, cloud.radius, 0, Math.PI * 2);
+                ctx.arc(cloud.x, cloud.y - cameraPanY - cloud.radius / 2, cloud.radius * 1.2, 0, Math.PI * 2);
+                ctx.arc(cloud.x + 2 * cloud.radius, cloud.y - cameraPanY, cloud.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#4a4a4a';
+            const archWidth = canvas.width * 0.5;
+            const archHeight = canvas.height * 0.2;
+            const archY = BRIDGE_Y - archHeight * 0.8;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, BRIDGE_Y - cameraPanY);
+            ctx.quadraticCurveTo(archWidth, archY - cameraPanY, archWidth, BRIDGE_Y - cameraPanY);
+            ctx.lineTo(archWidth + 10, BRIDGE_Y + 10 - cameraPanY);
+            ctx.lineTo(0, BRIDGE_Y + 10 - cameraPanY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#6d6d6d';
+            ctx.beginPath();
+            ctx.moveTo(archWidth, BRIDGE_Y - cameraPanY);
+            ctx.lineTo(archWidth + 50, BRIDGE_Y - 5 - cameraPanY);
+            ctx.lineTo(archWidth + 60, BRIDGE_Y + 15 - cameraPanY);
+            ctx.lineTo(archWidth, BRIDGE_Y + 10 - cameraPanY);
+            ctx.closePath();
+            ctx.fill();
+
+            const wizardX = archWidth;
+            const wizardScaledY = BRIDGE_Y + game.wizardY * scale - cameraPanY;
+            
+            ctx.fillStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.moveTo(wizardX, wizardScaledY - 20);
+            ctx.lineTo(wizardX - WIZARD_W, wizardScaledY + WIZARD_H / 2);
+            ctx.lineTo(wizardX + WIZARD_W, wizardScaledY + WIZARD_H / 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(wizardX, wizardScaledY + WIZARD_H / 2);
+            ctx.lineTo(wizardX - WIZARD_W / 2, wizardScaledY + WIZARD_H);
+            ctx.lineTo(wizardX - WIZARD_W / 2, wizardScaledY + WIZARD_H * 1.5);
+            ctx.lineTo(wizardX + WIZARD_W / 2, wizardScaledY + WIZARD_H * 1.5);
+            ctx.lineTo(wizardX + WIZARD_W / 2, wizardScaledY + WIZARD_H);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.font = '16px Inter';
+            ctx.fillText('The Wizard', wizardX - 100, wizardScaledY + WIZARD_H + 20);
+            
+            const swordX = wizardX + 5;
+            const swordScaledY = BRIDGE_Y + game.swordY * scale - cameraPanY;
+            
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(swordX - 2, swordScaledY - 5, 4, 10);
+            
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(swordX - 7, swordScaledY + 5, 14, 3);
+            
+            ctx.fillStyle = '#9c9c9c';
+            ctx.beginPath();
+            ctx.moveTo(swordX - 1.5, swordScaledY + 8);
+            ctx.lineTo(swordX + 1.5, swordScaledY + 8);
+            ctx.lineTo(swordX, swordScaledY + 8 + SWORD_H);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.font = '16px Inter';
+            ctx.fillText('Sword', swordX + 15, swordScaledY + SWORD_H + 15);
+        }
+
+        function checkAnswer() {
+            const userTime = parseFloat(timeInput.value);
+            const userDistance = parseFloat(distanceInput.value);
+            
+            if (isNaN(userTime) || isNaN(userDistance)) {
+                showMessage("Please enter valid numbers for both time and distance.");
+                return;
+            }
+
+            game.attempts++;
+            attemptCounter.textContent = `Attempts: ${game.attempts}`;
+            
+            const timeError = Math.abs((userTime - game.true_t) / game.true_t);
+            const distanceError = Math.abs((Math.abs(userDistance) - game.true_h) / game.true_h);
+            const maxError = Math.max(timeError, distanceError) * 100;
+            
+            const timeErrorPercent = timeError * 100;
+            const distanceErrorPercent = distanceError * 100;
+
+            let feedbackTitle = '';
+            let feedbackMessage = '';
+            
+            if (maxError <= 5) {
+                winMessage.textContent = 'You win!';
+                if (maxError <= 1) {
+                    feedbackTitle = 'A feat of pure genius!';
+                    feedbackMessage = 'You have not only mastered the physics of this perilous bridge, but you have done so with flawless precision! You shall not pass... without the Fellowship!';
+                } else if (maxError <= 2) {
+                    feedbackTitle = 'Truly masterful!';
+                    feedbackMessage = 'Your calculations are impeccable. The wizard makes the catch with breathtaking accuracy!';
+                } else if (maxError <= 3) {
+                    feedbackTitle = 'A perfect catch!';
+                    feedbackMessage = 'You have made the perfect calculations. The wizard retrieves the sword with grace and skill.';
+                } else if (maxError <= 4) {
+                    feedbackTitle = 'An impressive catch!';
+                    feedbackMessage = 'Your answers are very close to the true values. A great effort, worthy of the Fellowship!';
+                } else {
+                    feedbackTitle = 'Good effort!';
+                    feedbackMessage = 'Your answers are within an acceptable range. The bridge holds!';
+                }
+            } else if (maxError <= 10) {
+                winMessage.textContent = '';
+                feedbackTitle = 'A narrow miss...';
+                feedbackMessage = 'Your answers are a little off, but you\'re on the right track! Take a moment to review your work and try again.';
+            } else if (maxError <= 20) {
+                winMessage.textContent = '';
+                feedbackTitle = 'You\'re getting warmer!';
+                feedbackMessage = 'Your answers are getting closer! Double-check your calculations, especially the signs and constants.';
+            } else if (maxError <= 50) {
+                winMessage.textContent = '';
+                feedbackTitle = 'A valiant effort!';
+                feedbackMessage = 'The wizard and sword are not quite aligned. Pay close attention to the initial conditions of the problem.';
+            } else {
+                winMessage.textContent = '';
+                feedbackTitle = 'This is not the way!';
+                feedbackMessage = 'Your answers are significantly off. Perhaps a new path is needed. Remember your physics lessons!';
+            }
+            
+            document.getElementById('feedback-title').textContent = feedbackTitle;
+            document.getElementById('feedback-message').textContent = feedbackMessage;
+            timeErrorSpan.textContent = timeErrorPercent.toFixed(2);
+            distanceErrorSpan.textContent = distanceErrorPercent.toFixed(2);
+
+            updateUI('feedback');
+        }
+
+        function tryAgain() {
+            newProblem();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        document.getElementById('start-button').addEventListener('click', () => {
+            newProblem();
+        });
+        submitButton.addEventListener('click', checkAnswer);
+        tryAgainButton.addEventListener('click', tryAgain);
+        replayButton.addEventListener('click', replayAnimation);
+
+        window.onload = function() {
+            resizeCanvas();
+            updateUI('intro');
+        };
+
+    </script>
+</body>
+</html>
+Displaying Khaazad-dum mobile.html.
