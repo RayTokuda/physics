@@ -320,7 +320,7 @@
                         <span id="blue-car-time">Time: 0.00 s</span>
                     </div>
                     <div class="track-container" id="blue-car-track-container">
-                        <!-- This inner wrapper will be translated to pan the camera, independently from the red car's track. -->
+                        <!-- This inner wrapper will be translated to pan the camera, independently from the blue car's track. -->
                         <div class="track-content-wrapper" id="blue-track-content-wrapper">
                             <div class="meter-stick" id="blue-meter-stick"></div>
                             <div class="car blue-car" id="blue-car">
@@ -831,6 +831,7 @@
                 if (isRedCarObserving) {
                     redCarObsTime += deltaTime;
                     if (redCarObsTime >= manualRunTimeLimit) {
+                        redCarObsTime = manualRunTimeLimit;
                         isRedCarObserving = false;
                         startRedObservationBtn.classList.remove('hidden');
                         pauseRedObservationBtn.classList.add('hidden');
@@ -843,6 +844,7 @@
                 if (isBlueCarObserving) {
                     blueCarObsTime += deltaTime;
                     if (blueCarObsTime >= manualRunTimeLimit) {
+                        blueCarObsTime = manualRunTimeLimit;
                         isBlueCarObserving = false;
                         startBlueObservationBtn.classList.remove('hidden');
                         pauseBlueObservationBtn.classList.add('hidden');
@@ -883,6 +885,13 @@
 
         // --- Event Listeners ---
         startRedObservationBtn.addEventListener('click', () => {
+            if (redCarObsTime >= manualRunTimeLimit) {
+                showMessageBox(
+                    "Observation Limit Reached",
+                    "The Red Car has already reached its maximum observation limit."
+                );
+                return;
+            }
             isRedCarObserving = true;
             startRedObservationBtn.classList.add('hidden');
             pauseRedObservationBtn.classList.remove('hidden');
@@ -893,6 +902,13 @@
             pauseRedObservationBtn.classList.add('hidden');
         });
         startBlueObservationBtn.addEventListener('click', () => {
+            if (blueCarObsTime >= manualRunTimeLimit) {
+                showMessageBox(
+                    "Observation Limit Reached",
+                    "The Blue Car has already reached its maximum observation limit."
+                );
+                return;
+            }
             isBlueCarObserving = true;
             startBlueObservationBtn.classList.add('hidden');
             pauseBlueObservationBtn.classList.remove('hidden');
@@ -906,7 +922,14 @@
         const frameTimeStep = 0.1;
         redFrameAdvanceBtn.addEventListener('click', () => {
             if (!isRedCarObserving) {
-                redCarObsTime += frameTimeStep;
+                if (redCarObsTime >= manualRunTimeLimit) {
+                    showMessageBox(
+                        "Observation Limit Reached",
+                        "You cannot advance the Red Car past its observation limit."
+                    );
+                    return;
+                }
+                redCarObsTime = Math.min(manualRunTimeLimit, redCarObsTime + frameTimeStep);
                 updateCarPositions(redCarObsTime, blueCarObsTime);
             }
         });
@@ -918,7 +941,14 @@
         });
         blueFrameAdvanceBtn.addEventListener('click', () => {
             if (!isBlueCarObserving) {
-                blueCarObsTime += frameTimeStep;
+                if (blueCarObsTime >= manualRunTimeLimit) {
+                    showMessageBox(
+                        "Observation Limit Reached",
+                        "You cannot advance the Blue Car past its observation limit."
+                    );
+                    return;
+                }
+                blueCarObsTime = Math.min(manualRunTimeLimit, blueCarObsTime + frameTimeStep);
                 updateCarPositions(redCarObsTime, blueCarObsTime);
             }
         });
