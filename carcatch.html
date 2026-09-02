@@ -797,7 +797,7 @@
                         if (isWin) {
                             resultMessageEl.classList.remove('loss-message');
                             resultMessageEl.classList.add('win-message');
-                            resultMessageEl.innerHTML = `<strong>SUCCESS! Both errors are $\le$ 7.00%!</strong><br>${summaryMessage}`;
+                            resultMessageEl.innerHTML = `<strong>SUCCESS! Both errors are &le; 7.00%!</strong><br>${summaryMessage}`;
 
                             // Generate effusive praise & custom win modal UI
                             const praiseData = generateEffusiveWinData(timeErrPct, distErrPct);
@@ -811,7 +811,7 @@
                             verificationSerialEl.textContent = praiseData.serialCode;
 
                             if (praiseData.isUltimate) {
-                                ultimateCreditBanner.innerHTML = "🏆 <strong>ULTIMATE EXTRA CREDIT AWARDED!</strong> 🏆<br>Sensational performance! Both time & distance errors were $\le$ 1.00%!";
+                                ultimateCreditBanner.innerHTML = "🏆 <strong>ULTIMATE EXTRA CREDIT AWARDED!</strong> 🏆<br>Sensational performance! Both time & distance errors were &le; 1.00%!";
                                 ultimateCreditBanner.classList.remove('hidden');
                             } else {
                                 ultimateCreditBanner.classList.add('hidden');
@@ -821,7 +821,7 @@
                         } else {
                             resultMessageEl.classList.remove('win-message');
                             resultMessageEl.classList.add('loss-message');
-                            resultMessageEl.innerHTML = `<strong>TRY AGAIN!</strong> Both errors must be $\le$ 7.00% to win.<br>${summaryMessage}`;
+                            resultMessageEl.innerHTML = `<strong>TRY AGAIN!</strong> Both errors must be &le; 7.00% to win.<br>${summaryMessage}`;
                         }
                         isRaceRunning = false;
                         return;
