@@ -6,7 +6,7 @@
     <title>Car Catch-Up Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8;
@@ -245,6 +245,10 @@
         .feedback-section.visible {
             display: block;
         }
+        .ultimate-credit-glow {
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.6), inset 0 0 15px rgba(254, 240, 138, 0.8);
+            border: 3px solid #eab308;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -384,11 +388,36 @@
                 </div>
             </div>
 
-            <div id="win-screen" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-40">
-                <div class="bg-white p-8 rounded-lg text-center shadow-xl">
-                    <h2 class="text-4xl font-bold text-green-500">You Win!</h2>
-                    <p id="win-message-text" class="mt-4 text-xl font-semibold text-gray-800"></p>
-                    <button id="reset-game-btn" class="mt-6 btn btn-green px-6 py-3">Play Again</button>
+            <!-- Win Screen Modal -->
+            <div id="win-screen" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-40 p-4">
+                <div id="win-card" class="bg-white p-6 sm:p-8 rounded-2xl text-center shadow-2xl max-w-lg w-full transform transition-all">
+                    <div id="badge-banner" class="inline-block px-4 py-1.5 rounded-full text-xs sm:text-sm font-extrabold uppercase tracking-wider mb-3"></div>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-green-600 mb-2" id="win-headline">VICTORY!</h2>
+                    
+                    <!-- Error Percentages Display -->
+                    <div class="bg-slate-100 rounded-xl p-4 my-4 flex justify-around border border-slate-200 shadow-inner">
+                        <div class="text-center">
+                            <span class="block text-xs uppercase font-bold text-slate-500">Time Error</span>
+                            <span id="time-error-display" class="text-lg sm:text-xl font-extrabold text-emerald-600">0.00%</span>
+                        </div>
+                        <div class="w-px bg-slate-300"></div>
+                        <div class="text-center">
+                            <span class="block text-xs uppercase font-bold text-slate-500">Distance Error</span>
+                            <span id="dist-error-display" class="text-lg sm:text-xl font-extrabold text-emerald-600">0.00%</span>
+                        </div>
+                    </div>
+
+                    <!-- Unique Effusive Praise Section -->
+                    <p id="win-message-text" class="text-slate-700 text-sm sm:text-base leading-relaxed my-3 font-medium"></p>
+                    <p id="ultimate-credit-banner" class="text-amber-800 bg-amber-100 border border-amber-300 rounded-lg p-3 font-bold text-xs sm:text-sm my-3 hidden"></p>
+
+                    <!-- Anti-cheating Unique Verification Serial -->
+                    <div class="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+                        <span>Student Verification ID:</span>
+                        <span id="verification-serial" class="font-mono font-bold tracking-wider text-slate-600"></span>
+                    </div>
+
+                    <button id="reset-game-btn" class="mt-6 btn btn-green px-8 py-3 text-base shadow-lg hover:shadow-xl">Play Again</button>
                 </div>
             </div>
         </div>
@@ -418,6 +447,40 @@
         const carHalfLength = carLength / 2;
         const pixelsPerMeter = 100;
 
+        // Word banks for generating >100 combinations of effusive praise
+        const EXCLAMATIONS = [
+            "Astounding Precision!", "Phenomenal Physics!", "Breathtaking Calculation!", 
+            "Sublime Mastery!", "Mind-Blowing Accuracy!", "Sensational Intelligence!", 
+            "Unrivaled Brilliance!", "Monumental Triumph!", "Flawless Execution!", 
+            "Spectacular Insight!", "Incredible Kinematics!", "Divine Physics Skills!"
+        ];
+        
+        const ADJECTIVES = [
+            "quantum-level", "Einsteinian", "Newtonian-masterclass", "peerless", 
+            "hyper-precise", "flawless", "superhuman", "awe-inspiring", 
+            "astronomical", "transcendent", "immaculate", "world-class"
+        ];
+        
+        const TITLES = [
+            "Kinematics Virtuoso", "Master of Motion", "Velocity Overlord", 
+            "Titan of Acceleration", "Grandmaster of Physics", "Oracle of Vector Mechanics", 
+            "Arch-Scholar of Dynamics", "Lord of Linear Motion", "High Wizard of Kinematics", 
+            "Sovereign of Classical Mechanics"
+        ];
+        
+        const CONCLUSIONS = [
+            "Your calculations belong in a physics hall of fame!",
+            "Galileo himself would stand and offer a standing ovation!",
+            "You calculated motion with the surgical razor-precision of an atomic clock!",
+            "Future physics textbooks will reference your extraordinary accuracy!",
+            "The fundamental laws of motion bend in awe of your intellect!",
+            "Your quantitative intuition is mathematically untouchable!",
+            "A performance truly worthy of Nobel-tier acclaim!",
+            "You solved the trajectory with absolute mathematical supremacy!",
+            "Space, time, and motion yield completely to your flawless numbers!",
+            "Calculations so sharp they cut through space-time itself!"
+        ];
+
         // DOM elements
         const redCar = document.getElementById('red-car');
         const blueCar = document.getElementById('blue-car');
@@ -431,7 +494,14 @@
         const resultMessageEl = document.getElementById('result-message');
         const attemptCounterEl = document.getElementById('attempt-counter');
         const winScreenEl = document.getElementById('win-screen');
+        const winCardEl = document.getElementById('win-card');
+        const winHeadlineEl = document.getElementById('win-headline');
+        const badgeBannerEl = document.getElementById('badge-banner');
+        const timeErrorDisplay = document.getElementById('time-error-display');
+        const distErrorDisplay = document.getElementById('dist-error-display');
         const winMessageTextEl = document.getElementById('win-message-text');
+        const ultimateCreditBanner = document.getElementById('ultimate-credit-banner');
+        const verificationSerialEl = document.getElementById('verification-serial');
         const feedbackSection = document.getElementById('feedback-section');
         
         const startRedObservationBtn = document.getElementById('start-red-observation-btn');
@@ -457,20 +527,14 @@
         const redCarTrackContainer = document.getElementById('red-car-track-container');
         const blueCarTrackContainer = document.getElementById('blue-car-track-container');
 
-        // New Race Control Buttons
+        // Race Control Buttons
         const pauseRaceBtn = document.getElementById('pause-race-btn');
         const playRaceBtn = document.getElementById('play-race-btn');
         const raceFramePreviousBtn = document.getElementById('race-frame-previous-btn');
         const raceFrameAdvanceBtn = document.getElementById('race-frame-advance-btn');
 
-        // The offset needed to position the car's front bumper at the 0px mark
         const carStartingOffset = -carHalfLength;
 
-        /**
-         * Shows a custom message box instead of using alert().
-         * @param {string} title - The title of the message box.
-         * @param {string} message - The content of the message.
-         */
         function showMessageBox(title, message) {
             messageTitle.textContent = title;
             messageText.textContent = message;
@@ -483,13 +547,7 @@
             messageBox.classList.remove('flex');
         });
 
-        /**
-         * Creates and adds the meter labels to a meter stick element.
-         * @param {HTMLElement} meterStickEl - The element to add labels to.
-         * @param {number} maxMeters - The maximum distance to label in meters.
-         */
         function createMeterLabels(meterStickEl, maxMeters) {
-            // Clear existing labels
             meterStickEl.querySelectorAll('.meter-label').forEach(label => label.remove());
             
             for (let i = 0; i <= maxMeters; i++) {
@@ -501,18 +559,14 @@
             }
         }
         
-        /**
-         * Initializes or resets the game state with new random parameters.
-         */
         function initializeGame() {
-            // Stop any existing animation
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
             
             redCarObsTime = 0;
             blueCarObsTime = 0;
-            isRaceRunning = false; // Ensure race state is reset
+            isRaceRunning = false;
             isRacePaused = false;
             raceTime = 0;
 
@@ -529,14 +583,12 @@
             const maxHeadStart = 5;
             headStart = Math.random() * (maxHeadStart - minHeadStart) + minHeadStart;
 
-            // Calculate manual run time limit based on the actual catch-up time
             const expectedCatchupTime = headStart / (redCarSpeed - blueCarSpeed);
-            const cutoffPercentage = Math.random() * (0.95 - 0.80) + 0.80; // 80% to 95%
+            const cutoffPercentage = Math.random() * (0.95 - 0.80) + 0.80;
             manualRunTimeLimit = expectedCatchupTime * cutoffPercentage;
 
             updateCarPositions(redCarObsTime, blueCarObsTime);
 
-            // Set a reasonable track length for observation to make dynamic extension more obvious
             const observationTrackLength = 9;
             redMeterStick.style.width = `${observationTrackLength * pixelsPerMeter}px`;
             blueMeterStick.style.width = `${observationTrackLength * pixelsPerMeter}px`;
@@ -550,7 +602,6 @@
             timePredictionInput.value = '';
             distancePredictionInput.value = '';
             
-            // Hide the feedback section
             feedbackSection.classList.remove('visible');
             feedbackSection.classList.add('hidden');
             
@@ -559,47 +610,36 @@
             isBlueCarObserving = false;
             lastFrameTime = 0;
             
-            // Show start buttons, hide pause buttons
             startRedObservationBtn.classList.remove('hidden');
             pauseRedObservationBtn.classList.add('hidden');
             startBlueObservationBtn.classList.remove('hidden');
             pauseBlueObservationBtn.classList.add('hidden');
             
-            // Re-enable all observation controls that were disabled during the race
             document.querySelectorAll('.split-screen-item .controls-row button').forEach(btn => btn.disabled = false);
             resetObservationBtn.disabled = false;
             
-            // Start the main animation loop for the observation phase
             animationFrameId = requestAnimationFrame(mainLoop);
         }
 
-        /**
-         * Updates the visual positions of the cars based on the current observation time.
-         */
         function updateCarPositions(redTime, blueTime) {
             const redCarPos = redCarSpeed * redTime;
             const blueCarPos = blueCarSpeed * blueTime;
 
-            // Calculate new positions for the cars relative to their respective tracks.
             redCar.style.transform = `translateY(-50%) translateX(${carStartingOffset + (redCarPos * pixelsPerMeter)}px)`;
             blueCar.style.transform = `translateY(-50%) translateX(${carStartingOffset + (blueCarPos) * pixelsPerMeter}px)`;
             
-            // --- Independent Camera Pan Logic ---
             const redTrackWidth = redCarTrackContainer.offsetWidth;
             const blueTrackWidth = blueCarTrackContainer.offsetWidth;
             
-            // Red car camera pan
             const redCarX = carStartingOffset + (redCarPos * pixelsPerMeter);
             const redScrollPos = -Math.max(0, redCarX - (redTrackWidth / 2));
             redTrackContentWrapper.style.transform = `translateX(${redScrollPos}px)`;
 
-            // Blue car camera pan
             const blueCarX = carStartingOffset + (blueCarPos * pixelsPerMeter);
             const blueScrollPos = -Math.max(0, blueCarX - (blueTrackWidth / 2));
             blueTrackContentWrapper.style.transform = `translateX(${blueScrollPos}px)`;
             
-            // Dynamically extend tracks
-            const redRequiredWidth = redCarX + 100; // Add some buffer
+            const redRequiredWidth = redCarX + 100;
             if (redRequiredWidth > redMeterStick.offsetWidth) {
                  const newLengthInMeters = Math.ceil(redRequiredWidth / pixelsPerMeter);
                  redMeterStick.style.width = `${newLengthInMeters * pixelsPerMeter}px`;
@@ -617,10 +657,6 @@
             blueCarTimeEl.textContent = `Time: ${blueTime.toFixed(2)} s`;
         }
 
-        /**
-         * Updates the visual positions of the cars during the final race.
-         * @param {number} currentTime - The current time of the race.
-         */
         function updateRaceCarPositions(currentTime) {
             const redCarTotalDistance = redCarSpeed * currentTime;
             const blueCarTotalDistance = headStart + (blueCarSpeed * currentTime);
@@ -628,7 +664,6 @@
             const redCarX = carStartingOffset + (redCarTotalDistance * pixelsPerMeter);
             const blueCarX = carStartingOffset + (blueCarTotalDistance * pixelsPerMeter);
 
-            // --- Independent Camera Pan Logic for the Race ---
             const redTrackWidth = redCarTrackContainer.offsetWidth;
             const blueTrackWidth = blueCarTrackContainer.offsetWidth;
 
@@ -641,7 +676,6 @@
             redCar.style.transform = `translateY(-50%) translateX(${redCarX}px)`;
             blueCar.style.transform = `translateY(-50%) translateX(${blueCarX}px)`;
             
-            // Dynamically extend tracks
             const redRequiredWidth = redCarX + 100;
             if (redRequiredWidth > redMeterStick.offsetWidth) {
                  const newLengthInMeters = Math.ceil(redRequiredWidth / pixelsPerMeter);
@@ -659,11 +693,68 @@
             redCarTimeEl.textContent = `Time: ${currentTime.toFixed(2)} s`;
             blueCarTimeEl.textContent = `Time: ${currentTime.toFixed(2)} s`;
         }
-        
+
         /**
-         * The main animation loop. It handles both observation and race phases based on the isRaceRunning flag.
-         * @param {number} timestamp - The current timestamp from requestAnimationFrame.
+         * Procedurally builds over 1000+ variations of effusive praise and unique verification codes.
+         * The phrase "Extra Credit" is ONLY used if both time and distance errors are <= 1.00%.
          */
+        function generateEffusiveWinData(timeErr, distErr) {
+            const maxErr = Math.max(timeErr, distErr);
+
+            // Pseudo-random selection from global word banks
+            const excl = EXCLAMATIONS[Math.floor(Math.random() * EXCLAMATIONS.length)];
+            const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+            const title = TITLES[Math.floor(Math.random() * TITLES.length)];
+            const concl = CONCLUSIONS[Math.floor(Math.random() * CONCLUSIONS.length)];
+
+            // "Extra credit" is strictly reserved for <= 1.0% on BOTH scores
+            const isUltimate = (timeErr <= 1.0 && distErr <= 1.0);
+
+            let headline = "";
+            let badgeText = "";
+            let badgeClass = "";
+            let cardExtraClass = "";
+
+            if (isUltimate) {
+                headline = "LEGENDARY TRIUMPH!";
+                badgeText = "🏆 ULTIMATE EXTRA CREDIT ACHIEVED 🏆";
+                badgeClass = "bg-amber-400 text-amber-950 font-black shadow-lg";
+                cardExtraClass = "ultimate-credit-glow bg-gradient-to-b from-amber-50 to-white";
+            } else if (maxErr <= 2.5) {
+                headline = "SUPREME PRECISION!";
+                badgeText = "🌟 HIGH TIER MASTERY 🌟";
+                badgeClass = "bg-emerald-500 text-white font-extrabold";
+                cardExtraClass = "border-2 border-emerald-400";
+            } else if (maxErr <= 5.0) {
+                headline = "OUTSTANDING MASTERY!";
+                badgeText = "⭐ ADVANCED ACCURACY ⭐";
+                badgeClass = "bg-blue-500 text-white font-extrabold";
+                cardExtraClass = "border-2 border-blue-400";
+            } else {
+                headline = "PHYSICS RACE VICTOR!";
+                badgeText = "✨ ACCURATE PREDICTION ✨";
+                badgeClass = "bg-indigo-500 text-white font-bold";
+                cardExtraClass = "";
+            }
+
+            const praiseSentence = `${excl} You have proven yourself to be a true ${adj} ${title}. ${concl}`;
+
+            // Generate unique student verification hash/serial for proof of work & plagiarism prevention
+            const randomCode = Math.floor(100000 + Math.random() * 900000);
+            const checksum = Math.round((timeErr * 100) + (distErr * 100));
+            const serialCode = `VERIFIED-${randomCode}-${checksum}`;
+
+            return {
+                headline,
+                badgeText,
+                badgeClass,
+                cardExtraClass,
+                praiseSentence,
+                isUltimate,
+                serialCode
+            };
+        }
+        
         function mainLoop(timestamp) {
             if (!lastFrameTime) {
                 lastFrameTime = timestamp;
@@ -690,24 +781,47 @@
                         const playerTimePrediction = parseFloat(timePredictionInput.value);
                         const playerDistancePrediction = parseFloat(distancePredictionInput.value);
                         
-                        const isTimeWin = Math.abs(playerTimePrediction - raceCatchupTime) / raceCatchupTime <= 0.07;
-                        const isDistanceWin = Math.abs(playerDistancePrediction - raceCatchupDistance) / raceCatchupDistance <= 0.07;
+                        // Calculate percentage errors
+                        const timeErrPct = (Math.abs(playerTimePrediction - raceCatchupTime) / raceCatchupTime) * 100;
+                        const distErrPct = (Math.abs(playerDistancePrediction - raceCatchupDistance) / raceCatchupDistance) * 100;
 
-                        const isWin = isTimeWin && isDistanceWin;
-                        
-                        let message = `The catch-up point was at <strong>${raceCatchupDistance.toFixed(2)} m</strong> after <strong>${raceCatchupTime.toFixed(2)} s</strong>.`;
-                        message += `<br>Red Car Velocity: <strong>${redCarSpeed.toFixed(2)} m/s</strong>, Blue Car Velocity: <strong>${blueCarSpeed.toFixed(2)} m/s</strong>.`;
+                        const isWin = (timeErrPct <= 7.0) && (distErrPct <= 7.0);
+
+                        timeErrorDisplay.textContent = `${timeErrPct.toFixed(2)}%`;
+                        distErrorDisplay.textContent = `${distErrPct.toFixed(2)}%`;
+
+                        let summaryMessage = `Actual catch-up point: <strong>${raceCatchupDistance.toFixed(2)} m</strong> in <strong>${raceCatchupTime.toFixed(2)} s</strong>.<br>`;
+                        summaryMessage += `Red Velocity: <strong>${redCarSpeed.toFixed(2)} m/s</strong> | Blue Velocity: <strong>${blueCarSpeed.toFixed(2)} m/s</strong>.<br>`;
+                        summaryMessage += `Error Rates: Time = <strong>${timeErrPct.toFixed(2)}%</strong>, Distance = <strong>${distErrPct.toFixed(2)}%</strong>.`;
                         
                         if (isWin) {
                             resultMessageEl.classList.remove('loss-message');
                             resultMessageEl.classList.add('win-message');
-                            resultMessageEl.innerHTML = `You win! ${message}`;
-                            winMessageTextEl.textContent = `Your predictions for both time and distance were within 7% of the correct answers! The catch-up point was at ${raceCatchupDistance.toFixed(2)} m and ${raceCatchupTime.toFixed(2)} s.`;
+                            resultMessageEl.innerHTML = `<strong>SUCCESS! Both errors are $\le$ 7.00%!</strong><br>${summaryMessage}`;
+
+                            // Generate effusive praise & custom win modal UI
+                            const praiseData = generateEffusiveWinData(timeErrPct, distErrPct);
+
+                            winHeadlineEl.textContent = praiseData.headline;
+                            badgeBannerEl.textContent = praiseData.badgeText;
+                            badgeBannerEl.className = `inline-block px-4 py-1.5 rounded-full text-xs sm:text-sm font-extrabold uppercase tracking-wider mb-3 ${praiseData.badgeClass}`;
+                            
+                            winCardEl.className = `bg-white p-6 sm:p-8 rounded-2xl text-center shadow-2xl max-w-lg w-full transform transition-all ${praiseData.cardExtraClass}`;
+                            winMessageTextEl.innerHTML = praiseData.praiseSentence;
+                            verificationSerialEl.textContent = praiseData.serialCode;
+
+                            if (praiseData.isUltimate) {
+                                ultimateCreditBanner.innerHTML = "🏆 <strong>ULTIMATE EXTRA CREDIT AWARDED!</strong> 🏆<br>Sensational performance! Both time & distance errors were $\le$ 1.00%!";
+                                ultimateCreditBanner.classList.remove('hidden');
+                            } else {
+                                ultimateCreditBanner.classList.add('hidden');
+                            }
+
                             winScreenEl.classList.remove('hidden');
                         } else {
                             resultMessageEl.classList.remove('win-message');
                             resultMessageEl.classList.add('loss-message');
-                            resultMessageEl.innerHTML = `Incorrect. ${message}`;
+                            resultMessageEl.innerHTML = `<strong>TRY AGAIN!</strong> Both errors must be $\le$ 7.00% to win.<br>${summaryMessage}`;
                         }
                         isRaceRunning = false;
                         return;
@@ -743,32 +857,24 @@
             animationFrameId = requestAnimationFrame(mainLoop);
         }
 
-        /**
-         * Starts the final race simulation.
-         */
         function startRace() {
-            // Stop observation loop and start race loop
             cancelAnimationFrame(animationFrameId);
             
             isRaceRunning = true;
             isRacePaused = false;
 
-            // Set a large initial track width for the race.
             const initialRaceTrackLength = 50; 
             redMeterStick.style.width = `${initialRaceTrackLength * pixelsPerMeter}px`;
             blueMeterStick.style.width = `${initialRaceTrackLength * pixelsPerMeter}px`;
             createMeterLabels(redMeterStick, initialRaceTrackLength);
             createMeterLabels(blueMeterStick, initialRaceTrackLength);
             
-            // Reset race time
             raceTime = 0;
             updateRaceCarPositions(raceTime);
 
-            // Re-enable and hide race controls appropriately
             pauseRaceBtn.classList.remove('hidden');
             playRaceBtn.classList.add('hidden');
 
-            // Disable all observation controls during the race
             document.querySelectorAll('.split-screen-item .controls-row button').forEach(btn => btn.disabled = true);
             resetObservationBtn.disabled = true;
 
@@ -776,8 +882,6 @@
         }
 
         // --- Event Listeners ---
-        
-        // Observation controls
         startRedObservationBtn.addEventListener('click', () => {
             isRedCarObserving = true;
             startRedObservationBtn.classList.add('hidden');
@@ -799,7 +903,6 @@
             pauseBlueObservationBtn.classList.add('hidden');
         });
 
-        // Frame-by-frame controls for observation
         const frameTimeStep = 0.1;
         redFrameAdvanceBtn.addEventListener('click', () => {
             if (!isRedCarObserving) {
@@ -838,7 +941,6 @@
             updateCarPositions(redCarObsTime, blueCarObsTime);
         });
 
-        // Submit prediction button
         submitBtn.addEventListener('click', () => {
             const timePrediction = parseFloat(timePredictionInput.value);
             const distancePrediction = parseFloat(distancePredictionInput.value);
@@ -848,17 +950,15 @@
                 return;
             }
             
-            // Increment attempt counter and show feedback section
             attempts++;
             attemptCounterEl.textContent = `Attempts: ${attempts}`;
             feedbackSection.classList.remove('hidden');
             feedbackSection.classList.add('visible');
 
-            submitBtn.disabled = true; // Disable submit button after first attempt
+            submitBtn.disabled = true;
             startRace();
         });
 
-        // Final Race Controls
         pauseRaceBtn.addEventListener('click', () => {
             isRacePaused = true;
             pauseRaceBtn.classList.add('hidden');
@@ -902,7 +1002,6 @@
             winScreenEl.classList.add('hidden');
         });
         
-        // Initial setup
         initializeGame();
     </script>
 </body>
