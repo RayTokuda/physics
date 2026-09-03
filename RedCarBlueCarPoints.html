@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        .game-board {
+            width: 100%;
+            max-width: 900px;
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+        }
+        .split-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .track-container {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            border: 2px solid #cbd5e0;
+            padding-left: 0px;
+        }
+        .track-content-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            transition: transform 0.1s linear;
+        }
+        .meter-stick {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+        .tick-mark {
+            position: absolute;
+            width: 1px;
+            background-color: #94a3b8;
+            height: 100%;
+            bottom: 0;
+            left: var(--position);
+        }
+        .meter-label {
+            position: absolute;
+            font-size: 0.75rem;
+            color: #475569;
+            text-shadow: 1px 1px 2px white;
+            transform: translateX(-50%);
+            left: var(--position);
+            pointer-events: none;
+            top: 10px;
+        }
+        .car {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.1s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .car-top-view {
+            width: 40px;
+            height: 70px;
+            position: relative;
+            border-radius: 10px;
+            transform: rotate(90deg);
+        }
+        .car-body {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        .car-cabin {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 30px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 4px solid rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            z-index: 2;
+        }
+        .car-wheel {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: #444;
+            border-radius: 6px;
+            z-index: 0;
+        }
+        .car-wheel.front-left { top: 5px; left: -8px; }
+        .car-wheel.front-right { top: 5px; right: -8px; }
+        .car-wheel.back-left { bottom: 5px; left: -8px; }
+        .car-wheel.back-right { bottom: 5px; right: -8px; }
+        .red-car-svg .car-body {
+            background-color: #ef4444;
+            border: 4px solid #b91c1c;
+        }
+        .blue-car-svg .car-body {
+            background-color: #3b82f6;
+            border: 4px solid #1d4ed8;
+        }
+        .car-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+        .car-metrics {
+            display: flex;
+            gap: 1rem;
+        }
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .control-group {
+            flex: 1;
+            min-width: 250px;
+            background-color: #f1f5f9;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        .btn-green {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-green:hover {
+            background-color: #059669;
+        }
+        .btn-blue {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-blue:hover {
+            background-color: #2563eb;
+        }
+        .btn-red {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-red:hover {
+            background-color: #dc2626;
+        }
+        .btn-gray {
+            background-color: #9ca3af;
+            color: white;
+        }
+        .btn-gray:hover {
+            background-color: #6b7280;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .small-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            max-width: 280px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        .result-message {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+        .win-message {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .loss-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .small-font {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-align: right;
+            margin-top: 1rem;
+        }
+        .instructions {
+            background-color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            color: #475569;
+        }
+        .feedback-section {
+            margin-top: 1.5rem;
+            display: none;
+        }
+        .feedback-section.visible {
+            display: block;
+        }
+        .countdown-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            font-weight: bold;
+            color: #475569;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Start Player Name Modal -->
+    <div id="playerNameModal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+            <h2 id="welcomeGreeting" class="text-2xl font-bold text-blue-600 mb-3"></h2>
+            <p class="text-gray-600 text-sm mb-6">Please enter your name to begin the collision prediction laboratory.</p>
+            <form id="playerNameForm" class="flex flex-col items-center gap-4">
+                <input type="text" id="playerNameInput" required placeholder="Enter your name..." class="w-full text-center text-lg font-semibold border-2 border-blue-400 focus:outline-none focus:border-blue-600">
+                <button type="submit" class="btn btn-green w-full mt-2 text-lg py-3">Start Laboratory</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 id="messageTitle" class="text-xl font-bold mb-2"></h3>
+            <p id="messageText" class="text-gray-700 mb-4"></p>
+            <button id="messageCloseBtn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">OK</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="game-board">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Physics Race</h1>
+                <span id="playerBadge" class="hidden text-sm font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
+                    Student: <span id="displayPlayerName"></span>
+                </span>
+            </div>
+            <p class="text-center text-gray-600 mb-8">Can you predict the catch-up point?</p>
+
+            <div class="instructions mb-8">
+                <p><strong>Instructions:</strong></p>
+                <p>The blue car gets a head start in the final race. Your goal is to predict the exact distance in <strong>centimeters</strong> and time in <strong>seconds</strong> from the starting line where the red car will catch up to the blue car. The cars move at a <strong>constant velocity</strong>.</p>
+                <ol class="list-decimal list-inside mt-2">
+                    <li>Use the observation tools below to determine the speed of each car. During observation, both cars start at the same point.</li>
+                    <li>Calculate the catch-up time and distance based on your data and the given head start.</li>
+                    <li>Enter your predictions in the boxes below and click 'Submit & Watch Race' to see the final race!</li>
+                </ol>
+            </div>
+            
+            <div class="split-screen">
+                <!-- Red Car Track -->
+                <div class="split-screen-item">
+                    <div class="car-info">
+                        <span class="font-bold text-red-500">Red Car (Fast)</span>
+                        <div class="car-metrics">
+                            <span id="red-car-time">Time: 0.00 s</span>
+                        </div>
+                    </div>
+                    <div class="track-container" id="red-car-track-container">
+                        <div class="track-content-wrapper" id="red-track-content-wrapper">
+                            <div class="meter-stick" id="red-meter-stick"></div>
+                            <div class="car red-car" id="red-car">
+                               <div class="car-top-view red-car-svg">
+                                    <div class="car-body">
+                                        <div class="car-cabin"></div>
+                                    </div>
+                                    <div class="car-wheel front-left"></div>
+                                    <div class="car-wheel front-right"></div>
+                                    <div class="car-wheel back-left"></div>
+                                    <div class="car-wheel back-right"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Red Car Controls -->
+                    <div class="flex flex-col items-center mt-2">
+                        <span class="text-sm font-semibold mb-1 text-red-500">Red Car Controls</span>
+                        <div class="controls-row">
+                            <button id="start-red-observation-btn" class="btn btn-blue small-btn">Start Observation</button>
+                            <button id="pause-red-observation-btn" class="btn btn-gray small-btn hidden">Pause Observation</button>
+                            <button id="red-frame-previous-btn" class="btn btn-blue small-btn">Previous Frame</button>
+                            <button id="red-frame-advance-btn" class="btn btn-blue small-btn">Frame Advance</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blue Car Track -->
+                <div class="split-screen-item">
+                    <div class="car-info">
+                        <span class="font-bold text-blue-500">Blue Car (Slow)</span>
+                        <div class="car-metrics">
+                            <span id="blue-car-time">Time: 0.00 s</span>
+                        </div>
+                    </div>
+                    <div class="track-container" id="blue-car-track-container">
+                        <div class="track-content-wrapper" id="blue-track-content-wrapper">
+                            <div class="meter-stick" id="blue-meter-stick"></div>
+                            <div class="car blue-car" id="blue-car">
+                                <div class="car-top-view blue-car-svg">
+                                    <div class="car-body">
+                                        <div class="car-cabin"></div>
+                                    </div>
+                                    <div class="car-wheel front-left"></div>
+                                    <div class="car-wheel front-right"></div>
+                                    <div class="car-wheel back-left"></div>
+                                    <div class="car-wheel back-right"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                     <!-- Blue Car Controls -->
+                     <div class="flex flex-col items-center mt-2">
+                        <span class="text-sm font-semibold mb-1 text-blue-500">Blue Car Controls</span>
+                        <div class="controls-row">
+                            <button id="start-blue-observation-btn" class="btn btn-blue small-btn">Start Observation</button>
+                            <button id="pause-blue-observation-btn" class="btn btn-gray small-btn hidden">Pause Observation</button>
+                            <button id="blue-frame-previous-btn" class="btn btn-blue small-btn">Previous Frame</button>
+                            <button id="blue-frame-advance-btn" class="btn btn-blue small-btn">Frame Advance</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="controls-row justify-center mt-2 gap-4">
+                    <button id="reset-observation-btn" class="btn btn-blue small-btn">Reset All</button>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <p id="head-start-info" class="text-lg font-semibold text-gray-700"></p>
+                <div class="flex flex-col sm:flex-row sm:justify-center sm:space-x-8 mt-4">
+                    <div>
+                        <p class="text-lg font-semibold text-gray-700">Predict catch-up time (s):</p>
+                        <input type="number" id="time-prediction-input" placeholder="e.g., 5.00">
+                    </div>
+                    <div>
+                        <p class="text-lg font-semibold text-gray-700">Predict catch-up distance (cm):</p>
+                        <input type="number" id="distance-prediction-input" placeholder="e.g., 1250">
+                    </div>
+                </div>
+                <button id="submit-btn" class="btn btn-green mt-4">Submit & Watch Race</button>
+            </div>
+            
+            <div id="feedback-section" class="feedback-section">
+                <div class="flex flex-col items-center mt-4">
+                    <span class="text-sm font-semibold mb-1">Final Race Controls</span>
+                    <div class="controls-row">
+                        <button id="pause-race-btn" class="btn btn-gray small-btn">Pause</button>
+                        <button id="play-race-btn" class="btn btn-blue small-btn hidden">Play</button>
+                        <button id="race-frame-previous-btn" class="btn btn-blue small-btn">Previous Frame</button>
+                        <button id="race-frame-advance-btn" class="btn btn-blue small-btn">Frame Advance</button>
+                    </div>
+                </div>
+                <div id="result-message" class="result-message"></div>
+                <div id="attempt-counter" class="small-font">Attempts: 0</div>
+                <div class="flex flex-col sm:flex-row justify-center gap-4 mt-4">
+                    <button id="rerun-btn" class="btn btn-blue px-6 py-3">Rerun Final Race</button>
+                    <button id="full-reset-btn" class="btn btn-red px-6 py-3">Try Again</button>
+                </div>
+            </div>
+
+            <div id="countdown-message" class="countdown-message hidden"></div>
+
+            <div id="win-screen" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-40 p-4">
+                <div class="bg-white p-8 rounded-xl text-center shadow-2xl max-w-lg w-full">
+                    <h2 id="win-title" class="text-4xl font-bold text-green-500">You Win!</h2>
+                    <p id="win-congratulations" class="text-xl font-bold text-blue-600 mt-2"></p>
+                    <p id="win-message-text" class="mt-4 text-base text-gray-800"></p>
+                    
+                    <!-- Verification Box -->
+                    <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-left">
+                        <p class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Completion Verification</p>
+                        <p class="text-sm text-gray-700 mt-1">Student Name: <strong id="certStudentName" class="text-gray-900">---</strong></p>
+                        <p class="text-sm text-gray-700">Unique Verification Code:</p>
+                        <div id="certVerificationCode" class="mt-1 bg-gray-900 text-green-400 font-mono font-bold text-center py-2 px-3 rounded text-sm tracking-widest select-all">
+                            ---
+                        </div>
+                    </div>
+
+                    <button id="reset-game-btn" class="mt-6 btn btn-green px-6 py-3 w-full">Play Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // List of over 100 Congratulatory Welcome Greetings
+        const welcomeGreetings = [
+            "Welcome amazing physics student", "Welcome brilliant mind of science", "Welcome future Einstein",
+            "Welcome master of motion", "Welcome velocity expert", "Welcome Newton's star pupil",
+            "Welcome dynamic investigator", "Welcome champion of calculations", "Welcome wizard of kinematics",
+            "Welcome precision analyst", "Welcome sharp problem solver", "Welcome speed strategist",
+            "Welcome physics prodigy", "Welcome relentless researcher", "Welcome formula master",
+            "Welcome quantitative thinker", "Welcome linear motion leader", "Welcome lab innovator",
+            "Welcome scientific explorer", "Welcome acceleration authority", "Welcome genius in the making",
+            "Welcome master of vectors", "Welcome physics scholar", "Welcome brilliant analyst",
+            "Welcome trajectory expert", "Welcome motion analyst", "Welcome keen physics investigator",
+            "Welcome champion of science", "Welcome data wizard", "Welcome future Nobel laureate",
+            "Welcome top physics researcher", "Welcome analytical mastermind", "Welcome stellar physics enthusiast",
+            "Welcome high-speed strategist", "Welcome scientific mastermind", "Welcome velocity visionary",
+            "Welcome lab champion", "Welcome physics extraordinaire", "Welcome master of constant speed",
+            "Welcome expert calculator", "Welcome future scientist", "Welcome dynamic thinker",
+            "Welcome mechanics authority", "Welcome precision researcher", "Welcome insightful physicist",
+            "Welcome vector master", "Welcome elite problem solver", "Welcome science pioneer",
+            "Welcome top-tier analyst", "Welcome physics superstar", "Welcome clever investigator",
+            "Welcome mathematical mastermind", "Welcome motion prodigy", "Welcome brilliant experimenter",
+            "Welcome expert of motion", "Welcome master of measurement", "Welcome lab prodigy",
+            "Welcome analytical genius", "Welcome science sensation", "Welcome physics wiz",
+            "Welcome speed expert", "Welcome master of mechanics", "Welcome trajectory wiz",
+            "Welcome sharp scientist", "Welcome calculating champion", "Welcome distinguished physicist",
+            "Welcome scientific wizard", "Welcome high-powered thinker", "Welcome constant velocity star",
+            "Welcome champion experimenter", "Welcome master of distance and time", "Welcome stellar scholar",
+            "Welcome lab genius", "Welcome brilliant observer", "Welcome momentum master",
+            "Welcome kinematic scholar", "Welcome top science student", "Welcome physics powerhouse",
+            "Welcome data master", "Welcome elite observer", "Welcome formula prodigy",
+            "Welcome brilliant pioneer", "Welcome champion of precision", "Welcome master of speed",
+            "Welcome physics star", "Welcome outstanding researcher", "Welcome sharp investigator",
+            "Welcome master problem solver", "Welcome physics luminary", "Welcome scientific star",
+            "Welcome expert observer", "Welcome calculating prodigy", "Welcome top-performing student",
+            "Welcome stellar physicist", "Welcome bright scientific mind", "Welcome speed analyst",
+            "Welcome dynamic scholar", "Welcome kinematic authority", "Welcome physics legend",
+            "Welcome science master", "Welcome master of time and distance", "Welcome elite physics student"
+        ];
+
+        // Global variables for game state
+        let playerName = "";
+        let redCarSpeed = 0;
+        let blueCarSpeed = 0;
+        let headStart = 0;
+        let animationFrameId;
+        let lastFrameTime = 0;
+        let redCarObsTime = 0;
+        let blueCarObsTime = 0;
+        let isRedCarObserving = false;
+        let isBlueCarObserving = false;
+        let isRaceRunning = false;
+        let isRacePaused = false;
+        let attempts = 0;
+        let raceCatchupDistance = 0;
+        let raceCatchupTime = 0;
+        let raceTime = 0;
+        let observationTimeLimit = 0;
+
+        // Constants for physics simulation
+        const carLengthPixels = 70; // Car's visual length in pixels after rotation
+        const pixelsPerCm = 100; // Spacing of 100 pixels per cm
+        const carStartOffsetPixels = -carLengthPixels;
+
+        // DOM elements
+        const playerNameModal = document.getElementById('playerNameModal');
+        const playerNameForm = document.getElementById('playerNameForm');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const welcomeGreeting = document.getElementById('welcomeGreeting');
+        const playerBadge = document.getElementById('playerBadge');
+        const displayPlayerName = document.getElementById('displayPlayerName');
+
+        const redCar = document.getElementById('red-car');
+        const blueCar = document.getElementById('blue-car');
+        const redMeterStick = document.getElementById('red-meter-stick');
+        const blueMeterStick = document.getElementById('blue-meter-stick');
+        const redCarTimeEl = document.getElementById('red-car-time');
+        const blueCarTimeEl = document.getElementById('blue-car-time');
+        const headStartInfoEl = document.getElementById('head-start-info');
+        const timePredictionInput = document.getElementById('time-prediction-input');
+        const distancePredictionInput = document.getElementById('distance-prediction-input');
+        const resultMessageEl = document.getElementById('result-message');
+        const attemptCounterEl = document.getElementById('attempt-counter');
+        const winScreenEl = document.getElementById('win-screen');
+        const winTitleEl = document.getElementById('win-title');
+        const winCongratulations = document.getElementById('win-congratulations');
+        const winMessageTextEl = document.getElementById('win-message-text');
+        const certStudentName = document.getElementById('certStudentName');
+        const certVerificationCode = document.getElementById('certVerificationCode');
+        const feedbackSection = document.getElementById('feedback-section');
+        const countdownMessage = document.getElementById('countdown-message');
+        
+        const startRedObservationBtn = document.getElementById('start-red-observation-btn');
+        const pauseRedObservationBtn = document.getElementById('pause-red-observation-btn');
+        const startBlueObservationBtn = document.getElementById('start-blue-observation-btn');
+        const pauseBlueObservationBtn = document.getElementById('pause-blue-observation-btn');
+        const resetObservationBtn = document.getElementById('reset-observation-btn');
+        const redFramePreviousBtn = document.getElementById('red-frame-previous-btn');
+        const redFrameAdvanceBtn = document.getElementById('red-frame-advance-btn');
+        const blueFramePreviousBtn = document.getElementById('blue-frame-previous-btn');
+        const blueFrameAdvanceBtn = document.getElementById('blue-frame-advance-btn');
+
+        const submitBtn = document.getElementById('submit-btn');
+        const resetGameBtn = document.getElementById('reset-game-btn');
+        const fullResetBtn = document.getElementById('full-reset-btn');
+        const rerunBtn = document.getElementById('rerun-btn');
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageText = document.getElementById('messageText');
+        const messageCloseBtn = document.getElementById('messageCloseBtn');
+        const redTrackContentWrapper = document.getElementById('red-track-content-wrapper');
+        const blueTrackContentWrapper = document.getElementById('blue-track-content-wrapper');
+        const redCarTrackContainer = document.getElementById('red-car-track-container');
+        const blueCarTrackContainer = document.getElementById('blue-car-track-container');
+
+        const pauseRaceBtn = document.getElementById('pause-race-btn');
+        const playRaceBtn = document.getElementById('play-race-btn');
+        const raceFramePreviousBtn = document.getElementById('race-frame-previous-btn');
+        const raceFrameAdvanceBtn = document.getElementById('race-frame-advance-btn');
+
+        // Select random greeting
+        const randomGreeting = welcomeGreetings[Math.floor(Math.random() * welcomeGreetings.length)];
+        welcomeGreeting.textContent = randomGreeting + "!";
+
+        // Handle Player Name Submission
+        playerNameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const inputVal = playerNameInput.value.trim();
+            if (inputVal) {
+                playerName = inputVal;
+                displayPlayerName.textContent = playerName;
+                playerBadge.classList.remove('hidden');
+                playerNameModal.classList.add('hidden');
+                initializeGame();
+            }
+        });
+
+        // Verification Code Generator
+        function generateVerificationCode(name, timeVal, distVal) {
+            const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3) || 'STU';
+            const seed = Math.abs((timeVal * 100 + distVal * 10 + name.length * 13) * 982451653) % 1000000;
+            const codePart = seed.toString().padStart(6, '0');
+            return `PHYS-${cleanName}-${codePart.slice(0, 3)}-${codePart.slice(3)}`;
+        }
+
+        function showMessageBox(title, message) {
+            messageTitle.textContent = title;
+            messageText.innerHTML = message;
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        }
+
+        messageCloseBtn.addEventListener('click', () => {
+            messageBox.classList.add('hidden');
+            messageBox.classList.remove('flex');
+        });
+
+        function createMeterLabels(meterStickEl, maxCm) {
+            meterStickEl.querySelectorAll('.meter-label').forEach(label => label.remove());
+            meterStickEl.querySelectorAll('.tick-mark').forEach(tick => tick.remove());
+            
+            for (let i = 0; i <= maxCm; i += 1) { 
+                const tick = document.createElement('div');
+                tick.classList.add('tick-mark');
+                tick.style.setProperty('--position', `${i * pixelsPerCm}px`);
+                meterStickEl.appendChild(tick);
+
+                const label = document.createElement('div');
+                label.classList.add('meter-label');
+                label.textContent = `${i} cm`;
+                label.style.setProperty('--position', `${i * pixelsPerCm}px`);
+                meterStickEl.appendChild(label);
+            }
+        }
+        
+        function initializeGame() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            
+            redCarObsTime = 0;
+            blueCarObsTime = 0;
+            isRaceRunning = false;
+            isRacePaused = false;
+            raceTime = 0;
+
+            redCarSpeed = Math.random() * (11 - 7) + 7;
+            blueCarSpeed = Math.random() * (6 - 2) + 2;
+            headStart = Math.floor(Math.random() * (75 - 9 + 1)) + 9;
+
+            raceCatchupTime = headStart / (redCarSpeed - blueCarSpeed);
+            raceCatchupDistance = redCarSpeed * raceCatchupTime;
+
+            // Enforce observation limit strictly below catchup time
+            observationTimeLimit = raceCatchupTime * (0.65 + Math.random() * 0.2);
+
+            updateCarPositions(redCarObsTime, blueCarObsTime);
+
+            const observationTrackLength = 40;
+            redMeterStick.style.width = `${observationTrackLength * pixelsPerCm}px`;
+            blueMeterStick.style.width = `${observationTrackLength * pixelsPerCm}px`;
+            createMeterLabels(redMeterStick, observationTrackLength);
+            createMeterLabels(blueMeterStick, observationTrackLength);
+
+            redCarTimeEl.textContent = `Time: 0.00 s`;
+            blueCarTimeEl.textContent = `Time: 0.00 s`;
+
+            headStartInfoEl.textContent = `Blue Car's Head Start (for the final race): ${headStart.toFixed(0)} cm`;
+            
+            timePredictionInput.value = '';
+            distancePredictionInput.value = '';
+            
+            feedbackSection.classList.remove('visible');
+            feedbackSection.classList.add('hidden');
+            
+            submitBtn.disabled = false;
+            isRedCarObserving = false;
+            isBlueCarObserving = false;
+            lastFrameTime = 0;
+            
+            startRedObservationBtn.classList.remove('hidden');
+            pauseRedObservationBtn.classList.add('hidden');
+            startBlueObservationBtn.classList.remove('hidden');
+            pauseBlueObservationBtn.classList.add('hidden');
+            
+            document.querySelectorAll('.split-screen-item .controls-row button').forEach(btn => btn.disabled = false);
+            resetObservationBtn.disabled = false;
+            
+            animationFrameId = requestAnimationFrame(mainLoop);
+        }
+
+        function updateCarPositions(redTime, blueTime) {
+            const redCarPos = redCarSpeed * redTime;
+            const blueCarPos = blueCarSpeed * blueTime;
+
+            redCar.style.transform = `translateY(-50%) translateX(${ (redCarPos * pixelsPerCm) + carStartOffsetPixels}px)`;
+            blueCar.style.transform = `translateY(-50%) translateX(${ (blueCarPos * pixelsPerCm) + carStartOffsetPixels}px)`;
+            
+            const redTrackWidth = redCarTrackContainer.offsetWidth;
+            const blueTrackWidth = blueCarTrackContainer.offsetWidth;
+            
+            const redCarX = (redCarPos * pixelsPerCm);
+            const redScrollPos = -Math.max(0, redCarX - (redTrackWidth / 2));
+            redTrackContentWrapper.style.transform = `translateX(${redScrollPos}px)`;
+
+            const blueCarX = (blueCarPos * pixelsPerCm);
+            const blueScrollPos = -Math.max(0, blueCarX - (blueTrackWidth / 2));
+            blueTrackContentWrapper.style.transform = `translateX(${blueScrollPos}px)`;
+            
+            const redRequiredWidth = redCarX + 100;
+            if (redRequiredWidth > redMeterStick.offsetWidth) {
+                 const newLengthInCm = Math.ceil(redRequiredWidth / pixelsPerCm);
+                 redMeterStick.style.width = `${newLengthInCm * pixelsPerCm}px`;
+                 createMeterLabels(redMeterStick, newLengthInCm);
+            }
+
+            const blueRequiredWidth = blueCarX + 100;
+            if (blueRequiredWidth > blueMeterStick.offsetWidth) {
+                 const newLengthInCm = Math.ceil(blueRequiredWidth / pixelsPerCm);
+                 blueMeterStick.style.width = `${newLengthInCm * pixelsPerCm}px`;
+                 createMeterLabels(blueMeterStick, newLengthInCm);
+            }
+
+            redCarTimeEl.textContent = `Time: ${redTime.toFixed(2)} s`;
+            blueCarTimeEl.textContent = `Time: ${blueTime.toFixed(2)} s`;
+        }
+
+        function updateRaceCarPositions(currentTime) {
+            const redCarTotalDistance = redCarSpeed * currentTime;
+            const blueCarTotalDistance = headStart + (blueCarSpeed * currentTime);
+            
+            const redCarX = redCarTotalDistance * pixelsPerCm;
+            const blueCarX = blueCarTotalDistance * pixelsPerCm;
+
+            redCar.style.transform = `translateY(-50%) translateX(${redCarX + carStartOffsetPixels}px)`;
+            blueCar.style.transform = `translateY(-50%) translateX(${blueCarX + carStartOffsetPixels}px)`;
+            
+            const redTrackWidth = redCarTrackContainer.offsetWidth;
+            const blueTrackWidth = blueCarTrackContainer.offsetWidth;
+
+            const redScrollPos = -Math.max(0, redCarX - (redTrackWidth / 2));
+            redTrackContentWrapper.style.transform = `translateX(${redScrollPos}px)`;
+
+            const blueScrollPos = -Math.max(0, blueCarX - (blueTrackWidth / 2));
+            blueTrackContentWrapper.style.transform = `translateX(${blueScrollPos}px)`;
+            
+            const redRequiredWidth = redCarX + 100;
+            if (redRequiredWidth > redMeterStick.offsetWidth) {
+                 const newLengthInCm = Math.ceil(redRequiredWidth / pixelsPerCm);
+                 redMeterStick.style.width = `${newLengthInCm * pixelsPerCm}px`;
+                 createMeterLabels(redMeterStick, newLengthInCm);
+            }
+
+            const blueRequiredWidth = blueCarX + 100;
+            if (blueRequiredWidth > blueMeterStick.offsetWidth) {
+                 const newLengthInCm = Math.ceil(blueRequiredWidth / pixelsPerCm);
+                 blueMeterStick.style.width = `${newLengthInCm * pixelsPerCm}px`;
+                 createMeterLabels(blueMeterStick, newLengthInCm);
+            }
+
+            redCarTimeEl.textContent = `Time: ${currentTime.toFixed(2)} s`;
+            blueCarTimeEl.textContent = `Time: ${currentTime.toFixed(2)} s`;
+        }
+        
+        function mainLoop(timestamp) {
+            if (!lastFrameTime) {
+                lastFrameTime = timestamp;
+            }
+            
+            const deltaTime = (timestamp - lastFrameTime) / 1000;
+            lastFrameTime = timestamp;
+            
+            if (isRaceRunning) {
+                if (!isRacePaused) {
+                    raceTime += deltaTime;
+                    updateRaceCarPositions(raceTime);
+                    
+                    const redCarTotalDistance = redCarSpeed * raceTime;
+                    const blueCarTotalDistance = headStart + (blueCarSpeed * raceTime);
+                    
+                    if (redCarTotalDistance >= blueCarTotalDistance) {
+                        cancelAnimationFrame(animationFrameId);
+                        
+                        const playerTimePrediction = parseFloat(timePredictionInput.value);
+                        const playerDistancePrediction = parseFloat(distancePredictionInput.value);
+                        
+                        const timeError = Math.abs(playerTimePrediction - raceCatchupTime) / raceCatchupTime;
+                        const distanceError = Math.abs(playerDistancePrediction - raceCatchupDistance) / raceCatchupDistance;
+                        const averageError = (timeError + distanceError) / 2 * 100;
+
+                        let message = `The catch-up point was at <strong>${raceCatchupDistance.toFixed(2)} cm</strong> after <strong>${raceCatchupTime.toFixed(2)} s</strong>.`;
+                        message += `<br>Red Car Velocity: <strong>${redCarSpeed.toFixed(2)} cm/s</strong>, Blue Car Velocity: <strong>${blueCarSpeed.toFixed(2)} cm/s</strong>.`;
+                        
+                        let scoreTitle = '';
+                        let scoreMessage = '';
+                        
+                        if (averageError <= 1.0) {
+                            scoreTitle = 'Beyond Perfect!';
+                            scoreMessage = "6/5 points. Your prediction was exceptionally precise!";
+                        } else if (averageError <= 2.5) {
+                            scoreTitle = 'Unbelievable!';
+                            scoreMessage = "5/5 points. You are a physics prodigy!";
+                        } else if (averageError <= 4.0) {
+                             scoreTitle = 'Incredible!';
+                            scoreMessage = "5/5 points. Your prediction was outstanding!";
+                        } else if (averageError <= 7.0) {
+                            scoreTitle = 'Exceptional!';
+                            scoreMessage = "5/5 points. You've truly mastered the concepts!";
+                        } else if (averageError <= 10.0) {
+                            scoreTitle = 'Brilliant!';
+                            scoreMessage = "5/5 points. You were right on track!";
+                        } else if (averageError <= 15.0) {
+                            scoreTitle = 'Almost!';
+                            scoreMessage = "4/5 points. You were close, keep up the great work!";
+                        } else if (averageError <= 20.0) {
+                            scoreTitle = 'On the Right Track!';
+                            scoreMessage = "3/5 points. You were on the right track, but a little bit off. Keep trying!";
+                        } else {
+                            scoreTitle = 'Keep Trying!';
+                            scoreMessage = `0/5 points. Your prediction was a bit off. Please try again to improve your score!`;
+                        }
+
+                        resultMessageEl.classList.remove('win-message', 'loss-message');
+                        winTitleEl.textContent = scoreTitle;
+                        winCongratulations.textContent = `Congratulations, ${playerName}!`;
+                        winMessageTextEl.innerHTML = `
+                            ${scoreMessage}
+                            <br><br>The catch-up point was at <strong>${raceCatchupDistance.toFixed(2)} cm</strong> and <strong>${raceCatchupTime.toFixed(2)} s</strong>.
+                            <br>Your Time Error: <strong>${(timeError * 100).toFixed(2)}%</strong>
+                            <br>Your Distance Error: <strong>${(distanceError * 100).toFixed(2)}%</strong>.
+                            <br>Red Car Velocity: <strong>${redCarSpeed.toFixed(2)} cm/s</strong>, Blue Car Velocity: <strong>${blueCarSpeed.toFixed(2)} cm/s</strong>.
+                        `;
+                        
+                        if (averageError <= 20) {
+                            certStudentName.textContent = playerName;
+                            certVerificationCode.textContent = generateVerificationCode(playerName, raceCatchupTime, raceCatchupDistance);
+                            winScreenEl.classList.remove('hidden');
+                        } else {
+                            resultMessageEl.classList.add('loss-message');
+                            resultMessageEl.innerHTML = `${scoreTitle}<br>${scoreMessage}<br>${message}`;
+                        }
+                        
+                        isRaceRunning = false;
+                        return;
+                    }
+                }
+            } else { // Observation Mode
+                if (isRedCarObserving) {
+                    redCarObsTime += deltaTime;
+                }
+                if (isBlueCarObserving) {
+                    blueCarObsTime += deltaTime;
+                }
+                updateCarPositions(redCarObsTime, blueCarObsTime);
+
+                if ((isRedCarObserving && redCarObsTime >= observationTimeLimit) || (isBlueCarObserving && blueCarObsTime >= observationTimeLimit)) {
+                    cancelAnimationFrame(animationFrameId);
+                    isRedCarObserving = false;
+                    isBlueCarObserving = false;
+                    
+                    // Clamp to observation time limit
+                    if (redCarObsTime > observationTimeLimit) redCarObsTime = observationTimeLimit;
+                    if (blueCarObsTime > observationTimeLimit) blueCarObsTime = observationTimeLimit;
+                    updateCarPositions(redCarObsTime, blueCarObsTime);
+
+                    startRedObservationBtn.classList.remove('hidden');
+                    pauseRedObservationBtn.classList.add('hidden');
+                    startBlueObservationBtn.classList.remove('hidden');
+                    pauseBlueObservationBtn.classList.add('hidden');
+                    showMessageBox("Observation Time Limit Reached", `You have reached the maximum observation time of ${observationTimeLimit.toFixed(2)} s. Please make your prediction now.`);
+                }
+            }
+            animationFrameId = requestAnimationFrame(mainLoop);
+        }
+
+        function startRaceWithCountdown() {
+            submitBtn.disabled = true;
+            rerunBtn.disabled = true;
+            
+            redCar.style.transform = `translateY(-50%) translateX(${carStartOffsetPixels}px)`;
+            blueCar.style.transform = `translateY(-50%) translateX(${headStart * pixelsPerCm + carStartOffsetPixels}px)`;
+
+            const initialRaceTrackLength = Math.max(raceCatchupDistance + 100, 1000); 
+            redMeterStick.style.width = `${initialRaceTrackLength * pixelsPerCm}px`;
+            blueMeterStick.style.width = `${initialRaceTrackLength * pixelsPerCm}px`;
+            createMeterLabels(redMeterStick, initialRaceTrackLength);
+            createMeterLabels(blueMeterStick, initialRaceTrackLength);
+            
+            redCarTimeEl.textContent = `Time: 0.00 s`;
+            blueCarTimeEl.textContent = `Time: 0.00 s`;
+            
+            countdownMessage.classList.remove('hidden');
+
+            let countdown = 3;
+            countdownMessage.textContent = countdown;
+            
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    countdownMessage.textContent = countdown;
+                } else if (countdown === 0) {
+                    countdownMessage.textContent = 'GO!';
+                } else {
+                    clearInterval(countdownInterval);
+                    countdownMessage.classList.add('hidden');
+                    runFinalRace();
+                }
+            }, 1000);
+        }
+
+        function runFinalRace() {
+            cancelAnimationFrame(animationFrameId);
+            
+            isRaceRunning = true;
+            isRacePaused = false;
+            
+            raceTime = 0;
+
+            pauseRaceBtn.classList.remove('hidden');
+            playRaceBtn.classList.add('hidden');
+
+            document.querySelectorAll('.split-screen-item .controls-row button').forEach(btn => btn.disabled = true);
+            resetObservationBtn.disabled = true;
+
+            submitBtn.disabled = false;
+            rerunBtn.disabled = false;
+            
+            animationFrameId = requestAnimationFrame(mainLoop);
+        }
+
+        // --- Event Listeners ---
+        startRedObservationBtn.addEventListener('click', () => {
+            if (redCarObsTime >= observationTimeLimit) {
+                showMessageBox("Observation Limit Reached", `Maximum observation time is ${observationTimeLimit.toFixed(2)} s.`);
+                return;
+            }
+            isRedCarObserving = true;
+            startRedObservationBtn.classList.add('hidden');
+            pauseRedObservationBtn.classList.remove('hidden');
+        });
+
+        pauseRedObservationBtn.addEventListener('click', () => {
+            isRedCarObserving = false;
+            startRedObservationBtn.classList.remove('hidden');
+            pauseRedObservationBtn.classList.add('hidden');
+        });
+
+        startBlueObservationBtn.addEventListener('click', () => {
+            if (blueCarObsTime >= observationTimeLimit) {
+                showMessageBox("Observation Limit Reached", `Maximum observation time is ${observationTimeLimit.toFixed(2)} s.`);
+                return;
+            }
+            isBlueCarObserving = true;
+            startBlueObservationBtn.classList.add('hidden');
+            pauseBlueObservationBtn.classList.remove('hidden');
+        });
+
+        pauseBlueObservationBtn.addEventListener('click', () => {
+            isBlueCarObserving = false;
+            startBlueObservationBtn.classList.remove('hidden');
+            pauseBlueObservationBtn.classList.add('hidden');
+        });
+
+        const frameTimeStep = 0.1;
+
+        // Capped Frame Advance Logic for Observation
+        redFrameAdvanceBtn.addEventListener('click', () => {
+            if (!isRedCarObserving) {
+                if (redCarObsTime + frameTimeStep >= observationTimeLimit) {
+                    redCarObsTime = observationTimeLimit;
+                    updateCarPositions(redCarObsTime, blueCarObsTime);
+                    showMessageBox("Observation Time Limit Reached", `You have reached the maximum observation limit of ${observationTimeLimit.toFixed(2)} s.`);
+                } else {
+                    redCarObsTime += frameTimeStep;
+                    updateCarPositions(redCarObsTime, blueCarObsTime);
+                }
+            }
+        });
+
+        redFramePreviousBtn.addEventListener('click', () => {
+            if (!isRedCarObserving) {
+                redCarObsTime = Math.max(0, redCarObsTime - frameTimeStep);
+                updateCarPositions(redCarObsTime, blueCarObsTime);
+            }
+        });
+
+        blueFrameAdvanceBtn.addEventListener('click', () => {
+            if (!isBlueCarObserving) {
+                if (blueCarObsTime + frameTimeStep >= observationTimeLimit) {
+                    blueCarObsTime = observationTimeLimit;
+                    updateCarPositions(redCarObsTime, blueCarObsTime);
+                    showMessageBox("Observation Time Limit Reached", `You have reached the maximum observation limit of ${observationTimeLimit.toFixed(2)} s.`);
+                } else {
+                    blueCarObsTime += frameTimeStep;
+                    updateCarPositions(redCarObsTime, blueCarObsTime);
+                }
+            }
+        });
+
+        blueFramePreviousBtn.addEventListener('click', () => {
+            if (!isBlueCarObserving) {
+                blueCarObsTime = Math.max(0, blueCarObsTime - frameTimeStep);
+                updateCarPositions(redCarObsTime, blueCarObsTime);
+            }
+        });
+        
+        resetObservationBtn.addEventListener('click', () => {
+            redCarObsTime = 0;
+            blueCarObsTime = 0;
+            isRedCarObserving = false;
+            isBlueCarObserving = false;
+            startRedObservationBtn.classList.remove('hidden');
+            pauseRedObservationBtn.classList.add('hidden');
+            startBlueObservationBtn.classList.remove('hidden');
+            pauseBlueObservationBtn.classList.add('hidden');
+            updateCarPositions(redCarObsTime, blueCarObsTime);
+        });
+
+        submitBtn.addEventListener('click', () => {
+            const timePrediction = parseFloat(timePredictionInput.value);
+            const distancePrediction = parseFloat(distancePredictionInput.value);
+
+            if (isNaN(timePrediction) || isNaN(distancePrediction) || timePrediction <= 0 || distancePrediction <= 0) {
+                showMessageBox("Invalid Input", "Please enter a positive number for both time and distance predictions.");
+                return;
+            }
+            
+            attempts++;
+            attemptCounterEl.textContent = `Attempts: ${attempts}`;
+            feedbackSection.classList.remove('hidden');
+            feedbackSection.classList.add('visible');
+
+            startRaceWithCountdown();
+        });
+
+        pauseRaceBtn.addEventListener('click', () => {
+            isRacePaused = true;
+            pauseRaceBtn.classList.add('hidden');
+            playRaceBtn.classList.remove('hidden');
+        });
+
+        playRaceBtn.addEventListener('click', () => {
+            isRacePaused = false;
+            pauseRaceBtn.classList.remove('hidden');
+            playRaceBtn.classList.add('hidden');
+        });
+
+        raceFrameAdvanceBtn.addEventListener('click', () => {
+            if (isRacePaused) {
+                raceTime += 0.1;
+                updateRaceCarPositions(raceTime);
+            }
+        });
+
+        raceFramePreviousBtn.addEventListener('click', () => {
+            if (isRacePaused) {
+                raceTime = Math.max(0, raceTime - 0.1);
+                updateRaceCarPositions(raceTime);
+            }
+        });
+        
+        rerunBtn.addEventListener('click', () => {
+            startRaceWithCountdown();
+        });
+
+        // Fully resets the simulation while keeping the player's name remembered
+        fullResetBtn.addEventListener('click', () => {
+            initializeGame();
+            attempts = 0;
+            attemptCounterEl.textContent = `Attempts: 0`;
+        });
+        
+        resetGameBtn.addEventListener('click', () => {
+            initializeGame();
+            attempts = 0;
+            attemptCounterEl.textContent = `Attempts: 0`;
+            winScreenEl.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
