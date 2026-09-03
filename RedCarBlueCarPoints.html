@@ -6,7 +6,7 @@
     <title>Physics Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8;
@@ -267,6 +267,20 @@
             color: #475569;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 50;
+        }
+        .score-badge-large {
+            display: inline-block;
+            font-size: 2.25rem;
+            font-weight: 900;
+            padding: 0.5rem 1.5rem;
+            border-radius: 1rem;
+            margin: 0.75rem 0;
+            background: linear-gradient(135deg, #fef08a, #facc15);
+            color: #854d0e;
+            border: 3px solid #eab308;
+            box-shadow: 0 10px 15px -3px rgba(234, 179, 8, 0.4), 0 4px 6px -2px rgba(234, 179, 8, 0.2);
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+            letter-spacing: 0.05em;
         }
     </style>
 </head>
@@ -782,43 +796,55 @@
                         message += `<br>Red Car Velocity: <strong>${redCarSpeed.toFixed(2)} cm/s</strong>, Blue Car Velocity: <strong>${blueCarSpeed.toFixed(2)} cm/s</strong>.`;
                         
                         let scoreTitle = '';
-                        let scoreMessage = '';
+                        let scoreVal = '';
+                        let scoreDesc = '';
                         
                         if (averageError <= 1.0) {
                             scoreTitle = 'Beyond Perfect!';
-                            scoreMessage = "6/5 points. Your prediction was exceptionally precise!";
+                            scoreVal = '6/5 PTS';
+                            scoreDesc = "Your prediction was exceptionally precise!";
                         } else if (averageError <= 2.5) {
                             scoreTitle = 'Unbelievable!';
-                            scoreMessage = "5/5 points. You are a physics prodigy!";
+                            scoreVal = '5/5 PTS';
+                            scoreDesc = "You are a physics prodigy!";
                         } else if (averageError <= 4.0) {
                              scoreTitle = 'Incredible!';
-                            scoreMessage = "5/5 points. Your prediction was outstanding!";
+                            scoreVal = '5/5 PTS';
+                            scoreDesc = "Your prediction was outstanding!";
                         } else if (averageError <= 7.0) {
                             scoreTitle = 'Exceptional!';
-                            scoreMessage = "5/5 points. You've truly mastered the concepts!";
+                            scoreVal = '5/5 PTS';
+                            scoreDesc = "You've truly mastered the concepts!";
                         } else if (averageError <= 10.0) {
                             scoreTitle = 'Brilliant!';
-                            scoreMessage = "5/5 points. You were right on track!";
+                            scoreVal = '5/5 PTS';
+                            scoreDesc = "You were right on track!";
                         } else if (averageError <= 15.0) {
                             scoreTitle = 'Almost!';
-                            scoreMessage = "4/5 points. You were close, keep up the great work!";
+                            scoreVal = '4/5 PTS';
+                            scoreDesc = "You were close, keep up the great work!";
                         } else if (averageError <= 20.0) {
                             scoreTitle = 'On the Right Track!';
-                            scoreMessage = "3/5 points. You were on the right track, but a little bit off. Keep trying!";
+                            scoreVal = '3/5 PTS';
+                            scoreDesc = "You were on the right track, but a little bit off. Keep trying!";
                         } else {
                             scoreTitle = 'Keep Trying!';
-                            scoreMessage = `0/5 points. Your prediction was a bit off. Please try again to improve your score!`;
+                            scoreVal = '0/5 PTS';
+                            scoreDesc = "Your prediction was a bit off. Please try again to improve your score!";
                         }
 
                         resultMessageEl.classList.remove('win-message', 'loss-message');
                         winTitleEl.textContent = scoreTitle;
                         winCongratulations.textContent = `Congratulations, ${playerName}!`;
+                        
                         winMessageTextEl.innerHTML = `
-                            ${scoreMessage}
-                            <br><br>The catch-up point was at <strong>${raceCatchupDistance.toFixed(2)} cm</strong> and <strong>${raceCatchupTime.toFixed(2)} s</strong>.
-                            <br>Your Time Error: <strong>${(timeError * 100).toFixed(2)}%</strong>
-                            <br>Your Distance Error: <strong>${(distanceError * 100).toFixed(2)}%</strong>.
-                            <br>Red Car Velocity: <strong>${redCarSpeed.toFixed(2)} cm/s</strong>, Blue Car Velocity: <strong>${blueCarSpeed.toFixed(2)} cm/s</strong>.
+                            <div class="score-badge-large">${scoreVal}</div>
+                            <div class="text-lg font-bold text-emerald-600 mb-2">${scoreDesc}</div>
+                            <div class="bg-gray-100 rounded-lg p-3 text-sm text-gray-700 space-y-1 border border-gray-200">
+                                <p>Catch-up Point: <strong class="text-blue-600">${raceCatchupDistance.toFixed(2)} cm</strong> at <strong class="text-blue-600">${raceCatchupTime.toFixed(2)} s</strong></p>
+                                <p>Time Error: <strong class="text-purple-600">${(timeError * 100).toFixed(2)}%</strong> | Distance Error: <strong class="text-purple-600">${(distanceError * 100).toFixed(2)}%</strong></p>
+                                <p class="text-xs text-gray-500 pt-1">Red Velocity: ${redCarSpeed.toFixed(2)} cm/s | Blue Velocity: ${blueCarSpeed.toFixed(2)} cm/s</p>
+                            </div>
                         `;
                         
                         if (averageError <= 20) {
@@ -827,7 +853,7 @@
                             winScreenEl.classList.remove('hidden');
                         } else {
                             resultMessageEl.classList.add('loss-message');
-                            resultMessageEl.innerHTML = `${scoreTitle}<br>${scoreMessage}<br>${message}`;
+                            resultMessageEl.innerHTML = `<span class="text-2xl font-black text-red-600 block mb-1">${scoreVal}</span>${scoreTitle}<br>${scoreDesc}<br>${message}`;
                         }
                         
                         isRaceRunning = false;
