@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whimsical 1D Motion Calculus Simulator</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #f4f6fb;
+    }
+
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Fredoka', cursive, sans-serif;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #c5c7d0;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #a0a2b0;
+    }
+
+    canvas {
+      touch-action: none;
+    }
+
+    .katex-display {
+      margin: 0.5em 0 !important;
+    }
+
+    @media print {
+      header, footer, #scenario-drawer, #welcome-modal, button, select, input, .no-print {
+        display: none !important;
+      }
+
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+
+      main {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      /* When printing the study guide modal */
+      body.printing-study-guide main {
+        display: none !important;
+      }
+
+      body.printing-study-guide #score-modal {
+        display: block !important;
+        position: static !important;
+        background: transparent !important;
+        backdrop-filter: none !important;
+        padding: 0 !important;
+      }
+
+      body.printing-study-guide #score-modal > div {
+        max-height: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+
+      body:not(.printing-study-guide) #score-modal {
+        display: none !important;
+      }
+
+      .shadow-2xl, .shadow-lg, .shadow-md, .shadow-sm, .shadow {
+        box-shadow: none !important;
+      }
+
+      .bg-slate-900, .bg-indigo-950, .bg-slate-800 {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+
+      .text-white {
+        color: #0f172a !important;
+      }
+
+      .border {
+        border-color: #cbd5e1 !important;
+      }
+
+      .space-y-4 > div, .space-y-6 > div {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- Welcome / Student ID Modal -->
+  <div id="welcome-modal" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-indigo-100 text-center space-y-5">
+      <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-3xl font-bold">
+        <i class="fa-solid fa-graduation-cap"></i>
+      </div>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800">Welcome to 1D Motion Lab!</h2>
+        <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+          Inspired by Calvin & Hobbes • AP Physics 1D Calculus Kinematics.<br>Please enter your name to be assigned a random whimsical scenario!
+        </p>
+      </div>
+
+      <form onsubmit="submitStudentName(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase text-left mb-1">Your Name / Student ID</label>
+          <input type="text" id="student-name-input" required placeholder="e.g. Alex Newton" class="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800">
+        </div>
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-dice text-amber-300"></i>
+          <span>Assign My Random Challenge</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Score Screen & Study Guide Modal -->
+  <div id="score-modal" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-indigo-100 space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="text-center space-y-2">
+        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-800">Scenario Complete! 🎉</h2>
+        <p class="text-sm text-slate-600">Great job, <span id="modal-student-name" class="font-bold text-indigo-600">Physicist</span>!</p>
+      </div>
+
+      <!-- Score Summary Card -->
+      <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-2xl border border-indigo-100 grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p class="text-xs text-slate-500 font-bold uppercase">Honest Score</p>
+          <p id="score-percentage" class="text-2xl sm:text-3xl font-extrabold text-indigo-600">100%</p>
+        </div>
+        <div class="border-l border-r border-slate-200 px-2">
+          <p class="text-xs text-slate-500 font-bold uppercase">Independent Solves</p>
+          <p id="score-count" class="text-2xl sm:text-3xl font-extrabold text-emerald-600">8 / 8</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-bold uppercase">Solution Peeks</p>
+          <p id="solution-peek-count" class="text-2xl sm:text-3xl font-extrabold text-amber-600">0</p>
+        </div>
+      </div>
+
+      <p id="score-honesty-note" class="text-xs text-center text-slate-700 bg-amber-50 p-3 rounded-xl border border-amber-200 hidden leading-relaxed"></p>
+
+      <!-- AP Physics Cheat Sheet -->
+      <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2 border-b border-slate-200 pb-2">
+          <i class="fa-solid fa-book-bookmark text-indigo-600"></i>
+          <span>1D Motion Calculus AP Physics Quick Reference</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <span class="font-bold text-indigo-600 block">Position $x(t)$</span>
+            <p class="text-slate-600">Gives location on 1D axis at time $t$. Polynomial: $x(t) = at - bt^2 + ct^3$.</p>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <span class="font-bold text-blue-600 block">Velocity $v(t) = x'(t)$</span>
+            <p class="text-slate-600">Derivative of position. Turning points occur when $v(t) = 0$ and velocity changes sign.</p>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <span class="font-bold text-purple-600 block">Acceleration $a(t) = v'(t)$</span>
+            <p class="text-slate-600">Rate of change of velocity: $a(t) = x''(t) = -2b + 6ct$.</p>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <span class="font-bold text-emerald-600 block">Displacement vs Distance</span>
+            <p class="text-slate-600">Displacement: $\Delta x = x_f - x_i$. Distance: Sum of absolute movement lengths between turns.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <button onclick="printStudyGuide()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition flex items-center space-x-2">
+          <i class="fa-solid fa-print"></i>
+          <span>Print / Save Study Guide</span>
+        </button>
+        <button onclick="assignRandomScenario()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow transition flex items-center space-x-2">
+          <i class="fa-solid fa-dice text-amber-300"></i>
+          <span>Try Another Random Scenario</span>
+        </button>
+        <button onclick="closeScoreModal()" class="px-4 py-2 bg-slate-800 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <header class="bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+          <i class="fa-solid font-bold fa-person-running text-2xl text-yellow-300 animate-pulse"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-wide">1D Kinematics Whimsy Lab</h1>
+          <p class="text-xs text-purple-200">
+            Physicist: <span id="header-student-name" class="font-bold text-yellow-300">Guest</span> • AP Physics Calculus 1D Motion
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button onclick="assignRandomScenario()" class="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-slate-900 rounded-xl font-bold text-xs shadow flex items-center space-x-1.5 transition">
+          <i class="fa-solid fa-dice"></i>
+          <span class="hidden sm:inline">Random Scenario</span>
+        </button>
+        <div class="flex bg-black/20 p-1 rounded-xl backdrop-blur-sm text-xs sm:text-sm font-semibold">
+          <button id="nav-worksheet-btn" onclick="switchMainTab('worksheet')" class="px-3 sm:px-4 py-1.5 rounded-lg bg-white text-indigo-900 shadow transition-all font-bold">
+            <i class="fa-solid fa-file-pen mr-1.5"></i>Worksheet
+          </button>
+          <button id="nav-simulator-btn" onclick="switchMainTab('simulator')" class="px-3 sm:px-4 py-1.5 rounded-lg text-white hover:bg-white/10 transition-all font-semibold">
+            <i class="fa-solid fa-gamepad mr-1.5"></i>Lab
+          </button>
+          <button id="nav-custom-btn" onclick="switchMainTab('custom')" class="px-3 sm:px-4 py-1.5 rounded-lg text-white hover:bg-white/10 transition-all">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i>Custom
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Scenario Carousel / Drawer (Teacher Menu) -->
+    <section id="scenario-drawer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 hidden transition-all duration-300">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-masks-theater text-indigo-600 text-lg"></i>
+          <h2 class="text-lg font-bold text-slate-800">Select Whimsical Scenario (Teacher Menu)</h2>
+        </div>
+        <span id="scenario-counter" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+          Scenario 1 of 12
+        </span>
+      </div>
+
+      <div id="scenario-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 custom-scrollbar">
+        <!-- JS injects scenario buttons here -->
+      </div>
+    </section>
+
+    <!-- SECTION 1: WORKSHEET -->
+    <div id="tab-worksheet" class="space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex-1 space-y-2">
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-1 text-xs font-bold rounded-md bg-indigo-100 text-indigo-700 uppercase tracking-wider">
+              Assigned Homework Problem
+            </span>
+            <span id="worksheet-student-badge" class="px-2.5 py-1 text-xs font-bold rounded-md bg-amber-100 text-amber-800">
+              Student: Alex
+            </span>
+          </div>
+          <h2 id="ws-title" class="text-2xl font-bold text-slate-800">Squeaky's Acorn Heist - Problem Analysis</h2>
+          <p id="ws-equation" class="text-base text-indigo-900 font-mono font-semibold">
+            $x(t) = 12t - 9t^2 + 2t^3$
+          </p>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-slate-700 text-sm leading-relaxed flex items-start space-x-2.5">
+            <i class="fa-solid fa-scroll text-indigo-500 mt-1 shrink-0"></i>
+            <div>
+              <span class="font-bold text-slate-800 block text-xs uppercase tracking-wide mb-0.5">Scenario Story</span>
+              <p id="ws-desc">
+                Squeaky dashes toward a fallen acorn, gets spooked by an acorn-eating crow, scurries backwards behind the starting tree, and then makes a grand victory sprint forward!
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0 self-start md:self-auto">
+          <button id="view-score-btn" onclick="showScoreModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow hidden flex items-center space-x-2 transition">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>View Score & Study Guide</span>
+          </button>
+          <button onclick="printWorksheet()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-xl shadow flex items-center space-x-2 transition">
+            <i class="fa-solid fa-print"></i>
+            <span>Print Worksheet</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="ws-scenario-illustration-container" class="w-full h-28 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-900">
+        <!-- Inline SVG injected dynamically -->
+      </div>
+
+      <div id="questions-container" class="space-y-4">
+        <!-- JS dynamically renders questions -->
+      </div>
+    </div>
+
+    <!-- SECTION 2: INTERACTIVE LAB -->
+    <div id="tab-simulator" class="space-y-6 hidden">
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-md relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 opacity-10 text-8xl pointer-events-none" id="bg-scenario-icon">
+          <i class="fa-solid fa-squirrel"></i>
+        </div>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="space-y-1 flex-1">
+            <div class="flex items-center space-x-3">
+              <span id="scenario-badge" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-yellow-400 text-slate-900 uppercase tracking-wider">
+                Squeaky the Squirrel
+              </span>
+              <span id="equation-display" class="font-mono text-sm sm:text-base text-yellow-200 font-semibold">
+                <!-- x(t) equation -->
+              </span>
+            </div>
+            <h3 id="scenario-title" class="text-2xl font-bold text-white">Squeaky's Acorn Heist</h3>
+            
+            <!-- Whimsical SVG Picture Banner -->
+            <div id="scenario-illustration-container" class="w-full h-28 rounded-xl overflow-hidden border border-white/20 shadow-inner my-2">
+              <!-- Inline SVG injected dynamically -->
+            </div>
+
+            <p id="scenario-desc" class="text-sm text-slate-300 max-w-3xl leading-relaxed">
+              Squeaky dashes toward a fallen acorn, gets spooked by an acorn-eating crow, scurries backwards behind the starting tree, and then makes a grand victory sprint forward!
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 bg-white/10 p-2.5 rounded-xl backdrop-blur-md self-start md:self-auto border border-white/10">
+            <button id="play-btn" onclick="togglePlayPause()" class="w-10 h-10 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center font-bold transition shadow">
+              <i class="fa-solid fa-play" id="play-icon"></i>
+            </button>
+            <button onclick="resetSimulation()" class="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <div class="flex flex-col px-2">
+              <span class="text-[10px] uppercase text-slate-400 font-bold">Speed</span>
+              <select id="speed-select" onchange="changeSpeed(this.value)" class="bg-slate-800 text-xs text-white rounded px-2 py-1 outline-none">
+                <option value="0.5">0.5x</option>
+                <option value="1.0" selected>1.0x</option>
+                <option value="2.0">2.0x</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1D Motion Track Canvas -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-route text-indigo-600"></i>
+            <h3 class="font-bold text-slate-800">1-Dimensional Motion Track Visualizer</h3>
+          </div>
+          <div class="flex items-center space-x-3 text-xs sm:text-sm font-mono flex-wrap gap-y-1">
+            <div class="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              <span class="text-slate-500">Time $t$:</span>
+              <strong id="readout-t" class="text-indigo-600">0.00 s</strong>
+            </div>
+            <div class="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              <span class="text-slate-500">Position $x$:</span>
+              <strong id="readout-x" class="text-emerald-600">0.00 m</strong>
+            </div>
+            <div class="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              <span class="text-slate-500">Velocity $v$:</span>
+              <strong id="readout-v" class="text-blue-600">0.00 m/s</strong>
+            </div>
+            <div class="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              <span class="text-slate-500">Accel $a$:</span>
+              <strong id="readout-a" class="text-purple-600">0.00 m/s²</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative w-full overflow-hidden bg-slate-900 rounded-xl shadow-inner border border-slate-800" style="height: 220px;">
+          <canvas id="motionCanvas" class="w-full h-full block"></canvas>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs text-slate-500 font-semibold">
+            <span>Time Scrubber ($t = 0\text{s}$)</span>
+            <span id="scrubber-max-label">t = 3.00s</span>
+          </div>
+          <input type="range" id="time-scrubber" min="0" max="3" step="0.01" value="0" oninput="onScrub(this.value)" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+        </div>
+      </div>
+
+      <!-- Calculus Graphs Grid (x(t), v(t), a(t)) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+              <span>Position $x(t)$</span>
+            </h4>
+            <span class="text-[11px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Meters ($m$)</span>
+          </div>
+          <div class="flex-1 relative min-h-[200px]">
+            <canvas id="chartX"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
+              <span>Velocity $v(t) = \frac{dx}{dt}$</span>
+            </h4>
+            <span class="text-[11px] font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded">m/s</span>
+          </div>
+          <div class="flex-1 relative min-h-[200px]">
+            <canvas id="chartV"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+              <span>Acceleration $a(t) = \frac{dv}{dt}$</span>
+            </h4>
+            <span class="text-[11px] font-mono bg-purple-50 text-purple-700 px-2 py-0.5 rounded">m/s²</span>
+          </div>
+          <div class="flex-1 relative min-h-[200px]">
+            <canvas id="chartA"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: CUSTOM EQUATION BUILDER -->
+    <div id="tab-custom" class="space-y-6 hidden">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div class="max-w-2xl space-y-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800 flex items-center space-x-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i>
+              <span>Create Your Own Whimsical 1D Scenario</span>
+            </h2>
+            <p class="text-sm text-slate-500 mt-1">
+              Enter custom coefficients for a cubic 1D motion polynomial equation $x(t) = a \cdot t - b \cdot t^2 + c \cdot t^3$.
+            </p>
+          </div>
+
+          <form id="custom-form" onsubmit="handleCustomSubmit(event)" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase">Scenario Name</label>
+                <input type="text" id="cust-name" required placeholder="e.g. Blasto the Cannonball" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase">Character / Icon</label>
+                <select id="cust-icon" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="fa-rocket">🚀 Rocket</option>
+                  <option value="fa-cat">🐱 Cat</option>
+                  <option value="fa-dog">🐶 Dog</option>
+                  <option value="fa-car">🏎️ Racecar</option>
+                  <option value="fa-ghost">👻 Ghost</option>
+                  <option value="fa-dragon">🐉 Dragon</option>
+                  <option value="fa-robot">🤖 Robot</option>
+                  <option value="fa-bicycle">🚲 Bicycle</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase">Whimsical Story Description</label>
+              <textarea id="cust-desc" rows="2" required placeholder="Describe what the object is doing as it turns around..." class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span class="text-xs font-bold text-slate-700 uppercase">Coefficients ($x(t) = a \cdot t - b \cdot t^2 + c \cdot t^3$)</span>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="text-xs font-semibold text-slate-600">$a$ ($m/s$)</label>
+                  <input type="number" step="any" id="cust-a" value="12" required class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-slate-600">$b$ ($m/s^2$)</label>
+                  <input type="number" step="any" id="cust-b" value="9" required class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-slate-600">$c$ ($m/s^3$)</label>
+                  <input type="number" step="any" id="cust-c" value="2" required class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition flex items-center space-x-2">
+              <i class="fa-solid fa-play"></i>
+              <span>Launch Custom Scenario</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+      <p class="font-semibold text-slate-300">1D Kinematics Whimsical Physics Lab</p>
+      <p>Calculus-based position, velocity, and acceleration analysis for 1-dimensional motion with changing directions.</p>
+    </div>
+  </footer>
+
+  <script>
+    // --- 12 WHIMSICAL SCENARIOS DATA ---
+    const SCENARIOS = [
+      {
+        id: "squirrel",
+        name: "Squeaky the Squirrel",
+        title: "Squeaky's Acorn Heist",
+        icon: "fa-squirrel",
+        color: "bg-amber-500",
+        a: 12, b: 9, c: 2, // x(t) = 12t - 9t^2 + 2t^3 -> v(t) = 12 - 18t + 6t^2 = 6(t-1)(t-2) -> turns t=1s, t=2s
+        maxT: 3.0,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.5,
+        desc: "Squeaky dashes toward a fallen acorn, gets spooked by an acorn-eating crow, scurries backwards behind the starting tree, and then makes a grand victory sprint forward!"
+      },
+      {
+        id: "hobbes",
+        name: "Hobbes the Tiger",
+        title: "Hobbes's Sneaky Race",
+        icon: "fa-cat",
+        color: "bg-orange-500",
+        a: 3, b: 5, c: 1, // x(t) = 3t - 5t^2 + t^3 -> v(t) = 3 - 10t + 3t^2 = (3t-1)(t-3) -> turns t=1/3, t=3
+        maxT: 4.0,
+        targetInterval: [0, 3],
+        tQueryInstant: 3.5,
+        desc: "Hobbes takes a quick bound forward, realizes he wants to give Calvin a head start, runs way backward behind the starting line, then bolts to win the race!"
+      },
+      {
+        id: "roombot",
+        name: "Roombot 9000",
+        title: "Roombot's Rogue Clean",
+        icon: "fa-robot",
+        color: "bg-cyan-600",
+        a: 15, b: 12, c: 2.5, // x(t) = 15t - 12t^2 + 2.5t^3 -> v(t) = 15 - 24t + 7.5t^2 = 7.5(t-1)(t-2.2) -> turns t=1s, t=2.2s
+        maxT: 3.5,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.0,
+        desc: "A robotic vacuum cleans toward a dusty spot, senses a cat staring at it, backs up rapidly to flee, and then resumes sweeping the carpet!"
+      },
+      {
+        id: "penguin",
+        name: "Pingu the Penguin",
+        title: "Pingu's Ice Slide",
+        icon: "fa-crow",
+        color: "bg-blue-600",
+        a: 6, b: 4.5, c: 1, // x(t) = 6t - 4.5t^2 + t^3 -> v(t) = 6 - 9t + 3t^2 = 3(t-1)(t-2) -> turns t=1s, t=2s
+        maxT: 3.0,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.5,
+        desc: "Pingu belly-slides down an ice ramp, hits a patch of sticky snow that pushes him backward, and then slides gracefully forward down the slope!"
+      },
+      {
+        id: "coyote",
+        name: "Wile E. Coyote",
+        title: "Wile E.'s Rocket Skates",
+        icon: "fa-rocket",
+        color: "bg-red-600",
+        a: 18, b: 15, c: 3, // x(t) = 18t - 15t^2 + 3t^3 -> v(t) = 18 - 30t + 9t^2 = 3(3t^2-10t+6)
+        maxT: 3.5,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.0,
+        desc: "ACME Rocket Skates ignite forward, misfire into reverse gear pushing Coyote backward, and then re-ignite at full throttle!"
+      },
+      {
+        id: "knight",
+        name: "Sir Lancelot",
+        title: "Sir Lancelot's Dramatic Sprint",
+        icon: "fa-shield-halved",
+        color: "bg-emerald-600",
+        a: 9, b: 7.5, c: 1.5, // x(t) = 9t - 7.5t^2 + 1.5t^3 -> v(t) = 9 - 15t + 4.5t^2 = 4.5(t-1)(t-2) -> turns t=1s, t=2s
+        maxT: 3.2,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.5,
+        desc: "A valiant knight charges toward a dragon, forgets his sword, retreats dramatically, grabs his blade, and re-charges with valor!"
+      },
+      {
+        id: "retriever",
+        name: "Buster the Retriever",
+        title: "Buster's Tennis Ball Chase",
+        icon: "fa-dog",
+        color: "bg-yellow-600",
+        a: 24, b: 15, c: 2, // x(t) = 24t - 15t^2 + 2t^3 -> v(t) = 24 - 30t + 6t^2 = 6(t-1)(t-4) -> turns t=1s, t=4s
+        maxT: 4.5,
+        targetInterval: [0, 4],
+        tQueryInstant: 3.0,
+        desc: "Buster sprints for a tennis ball, overshoots into mud, scrambles backward to recover the ball, and then trots back happily!"
+      },
+      {
+        id: "pickle",
+        name: "Professor Pickle",
+        title: "Professor Pickle's Segway",
+        icon: "fa-user-tie",
+        color: "bg-teal-600",
+        a: 6, b: 4.5, c: 1, // x(t) = 6t - 4.5t^2 + t^3 -> v(t) = 6 - 9t + 3t^2 = 3(t-1)(t-2) -> turns t=1, t=2
+        maxT: 3.2,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.5,
+        desc: "The professor zooms on a Segway toward lecture hall, tilts backward violently to dodge a flying frisbee, and then zooms forward again!"
+      },
+      {
+        id: "pig",
+        name: "Penelope the Pig",
+        title: "Penelope's Mud Slide",
+        icon: "fa-hippo",
+        color: "bg-pink-500",
+        a: 18, b: 12, c: 2, // x(t) = 18t - 12t^2 + 2t^3 -> v(t) = 18 - 24t + 6t^2 = 6(t-1)(t-3) -> turns t=1, t=3
+        maxT: 4.0,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.0,
+        desc: "Penelope trots toward a giant mud puddle, slips backwards down a slick moss hill, and then executes a giant mud cannonball slide!"
+      },
+      {
+        id: "hovercraft",
+        name: "Captain Barnacle",
+        title: "Barnacle's Hovercraft Wobble",
+        icon: "fa-ship",
+        color: "bg-indigo-600",
+        a: 30, b: 21, c: 3, // x(t) = 30t - 21t^2 + 3t^3 -> v(t) = 30 - 42t + 9t^2 = 3(3t^2 - 14t + 10)
+        maxT: 4.0,
+        targetInterval: [0, 3.5],
+        tQueryInstant: 2.5,
+        desc: "A hovercraft speeds up a river, gets caught in a sudden tidal backlash flowing backward, and then powers its turbofans to press forward!"
+      },
+      {
+        id: "unicycle",
+        name: "Barnaby the Unicyclist",
+        title: "Barnaby's Circus Juggling",
+        icon: "fa-bicycle",
+        color: "bg-purple-600",
+        a: 15, b: 9, c: 1, // x(t) = 15t - 9t^2 + t^3 -> v(t) = 15 - 18t + 3t^2 = 3(t-1)(t-5) -> turns t=1, t=5
+        maxT: 5.0,
+        targetInterval: [0, 4],
+        tQueryInstant: 3.0,
+        desc: "Barnaby rides his unicycle while juggling bowling pins, pedals backward to catch a dropped pin, and then rides out to wild applause!"
+      },
+      {
+        id: "zombie",
+        name: "Zelda the Zombie",
+        title: "Zelda's Brain Shuffle",
+        icon: "fa-ghost",
+        color: "bg-emerald-800",
+        a: 10, b: 7, c: 1, // x(t) = 10t - 7t^2 + t^3 -> v(t) = 10 - 14t + 3t^2
+        maxT: 4.0,
+        targetInterval: [0, 3.5],
+        tQueryInstant: 2.0,
+        desc: "Zelda shuffles forward hungrily, gets confused by a shiny billboard, stumbles backward 3 steps, and then resumes her relentless slow march!"
+      }
+    ];
+
+    // --- GLOBAL APP STATE ---
+    let currentScenarioIdx = 0;
+    let currentScenario = SCENARIOS[0];
+    let studentName = "Physicist";
+    let simTime = 0.0;
+    let isPlaying = false;
+    let simSpeed = 1.0;
+    let animFrameReq = null;
+    let lastTimestamp = null;
+    let userQuestionAnswers = {};
+
+    // Charts instances
+    let chartX = null;
+    let chartV = null;
+    let chartA = null;
+
+    // --- Calculus Helper Functions ---
+    function posX(t, sc = currentScenario) {
+      return (sc.a * t) - (sc.b * Math.pow(t, 2)) + (sc.c * Math.pow(t, 3));
+    }
+
+    function velV(t, sc = currentScenario) {
+      return sc.a - (2 * sc.b * t) + (3 * sc.c * Math.pow(t, 2));
+    }
+
+    function accA(t, sc = currentScenario) {
+      return (-2 * sc.b) + (6 * sc.c * t);
+    }
+
+    function findTurnaroundTimes(sc = currentScenario) {
+      const A = 3 * sc.c;
+      const B = -2 * sc.b;
+      const C = sc.a;
+      const disc = B * B - 4 * A * C;
+      if (disc < 0) return [];
+      const t1 = (-B - Math.sqrt(disc)) / (2 * A);
+      const t2 = (-B + Math.sqrt(disc)) / (2 * A);
+      return [t1, t2].filter(t => t >= 0).sort((x, y) => x - y);
+    }
+
+    function calculateTotalDistance(tEnd, sc = currentScenario) {
+      const turns = findTurnaroundTimes(sc).filter(t => t > 0 && t < tEnd);
+      let points = [0, ...turns, tEnd];
+      let dist = 0;
+      for (let i = 0; i < points.length - 1; i++) {
+        dist += Math.abs(posX(points[i + 1], sc) - posX(points[i], sc));
+      }
+      return dist;
+    }
+
+    // --- Initializing Application State ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderScenarioGrid();
+      setupCharts();
+      initCanvas();
+
+      const savedName = localStorage.getItem('kinematics_student_name');
+      if (savedName) {
+        setStudentName(savedName);
+        assignRandomScenario();
+      } else {
+        document.getElementById('welcome-modal').classList.remove('hidden');
+      }
+      switchMainTab('worksheet');
+
+      window.addEventListener('resize', () => {
+        drawTrackCanvas();
+      });
+    });
+
+    function submitStudentName(e) {
+      e.preventDefault();
+      const input = document.getElementById('student-name-input').value.trim();
+      if (input) {
+        setStudentName(input);
+        localStorage.setItem('kinematics_student_name', input);
+        document.getElementById('welcome-modal').classList.add('hidden');
+        assignRandomScenario();
+        switchMainTab('worksheet');
+      }
+    }
+
+    function setStudentName(name) {
+      studentName = name;
+      document.getElementById('header-student-name').innerText = name;
+      document.getElementById('modal-student-name').innerText = name;
+      const badge = document.getElementById('worksheet-student-badge');
+      if (badge) badge.innerText = `Student: ${name}`;
+    }
+
+    function assignRandomScenario() {
+      const randIdx = Math.floor(Math.random() * SCENARIOS.length);
+      userQuestionAnswers = {};
+      const scoreBtn = document.getElementById('view-score-btn');
+      if (scoreBtn) scoreBtn.classList.add('hidden');
+      loadScenario(randIdx);
+    }
+
+    function switchMainTab(tabName) {
+      const tabs = ['worksheet', 'simulator', 'custom'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`nav-${t}-btn`);
+        if (el) {
+          if (t === tabName) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+        if (btn) {
+          if (t === tabName) {
+            btn.className = "px-3 sm:px-4 py-1.5 rounded-lg bg-white text-indigo-900 shadow transition-all font-bold";
+          } else {
+            btn.className = "px-3 sm:px-4 py-1.5 rounded-lg text-white hover:bg-white/10 transition-all font-semibold";
+          }
+        }
+      });
+
+      if (tabName === 'simulator') {
+        setTimeout(() => {
+          if (chartX) { chartX.resize(); chartV.resize(); chartA.resize(); }
+          drawTrackCanvas();
+        }, 50);
+      } else if (tabName === 'worksheet') {
+        renderWorksheetQuestions();
+      }
+    }
+
+    // --- Scenario Selection Drawer ---
+    function renderScenarioGrid() {
+      const grid = document.getElementById('scenario-grid');
+      if (!grid) return;
+      grid.innerHTML = SCENARIOS.map((sc, idx) => `
+        <button onclick="loadScenario(${idx})" id="scenario-btn-${idx}" class="p-2.5 rounded-xl border text-left transition flex items-center space-x-2.5 ${idx === currentScenarioIdx ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm ${sc.color}">
+            <i class="fa-solid ${sc.icon}"></i>
+          </div>
+          <div class="truncate">
+            <p class="text-xs font-bold text-slate-800 truncate">${sc.name}</p>
+            <p class="text-[10px] text-slate-500 font-mono">x(t) cubic</p>
+          </div>
+        </button>
+      `).join('');
+    }
+
+    // --- Loading Scenario Data ---
+    function loadScenario(idx) {
+      currentScenarioIdx = idx;
+      currentScenario = SCENARIOS[idx];
+
+      document.getElementById('scenario-counter').innerText = `Scenario ${idx + 1} of ${SCENARIOS.length}`;
+      document.getElementById('scenario-badge').innerText = currentScenario.name;
+      document.getElementById('scenario-title').innerText = currentScenario.title;
+      document.getElementById('scenario-desc').innerText = currentScenario.desc;
+      document.getElementById('bg-scenario-icon').innerHTML = `<i class="fa-solid ${currentScenario.icon}"></i>`;
+      document.getElementById('equation-display').innerHTML = `x(t) = ${currentScenario.a}t - ${currentScenario.b}t^2 + ${currentScenario.c}t^3`;
+
+      const scrubber = document.getElementById('time-scrubber');
+      if (scrubber) {
+        scrubber.max = currentScenario.maxT;
+        scrubber.value = 0;
+      }
+      document.getElementById('scrubber-max-label').innerText = `t = ${currentScenario.maxT.toFixed(2)}s`;
+
+      renderScenarioIllustration(currentScenario);
+      renderScenarioGrid();
+      resetSimulation();
+      updateCharts();
+      renderWorksheetQuestions();
+      renderMathKaTeX();
+    }
+
+    function toggleScenarioDrawer() {
+      const drawer = document.getElementById('scenario-drawer');
+      if (drawer) {
+        drawer.classList.toggle('hidden');
+      }
+    }
+
+    function renderScenarioIllustration(sc) {
+      const container = document.getElementById('scenario-illustration-container');
+      const wsContainer = document.getElementById('ws-scenario-illustration-container');
+      if (!container && !wsContainer) return;
+
+      const illustrations = {
+        squirrel: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#bae6fd"/></linearGradient>
+            </defs>
+            <rect width="600" height="120" fill="url(#sky1)"/>
+            <path d="M 0,90 Q 150,70 300,90 T 600,85 L 600,120 L 0,120 Z" fill="#15803d"/>
+            <rect x="40" y="40" width="16" height="60" fill="#78350f"/>
+            <circle cx="48" cy="35" r="28" fill="#22c55e"/>
+            <rect x="520" y="30" width="20" height="70" fill="#78350f"/>
+            <circle cx="530" cy="25" r="32" fill="#15803d"/>
+            <circle cx="530" cy="18" r="12" fill="#fde047" opacity="0.8"/>
+            <text x="310" y="88" font-size="32">🐿️</text>
+            <text x="460" y="85" font-size="24">🌰</text>
+            <text x="180" y="45" font-size="22">🦅</text>
+          </svg>`,
+        hobbes: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#fef3c7"/>
+            <path d="M 0,80 Q 200,60 400,85 T 600,75 L 600,120 L 0,120 Z" fill="#f59e0b"/>
+            <text x="120" y="82" font-size="32">🐯</text>
+            <text x="420" y="82" font-size="28">👦</text>
+            <text x="50" y="35" font-size="18">☁️</text><text x="350" y="30" font-size="22">☁️</text>
+          </svg>`,
+        roombot: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#1e1b4b"/>
+            <rect x="0" y="90" width="600" height="30" fill="#312e81"/>
+            <text x="180" y="85" font-size="32">🤖</text>
+            <text x="420" y="82" font-size="32">🐱</text>
+            <text x="300" y="88" font-size="18">✨</text>
+          </svg>`,
+        penguin: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#e0f2fe"/>
+            <path d="M 0,60 L 600,100 L 600,120 L 0,120 Z" fill="#7dd3fc"/>
+            <text x="220" y="75" font-size="32">🐧</text>
+            <text x="80" y="35" font-size="20">❄️</text><text x="480" y="40" font-size="20">❄️</text>
+          </svg>`,
+        coyote: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#ffedd5"/>
+            <path d="M 100,50 L 160,50 L 160,100 L 100,100 Z" fill="#ea580c" opacity="0.6"/>
+            <path d="M 0,90 Q 300,85 600,90 L 600,120 L 0,120 Z" fill="#c2410c"/>
+            <text x="250" y="85" font-size="32">🚀</text>
+            <text x="180" y="85" font-size="24">💨</text>
+            <text x="450" y="85" font-size="28">🌵</text>
+          </svg>`,
+        knight: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#ecfdf5"/>
+            <rect x="20" y="40" width="70" height="60" fill="#64748b"/>
+            <path d="M 0,90 L 600,90 L 600,120 L 0,120 Z" fill="#059669"/>
+            <text x="150" y="85" font-size="32">⚔️</text>
+            <text x="480" y="82" font-size="34">🐉</text>
+            <text x="420" y="80" font-size="24">🔥</text>
+          </svg>`,
+        retriever: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#fef9c3"/>
+            <ellipse cx="380" cy="100" rx="90" ry="15" fill="#854d0e" opacity="0.7"/>
+            <text x="200" y="85" font-size="32">🐶</text>
+            <text x="390" y="90" font-size="26">🎾</text>
+          </svg>`,
+        pickle: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#ccfbf1"/>
+            <path d="M 0,85 L 600,85 L 600,120 L 0,120 Z" fill="#14b8a6"/>
+            <text x="220" y="80" font-size="32">🛴</text>
+            <text x="380" y="50" font-size="26">🥏</text>
+          </svg>`,
+        pig: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#fce7f3"/>
+            <ellipse cx="450" cy="95" rx="110" ry="20" fill="#9d174d" opacity="0.6"/>
+            <text x="220" y="85" font-size="32">🐷</text>
+            <text x="440" y="85" font-size="26">💦</text>
+          </svg>`,
+        hovercraft: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#e0e7ff"/>
+            <path d="M 0,75 Q 150,90 300,75 T 600,75 L 600,120 L 0,120 Z" fill="#4338ca"/>
+            <text x="240" y="70" font-size="32">🛥️</text>
+            <text x="160" y="75" font-size="22">🌊</text><text x="340" y="75" font-size="22">🌊</text>
+          </svg>`,
+        unicycle: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#f3e8ff"/>
+            <text x="260" y="82" font-size="32">🚲</text>
+            <text x="270" y="45" font-size="24">🤹</text>
+          </svg>`,
+        zombie: `
+          <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+            <rect width="600" height="120" fill="#064e3b"/>
+            <circle cx="500" cy="30" r="18" fill="#fef08a" opacity="0.8"/>
+            <text x="220" y="85" font-size="32">🧟</text>
+            <text x="420" y="80" font-size="26">🪧</text>
+            <text x="120" y="85" font-size="20">🪦</text>
+          </svg>`
+      };
+
+      const fallback = `
+        <svg class="w-full h-full" viewBox="0 0 600 120" preserveAspectRatio="none">
+          <rect width="600" height="120" fill="#312e81"/>
+          <text x="280" y="70" font-size="36">✨</text>
+        </svg>`;
+
+      const svgContent = illustrations[sc.id] || fallback;
+      if (container) container.innerHTML = svgContent;
+      if (wsContainer) wsContainer.innerHTML = svgContent;
+    }
+
+    // --- Building Worksheet Questions & Solver ---
+    function renderWorksheetQuestions() {
+      const container = document.getElementById('questions-container');
+      if (!container) return;
+      const sc = currentScenario;
+      const turnTimes = findTurnaroundTimes(sc);
+
+      document.getElementById('ws-title').innerText = `${sc.title} - Homework Analysis`;
+      document.getElementById('ws-equation').innerHTML = `x(t) = ${sc.a}t - ${sc.b}t^2 + ${sc.c}t^3`;
+      const wsDesc = document.getElementById('ws-desc');
+      if (wsDesc) wsDesc.innerText = sc.desc;
+
+      const t1 = turnTimes[0] || 0;
+      const t2 = turnTimes[1] || 0;
+      const x_t1 = posX(t1, sc);
+      const x_t2 = posX(t2, sc);
+
+      const targetInterval = sc.targetInterval;
+      const disp = posX(targetInterval[1], sc) - posX(targetInterval[0], sc);
+      const dist = calculateTotalDistance(targetInterval[1], sc);
+      const v_avg = disp / (targetInterval[1] - targetInterval[0]);
+      const v_inst = velV(sc.tQueryInstant, sc);
+
+      // Question definitions
+      const rawQuestions = [
+        {
+          num: 1,
+          q: `What are the correct SI units for the coefficients $a$, $b$, and $c$ in $x(t) = at - bt^2 + ct^3$?`,
+          correctOption: `$[a] = \\text{m/s}, \\quad [b] = \\text{m/s}^2, \\quad [c] = \\text{m/s}^3$`,
+          distractors: [
+            { text: `$[a] = \\text{m}, \\quad [b] = \\text{m/s}, \\quad [c] = \\text{m/s}^2$`, hint: "Incorrect: Position $x(t)$ is in meters, so each term ($at$, $bt^2$, $ct^3$) must result in meters when multiplied by seconds." },
+            { text: `$[a] = \\text{m/s}^2, \\quad [b] = \\text{m/s}^3, \\quad [c] = \\text{m/s}^4$`, hint: "Incorrect: Power of seconds in denominator must match the power of $t$ in that term." },
+            { text: `$[a] = \\text{m}\\cdot\\text{s}, \\quad [b] = \\text{m}\\cdot\\text{s}^2, \\quad [c] = \\text{m}\\cdot\\text{s}^3$`, hint: "Incorrect: Multiplying by seconds requires division in units to cancel out." }
+          ],
+          solution: `Since $x(t)$ is in meters ($m$) and $t$ is in seconds ($s$):\n- $at \\implies [a] \\cdot s = m \\implies [a] = m/s$\n- $bt^2 \\implies [b] \\cdot s^2 = m \\implies [b] = m/s^2$\n- $ct^3 \\implies [c] \\cdot s^3 = m \\implies [c] = m/s^3$`
+        },
+        {
+          num: 2,
+          q: `Which equation correctly represents ${sc.name}'s velocity $v(t) = x'(t)$?`,
+          correctOption: `$$v(t) = ${sc.a} - ${2*sc.b}t + ${3*sc.c}t^2$$`,
+          distractors: [
+            { text: `$$v(t) = ${sc.a} - ${sc.b}t + ${sc.c}t^2$$`, hint: "Incorrect: Don't forget to multiply each term by its exponent using the Power Rule $\\frac{d}{dt}(t^n) = n t^{n-1}$!" },
+            { text: `$$v(t) = ${sc.a}t - ${2*sc.b}t^2 + ${3*sc.c}t^3$$`, hint: "Incorrect: Taking the derivative reduces the power of $t$ by 1 ($t \\to 1$, $t^2 \\to t$, $t^3 \\to t^2$)." },
+            { text: `$$v(t) = ${sc.a} + ${2*sc.b}t - ${3*sc.c}t^2$$`, hint: "Incorrect: Watch the negative and positive signs from the original position equation." }
+          ],
+          solution: `Applying the Power Rule $\\frac{d}{dt}(c t^n) = n c t^{n-1}$ to $x(t) = ${sc.a}t - ${sc.b}t^2 + ${sc.c}t^3$:\n$$v(t) = \\frac{dx}{dt} = ${sc.a} - ${2*sc.b}t + ${3*sc.c}t^2$$`
+        },
+        {
+          num: 3,
+          q: `At what times $t$ does ${sc.name} have zero velocity (turnaround points)?`,
+          correctOption: `$$t_1 = ${t1.toFixed(2)}\\text{ s}, \\quad t_2 = ${t2.toFixed(2)}\\text{ s}$$`,
+          distractors: [
+            { text: `$$t_1 = ${(t1 + 0.5).toFixed(2)}\\text{ s}, \\quad t_2 = ${(t2 + 1.0).toFixed(2)}\\text{ s}$$`, hint: "Incorrect: Set $v(t) = 0$ and use the quadratic formula $t = \\frac{-B \\pm \\sqrt{B^2 - 4AC}}{2A}$." },
+            { text: `$$t_1 = 0.00\\text{ s}, \\quad t_2 = ${(t1 + t2).toFixed(2)}\\text{ s}$$`, hint: "Incorrect: Velocity is not zero at starting time $t = 0\\text{s}$ because $v(0) = a = ${sc.a}\\text{ m/s}$." },
+            { text: `$$t_1 = ${(t1 * 0.5).toFixed(2)}\\text{ s}, \\quad t_2 = ${(t2 * 0.75).toFixed(2)}\\text{ s}$$`, hint: "Incorrect: Check your quadratic roots calculation for $v(t) = 0$." }
+          ],
+          solution: `Set $v(t) = 0 \\implies ${3*sc.c}t^2 - ${2*sc.b}t + ${sc.a} = 0$.\nSolving the quadratic equation gives:\n$$t_1 = ${t1.toFixed(2)}\\text{ s}, \\quad t_2 = ${t2.toFixed(2)}\\text{ s}$$`
+        },
+        {
+          num: 4,
+          q: `What are ${sc.name}'s positions $x(t)$ at these turnaround times?`,
+          correctOption: `$$x(t_1) = ${x_t1.toFixed(2)}\\text{ m}, \\quad x(t_2) = ${x_t2.toFixed(2)}\\text{ m}$$`,
+          distractors: [
+            { text: `$$x(t_1) = ${(x_t1 + 2.5).toFixed(2)}\\text{ m}, \\quad x(t_2) = ${(x_t2 - 2.5).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: Plug the turning time values $t_1 = ${t1.toFixed(2)}$ and $t_2 = ${t2.toFixed(2)}$ back into the original position equation $x(t)$." },
+            { text: `$$x(t_1) = 0.00\\text{ m}, \\quad x(t_2) = ${(x_t1 + x_t2).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: $x(0) = 0$, but at turnaround times $t > 0$, position is non-zero." },
+            { text: `$$x(t_1) = ${(-x_t1).toFixed(2)}\\text{ m}, \\quad x(t_2) = ${(-x_t2).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: Check the negative and positive terms when calculating powers of $t$." }
+          ],
+          solution: `Substitute $t_1 = ${t1.toFixed(2)}\\text{s}$ and $t_2 = ${t2.toFixed(2)}\\text{s}$ into $x(t) = ${sc.a}t - ${sc.b}t^2 + ${sc.c}t^3$:\n- $x(${t1.toFixed(2)}) = ${x_t1.toFixed(2)}\\text{ m}$\n- $x(${t2.toFixed(2)}) = ${x_t2.toFixed(2)}\\text{ m}$`
+        },
+        {
+          num: 5,
+          q: `What is ${sc.name}'s total displacement $\\Delta x$ from $t = ${targetInterval[0]}\\text{s}$ to $t = ${targetInterval[1]}\\text{s}$?`,
+          correctOption: `$$\\Delta x = ${disp.toFixed(2)}\\text{ m}$$`,
+          distractors: [
+            { text: `$$\\Delta x = ${dist.toFixed(2)}\\text{ m}$$`, hint: "Incorrect: That choice calculated Total Distance, not Displacement! Displacement is simply Final Position minus Initial Position." },
+            { text: `$$\\Delta x = ${(Math.abs(disp) > 0.01 ? disp * 1.5 : (dist / 2)).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: Displacement depends only on initial and final positions: $\\Delta x = x(t_f) - x(t_i)$." },
+            { text: `$$\\Delta x = ${(Math.abs(disp) > 0.01 ? -disp : (dist + 5.0)).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: Check the sign of final position vs initial position." }
+          ],
+          solution: `Displacement is net change in position:\n$$\\Delta x = x(${targetInterval[1]}) - x(${targetInterval[0]}) = ${posX(targetInterval[1], sc).toFixed(2)} - ${posX(targetInterval[0], sc).toFixed(2)} = ${disp.toFixed(2)}\\text{ m}$$`
+        },
+        {
+          num: 6,
+          q: `What is the total distance traveled by ${sc.name} between $t = ${targetInterval[0]}\\text{s}$ and $t = ${targetInterval[1]}\\text{s}$?`,
+          correctOption: `$$\\text{Distance} = ${dist.toFixed(2)}\\text{ m}$$`,
+          distractors: [
+            { text: `$$\\text{Distance} = ${(Math.abs(disp - dist) > 0.01 ? disp : dist * 0.5).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: That choice calculated Displacement! Total distance must sum the absolute lengths of all forward and backward path segments between turnaround points." },
+            { text: `$$\\text{Distance} = ${(dist + 3.5).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: Remember to account for direction reversals when calculating distance." },
+            { text: `$$\\text{Distance} = ${(Math.abs(x_t2) > 0.01 ? Math.abs(x_t2) : dist + 8.0).toFixed(2)}\\text{ m}$$`, hint: "Incorrect: You must sum all path segments, not just the position at $t_2$." }
+          ],
+          solution: `Sum the absolute distance of each segment between turnaround points:\n$$\\text{Total Distance} = |x(t_1) - x(0)| + |x(t_1) - x(t_2)| + |x(t_f) - x(t_2)| = ${dist.toFixed(2)}\\text{ m}$$`
+        },
+        {
+          num: 7,
+          q: `What is ${sc.name}'s average velocity $v_{avg}$ from $t = ${targetInterval[0]}\\text{s}$ to $t = ${targetInterval[1]}\\text{s}$?`,
+          correctOption: `$$v_{avg} = ${v_avg.toFixed(2)}\\text{ m/s}$$`,
+          distractors: [
+            { text: `$$v_{avg} = ${(dist / (targetInterval[1] - targetInterval[0])).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: That choice calculated Average Speed (Total Distance / Time). Average Velocity is Displacement divided by Time ($v_{avg} = \\Delta x / \\Delta t$). " },
+            { text: `$$v_{avg} = ${(Math.abs(v_avg) > 0.01 ? v_avg * 2 : (dist / (targetInterval[1] - targetInterval[0])) * 0.5).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: Divide total displacement by elapsed time $\\Delta t = ${targetInterval[1] - targetInterval[0]}\\text{s}$." },
+            { text: `$$v_{avg} = ${(Math.abs(v_avg) > 0.01 ? 0.00 : (dist / (targetInterval[1] - targetInterval[0])) * 1.5).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: $v_{avg}$ depends on the net displacement $\\Delta x$." }
+          ],
+          solution: `Average velocity is displacement divided by time interval:\n$$v_{avg} = \\frac{\\Delta x}{\\Delta t} = \\frac{${disp.toFixed(2)}\\text{ m}}{${targetInterval[1] - targetInterval[0]}\\text{ s}} = ${v_avg.toFixed(2)}\\text{ m/s}$$`
+        },
+        {
+          num: 8,
+          q: `What is ${sc.name}'s instantaneous velocity at $t = ${sc.tQueryInstant}\\text{s}$?`,
+          correctOption: `$$v(${sc.tQueryInstant}) = ${v_inst.toFixed(2)}\\text{ m/s}$$`,
+          distractors: [
+            { text: `$$v(${sc.tQueryInstant}) = ${(posX(sc.tQueryInstant, sc)).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: That choice calculated Position $x(${sc.tQueryInstant})$, not Velocity $v(${sc.tQueryInstant})$." },
+            { text: `$$v(${sc.tQueryInstant}) = ${(accA(sc.tQueryInstant, sc)).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: That choice calculated Acceleration $a(${sc.tQueryInstant})$, not Velocity." },
+            { text: `$$v(${sc.tQueryInstant}) = ${(Math.abs(v_inst) > 0.01 ? v_inst + 5.0 : 12.00).toFixed(2)}\\text{ m/s}$$`, hint: "Incorrect: Plug $t = ${sc.tQueryInstant}$ directly into your derivative velocity equation $v(t)$." }
+          ],
+          solution: `Plug $t = ${sc.tQueryInstant}\\text{s}$ into $v(t) = ${sc.a} - ${2*sc.b}t + ${3*sc.c}t^2$:\n$$v(${sc.tQueryInstant}) = ${sc.a} - ${2*sc.b}(${sc.tQueryInstant}) + ${3*sc.c}(${sc.tQueryInstant})^2 = ${v_inst.toFixed(2)}\\text{ m/s}$$`
+        }
+      ];
+
+      // Shuffle options and map dynamic correctIdx per question
+      const questionsData = rawQuestions.map(rq => {
+        let items = [
+          { text: rq.correctOption, isCorrect: true, hint: "" },
+          ...rq.distractors.map(d => ({ text: d.text, isCorrect: false, hint: d.hint }))
+        ];
+
+        // Seeded/Deterministic Shuffle per question & scenario
+        for (let i = items.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [items[i], items[j]] = [items[j], items[i]];
+        }
+
+        const finalOptions = items.map(it => it.text);
+        const correctIdx = items.findIndex(it => it.isCorrect);
+        const wrongHints = items.map(it => it.hint);
+
+        return {
+          num: rq.num,
+          q: rq.q,
+          options: finalOptions,
+          correctIdx: correctIdx,
+          wrongHints: wrongHints,
+          solution: rq.solution
+        };
+      });
+
+      // Store in global window for handler access
+      window.currentQuestions = questionsData;
+
+      container.innerHTML = questionsData.map(q => {
+        const savedState = userQuestionAnswers[q.num] || { isCorrect: null, selectedOption: null, solutionViewed: false, wrongAttempts: 0 };
+        let statusBadge = "";
+        if (savedState.solutionViewed && savedState.isCorrect) {
+          statusBadge = `<span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md"><i class="fa-solid fa-eye mr-1"></i>Solution Peeked (0 pts)</span>`;
+        } else if (savedState.solutionViewed) {
+          statusBadge = `<span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md"><i class="fa-solid fa-eye mr-1"></i>Solution Revealed</span>`;
+        } else if (savedState.isCorrect === true) {
+          statusBadge = `<span class="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-md"><i class="fa-solid fa-circle-check mr-1"></i>Correct! 🎉</span>`;
+        } else if (savedState.isCorrect === false) {
+          statusBadge = `<span class="text-xs font-bold px-2.5 py-1 bg-red-100 text-red-700 rounded-md"><i class="fa-solid fa-circle-xmark mr-1"></i>Incorrect</span>`;
+        }
+
+        const optionLetters = ['A', 'B', 'C', 'D'];
+
+        return `
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div class="space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide">Question ${q.num}</span>
+                  <span id="badge-${q.num}">${statusBadge}</span>
+                </div>
+                <p class="text-sm font-semibold text-slate-800 leading-relaxed">${q.q}</p>
+              </div>
+            </div>
+
+            <!-- Multiple Choice Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              ${q.options.map((opt, oIdx) => {
+                const isSelected = savedState.selectedOption === oIdx;
+                let btnStyle = "bg-slate-50 border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-300 text-slate-700";
+                if (savedState.isCorrect === true && oIdx === q.correctIdx) {
+                  btnStyle = "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-200 font-semibold";
+                } else if (savedState.isCorrect === false && isSelected) {
+                  btnStyle = "bg-red-50 border-red-400 text-red-900 ring-2 ring-red-200";
+                } else if (isSelected) {
+                  btnStyle = "bg-indigo-50 border-indigo-500 text-indigo-900 ring-2 ring-indigo-200";
+                }
+
+                return `
+                  <button onclick="selectOption(${q.num}, ${oIdx})" id="opt-btn-${q.num}-${oIdx}" class="p-3 rounded-xl border text-left transition flex items-center space-x-3 ${btnStyle}">
+                    <span class="w-7 h-7 rounded-lg bg-white border border-slate-300 text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">
+                      ${optionLetters[oIdx]}
+                    </span>
+                    <span class="text-xs sm:text-sm font-medium flex-1">${opt}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <button onclick="checkMultipleChoice(${q.num})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-check-double"></i>
+                <span>Check Answer</span>
+              </button>
+              <button onclick="toggleSolution(${q.num})" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-eye text-indigo-500"></i>
+                <span>Show Solution</span>
+              </button>
+            </div>
+
+            <!-- Feedback & Diagnostic Hint Box -->
+            <div id="feedback-box-${q.num}" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <strong class="flex items-center text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Diagnostic Hint:</strong>
+              <p id="feedback-text-${q.num}"></p>
+            </div>
+
+            <!-- Full Step-by-Step Solution Box -->
+            <div id="sol-box-${q.num}" class="${savedState.isCorrect === true ? '' : 'hidden'} p-4 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs text-indigo-950 space-y-2">
+              <p class="font-bold text-indigo-900 border-b border-indigo-200 pb-1 flex items-center">
+                <i class="fa-solid fa-graduation-cap mr-1.5 text-indigo-600"></i>
+                <span>Step-by-Step Calculus Solution & Breakdown:</span>
+              </p>
+              <div class="whitespace-pre-line leading-relaxed font-mono text-[11px]">${q.solution}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderMathKaTeX();
+    }
+
+    // --- Handling Multiple Choice Selection & Auto-Grading ---
+    function selectOption(qNum, oIdx) {
+      if (!userQuestionAnswers[qNum]) {
+        userQuestionAnswers[qNum] = { isCorrect: null, selectedOption: oIdx, solutionViewed: false, wrongAttempts: 0 };
+      } else {
+        userQuestionAnswers[qNum].selectedOption = oIdx;
+      }
+
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById(`opt-btn-${qNum}-${i}`);
+        if (btn) {
+          if (i === oIdx) {
+            btn.className = "p-3 rounded-xl border text-left transition flex items-center space-x-3 bg-indigo-50 border-indigo-500 text-indigo-900 ring-2 ring-indigo-200 font-semibold";
+          } else {
+            btn.className = "p-3 rounded-xl border text-left transition flex items-center space-x-3 bg-slate-50 border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-300 text-slate-700";
+          }
+        }
+      }
+    }
+
+    function checkMultipleChoice(qNum) {
+      const q = window.currentQuestions.find(item => item.num === qNum);
+      if (!q) return;
+
+      if (!userQuestionAnswers[qNum]) {
+        userQuestionAnswers[qNum] = { isCorrect: null, selectedOption: null, solutionViewed: false, wrongAttempts: 0 };
+      }
+      const state = userQuestionAnswers[qNum];
+      const badgeEl = document.getElementById(`badge-${qNum}`);
+      const feedbackBox = document.getElementById(`feedback-box-${qNum}`);
+      const feedbackText = document.getElementById(`feedback-text-${qNum}`);
+      const solBox = document.getElementById(`sol-box-${qNum}`);
+
+      if (state.selectedOption === null || state.selectedOption === undefined) {
+        if (badgeEl) badgeEl.innerHTML = `<span class="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-md"><i class="fa-solid fa-hand-pointer mr-1"></i>Select an option first!</span>`;
+        return;
+      }
+
+      const selectedIdx = state.selectedOption;
+      const isCorrect = (selectedIdx === q.correctIdx);
+
+      if (isCorrect) {
+        state.isCorrect = true;
+        if (state.solutionViewed) {
+          if (badgeEl) badgeEl.innerHTML = `<span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md"><i class="fa-solid fa-eye mr-1"></i>Solution Peeked (0 pts)</span>`;
+        } else if (state.wrongAttempts > 0) {
+          if (badgeEl) badgeEl.innerHTML = `<span class="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-md"><i class="fa-solid fa-circle-check mr-1"></i>Correct (${state.wrongAttempts} retries)!</span>`;
+        } else {
+          if (badgeEl) badgeEl.innerHTML = `<span class="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-md"><i class="fa-solid fa-circle-check mr-1"></i>First Try Correct! 🎉</span>`;
+        }
+        if (feedbackBox) feedbackBox.classList.add('hidden');
+        if (solBox) solBox.classList.remove('hidden');
+
+        const btn = document.getElementById(`opt-btn-${qNum}-${selectedIdx}`);
+        if (btn) btn.className = "p-3 rounded-xl border text-left transition flex items-center space-x-3 bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-200 font-semibold";
+      } else {
+        state.wrongAttempts = (state.wrongAttempts || 0) + 1;
+        state.isCorrect = false;
+        if (badgeEl) badgeEl.innerHTML = `<span class="text-xs font-bold px-2.5 py-1 bg-red-100 text-red-700 rounded-md"><i class="fa-solid fa-circle-xmark mr-1"></i>Attempt ${state.wrongAttempts} Incorrect</span>`;
+
+        const btn = document.getElementById(`opt-btn-${qNum}-${selectedIdx}`);
+        if (btn) btn.className = "p-3 rounded-xl border text-left transition flex items-center space-x-3 bg-red-50 border-red-400 text-red-900 ring-2 ring-red-200";
+
+        const hintMsg = q.wrongHints[selectedIdx] || "Incorrect choice. Review the equation and try again!";
+        if (feedbackText) feedbackText.innerHTML = hintMsg;
+        if (feedbackBox) feedbackBox.classList.remove('hidden');
+      }
+
+      const answeredCount = Object.keys(userQuestionAnswers).filter(k => userQuestionAnswers[k].selectedOption !== null && userQuestionAnswers[k].selectedOption !== undefined).length;
+      if (answeredCount >= 8) {
+        const scoreBtn = document.getElementById('view-score-btn');
+        if (scoreBtn) scoreBtn.classList.remove('hidden');
+        showScoreModal();
+      }
+    }
+
+    function toggleHint(qNum) {
+      const box = document.getElementById(`hint-box-${qNum}`);
+      if (box) box.classList.toggle('hidden');
+    }
+
+    function toggleSolution(qNum) {
+      if (!userQuestionAnswers[qNum]) {
+        userQuestionAnswers[qNum] = { isCorrect: null, selectedOption: null, solutionViewed: false, wrongAttempts: 0 };
+      }
+      const state = userQuestionAnswers[qNum];
+      const solBox = document.getElementById(`sol-box-${qNum}`);
+      if (solBox) {
+        const isHidden = solBox.classList.contains('hidden');
+        if (isHidden) {
+          solBox.classList.remove('hidden');
+          // Flag as solution peeked if not already solved correctly on first try
+          if (!state.isCorrect) {
+            state.solutionViewed = true;
+            const badgeEl = document.getElementById(`badge-${qNum}`);
+            if (badgeEl) {
+              badgeEl.innerHTML = `<span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md"><i class="fa-solid fa-eye mr-1"></i>Solution Revealed (0 pts)</span>`;
+            }
+          }
+        } else {
+          solBox.classList.add('hidden');
+        }
+      }
+    }
+
+    function showScoreModal() {
+      const total = 8;
+      let independentCorrect = 0;
+      let peekedCount = 0;
+
+      Object.keys(userQuestionAnswers).forEach(k => {
+        const st = userQuestionAnswers[k];
+        if (st) {
+          if (st.solutionViewed) {
+            peekedCount++;
+          } else if (st.isCorrect) {
+            independentCorrect++;
+          }
+        }
+      });
+
+      const percentage = Math.round((independentCorrect / total) * 100);
+      document.getElementById('score-percentage').innerText = `${percentage}%`;
+      document.getElementById('score-count').innerText = `${independentCorrect} / ${total}`;
+      const peekEl = document.getElementById('solution-peek-count');
+      if (peekEl) peekEl.innerText = peekedCount;
+
+      const noteEl = document.getElementById('score-honesty-note');
+      if (noteEl) {
+        if (peekedCount > 0) {
+          noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1.5"></i>Solution peeks were revealed on <strong>${peekedCount}</strong> question(s). Revealed solutions earn <strong>0 points</strong> so your score reflects independent problem solving.`;
+          noteEl.classList.remove('hidden');
+        } else {
+          noteEl.innerHTML = `<i class="fa-solid fa-award text-emerald-600 mr-1.5"></i> Outstanding job! You completed all questions independently without peeking at solutions!`;
+          noteEl.classList.remove('hidden');
+        }
+      }
+
+      document.getElementById('modal-student-name').innerText = studentName;
+      document.getElementById('score-modal').classList.remove('hidden');
+    }
+
+    function closeScoreModal() {
+      document.getElementById('score-modal').classList.add('hidden');
+    }
+
+    function printStudyGuide() {
+      document.body.classList.add('printing-study-guide');
+      window.print();
+      document.body.classList.remove('printing-study-guide');
+    }
+
+    function printWorksheet() {
+      document.body.classList.remove('printing-study-guide');
+      window.print();
+    }
+
+    function handleCustomSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('cust-name').value.trim() || "Custom Object";
+      const icon = document.getElementById('cust-icon').value;
+      const desc = document.getElementById('cust-desc').value.trim() || "Custom 1D motion scenario.";
+      const a = parseFloat(document.getElementById('cust-a').value) || 12;
+      const b = parseFloat(document.getElementById('cust-b').value) || 9;
+      const c = parseFloat(document.getElementById('cust-c').value) || 2;
+
+      const newSc = {
+        id: "custom-" + Date.now(),
+        name: name,
+        title: name + "'s Motion",
+        icon: icon,
+        color: "bg-purple-600",
+        a, b, c,
+        maxT: 3.5,
+        targetInterval: [0, 3],
+        tQueryInstant: 2.0,
+        desc: desc
+      };
+
+      SCENARIOS.push(newSc);
+      renderScenarioGrid();
+      loadScenario(SCENARIOS.length - 1);
+      switchMainTab('worksheet');
+    }
+
+    // --- Setting Up Canvas Animation Track ---
+    let ctx = null;
+    function initCanvas() {
+      const canvas = document.getElementById('motionCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      drawTrackCanvas();
+    }
+
+    function drawTrackCanvas() {
+      const canvas = document.getElementById('motionCanvas');
+      if (!canvas || !ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background grid
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+
+      const centerY = h / 2 + 10;
+      const sc = currentScenario;
+
+      let minX = 0, maxX = 0;
+      for (let t = 0; t <= sc.maxT; t += 0.05) {
+        const val = posX(t, sc);
+        if (val < minX) minX = val;
+        if (val > maxX) maxX = val;
+      }
+      const padding = Math.max(Math.abs(minX), Math.abs(maxX), 10) * 1.25;
+
+      const originX = w / 2;
+      const scaleX = (w / 2 - 40) / padding;
+
+      // Draw Main 1D Axis Track
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(20, centerY);
+      ctx.lineTo(w - 20, centerY);
+      ctx.stroke();
+
+      // Axis Ticks
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+
+      const tickStep = padding > 30 ? 10 : 5;
+      for (let mark = -Math.floor(padding); mark <= Math.floor(padding); mark += tickStep) {
+        const cx = originX + mark * scaleX;
+        if (cx >= 20 && cx <= w - 20) {
+          ctx.beginPath();
+          ctx.moveTo(cx, centerY - 6);
+          ctx.lineTo(cx, centerY + 6);
+          ctx.stroke();
+          ctx.fillText(`${mark}m`, cx, centerY + 20);
+        }
+      }
+
+      // Origin Marker (x = 0)
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(originX, centerY - 12);
+      ctx.lineTo(originX, centerY + 12);
+      ctx.stroke();
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText('0m (Start)', originX, centerY - 16);
+
+      // Turnaround Points Markers
+      const turns = findTurnaroundTimes(sc);
+      turns.forEach((tt, i) => {
+        if (tt <= sc.maxT) {
+          const turnPos = posX(tt, sc);
+          const turnPx = originX + turnPos * scaleX;
+          ctx.strokeStyle = '#ec4899';
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(turnPx, 20);
+          ctx.lineTo(turnPx, h - 20);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = '#ec4899';
+          ctx.fillText(`Turn ${i+1}: ${turnPos.toFixed(1)}m`, turnPx, 30 + i * 14);
+        }
+      });
+
+      // Current Object Position
+      const curX = posX(simTime, sc);
+      const curV = velV(simTime, sc);
+      const curA = accA(simTime, sc);
+      const objPx = originX + curX * scaleX;
+
+      // Draw Motion Path Trajectory
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let t = 0; t <= simTime; t += 0.02) {
+        const px = originX + posX(t, sc) * scaleX;
+        if (t === 0) ctx.moveTo(px, centerY);
+        else ctx.lineTo(px, centerY);
+      }
+      ctx.stroke();
+
+      // Object Avatar Icon / Circle
+      ctx.fillStyle = '#818cf8';
+      ctx.beginPath();
+      ctx.arc(objPx, centerY, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Velocity Arrow Vector
+      if (Math.abs(curV) > 0.1) {
+        const vLen = Math.min(Math.max(curV * 4, -60), 60);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(objPx, centerY - 25);
+        ctx.lineTo(objPx + vLen, centerY - 25);
+        ctx.stroke();
+
+        const arrowDir = Math.sign(vLen);
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.moveTo(objPx + vLen, centerY - 25);
+        ctx.lineTo(objPx + vLen - arrowDir * 6, centerY - 29);
+        ctx.lineTo(objPx + vLen - arrowDir * 6, centerY - 21);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Live Readout Elements
+      document.getElementById('readout-t').innerText = `${simTime.toFixed(2)} s`;
+      document.getElementById('readout-x').innerText = `${curX.toFixed(2)} m`;
+      document.getElementById('readout-v').innerText = `${curV.toFixed(2)} m/s`;
+      document.getElementById('readout-a').innerText = `${curA.toFixed(2)} m/s²`;
+    }
+
+    // --- Simulation Controls & Loop ---
+    function togglePlayPause() {
+      isPlaying = !isPlaying;
+      const icon = document.getElementById('play-icon');
+      if (isPlaying) {
+        if (icon) icon.className = "fa-solid fa-pause";
+        lastTimestamp = performance.now();
+        animFrameReq = requestAnimationFrame(animLoop);
+      } else {
+        if (icon) icon.className = "fa-solid fa-play";
+        if (animFrameReq) cancelAnimationFrame(animFrameReq);
+      }
+    }
+
+    function resetSimulation() {
+      isPlaying = false;
+      simTime = 0.0;
+      const icon = document.getElementById('play-icon');
+      if (icon) icon.className = "fa-solid fa-play";
+      if (animFrameReq) cancelAnimationFrame(animFrameReq);
+      const scrubber = document.getElementById('time-scrubber');
+      if (scrubber) scrubber.value = 0;
+      drawTrackCanvas();
+    }
+
+    function changeSpeed(val) {
+      simSpeed = parseFloat(val);
+    }
+
+    function onScrub(val) {
+      simTime = parseFloat(val);
+      drawTrackCanvas();
+    }
+
+    function animLoop(timestamp) {
+      if (!isPlaying) return;
+      const dt = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+
+      simTime += dt * simSpeed;
+      if (simTime >= currentScenario.maxT) {
+        simTime = currentScenario.maxT;
+        isPlaying = false;
+        const icon = document.getElementById('play-icon');
+        if (icon) icon.className = "fa-solid fa-play";
+      }
+
+      const scrubber = document.getElementById('time-scrubber');
+      if (scrubber) scrubber.value = simTime;
+
+      drawTrackCanvas();
+
+      if (isPlaying) {
+        animFrameReq = requestAnimationFrame(animLoop);
+      }
+    }
+
+    // --- Chart.js Setup ---
+    function setupCharts() {
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Time t (s)', font: { size: 10 } },
+            grid: { color: '#f1f5f9' }
+          },
+          y: { grid: { color: '#f1f5f9' } }
+        },
+        plugins: { legend: { display: false } }
+      };
+
+      const ctxX = document.getElementById('chartX');
+      if (ctxX) {
+        chartX = new Chart(ctxX, {
+          type: 'line',
+          data: { datasets: [{ label: 'x(t)', data: [], borderColor: '#10b981', borderWidth: 2, pointRadius: 0 }] },
+          options: commonOptions
+        });
+      }
+
+      const ctxV = document.getElementById('chartV');
+      if (ctxV) {
+        chartV = new Chart(ctxV, {
+          type: 'line',
+          data: { datasets: [{ label: 'v(t)', data: [], borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 }] },
+          options: commonOptions
+        });
+      }
+
+      const ctxA = document.getElementById('chartA');
+      if (ctxA) {
+        chartA = new Chart(ctxA, {
+          type: 'line',
+          data: { datasets: [{ label: 'a(t)', data: [], borderColor: '#a855f7', borderWidth: 2, pointRadius: 0 }] },
+          options: commonOptions
+        });
+      }
+    }
+
+    function updateCharts() {
+      if (!chartX || !chartV || !chartA) return;
+
+      const sc = currentScenario;
+      const dataX = [], dataV = [], dataA = [];
+
+      for (let t = 0; t <= sc.maxT; t += 0.05) {
+        dataX.push({ x: t, y: posX(t, sc) });
+        dataV.push({ x: t, y: velV(t, sc) });
+        dataA.push({ x: t, y: accA(t, sc) });
+      }
+
+      chartX.data.datasets[0].data = dataX;
+      chartV.data.datasets[0].data = dataV;
+      chartA.data.datasets[0].data = dataA;
+
+      chartX.update();
+      chartV.update();
+      chartA.update();
+    }
+
+    function renderMathKaTeX() {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+  </script>
+</body>
+</html>
