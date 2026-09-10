@@ -33,6 +33,11 @@
             pointer-events: none;
             z-index: 50;
         }
+        .svg-illustration {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 8px;
+            border: 1px solid #bae6fd;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -43,9 +48,14 @@
         
         <!-- Welcome Screen -->
         <div id="welcome-screen" class="glass-panel p-8 text-center">
-            <h1 class="text-3xl font-bold mb-6 text-gray-800">Physics Challenge: Constant Acceleration</h1>
-            <p class="text-gray-600 mb-8">Test your skills in identifying variables, selecting the right equation, and solving for the unknown algebraically.</p>
+            <h1 class="text-3xl font-bold mb-4 text-gray-800">Physics Challenge: Constant Acceleration</h1>
+            <p class="text-gray-600 mb-6">Test your skills in identifying variables, selecting kinematic equations, and algebraically isolating unknown variables.</p>
             
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto text-sm text-blue-900">
+                <p><strong>Quiz Format:</strong> <span id="welcome-question-count">5</span> Questions</p>
+                <p><strong>Max Score:</strong> <span id="welcome-max-score">35</span> Points (7 pts/question)</p>
+            </div>
+
             <div class="max-w-sm mx-auto">
                 <label for="student-name" class="block text-left text-sm font-medium text-gray-700 mb-2">Enter your name to begin:</label>
                 <input type="text" id="student-name" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 mb-6" placeholder="Your Name">
@@ -59,18 +69,22 @@
             <!-- Progress Bar -->
             <div class="mb-6">
                 <div class="flex justify-between text-sm font-medium text-gray-600 mb-2">
-                    <span>Question <span id="current-question-num">1</span> of 3</span>
-                    <span>Score: <span id="current-score">0</span> / 21</span>
+                    <span>Question <span id="current-question-num">1</span> of <span id="total-questions-display">5</span></span>
+                    <span>Score: <span id="current-score">0</span> / <span id="total-score-display">35</span></span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 33%"></div>
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 20%"></div>
                 </div>
             </div>
 
             <div class="glass-panel p-6 md:p-8">
-                <!-- Question Text -->
+                <!-- Question Illustration & Text -->
                 <div class="mb-8 pb-6 border-b border-gray-200">
-                    <p id="scenario-text" class="text-lg text-gray-800 leading-relaxed mb-4"></p>
+                    <div id="illustration-container" class="mb-6 w-full h-48 flex items-center justify-center svg-illustration p-2">
+                        <!-- SVG graphic dynamically injected -->
+                    </div>
+
+                    <p id="scenario-text" class="text-lg text-gray-800 leading-relaxed mb-4 font-medium"></p>
                     <p class="font-medium text-gray-700">Pick the <strong class="text-blue-600">three variables</strong> that the problem tells you or implies and the <strong class="text-blue-600">one variable</strong> that the problem asks you to find.</p>
                     <p class="font-medium text-gray-700 mt-2">Then pick the <strong class="text-blue-600">one equation</strong> that matches all four variables.</p>
                 </div>
@@ -107,23 +121,23 @@
                         <h3 class="font-semibold text-gray-700 mb-3">Equation (Select 1)</h3>
                         <div class="space-y-2 mb-6">
                             <label class="checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer">
-                                <input type="checkbox" name="eqs" value="eq1" class="h-5 w-5 text-blue-600 rounded">
+                                <input type="radio" name="eqs" value="eq1" class="h-5 w-5 text-blue-600 rounded">
                                 <span class="ml-3 text-gray-700 font-mono text-lg">v = v<sub>o</sub> + at</span>
                             </label>
                             <label class="checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer">
-                                <input type="checkbox" name="eqs" value="eq2" class="h-5 w-5 text-blue-600 rounded">
+                                <input type="radio" name="eqs" value="eq2" class="h-5 w-5 text-blue-600 rounded">
                                 <span class="ml-3 text-gray-700 font-mono text-lg">x - x<sub>o</sub> = v<sub>o</sub>t + ½at<sup>2</sup></span>
                             </label>
                             <label class="checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer">
-                                <input type="checkbox" name="eqs" value="eq3" class="h-5 w-5 text-blue-600 rounded">
+                                <input type="radio" name="eqs" value="eq3" class="h-5 w-5 text-blue-600 rounded">
                                 <span class="ml-3 text-gray-700 font-mono text-lg">v<sup>2</sup> = v<sub>o</sub><sup>2</sup> + 2a(x - x<sub>o</sub>)</span>
                             </label>
                             <label class="checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer">
-                                <input type="checkbox" name="eqs" value="eq4" class="h-5 w-5 text-blue-600 rounded">
+                                <input type="radio" name="eqs" value="eq4" class="h-5 w-5 text-blue-600 rounded">
                                 <span class="ml-3 text-gray-700 font-mono text-lg">x - x<sub>o</sub> = ½(v<sub>o</sub> + v)t</span>
                             </label>
                             <label class="checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer">
-                                <input type="checkbox" name="eqs" value="eq5" class="h-5 w-5 text-blue-600 rounded">
+                                <input type="radio" name="eqs" value="eq5" class="h-5 w-5 text-blue-600 rounded">
                                 <span class="ml-3 text-gray-700 font-mono text-lg">x - x<sub>o</sub> = vt - ½at<sup>2</sup></span>
                             </label>
                         </div>
@@ -139,7 +153,7 @@
                 <div id="part2-container" class="hidden mt-8 pt-6 border-t border-gray-200">
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                         <p class="text-gray-800 font-medium">Selected Kinematic Equation: <span id="selected-equation-display" class="font-mono font-bold text-blue-700 text-lg"></span></p>
-                        <p class="text-sm text-gray-600 mt-1">Rearrange this equation algebraically to solve for the target variable: <span id="unknown-var-display" class="font-mono font-bold text-blue-800"></span></p>
+                        <p class="text-sm text-gray-600 mt-1">Rearrange this equation algebraically to solve for target variable: <span id="unknown-var-display" class="font-mono font-bold text-blue-800"></span></p>
                     </div>
                     
                     <form id="algebra-form" class="space-y-3">
@@ -167,7 +181,7 @@
             
             <div class="my-8 p-6 bg-gray-50 rounded-lg inline-block border border-gray-200">
                 <p class="text-lg text-gray-600 mb-2">Your Final Score</p>
-                <p class="text-5xl font-black text-gray-800"><span id="final-score"></span> <span class="text-2xl text-gray-500 font-medium">/ 21</span></p>
+                <p class="text-5xl font-black text-gray-800"><span id="final-score"></span> <span class="text-2xl text-gray-500 font-medium">/ <span id="final-max-score">35</span></span></p>
             </div>
 
             <p id="performance-message" class="text-lg text-gray-600 mb-8"></p>
@@ -180,6 +194,19 @@
     </div>
 
     <script>
+        // ====================================================================
+        // VARIABLE TOGGLE: Change QUESTION_COUNT to 3 or 5 to switch mode!
+        // 5 problem version uses EACH of the 5 kinematic equations (eq1-eq5).
+        // ====================================================================
+        const QUIZ_CONFIG = {
+            QUESTION_COUNT: 3 // Set to 3 or 5
+        };
+
+        const POINTS_PER_CHECKBOX = 1;
+        const POINTS_ALGEBRA = 2;
+        const MAX_QUESTIONS = QUIZ_CONFIG.QUESTION_COUNT;
+        const MAX_POSSIBLE_SCORE = MAX_QUESTIONS * 7; // (5 + 2) * N
+
         const varSymbols = {
             'v0': 'v<sub>o</sub>',
             'v': 'v',
@@ -196,198 +223,319 @@
             'eq5': 'x - x<sub>o</sub> = vt - ½at<sup>2</sup>'
         };
 
-        // Scenario Database with precise algebraic distractors derived from other candidate equations
+        function getIllustrationSVG(type) {
+            const illustrations = {
+                'racecar': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="125" width="400" height="5" fill="#94a3b8"/>
+                    <path d="M 50,115 L 80,115 L 110,95 L 180,95 L 220,115 L 260,115 C 270,115 280,105 270,95 L 240,80 L 160,80 L 120,90 Z" fill="#ef4444"/>
+                    <circle cx="100" cy="120" r="14" fill="#1e293b"/>
+                    <circle cx="100" cy="120" r="6" fill="#cbd5e1"/>
+                    <circle cx="220" cy="120" r="14" fill="#1e293b"/>
+                    <circle cx="220" cy="120" r="6" fill="#cbd5e1"/>
+                    <path d="M 280,100 L 340,100" stroke="#3b82f6" stroke-width="4" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+                    <text x="290" y="90" fill="#2563eb" font-weight="bold" font-size="14">a →</text>
+                    <text x="10" y="40" fill="#475569" font-size="12" font-family="sans-serif">v₀ = 0 m/s</text>
+                </svg>`,
+                'cheetah': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="125" width="400" height="5" fill="#e2e8f0"/>
+                    <path d="M 80,100 Q 120,70 160,90 T 220,95 Q 250,85 270,105" fill="none" stroke="#d97706" stroke-width="8" stroke-linecap="round"/>
+                    <circle cx="270" cy="100" r="8" fill="#d97706"/>
+                    <circle cx="90" cy="118" r="4" fill="#b45309"/><circle cx="150" cy="118" r="4" fill="#b45309"/>
+                    <circle cx="210" cy="118" r="4" fill="#b45309"/><circle cx="260" cy="118" r="4" fill="#b45309"/>
+                    <path d="M 40,110 L 320,110" stroke="#0284c7" stroke-width="2" stroke-dasharray="4,4"/>
+                    <text x="160" y="138" fill="#0369a1" font-weight="bold" font-size="13">Distance (x - x₀) = ?</text>
+                </svg>`,
+                'train': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="120" width="400" height="6" fill="#475569"/>
+                    <rect x="80" y="60" width="180" height="55" rx="5" fill="#0284c7"/>
+                    <rect x="100" y="70" width="30" height="20" fill="#e0f2fe"/>
+                    <rect x="150" y="70" width="30" height="20" fill="#e0f2fe"/>
+                    <rect x="200" y="70" width="30" height="20" fill="#e0f2fe"/>
+                    <circle cx="110" cy="120" r="10" fill="#334155"/><circle cx="150" cy="120" r="10" fill="#334155"/>
+                    <circle cx="190" cy="120" r="10" fill="#334155"/><circle cx="230" cy="120" r="10" fill="#334155"/>
+                    <path d="M 270,85 L 210,85" stroke="#ef4444" stroke-width="4" marker-end="url(#arrow)"/>
+                    <text x="220" y="75" fill="#dc2626" font-weight="bold" font-size="13">Braking a</text>
+                </svg>`,
+                'electron': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="200" cy="75" r="55" fill="none" stroke="#cbd5e1" stroke-width="8"/>
+                    <path d="M 145,75 A 55,55 0 0,1 255,75" fill="none" stroke="#6366f1" stroke-width="4" stroke-dasharray="6,4"/>
+                    <circle cx="255" cy="75" r="10" fill="#818cf8"/>
+                    <text x="251" y="79" fill="white" font-weight="bold" font-size="12">-</text>
+                    <text x="130" y="45" fill="#4f46e5" font-weight="bold" font-size="13">t = 0.002s</text>
+                </svg>`,
+                'bicyclist': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="125" width="400" height="5" fill="#94a3b8"/>
+                    <circle cx="120" cy="105" r="20" fill="none" stroke="#0f766e" stroke-width="4"/>
+                    <circle cx="200" cy="105" r="20" fill="none" stroke="#0f766e" stroke-width="4"/>
+                    <path d="M 120,105 L 150,105 L 180,85 L 140,85 Z" fill="none" stroke="#0f766e" stroke-width="4"/>
+                    <circle cx="160" cy="65" r="10" fill="#14b8a6"/>
+                    <path d="M 160,75 L 155,95 L 180,105" stroke="#14b8a6" stroke-width="4" fill="none"/>
+                    <text x="230" y="90" fill="#0f766e" font-weight="bold" font-size="13">a = 1.2 m/s²</text>
+                </svg>`,
+                'rocket': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="110" width="400" height="4" fill="#64748b"/>
+                    <path d="M 100,95 L 180,95 L 210,102 L 180,109 L 100,109 Z" fill="#0284c7"/>
+                    <polygon points="210,102 230,92 230,112" fill="#ef4444"/>
+                    <polygon points="80,95 100,102 80,109" fill="#f59e0b"/>
+                    <text x="240" y="106" fill="#0369a1" font-weight="bold" font-size="13">x - x₀ = 120m</text>
+                </svg>`,
+                'sprinter': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="125" width="400" height="5" fill="#f87171"/>
+                    <line x1="120" y1="40" x2="120" y2="125" stroke="#ef4444" stroke-width="4"/>
+                    <circle cx="150" cy="60" r="8" fill="#1e293b"/>
+                    <path d="M 150,68 L 145,95 L 160,120 M 145,80 L 130,95 M 145,85 L 165,95" stroke="#1e293b" stroke-width="4" fill="none"/>
+                    <text x="180" y="70" fill="#dc2626" font-weight="bold" font-size="13">v₀ = 11 m/s (Stopping)</text>
+                </svg>`,
+                'spaceship': `<svg class="w-full h-full" viewBox="0 0 400 150" fill="#090d16" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="30" r="1" fill="#white"/><circle cx="150" cy="120" r="1.5" fill="#white"/><circle cx="280" cy="40" r="1" fill="#white"/><circle cx="350" cy="100" r="2" fill="#white"/>
+                    <path d="M 140,75 L 220,55 L 260,75 L 220,95 Z" fill="#38bdf8"/>
+                    <polygon points="120,75 140,65 140,85" fill="#f97316"/>
+                    <text x="270" y="80" fill="#38bdf8" font-weight="bold" font-size="13">v₀=1000m/s → v=3500m/s</text>
+                </svg>`,
+                'puck': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="400" height="150" fill="#f0f9ff"/>
+                    <rect x="0" y="120" width="400" height="6" fill="#bae6fd"/>
+                    <ellipse cx="180" cy="115" rx="25" ry="8" fill="#1e293b"/>
+                    <path d="M 155,115 L 155,110 A 25,8 0 0,1 205,110 L 205,115 Z" fill="#334155"/>
+                    <path d="M 130,115 L 80,115" stroke="#ef4444" stroke-width="3" stroke-dasharray="4,4"/>
+                    <text x="215" y="110" fill="#0284c7" font-weight="bold" font-size="13">Friction deceleration</text>
+                </svg>`,
+                'skateboarder': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 40,30 Q 120,120 280,120 L 360,120" stroke="#64748b" stroke-width="6" fill="none"/>
+                    <rect x="180" y="100" width="35" height="6" rx="3" fill="#1e293b" transform="rotate(15 180 100)"/>
+                    <circle cx="185" cy="110" r="4" fill="#ef4444"/><circle cx="210" cy="116" r="4" fill="#ef4444"/>
+                    <text x="220" y="80" fill="#0f766e" font-weight="bold" font-size="13">a = 1.5 m/s² down ramp</text>
+                </svg>`,
+                'drone': `<svg class="w-full h-full" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="160" y="65" width="50" height="15" rx="5" fill="#334155"/>
+                    <line x1="140" y1="60" x2="230" y2="85" stroke="#475569" stroke-width="4"/>
+                    <ellipse cx="135" cy="58" rx="20" ry="4" fill="#38bdf8"/>
+                    <ellipse cx="235" cy="87" rx="20" ry="4" fill="#38bdf8"/>
+                    <path d="M 230,70 L 300,70" stroke="#16a34a" stroke-width="3" stroke-dasharray="4,4"/>
+                    <text x="240" y="60" fill="#15803d" font-weight="bold" font-size="13">Δx = 40m</text>
+                </svg>`,
+                'motorboat': `<svg class="w-full h-full" viewBox="0 0 400 150" fill="#e0f2fe" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 0,110 Q 50,105 100,110 T 200,110 T 300,110 T 400,110 L 400,150 L 0,150 Z" fill="#38bdf8"/>
+                    <path d="M 140,105 L 240,105 L 270,90 L 220,90 Z" fill="#0284c7"/>
+                    <path d="M 120,115 Q 80,110 40,125" stroke="white" stroke-width="4" fill="none"/>
+                    <text x="250" y="80" fill="#0369a1" font-weight="bold" font-size="13">v = 20 m/s</text>
+                </svg>`
+            };
+            return illustrations[type] || illustrations['racecar'];
+        }
+
         const scenarios = [
+            // EQUATION 1 SCENARIOS (v = v0 + at) -> ALWAYS require algebra isolation for v0, a, or t!
             {
-                text: "A race car starting from rest accelerates uniformly at a rate of 5.0 m/s² for 8.0 seconds. What is its final velocity?",
-                given: ['v0', 'a', 't'],
-                find: 'v',
-                missing: 'dx',
+                id: 'sc1',
                 eq: 'eq1',
-                algCorrect: "v = v<sub>o</sub> + at",
+                illustration: 'racecar',
+                text: "A race car starting from an initial speed v₀ accelerates uniformly at 5.0 m/s² for 8.0 seconds until it reaches a final velocity of 40 m/s. What was its initial velocity v₀?",
+                given: ['a', 't', 'v'],
+                find: 'v0',
+                missing: 'dx',
+                algCorrect: "v<sub>o</sub> = v - at",
                 algDistractors: [
-                    "v = &radic;(v<sub>o</sub><sup>2</sup> + 2a(x - x<sub>o</sub>))",
-                    "v = (2(x - x<sub>o</sub>) / t) - v<sub>o</sub>",
-                    "v = ((x - x<sub>o</sub>) + ½at<sup>2</sup>) / t",
-                    "v = v<sub>o</sub> - at",
-                    "v = (v<sub>o</sub> + at) / 2",
-                    "v = v<sub>o</sub> + ½at<sup>2</sup>"
+                    "v<sub>o</sub> = v + at",
+                    "v<sub>o</sub> = (v - at) / 2",
+                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) - v",
+                    "v<sub>o</sub> = &radic;(v<sup>2</sup> - 2a(x - x<sub>o</sub>))",
+                    "v<sub>o</sub> = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t"
                 ]
             },
             {
-                text: "A cheetah running at 15 m/s spots prey and accelerates constantly at 3.0 m/s² until it reaches a speed of 27 m/s. How far did the cheetah run during this acceleration?",
+                id: 'sc2',
+                eq: 'eq1',
+                illustration: 'sprinter',
+                text: "A sprinter crosses the finish line at 11 m/s and then slows down with a constant acceleration of -2.5 m/s² until coming to a complete stop (v = 0). How much time t does it take them to stop?",
+                given: ['v0', 'a', 'v'],
+                find: 't',
+                missing: 'dx',
+                algCorrect: "t = (v - v<sub>o</sub>) / a",
+                algDistractors: [
+                    "t = (v<sub>o</sub> - v) / a",
+                    "t = 2(x - x<sub>o</sub>) / (v<sub>o</sub> + v)",
+                    "t = a / (v - v<sub>o</sub>)",
+                    "t = (v - v<sub>o</sub>) * a",
+                    "t = (v + v<sub>o</sub>) / a"
+                ]
+            },
+            {
+                id: 'sc3',
+                eq: 'eq1',
+                illustration: 'puck',
+                text: "A hockey puck sliding on ice has an initial velocity of 12 m/s. It experiences constant friction, slowing to 4.0 m/s after sliding for 6.0 seconds. What is its acceleration a?",
+                given: ['v0', 'v', 't'],
+                find: 'a',
+                missing: 'dx',
+                algCorrect: "a = (v - v<sub>o</sub>) / t",
+                algDistractors: [
+                    "a = (v<sub>o</sub> - v) / t",
+                    "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
+                    "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
+                    "a = (v + v<sub>o</sub>) / t",
+                    "a = t / (v - v<sub>o</sub>)"
+                ]
+            },
+
+            // EQUATION 2 SCENARIOS (x - x0 = v0*t + 0.5*a*t^2) -> Target v0 or a
+            {
+                id: 'sc4',
+                eq: 'eq2',
+                illustration: 'bicyclist',
+                text: "A bicyclist maintains a constant acceleration of 1.2 m/s². If they cover a distance of 50 meters in 8.0 seconds, what was their initial speed v₀?",
+                given: ['a', 'dx', 't'],
+                find: 'v0',
+                missing: 'v',
+                algCorrect: "v<sub>o</sub> = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
+                algDistractors: [
+                    "v<sub>o</sub> = ((x - x<sub>o</sub>) + ½at<sup>2</sup>) / t",
+                    "v<sub>o</sub> = v - at",
+                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) - v",
+                    "v<sub>o</sub> = &radic;(v<sup>2</sup> - 2a(x - x<sub>o</sub>))",
+                    "v<sub>o</sub> = ((x - x<sub>o</sub>) - at<sup>2</sup>) / (2t)"
+                ]
+            },
+            {
+                id: 'sc5',
+                eq: 'eq2',
+                illustration: 'rocket',
+                text: "A model rocket blasts off horizontally along a track. It covers 120 meters in 4.5 seconds, starting from rest (v₀ = 0). What was its constant acceleration a?",
+                given: ['v0', 'dx', 't'],
+                find: 'a',
+                missing: 'v',
+                algCorrect: "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
+                algDistractors: [
+                    "a = ((x - x<sub>o</sub>) - v<sub>o</sub>t) / (2t<sup>2</sup>)",
+                    "a = (v - v<sub>o</sub>) / t",
+                    "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
+                    "a = 2((x - x<sub>o</sub>) + v<sub>o</sub>t) / t<sup>2</sup>",
+                    "a = 2(vt - (x - x<sub>o</sub>)) / t<sup>2</sup>"
+                ]
+            },
+
+            // EQUATION 3 SCENARIOS (v^2 = v0^2 + 2a(x - x0)) -> Target dx or a or v0
+            {
+                id: 'sc6',
+                eq: 'eq3',
+                illustration: 'cheetah',
+                text: "A cheetah running at 15 m/s spots prey and accelerates constantly at 3.0 m/s² until it reaches a speed of 27 m/s. How far (x - x₀) did the cheetah run during this acceleration?",
                 given: ['v0', 'a', 'v'],
                 find: 'dx',
                 missing: 't',
-                eq: 'eq3',
                 algCorrect: "x - x<sub>o</sub> = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2a)",
                 algDistractors: [
-                    "x - x<sub>o</sub> = v<sub>o</sub>t + ½at<sup>2</sup>",
-                    "x - x<sub>o</sub> = ½(v<sub>o</sub> + v)t",
-                    "x - x<sub>o</sub> = vt - ½at<sup>2</sup>",
                     "x - x<sub>o</sub> = (v<sup>2</sup> + v<sub>o</sub><sup>2</sup>) / (2a)",
+                    "x - x<sub>o</sub> = ½(v<sub>o</sub> + v)t",
                     "x - x<sub>o</sub> = (v - v<sub>o</sub>) / (2a)",
-                    "x - x<sub>o</sub> = 2a / (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>)"
+                    "x - x<sub>o</sub> = 2a / (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>)",
+                    "x - x<sub>o</sub> = v<sub>o</sub>t + ½at<sup>2</sup>"
                 ]
             },
             {
-                text: "A train traveling at 25 m/s applies its brakes and comes to a complete stop over a distance of 400 meters. What was the train's constant acceleration?",
+                id: 'sc7',
+                eq: 'eq3',
+                illustration: 'train',
+                text: "A train traveling at 25 m/s applies its brakes and comes to a complete stop over a distance of 400 meters. What was the train's constant acceleration a?",
                 given: ['v0', 'v', 'dx'],
                 find: 'a',
                 missing: 't',
-                eq: 'eq3',
                 algCorrect: "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
                 algDistractors: [
+                    "a = (v<sup>2</sup> + v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
                     "a = (v - v<sub>o</sub>) / t",
                     "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
-                    "a = 2(vt - (x - x<sub>o</sub>)) / t<sup>2</sup>",
-                    "a = (v<sup>2</sup> + v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
                     "a = (v - v<sub>o</sub>) / (2(x - x<sub>o</sub>))",
                     "a = 2(x - x<sub>o</sub>) / (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>)"
                 ]
             },
+
+            // EQUATION 4 SCENARIOS (x - x0 = 0.5*(v0 + v)*t) -> Target v0 or v or t
             {
-                text: "An electron in a particle accelerator travels 0.15 meters in 0.002 seconds, achieving a final velocity of 120 m/s. Assuming constant acceleration, what was its initial velocity?",
+                id: 'sc8',
+                eq: 'eq4',
+                illustration: 'electron',
+                text: "An electron in a particle accelerator travels 0.15 meters in 0.002 seconds, achieving a final velocity of 120 m/s under constant acceleration. What was its initial velocity v₀?",
                 given: ['dx', 't', 'v'],
                 find: 'v0',
                 missing: 'a',
-                eq: 'eq4',
                 algCorrect: "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) - v",
                 algDistractors: [
+                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) + v",
                     "v<sub>o</sub> = v - at",
                     "v<sub>o</sub> = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
-                    "v<sub>o</sub> = &radic;(v<sup>2</sup> - 2a(x - x<sub>o</sub>))",
-                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) + v",
                     "v<sub>o</sub> = ((x - x<sub>o</sub>) / 2t) - v",
                     "v<sub>o</sub> = v - (2(x - x<sub>o</sub>) / t)"
                 ]
             },
             {
-                text: "A bicyclist maintains a constant acceleration of 1.2 m/s². If they cover a distance of 50 meters in 8.0 seconds, what was their initial speed?",
-                given: ['a', 'dx', 't'],
-                find: 'v0',
-                missing: 'v',
-                eq: 'eq2',
-                algCorrect: "v<sub>o</sub> = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
-                algDistractors: [
-                    "v<sub>o</sub> = v - at",
-                    "v<sub>o</sub> = &radic;(v<sup>2</sup> - 2a(x - x<sub>o</sub>))",
-                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) - v",
-                    "v<sub>o</sub> = ((x - x<sub>o</sub>) + ½at<sup>2</sup>) / t",
-                    "v<sub>o</sub> = ((x - x<sub>o</sub>) - at<sup>2</sup>) / (2t)",
-                    "v<sub>o</sub> = ((x - x<sub>o</sub>) / t) - at"
-                ]
-            },
-            {
-                text: "A model rocket blasts off horizontally along a track. It covers 120 meters in 4.5 seconds, starting from rest. What was its constant acceleration?",
-                given: ['v0', 'dx', 't'],
-                find: 'a',
-                missing: 'v',
-                eq: 'eq2',
-                algCorrect: "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
-                algDistractors: [
-                    "a = (v - v<sub>o</sub>) / t",
-                    "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
-                    "a = 2(vt - (x - x<sub>o</sub>)) / t<sup>2</sup>",
-                    "a = 2((x - x<sub>o</sub>) + v<sub>o</sub>t) / t<sup>2</sup>",
-                    "a = ((x - x<sub>o</sub>) - v<sub>o</sub>t) / (2t<sup>2</sup>)",
-                    "a = ((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>"
-                ]
-            },
-            {
-                text: "A sprinter crosses the finish line at 11 m/s and then slows down with a constant acceleration of -2.5 m/s² until they stop. How much time does it take them to stop?",
-                given: ['v0', 'a', 'v'],
-                find: 't',
-                missing: 'dx',
-                eq: 'eq1',
-                algCorrect: "t = (v - v<sub>o</sub>) / a",
-                algDistractors: [
-                    "t = 2(x - x<sub>o</sub>) / (v<sub>o</sub> + v)",
-                    "t = (v<sub>o</sub> - v) / a",
-                    "t = (v + v<sub>o</sub>) / a",
-                    "t = a / (v - v<sub>o</sub>)",
-                    "t = (v - v<sub>o</sub>) / (2a)",
-                    "t = (v - v<sub>o</sub>) * a"
-                ]
-            },
-            {
-                text: "A spaceship in deep space fires its thrusters, accelerating constantly from 1000 m/s to 3500 m/s. If the acceleration takes 45 seconds, what distance did the spaceship cover?",
-                given: ['v0', 'v', 't'],
-                find: 'dx',
-                missing: 'a',
+                id: 'sc9',
                 eq: 'eq4',
-                algCorrect: "x - x<sub>o</sub> = ½(v<sub>o</sub> + v)t",
-                algDistractors: [
-                    "x - x<sub>o</sub> = v<sub>o</sub>t + ½at<sup>2</sup>",
-                    "x - x<sub>o</sub> = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2a)",
-                    "x - x<sub>o</sub> = vt - ½at<sup>2</sup>",
-                    "x - x<sub>o</sub> = (v<sub>o</sub> + v)t",
-                    "x - x<sub>o</sub> = ½(v - v<sub>o</sub>)t",
-                    "x - x<sub>o</sub> = (v<sub>o</sub> + v) / (2t)"
-                ]
-            },
-            {
-                text: "A hockey puck sliding on ice has an initial velocity of 12 m/s. It experiences constant friction, slowing it down. If its velocity is 4 m/s after sliding for 6 seconds, what is its acceleration?",
-                given: ['v0', 'v', 't'],
-                find: 'a',
-                missing: 'dx',
-                eq: 'eq1',
-                algCorrect: "a = (v - v<sub>o</sub>) / t",
-                algDistractors: [
-                    "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
-                    "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
-                    "a = 2(vt - (x - x<sub>o</sub>)) / t<sup>2</sup>",
-                    "a = (v<sub>o</sub> - v) / t",
-                    "a = (v + v<sub>o</sub>) / t",
-                    "a = t / (v - v<sub>o</sub>)"
-                ]
-            },
-            {
-                text: "A skateboarder rolls down a ramp with a constant acceleration of 1.5 m/s². If they reach the bottom with a speed of 6.0 m/s after 3.0 seconds, what was their speed at the top of the ramp?",
-                given: ['a', 'v', 't'],
-                find: 'v0',
-                missing: 'dx',
-                eq: 'eq1',
-                algCorrect: "v<sub>o</sub> = v - at",
-                algDistractors: [
-                    "v<sub>o</sub> = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
-                    "v<sub>o</sub> = &radic;(v<sup>2</sup> - 2a(x - x<sub>o</sub>))",
-                    "v<sub>o</sub> = (2(x - x<sub>o</sub>) / t) - v",
-                    "v<sub>o</sub> = v + at",
-                    "v<sub>o</sub> = at - v",
-                    "v<sub>o</sub> = v - ½at"
-                ]
-            },
-            {
-                text: "A drone is flying horizontally at 8 m/s. It accelerates at a constant rate for a distance of 40 meters, reaching a speed of 18 m/s. How long did this acceleration take?",
+                illustration: 'drone',
+                text: "A drone flying horizontally at 8.0 m/s accelerates constantly for a distance of 40 meters, reaching a speed of 18 m/s. How long (time t) did this acceleration take?",
                 given: ['v0', 'dx', 'v'],
                 find: 't',
                 missing: 'a',
-                eq: 'eq4',
                 algCorrect: "t = 2(x - x<sub>o</sub>) / (v<sub>o</sub> + v)",
                 algDistractors: [
-                    "t = (v - v<sub>o</sub>) / a",
                     "t = (x - x<sub>o</sub>) / (v<sub>o</sub> + v)",
+                    "t = (v - v<sub>o</sub>) / a",
                     "t = 2(x - x<sub>o</sub>) / (v - v<sub>o</sub>)",
                     "t = (v<sub>o</sub> + v) / (2(x - x<sub>o</sub>))",
-                    "t = ½(x - x<sub>o</sub>)(v<sub>o</sub> + v)",
-                    "t = 2(v<sub>o</sub> + v) / (x - x<sub>o</sub>)"
+                    "t = ½(x - x<sub>o</sub>)(v<sub>o</sub> + v)"
+                ]
+            },
+
+            // EQUATION 5 SCENARIOS (x - x0 = vt - 0.5*a*t^2) -> Target v or a
+            {
+                id: 'sc10',
+                eq: 'eq5',
+                illustration: 'motorboat',
+                text: "A motorboat accelerates uniformly along a lake with a constant acceleration of 2.0 m/s² over 5.0 seconds, covering a distance of 75 meters. What was its final velocity v?",
+                given: ['dx', 'a', 't'],
+                find: 'v',
+                missing: 'v0',
+                algCorrect: "v = ((x - x<sub>o</sub>) + ½at<sup>2</sup>) / t",
+                algDistractors: [
+                    "v = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
+                    "v = v<sub>o</sub> + at",
+                    "v = (2(x - x<sub>o</sub>) / t) - v<sub>o</sub>",
+                    "v = &radic;(v<sub>o</sub><sup>2</sup> + 2a(x - x<sub>o</sub>))",
+                    "v = ((x - x<sub>o</sub>) + at<sup>2</sup>) / (2t)"
                 ]
             },
             {
-                text: "A motorboat accelerates uniformly along a lake. Reaching a velocity of 20 m/s after accelerating at 2.0 m/s² for 5.0 seconds, how far did the boat travel during those 5.0 seconds?",
-                given: ['v', 'a', 't'],
-                find: 'dx',
-                missing: 'v0',
+                id: 'sc11',
                 eq: 'eq5',
-                algCorrect: "x - x<sub>o</sub> = vt - ½at<sup>2</sup>",
+                illustration: 'skateboarder',
+                text: "A skateboarder rolls down a track covering a distance of 45 meters in 5.0 seconds. If their final velocity at the bottom is 12 m/s, what was their final velocity v expressed algebraically using Equation 5?",
+                given: ['dx', 'a', 't'],
+                find: 'v',
+                missing: 'v0',
+                algCorrect: "v = ((x - x<sub>o</sub>) + ½at<sup>2</sup>) / t",
                 algDistractors: [
-                    "x - x<sub>o</sub> = v<sub>o</sub>t + ½at<sup>2</sup>",
-                    "x - x<sub>o</sub> = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2a)",
-                    "x - x<sub>o</sub> = ½(v<sub>o</sub> + v)t",
-                    "x - x<sub>o</sub> = vt + ½at<sup>2</sup>",
-                    "x - x<sub>o</sub> = vt - at<sup>2</sup>",
-                    "x - x<sub>o</sub> = (vt - ½at<sup>2</sup>) / 2"
+                    "v = ((x - x<sub>o</sub>) - ½at<sup>2</sup>) / t",
+                    "v = v<sub>o</sub> + at",
+                    "v = (2(x - x<sub>o</sub>) / t) - v<sub>o</sub>",
+                    "v = &radic;(v<sub>o</sub><sup>2</sup> + 2a(x - x<sub>o</sub>))",
+                    "v = ((x - x<sub>o</sub>) + at<sup>2</sup>) / (2t)"
+                ]
+            },
+            {
+                id: 'sc12',
+                eq: 'eq5',
+                illustration: 'spaceship',
+                text: "A spaceship decelerates uniformly in deep space. If its final speed is 500 m/s after traveling 6000 meters in 10 seconds, what was its acceleration a?",
+                given: ['v', 'dx', 't'],
+                find: 'a',
+                missing: 'v0',
+                algCorrect: "a = 2(vt - (x - x<sub>o</sub>)) / t<sup>2</sup>",
+                algDistractors: [
+                    "a = 2((x - x<sub>o</sub>) - vt) / t<sup>2</sup>",
+                    "a = 2((x - x<sub>o</sub>) - v<sub>o</sub>t) / t<sup>2</sup>",
+                    "a = (v - v<sub>o</sub>) / t",
+                    "a = (v<sup>2</sup> - v<sub>o</sub><sup>2</sup>) / (2(x - x<sub>o</sub>))",
+                    "a = (vt - (x - x<sub>o</sub>)) / t<sup>2</sup>"
                 ]
             }
         ];
@@ -397,10 +545,6 @@
         let score = 0;
         let selectedQuestions = [];
         let currentScenario = null;
-        
-        const MAX_QUESTIONS = 3;
-        const POINTS_PER_CHECKBOX = 1;
-        const POINTS_ALGEBRA = 2;
 
         const screens = {
             welcome: document.getElementById('welcome-screen'),
@@ -416,6 +560,14 @@
             return array;
         }
 
+        function updateUIDisplays() {
+            document.getElementById('welcome-question-count').innerText = QUIZ_CONFIG.QUESTION_COUNT;
+            document.getElementById('welcome-max-score').innerText = MAX_POSSIBLE_SCORE;
+            document.getElementById('total-questions-display').innerText = QUIZ_CONFIG.QUESTION_COUNT;
+            document.getElementById('total-score-display').innerText = MAX_POSSIBLE_SCORE;
+            document.getElementById('final-max-score').innerText = MAX_POSSIBLE_SCORE;
+        }
+
         function startQuiz() {
             const nameInput = document.getElementById('student-name').value.trim();
             if (!nameInput) {
@@ -426,8 +578,29 @@
             score = 0;
             currentQuestionIndex = 0;
             
-            let shuffled = shuffleArray([...scenarios]);
-            selectedQuestions = shuffled.slice(0, MAX_QUESTIONS);
+            if (QUIZ_CONFIG.QUESTION_COUNT === 5) {
+                // Ensure 1 scenario for EACH of the 5 equations (eq1, eq2, eq3, eq4, eq5)
+                const eqKeys = ['eq1', 'eq2', 'eq3', 'eq4', 'eq5'];
+                selectedQuestions = eqKeys.map(eq => {
+                    const pool = scenarios.filter(s => s.eq === eq);
+                    return pool[Math.floor(Math.random() * pool.length)];
+                });
+                selectedQuestions = shuffleArray(selectedQuestions);
+            } else {
+                // Pick 3 questions with distinct equation types if possible
+                let shuffled = shuffleArray([...scenarios]);
+                let chosen = [];
+                let usedEqs = new Set();
+                for (let s of shuffled) {
+                    if (!usedEqs.has(s.eq)) {
+                        chosen.push(s);
+                        usedEqs.add(s.eq);
+                        if (chosen.length === 3) break;
+                    }
+                }
+                if (chosen.length < 3) chosen = shuffled.slice(0, 3);
+                selectedQuestions = chosen;
+            }
 
             screens.welcome.classList.add('hidden');
             screens.quiz.classList.remove('hidden');
@@ -442,20 +615,30 @@
             document.getElementById('current-score').innerText = score;
             document.getElementById('progress-bar').style.width = `${((currentQuestionIndex) / MAX_QUESTIONS) * 100}%`;
             
+            // Inject Illustration SVG
+            document.getElementById('illustration-container').innerHTML = getIllustrationSVG(currentScenario.illustration);
             document.getElementById('scenario-text').innerText = currentScenario.text;
             
             document.getElementById('checkbox-form').reset();
             document.getElementById('checkbox-feedback').innerText = '';
             document.getElementById('checkbox-feedback').className = 'text-sm font-medium';
             
+            // Reset checkbox and radio styles & badges
+            document.querySelectorAll('input[name="vars"], input[name="eqs"]').forEach(cb => {
+                cb.disabled = false;
+                cb.checked = false;
+                const label = cb.closest('label');
+                label.className = "checkbox-item flex items-center p-3 border border-gray-200 rounded cursor-pointer";
+                const badge = label.querySelector('.p1-badge');
+                if (badge) badge.remove();
+            });
+
             document.getElementById('part1-container').classList.remove('opacity-50', 'pointer-events-none');
             document.getElementById('submit-part1-btn').disabled = false;
             document.getElementById('submit-part1-btn').classList.remove('hidden');
             
             document.getElementById('part2-container').classList.add('hidden');
             document.getElementById('next-btn-container').classList.add('hidden');
-            
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = false);
         }
 
         function getSelectedCheckboxes(name) {
@@ -481,21 +664,81 @@
             let ptsEarned = 0;
             const correctVars = [...currentScenario.given, currentScenario.find];
             
-            selectedVars.forEach(v => {
-                if (correctVars.includes(v)) ptsEarned += POINTS_PER_CHECKBOX;
+            // Evaluate and highlight variable checkboxes
+            document.querySelectorAll('input[name="vars"]').forEach(cb => {
+                const label = cb.closest('label');
+                const isChecked = cb.checked;
+                const isCorrectVar = correctVars.includes(cb.value);
+
+                const existingBadge = label.querySelector('.p1-badge');
+                if (existingBadge) existingBadge.remove();
+
+                const badge = document.createElement('span');
+                badge.className = 'p1-badge ml-auto text-xs font-semibold px-2 py-0.5 rounded';
+
+                if (isChecked && isCorrectVar) {
+                    ptsEarned += POINTS_PER_CHECKBOX;
+                    label.classList.add('bg-green-100', 'border-green-500');
+                    badge.classList.add('bg-green-200', 'text-green-800');
+                    badge.innerText = '✓ Correct';
+                    label.appendChild(badge);
+                } else if (isChecked && !isCorrectVar) {
+                    label.classList.add('bg-red-100', 'border-red-500');
+                    badge.classList.add('bg-red-200', 'text-red-800');
+                    badge.innerText = '✗ Incorrect Variable';
+                    label.appendChild(badge);
+                } else if (!isChecked && isCorrectVar) {
+                    label.classList.add('bg-amber-50', 'border-amber-400', 'border-dashed');
+                    badge.classList.add('bg-amber-200', 'text-amber-800');
+                    badge.innerText = 'Missed';
+                    label.appendChild(badge);
+                }
             });
-            
-            if (selectedEqs[0] === currentScenario.eq) {
-                ptsEarned += POINTS_PER_CHECKBOX;
-            }
+
+            // Evaluate and highlight equation checkboxes
+            document.querySelectorAll('input[name="eqs"]').forEach(cb => {
+                const label = cb.closest('label');
+                const isChecked = cb.checked;
+                const isCorrectEq = (cb.value === currentScenario.eq);
+
+                const existingBadge = label.querySelector('.p1-badge');
+                if (existingBadge) existingBadge.remove();
+
+                const badge = document.createElement('span');
+                badge.className = 'p1-badge ml-auto text-xs font-semibold px-2 py-0.5 rounded';
+
+                if (isChecked && isCorrectEq) {
+                    ptsEarned += POINTS_PER_CHECKBOX;
+                    label.classList.add('bg-green-100', 'border-green-500');
+                    badge.classList.add('bg-green-200', 'text-green-800');
+                    badge.innerText = '✓ Correct';
+                    label.appendChild(badge);
+                } else if (isChecked && !isCorrectEq) {
+                    label.classList.add('bg-red-100', 'border-red-500');
+                    badge.classList.add('bg-red-200', 'text-red-800');
+                    badge.innerText = '✗ Wrong Equation';
+                    label.appendChild(badge);
+                } else if (!isChecked && isCorrectEq) {
+                    label.classList.add('bg-amber-50', 'border-amber-400', 'border-dashed');
+                    badge.classList.add('bg-amber-200', 'text-amber-800');
+                    badge.innerText = 'Correct Equation';
+                    label.appendChild(badge);
+                }
+            });
 
             score += ptsEarned;
             document.getElementById('current-score').innerText = score;
 
-            feedbackEl.innerText = `Part 1 complete. You earned ${ptsEarned}/5 points.`;
-            feedbackEl.className = 'text-sm font-medium text-green-600';
+            if (ptsEarned === 5) {
+                feedbackEl.innerText = `All selections correct! Earned ${ptsEarned}/5 points.`;
+                feedbackEl.className = 'text-sm font-bold text-green-600';
+            } else {
+                feedbackEl.innerText = `Part 1 complete. You earned ${ptsEarned}/5 points. Review highlighted choices above.`;
+                feedbackEl.className = 'text-sm font-bold text-amber-700';
+            }
 
-            document.getElementById('part1-container').classList.add('opacity-50', 'pointer-events-none');
+            document.querySelectorAll('#checkbox-form input').forEach(cb => cb.disabled = true);
+            document.getElementById('part1-container').classList.add('pointer-events-none');
             document.getElementById('submit-part1-btn').classList.add('hidden');
             
             loadPart2();
@@ -597,19 +840,19 @@
             document.getElementById('progress-bar').style.width = '100%';
 
             let msg = "";
-            if (score === 21) {
-                msg = "Perfect Score! You have mastered kinematics.";
+            if (score === MAX_POSSIBLE_SCORE) {
+                msg = `Perfect Score! (${MAX_POSSIBLE_SCORE}/${MAX_POSSIBLE_SCORE}) You have mastered kinematic algebra.`;
                 fireConfetti();
             }
-            else if (score >= 15) msg = "Outstanding work! You have a solid grasp of kinematics.";
-            else if (score >= 10) msg = "Good job! Review the equations to improve your accuracy.";
-            else msg = "Keep practicing! Break down the problems carefully.";
+            else if (score >= MAX_POSSIBLE_SCORE * 0.75) msg = "Outstanding work! You have a solid grasp of kinematics.";
+            else if (score >= MAX_POSSIBLE_SCORE * 0.5) msg = "Good job! Review the algebraic rearrangements to improve your accuracy.";
+            else msg = "Keep practicing! Break down the variable lists carefully.";
             
             document.getElementById('performance-message').innerText = msg;
 
             const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,"");
             const nameCode = studentName.substring(0,3).toUpperCase();
-            const vCode = `${nameCode}-${score}X21-${dateStr}-${Math.floor(Math.random()*1000)}`;
+            const vCode = `${nameCode}-${score}X${MAX_POSSIBLE_SCORE}-${dateStr}-${Math.floor(Math.random()*1000)}`;
             document.getElementById('verification-code').innerText = vCode;
         }
 
@@ -637,7 +880,7 @@
             const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d', '#42b883', '#00b8ff'];
             particles = [];
 
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 180; i++) {
                 particles.push(new Particle(canvas.width, canvas.height, colors));
             }
 
@@ -668,7 +911,7 @@
                 this.y = h;
                 this.r = Math.random() * 6 + 2;
                 const angle = Math.random() * Math.PI / 2 + Math.PI / 4;
-                const speed = Math.random() * 15 + 10;
+                const speed = Math.random() * 16 + 10;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = -Math.sin(angle) * speed;
                 this.color = colors[Math.floor(Math.random() * colors.length)];
@@ -697,6 +940,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            updateUIDisplays();
             document.getElementById('checkbox-form').addEventListener('submit', e => e.preventDefault());
             document.getElementById('algebra-form').addEventListener('submit', e => e.preventDefault());
         });
