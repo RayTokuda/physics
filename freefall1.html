@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinematics Mastery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; color: #0f172a; }
+        .hidden { display: none !important; }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 2px solid #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            background: white;
+            user-select: none;
+            font-weight: 600;
+        }
+        .checkbox-label:hover { border-color: #94a3b8; background: #f8fafc; }
+        .checkbox-input:checked + .checkbox-label,
+        .radio-input:checked + .checkbox-label {
+            border-color: #3b82f6;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .correct-green { border-color: #22c55e !important; background: #dcfce7 !important; color: #166534 !important; }
+        .wrong-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; border-color: #ef4444 !important; background: #fee2e2 !important; color: #991b1b !important; }
+        .correction-amber { border-color: #f59e0b !important; background: #fef3c7 !important; color: #b45309 !important; }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        canvas#confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
+        
+        .svg-container svg { width: 100%; height: 100%; max-height: 200px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative overflow-x-hidden">
+    <div id="welcome-screen" class="flex-grow flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border-t-4 border-emerald-500">
+            <h1 class="text-3xl font-bold text-center mb-2 text-slate-800">Kinematics Mastery</h1>
+            <p class="text-center text-slate-500 mb-8">Constant Acceleration in Free Fall & Beyond</p>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-2 text-slate-700">Student Name</label>
+                <input type="text" id="student-name" placeholder="Enter your name..." class="w-full p-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <button id="start-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-200 transition transform hover:-translate-y-1">Start Quiz</button>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="hidden flex-grow flex flex-col p-4 max-w-4xl mx-auto w-full mb-12">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-700" id="progress-text">Question 1</h2>
+            <div class="text-sm font-semibold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Score: <span id="live-score">0</span></div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 border-l-4 border-blue-500">
+            <div class="flex flex-col md:flex-row gap-6 items-center mb-6">
+                <div id="scenario-svg" class="svg-container w-full md:w-1/3 bg-slate-50 rounded-xl flex items-center justify-center p-4 border border-slate-100 min-h-[150px]">
+                    <!-- SVG injected here -->
+                </div>
+                <div class="w-full md:w-2/3">
+                    <p id="scenario-text" class="text-lg text-slate-800 leading-relaxed font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Part 1 & 2: Variables -->
+            <div id="part-1-2" class="space-y-8">
+                <div>
+                    <h3 class="font-bold text-slate-700 mb-3 border-b pb-2">1. Select the 3 Known Variables (Explicit or Implied)</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3" id="knowns-container"></div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-700 mb-3 border-b pb-2">2. What are you trying to Find? (Select 1)</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3" id="find-container"></div>
+                </div>
+            </div>
+
+            <!-- Part 3: Equation -->
+            <div id="part-3" class="space-y-8 hidden mt-8 pt-8 border-t-2 border-dashed border-slate-200">
+                <div>
+                    <h3 class="font-bold text-slate-700 mb-3 border-b pb-2">3. Which Equation applies? (Select 1)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="eq-container"></div>
+                </div>
+            </div>
+
+            <!-- Part 4: Algebraic Solution -->
+            <div id="part-4" class="space-y-8 hidden mt-8 pt-8 border-t-2 border-dashed border-slate-200">
+                <div>
+                    <h3 class="font-bold text-slate-700 mb-3 border-b pb-2">4. Select the Correct Algebraic Solution</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="alg-container"></div>
+                </div>
+            </div>
+
+            <!-- Step-by-Step Derivation Display -->
+            <div id="algebra-steps" class="space-y-2 hidden mt-8 p-6 bg-emerald-50 rounded-xl border border-emerald-200">
+                <!-- Steps injected here -->
+            </div>
+
+            <button id="action-btn" class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition text-lg">Check Variables</button>
+            
+            <div class="flex justify-between gap-4 mt-4 w-full">
+                <button id="prev-btn" class="hidden flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition text-lg text-center">Previous Question</button>
+                <button id="next-btn" class="hidden flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition text-lg text-center">Forward</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="hidden flex-grow flex items-center justify-center p-4">
+        <canvas id="confetti"></canvas>
+        <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 text-center relative z-10 border-t-4 border-indigo-500">
+            <h1 class="text-4xl font-black mb-2 text-slate-800" id="result-title">Quiz Complete!</h1>
+            <p class="text-xl font-medium text-slate-600 mb-6" id="result-name">Great job, Student.</p>
+            
+            <div class="bg-indigo-50 rounded-xl p-6 mb-8">
+                <div class="text-sm font-bold text-indigo-400 uppercase tracking-wide mb-1">Final Score</div>
+                <div class="text-6xl font-black text-indigo-600">
+                    <span id="final-score">0</span><span class="text-3xl text-indigo-400">/<span id="max-score">0</span></span>
+                </div>
+            </div>
+
+            <button id="download-btn" class="w-full mb-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow transition flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download Review Sheet
+            </button>
+            <button id="try-again-btn" class="w-full mb-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl shadow transition hidden">Try Again</button>
+            <button id="restart-btn" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition">Return Home</button>
+
+            <div class="mt-8 text-xs text-slate-400">
+                Verification Code: <span id="verify-code" class="font-mono bg-slate-100 px-2 py-1 rounded"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // TEACHER CONFIGURATION: Change this to any number between 1 and 50
+        const QUIZ_LENGTH = 1;
+
+        const VAR_LABELS = { 'dx': '(x - x₀)', 'v0': 'v₀', 'v': 'v', 'a': 'a', 't': 't' };
+        
+        // Changed decimals to fractions '1/2'
+        const EQUATIONS = [
+            { id: 1, html: 'v = v₀ + at', vars: ['v', 'v0', 'a', 't'] },
+            { id: 2, html: '(x - x₀) = v₀t + 1/2at²', vars: ['dx', 'v0', 'a', 't'] },
+            { id: 3, html: 'v² = v₀² + 2a(x - x₀)', vars: ['v', 'v0', 'a', 'dx'] },
+            { id: 4, html: '(x - x₀) = 1/2(v₀ + v)t', vars: ['dx', 'v0', 'v', 't'] },
+            { id: 5, html: '(x - x₀) = vt - 1/2at²', vars: ['dx', 'v', 'a', 't'] }
+        ];
+
+        let state = {
+            studentName: '',
+            questions: [],
+            currentIndex: 0,
+            furthestIndex: 0,
+            score: 0,
+            basePoints: 0,
+            bonus: 0,
+            maxScore: 0,
+            answers: []
+        };
+
+        // Data pool (abbreviated here, identical conceptually to the previous layout)
+        const rawScenarios = {
+            eq1: [
+                ["A penny is dropped from a high observation deck. How long does it take to reach a speed of 30 m/s?", "t", ["v0", "a", "v"], "dropped"],
+                ["An arrow is shot straight up, reaching its peak. How much time passed if it launched at 25 m/s?", "t", ["v0", "v", "a"], "thrown_up"],
+                ["A drone thrown upwards with an initial velocity takes 2 seconds to stop ascending. Find the initial launch velocity.", "v0", ["v", "a", "t"], "thrown_up"],
+                ["A rock is hurled straight down from a bridge and hits the water at 35 m/s after 2.5 seconds. Find the initial throw speed.", "v0", ["v", "a", "t"], "thrown_down"],
+                ["On planet Zog, a dropped wrench takes 4 seconds to reach a downward velocity of 20 m/s. Determine the acceleration of gravity there.", "a", ["v0", "v", "t"], "space"],
+                ["A gymnast jumps straight up on a trampoline, reaching maximum height 1.2 seconds later. Find the takeoff velocity.", "v0", ["v", "a", "t"], "thrown_up"],
+                ["A watermelon is dropped from a hovering helicopter. How long until it is falling at 45 m/s?", "t", ["v0", "a", "v"], "dropped"],
+                ["A ball thrown straight down at 5 m/s reaches 25 m/s. How much time elapsed?", "t", ["v0", "v", "a"], "thrown_down"],
+                ["A skydiver (before opening the parachute) accelerates uniformly. After falling for 3 seconds, they are moving at 29.4 m/s. Find their initial velocity at the start of this 3-second window.", "v0", ["v", "a", "t"], "dropped"],
+                ["In a vacuum chamber, a feather is tossed upwards and reaches it maximum height after 0.5 seconds. Determine the initial upward velocity.", "v0", ["v", "a", "t"], "thrown_up"]
+            ],
+            eq2: [
+                ["A stone is dropped from a cliff. How much time passes before it has fallen 45 meters?", "t", ["v0", "a", "dx"], "dropped"],
+                ["A water balloon is thrown straight down from a 50 meter window, taking 2 seconds to hit the ground. Find the initial velocity.", "v0", ["dx", "a", "t"], "thrown_down"],
+                ["A baseball thrown straight up passes a high branch 10 meters above the thrower exactly 1 second later. Find the initial velocity.", "v0", ["dx", "a", "t"], "thrown_up"],
+                ["On the Moon, an astronaut drops a hammer, observing it fall 1.5 meters in roughly 1.35 seconds. Calculate the acceleration of gravity.", "a", ["v0", "dx", "t"], "space"],
+                ["A tennis ball is dropped out of a hovering drone. Find the time it takes to drop exactly 20 meters.", "t", ["v0", "a", "dx"], "dropped"],
+                ["A set of keys tossed straight up from the ground passes a 5 meter balcony rail in 0.6 seconds. What was the launch velocity?", "v0", ["dx", "a", "t"], "thrown_up"],
+                ["In a custom gravity simulator, an object dropped from rest falls 5 meters in exactly 2 seconds. Find the simulator's acceleration.", "a", ["v0", "dx", "t"], "space"],
+                ["A coin is dropped down a deep wishing well. How long does it take to fall 80 meters?", "t", ["v0", "a", "dx"], "dropped"],
+                ["A supply crate is thrown forcefully downwards from an aircraft, covering 100 meters in 3 seconds. What was the downward launch speed?", "v0", ["dx", "a", "t"], "thrown_down"],
+                ["An egg dropped from a tall ladder falls 4.9 meters. Find the time of the fall.", "t", ["v0", "a", "dx"], "dropped"]
+            ],
+            eq3: [
+                ["A dropped bowling ball hits the ground moving at 40 m/s. Determine the vertical displacement of the fall.", "dx", ["v0", "a", "v"], "dropped"],
+                ["A set of keys is tossed straight up to a friend, who catches them precisely at their maximum height. If launched at 8 m/s, determine the vertical displacement.", "dx", ["v0", "v", "a"], "thrown_up"],
+                ["On a foreign planet, a rock thrown straight up at 10 m/s reaches a maximum height of 5 meters. Calculate the acceleration of gravity.", "a", ["v0", "v", "dx"], "space"],
+                ["A flea jumps straight up, reaching a peak height of 0.4 meters. Find the initial takeoff velocity.", "v0", ["v", "a", "dx"], "thrown_up"],
+                ["A dart thrown straight down at 5 m/s strikes the floor moving at 15 m/s. Calculate the vertical displacement.", "dx", ["v0", "v", "a"], "thrown_down"],
+                ["A flare is fired straight up into the air, reaching a peak height of 1500 meters. Find the initial firing velocity.", "v0", ["v", "a", "dx"], "thrown_up"],
+                ["An astronaut throws a wrench downward at 2 m/s. It strikes the surface moving at 10 m/s after travelling 15 meters. Find the local acceleration.", "a", ["v0", "v", "dx"], "space"],
+                ["A dropped smartphone hits the water below moving at 15 m/s. Calculate the vertical displacement from the drop point.", "dx", ["v0", "a", "v"], "dropped"],
+                ["A basketball player jumps straight up, raising their center of mass by 1.1 meters. Determine the initial vertical velocity.", "v0", ["v", "a", "dx"], "thrown_up"],
+                ["An alien drops a probe, which strikes the ground at 8 m/s after falling 4 meters. Calculate the acceleration of gravity.", "a", ["v0", "v", "dx"], "space"]
+            ],
+            eq4: [
+                ["A ball rolls down a straight, long ramp from rest. It travels 5 meters and reaches the bottom in 3 seconds. Determine its final velocity.", "v", ["v0", "dx", "t"], "ramp"],
+                ["A deep space probe accelerates uniformly. It covers 1000 meters in 10 seconds starting from rest. Determine its final velocity.", "v", ["v0", "dx", "t"], "space"],
+                ["A maglev train accelerates uniformly from 10 m/s to 50 m/s over a distance of 500 meters. How much time does this take?", "t", ["v0", "v", "dx"], "horizontal"],
+                ["A toy car coasts down a slanted track. It starts at 1 m/s and ends at 4 m/s while covering a distance of 2 meters. Find the time elapsed.", "t", ["v0", "v", "dx"], "ramp"],
+                ["An electron between two charged plates accelerates from rest to a high speed, covering 0.1 meters in 0.00002 seconds. Find the final velocity.", "v", ["v0", "dx", "t"], "horizontal"],
+                ["A heavy cylinder rolls down an unknown ramp. It ends at 10 m/s after 4 seconds of rolling, having covered 24 meters. Find the initial velocity.", "v0", ["v", "dx", "t"], "ramp"],
+                ["A submarine accelerates uniformly horizontally from rest to 15 m/s, covering a distance of 100 meters. How much time does this take?", "t", ["v0", "v", "dx"], "horizontal"],
+                ["A cart pushed across a smooth floor accelerates uniformly from 2 m/s to 6 m/s over a span of 8 meters. Determine the time elapsed.", "t", ["v0", "v", "dx"], "horizontal"],
+                ["A sled sliding down a long snowy hill from rest travels 20 meters in 5 seconds. Find its final velocity.", "v", ["v0", "dx", "t"], "ramp"],
+                ["An ice skater gliding uniformly accelerates from 3 m/s to 7 m/s, covering a distance of 15 meters. Find the time elapsed.", "t", ["v0", "v", "dx"], "horizontal"]
+            ],
+            eq5: [
+                ["A drone ascending straight up stops its vertical motion at its peak exactly 4 seconds after a specific timing mark, moving a vertical displacement of 40 meters in that window. Find the acceleration.", "a", ["v", "dx", "t"], "thrown_up"],
+                ["A golf ball thrown straight up on the moon and takes 3 seconds to reach its maximum height. If the displacement is 7.2 meters, find the acceleration.", "a", ["v", "dx", "t"], "thrown_up"],
+                ["A rock is thrown downwards and goes 45 meters in 3 seconds. Find the final velocity right before the 3 second mark.", "v", ["dx", "a", "t"], "dropped"],
+                ["A rock is hurled straight down. After 2 seconds, it is moving at 25 m/s downward and has traveled 40 meters. Determine the acceleration.", "a", ["v", "dx", "t"], "thrown_down"],
+                ["On an alien planet, a rock thrown straight up is caught exactly at its peak after 4 seconds at a height of 20 meters. Find the local acceleration of gravity.", "a", ["v", "dx", "t"], "space"],
+                ["A water balloon is thrown straight down. Exactly 1.5 seconds later, it has fallen 25 meters. Find its velocity at that 1.5 second mark.", "v", ["dx", "a", "t"], "thrown_down"],
+                ["A custom rocket flying purely vertically with constant acceleration reaches 500 meters displacement after 10 seconds while traveling at 100 m/s. Find the acceleration.", "a", ["v", "dx", "t"], "thrown_up"],
+                ["A heavy block sliding across a rough floor comes to a complete stop after 4 seconds, having traveled 12 meters. Find the uniform acceleration.", "a", ["v", "dx", "t"], "horizontal"],
+                ["An object thrown straight up passes a balcony 10 meters high moving at 5 m/s upwards exactly 1 second after launch. Find the acceleration.", "a", ["v", "dx", "t"], "thrown_up"],
+                ["A dart thrown downwards drops 2 meters and hits the board at 15 m/s after 0.5 seconds. Find the acceleration.", "a", ["v", "dx", "t"], "thrown_down"]
+            ]
+        };
+
+        let pool = [];
+
+        function getAlgebraicOptions(eqId, findVar) {
+            let correct = "";
+            let distractors = [];
+            let steps = [];
+            const dx = "(x - x₀)", v0 = "v₀", v = "v", a = "a", t = "t";
+
+            if (eqId === 1) { 
+                if (findVar === 'v0') {
+                    correct = `${v0} = ${v} - ${a}${t}`;
+                    distractors = [`${v0} = ${v} + ${a}${t}`, `${v0} = ${a}${t} - ${v}`, `${v0} = ${v} / (${a}${t})`, `${v0} = (${v} - ${a})/${t}`, `${v0} = ${v} - ${a}/${t}`];
+                    steps = [`v = v₀ + at`, `v - at = v₀`, `v₀ = v - at`];
+                } else if (findVar === 'a') {
+                    correct = `${a} = (${v} - ${v0}) / ${t}`;
+                    distractors = [`${a} = (${v0} - ${v}) / ${t}`, `${a} = (${v} - ${v0}) * ${t}`, `${a} = ${v} / ${t} - ${v0}`, `${a} = (${v} + ${v0}) / ${t}`, `${a} = ${t} / (${v} - ${v0})`];
+                    steps = [`v = v₀ + at`, `v - v₀ = at`, `(v - v₀) / t = a`, `a = (v - v₀) / t`];
+                } else if (findVar === 't') {
+                    correct = `${t} = (${v} - ${v0}) / ${a}`;
+                    distractors = [`${t} = (${v0} - ${v}) / ${a}`, `${t} = ${a} / (${v} - ${v0})`, `${t} = (${v} - ${v0}) * ${a}`, `${t} = ${v} / ${a} - ${v0}`, `${t} = (${v} + ${v0}) / ${a}`];
+                    steps = [`v = v₀ + at`, `v - v₀ = at`, `(v - v₀) / a = t`, `t = (v - v₀) / a`];
+                }
+            } else if (eqId === 2) { 
+                if (findVar === 'v0') {
+                    correct = `${v0} = (${dx} - 1/2${a}${t}²) / ${t}`;
+                    distractors = [`${v0} = (${dx} + 1/2${a}${t}²) / ${t}`, `${v0} = ${dx}/${t} - 1/2${a}${t}²`, `${v0} = (${dx} - ${a}${t}²) / ${t}`, `${v0} = ${dx} - 1/2${a}${t}`, `${v0} = (${dx} - 1/2${a}${t}) / ${t}`];
+                    steps = [`(x - x₀) = v₀t + 1/2at²`, `(x - x₀) - 1/2at² = v₀t`, `((x - x₀) - 1/2at²) / t = v₀`, `v₀ = ((x - x₀) - 1/2at²) / t`];
+                } else if (findVar === 'a') {
+                    correct = `${a} = 2(${dx} - ${v0}${t}) / ${t}²`;
+                    distractors = [`${a} = (${dx} - ${v0}${t}) / (2${t}²)`, `${a} = 2(${dx} + ${v0}${t}) / ${t}²`, `${a} = (${dx} - ${v0}${t}) / ${t}²`, `${a} = 2${dx}/${t}² - ${v0}${t}`, `${a} = 2(${dx} - ${v0}) / ${t}²`];
+                    steps = [`(x - x₀) = v₀t + 1/2at²`, `(x - x₀) - v₀t = 1/2at²`, `2((x - x₀) - v₀t) = at²`, `2((x - x₀) - v₀t) / t² = a`, `a = 2((x - x₀) - v₀t) / t²`];
+                } else if (findVar === 't') {
+                    correct = `${t} = &radic;(2${dx} / ${a})`;
+                    distractors = [`${t} = 2${dx} / ${a}`, `${t} = &radic;(${dx} / (2${a}))`, `${t} = &radic;(${dx} / ${a})`, `${t} = 2&radic;(${dx} / ${a})`, `${t} = &radic;(${a} / (2${dx}))`];
+                    steps = [`(x - x₀) = v₀t + 1/2at²`, `(Assume v₀ = 0 to solve for t cleanly here)`, `(x - x₀) = 1/2at²`, `2(x - x₀) = at²`, `2(x - x₀) / a = t²`, `t = √(2(x - x₀) / a)`];
+                }
+            } else if (eqId === 3) { 
+                if (findVar === 'dx') {
+                    correct = `${dx} = (${v}² - ${v0}²) / (2${a})`;
+                    distractors = [`${dx} = (${v0}² - ${v}²) / (2${a})`, `${dx} = (${v}² - ${v0}²) / ${a}`, `${dx} = (${v} - ${v0})² / (2${a})`, `${dx} = (${v}² + ${v0}²) / (2${a})`, `${dx} = 2${a} / (${v}² - ${v0}²)`];
+                    steps = [`v² = v₀² + 2a(x - x₀)`, `v² - v₀² = 2a(x - x₀)`, `(v² - v₀²) / 2a = (x - x₀)`, `(x - x₀) = (v² - v₀²) / 2a`];
+                } else if (findVar === 'v0') {
+                    correct = `${v0} = &radic;(${v}² - 2${a}${dx})`;
+                    distractors = [`${v0} = &radic;(${v}² + 2${a}${dx})`, `${v0} = ${v}² - 2${a}${dx}`, `${v0} = &radic;(2${a}${dx} - ${v}²)`, `${v0} = ${v} - &radic;(2${a}${dx})`, `${v0} = &radic;(${v}² - ${a}${dx})`];
+                    steps = [`v² = v₀² + 2a(x - x₀)`, `v² - 2a(x - x₀) = v₀²`, `v₀ = √(v² - 2a(x - x₀))`];
+                } else if (findVar === 'a') {
+                    correct = `${a} = (${v}² - ${v0}²) / (2${dx})`;
+                    distractors = [`${a} = (${v0}² - ${v}²) / (2${dx})`, `${a} = (${v}² - ${v0}²) / ${dx}`, `${a} = (${v} - ${v0})² / (2${dx})`, `${a} = (${v}² + ${v0}²) / (2${dx})`, `${a} = 2${dx} / (${v}² - ${v0}²)`];
+                    steps = [`v² = v₀² + 2a(x - x₀)`, `v² - v₀² = 2a(x - x₀)`, `(v² - v₀²) / (2(x - x₀)) = a`, `a = (v² - v₀²) / (2(x - x₀))`];
+                }
+            } else if (eqId === 4) { 
+                if (findVar === 'v0') {
+                    correct = `${v0} = 2${dx} / ${t} - ${v}`;
+                    distractors = [`${v0} = ${dx} / (2${t}) - ${v}`, `${v0} = 2${dx} / ${t} + ${v}`, `${v0} = ${dx} / ${t} - 2${v}`, `${v0} = 2(${dx} - ${v}) / ${t}`, `${v0} = 2${dx} / (${t} - ${v})`];
+                    steps = [`(x - x₀) = 1/2(v₀ + v)t`, `2(x - x₀) = (v₀ + v)t`, `2(x - x₀) / t = v₀ + v`, `2(x - x₀) / t - v = v₀`, `v₀ = 2(x - x₀) / t - v`];
+                } else if (findVar === 'v') {
+                    correct = `${v} = 2${dx} / ${t} - ${v0}`;
+                    distractors = [`${v} = ${dx} / (2${t}) - ${v0}`, `${v} = 2${dx} / ${t} + ${v0}`, `${v} = ${dx} / ${t} - 2${v0}`, `${v} = 2(${dx} - ${v0}) / ${t}`, `${v} = 2${dx} / (${t} - ${v0})`];
+                    steps = [`(x - x₀) = 1/2(v₀ + v)t`, `2(x - x₀) = (v₀ + v)t`, `2(x - x₀) / t = v₀ + v`, `2(x - x₀) / t - v₀ = v`, `v = 2(x - x₀) / t - v₀`];
+                } else if (findVar === 't') {
+                    correct = `${t} = 2${dx} / (${v0} + ${v})`;
+                    distractors = [`${t} = ${dx} / (2(${v0} + ${v}))`, `${t} = (${v0} + ${v}) / (2${dx})`, `${t} = 2${dx} / (${v0} - ${v})`, `${t} = ${dx} / (${v0} + ${v})`, `${t} = 2(${dx} - ${v0}) / ${v}`];
+                    steps = [`(x - x₀) = 1/2(v₀ + v)t`, `2(x - x₀) = (v₀ + v)t`, `2(x - x₀) / (v₀ + v) = t`, `t = 2(x - x₀) / (v₀ + v)`];
+                }
+            } else if (eqId === 5) { 
+                if (findVar === 'v') {
+                    correct = `${v} = (${dx} + 1/2${a}${t}²) / ${t}`;
+                    distractors = [`${v} = (${dx} - 1/2${a}${t}²) / ${t}`, `${v} = ${dx}/${t} + 1/2${a}${t}²`, `${v} = (${dx} + ${a}${t}²) / ${t}`, `${v} = ${dx} + 1/2${a}${t}`, `${v} = (${dx} + 1/2${a}${t}) / ${t}`];
+                    steps = [`(x - x₀) = vt - 1/2at²`, `(x - x₀) + 1/2at² = vt`, `((x - x₀) + 1/2at²) / t = v`, `v = ((x - x₀) + 1/2at²) / t`];
+                } else if (findVar === 'a') {
+                    correct = `${a} = 2(${v}${t} - ${dx}) / ${t}²`;
+                    distractors = [`${a} = (${v}${t} - ${dx}) / (2${t}²)`, `${a} = 2(${v}${t} + ${dx}) / ${t}²`, `${a} = (${dx} - ${v}${t}) / ${t}²`, `${a} = 2${v}${t}/${t}² - ${dx}`, `${a} = 2(${v} - ${dx}) / ${t}²`];
+                    steps = [`(x - x₀) = vt - 1/2at²`, `(x - x₀) - vt = -1/2at²`, `vt - (x - x₀) = 1/2at²`, `2(vt - (x - x₀)) = at²`, `2(vt - (x - x₀)) / t² = a`, `a = 2(vt - (x - x₀)) / t²`];
+                } else if (findVar === 't') {
+                    correct = `${t} = &radic;(-2${dx} / ${a})`;
+                    distractors = [`${t} = -2${dx} / ${a}`, `${t} = &radic;(-${dx} / (2${a}))`, `${t} = &radic;(-${dx} / ${a})`, `${t} = -2&radic;(${dx} / ${a})`, `${t} = &radic;(-${a} / (2${dx}))`];
+                    steps = [`(x - x₀) = vt - 1/2at²`, `(Assume v = 0 to solve for t cleanly here)`, `(x - x₀) = -1/2at²`, `-2(x - x₀) = at²`, `-2(x - x₀) / a = t²`, `t = √(-2(x - x₀) / a)`];
+                }
+            }
+
+            return { correct, distractors, steps };
+        }
+
+        function buildPool() {
+            pool = [];
+            for (let eqKey in rawScenarios) {
+                let eqId = parseInt(eqKey.replace('eq', ''));
+                rawScenarios[eqKey].forEach((scen, idx) => {
+                    let algData = getAlgebraicOptions(eqId, scen[1]);
+                    let options = [...algData.distractors];
+                    let correctIdx = Math.floor(Math.random() * 6);
+                    options.splice(correctIdx, 0, algData.correct);
+                    
+                    pool.push({
+                        id: `${eqId}-${idx}`,
+                        eqId: eqId,
+                        text: scen[0],
+                        find: scen[1],
+                        knowns: scen[2],
+                        theme: scen[3],
+                        options: options,
+                        correctAlgIndex: correctIdx,
+                        correctAlgString: algData.correct,
+                        steps: algData.steps
+                    });
+                });
+            }
+        }
+        buildPool();
+
+        function getSVG(theme) {
+            const baseColor = "#cbd5e1";
+            const ballColor = "#ef4444";
+            if (theme === 'dropped') return `<svg viewBox="0 0 100 100"><rect x="20" y="80" width="60" height="20" fill="${baseColor}"/><circle cx="50" cy="20" r="6" fill="${ballColor}"/><path d="M50 35 L50 65" stroke="${baseColor}" stroke-width="2" stroke-dasharray="4" fill="none"/><polygon points="45,60 55,60 50,70" fill="${baseColor}"/></svg>`;
+            else if (theme === 'thrown_up') return `<svg viewBox="0 0 100 100"><rect x="20" y="80" width="60" height="20" fill="${baseColor}"/><circle cx="50" cy="65" r="6" fill="${ballColor}"/><path d="M50 50 L50 20" stroke="${baseColor}" stroke-width="2" stroke-dasharray="4" fill="none"/><polygon points="45,25 55,25 50,15" fill="${baseColor}"/></svg>`;
+            else if (theme === 'thrown_down') return `<svg viewBox="0 0 100 100"><rect x="20" y="80" width="60" height="20" fill="${baseColor}"/><circle cx="50" cy="20" r="6" fill="${ballColor}"/><path d="M50 35 L50 65" stroke="${ballColor}" stroke-width="3" fill="none"/><polygon points="43,60 57,60 50,72" fill="${ballColor}"/></svg>`;
+            else if (theme === 'ramp') return `<svg viewBox="0 0 100 100"><polygon points="10,80 90,80 10,40" fill="${baseColor}"/><circle cx="30" cy="45" r="6" fill="${ballColor}"/><path d="M40 50 L70 65" stroke="${baseColor}" stroke-width="2" stroke-dasharray="4" fill="none"/><polygon points="65,58 70,68 76,60" fill="${baseColor}" transform="rotate(26.5 70 65)"/></svg>`;
+            else if (theme === 'space') return `<svg viewBox="0 0 100 100"><circle cx="50" cy="120" r="80" fill="${baseColor}" opacity="0.3"/><circle cx="50" cy="30" r="6" fill="${ballColor}"/><circle cx="20" cy="20" r="2" fill="${baseColor}"/><circle cx="80" cy="40" r="1.5" fill="${baseColor}"/></svg>`;
+            else return `<svg viewBox="0 0 100 100"><rect x="10" y="70" width="80" height="10" fill="${baseColor}"/><rect x="20" y="55" width="20" height="15" fill="${ballColor}" rx="3"/><path d="M45 62 L80 62" stroke="${baseColor}" stroke-width="2" stroke-dasharray="4" fill="none"/><polygon points="75,57 75,67 85,62" fill="${baseColor}"/></svg>`;
+        }
+
+        function setupQuiz() {
+            let eqIds = [];
+            let eqs = [1, 2, 3, 4, 5];
+            
+            // Equation Distribution Logic
+            if (QUIZ_LENGTH < 5) {
+                eqs.sort(() => Math.random() - 0.5);
+                eqIds = eqs.slice(0, QUIZ_LENGTH);
+            } else {
+                let remaining = QUIZ_LENGTH;
+                while (remaining > 0) {
+                    let batch = [1, 2, 3, 4, 5];
+                    batch.sort(() => Math.random() - 0.5);
+                    if (remaining >= 5) {
+                        eqIds.push(...batch);
+                        remaining -= 5;
+                    } else {
+                        eqIds.push(...batch.slice(0, remaining));
+                        remaining = 0;
+                    }
+                }
+            }
+
+            // Pick questions
+            state.questions = [];
+            let usedIds = new Set();
+            eqIds.forEach(eqId => {
+                let subPool = pool.filter(q => q.eqId === eqId && !usedIds.has(q.id));
+                if (subPool.length === 0) subPool = pool.filter(q => q.eqId === eqId); // Fallback
+                let originalQ = subPool[Math.floor(Math.random() * subPool.length)];
+                usedIds.add(originalQ.id);
+                
+                let q = JSON.parse(JSON.stringify(originalQ)); // Clone so we don't mutate the pool
+                q.step = 1;
+                q.selections = { knowns: [], find: null, eq: null, alg: null };
+                
+                state.questions.push(q);
+            });
+
+            state.currentIndex = 0;
+            state.furthestIndex = 0;
+            
+            // Score Configuration 
+            let rawMax = QUIZ_LENGTH * 6;
+            let remainder = rawMax % 5;
+            
+            if (QUIZ_LENGTH === 1) {
+                state.maxScore = 5;
+                state.basePoints = 0;
+                state.bonus = 0;
+            } else if (remainder === 0) {
+                state.maxScore = rawMax;
+                state.basePoints = 0;
+                // Extra credit only for scores already out of a multiple of 5
+                state.bonus = (QUIZ_LENGTH / 5) * 2; 
+            } else {
+                // Pad the max score and give base points so the perfect score matches the max perfectly
+                let padding = 5 - remainder;
+                state.maxScore = rawMax + padding;
+                state.basePoints = padding;
+                state.bonus = 0;
+            }
+            
+            state.score = 0;
+            state.answers = [];
+            updateScoreUI();
+        }
+
+        function renderQuestion() {
+            const q = state.questions[state.currentIndex];
+            
+            document.getElementById('progress-text').innerText = `Question ${state.currentIndex + 1} of ${QUIZ_LENGTH}`;
+            document.getElementById('scenario-text').innerText = q.text;
+            document.getElementById('scenario-svg').innerHTML = getSVG(q.theme);
+
+            // Hide/Show Parts based on saved step
+            document.getElementById('part-3').classList.toggle('hidden', q.step < 2);
+            document.getElementById('part-4').classList.toggle('hidden', q.step < 3);
+            document.getElementById('algebra-steps').classList.toggle('hidden', q.step < 4);
+
+            const actionBtn = document.getElementById('action-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            // Handle Review Mode visibility
+            if (state.currentIndex < state.furthestIndex) {
+                actionBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+            } else {
+                actionBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+                
+                if (q.step === 1) actionBtn.innerText = "Check Variables";
+                else if (q.step === 2) actionBtn.innerText = "Check Equation";
+                else if (q.step === 3) actionBtn.innerText = "Solve Final Equation";
+                else if (q.step === 4) actionBtn.innerText = "Next Question";
+            }
+
+            if (state.currentIndex > 0) prevBtn.classList.remove('hidden');
+            else prevBtn.classList.add('hidden');
+
+            // Part 1: Known Variables
+            const knownsDiv = document.getElementById('knowns-container');
+            knownsDiv.innerHTML = '';
+            Object.keys(VAR_LABELS).forEach(key => {
+                const isChecked = q.selections.knowns.includes(key);
+                const isCorrect = q.knowns.includes(key);
+                let extraClass = '';
+                
+                if (q.step > 1) {
+                    if (isChecked && isCorrect) extraClass = 'correct-green';
+                    else if (isChecked && !isCorrect) extraClass = 'wrong-shake';
+                    else if (!isChecked && isCorrect) extraClass = 'correction-amber';
+                }
+
+                knownsDiv.innerHTML += `
+                    <label class="cursor-${q.step > 1 ? 'default' : 'pointer'}">
+                        <input type="checkbox" class="hidden checkbox-input known-cb" value="${key}" ${isChecked ? 'checked' : ''} ${q.step > 1 ? 'disabled' : ''}>
+                        <div class="checkbox-label justify-center ${extraClass}">${VAR_LABELS[key]}</div>
+                    </label>
+                `;
+            });
+
+            // Part 2: Find Variable
+            const findDiv = document.getElementById('find-container');
+            findDiv.innerHTML = '';
+            Object.keys(VAR_LABELS).forEach(key => {
+                const isChecked = q.selections.find === key;
+                const isCorrect = q.find === key;
+                let extraClass = '';
+                
+                if (q.step > 1) {
+                    if (isChecked && isCorrect) extraClass = 'correct-green';
+                    else if (isChecked && !isCorrect) extraClass = 'wrong-shake';
+                    else if (!isChecked && isCorrect) extraClass = 'correction-amber';
+                }
+
+                findDiv.innerHTML += `
+                    <label class="cursor-${q.step > 1 ? 'default' : 'pointer'}">
+                        <input type="radio" name="find-var" class="hidden radio-input find-rb" value="${key}" ${isChecked ? 'checked' : ''} ${q.step > 1 ? 'disabled' : ''}>
+                        <div class="checkbox-label justify-center ${extraClass}">${VAR_LABELS[key]}</div>
+                    </label>
+                `;
+            });
+
+            // Part 3: Equation Selection
+            const eqDiv = document.getElementById('eq-container');
+            eqDiv.innerHTML = '';
+            EQUATIONS.forEach(eq => {
+                const isChecked = q.selections.eq == eq.id;
+                const isCorrect = q.eqId == eq.id;
+                let extraClass = '';
+                
+                if (q.step > 2) {
+                    if (isChecked && isCorrect) extraClass = 'correct-green';
+                    else if (isChecked && !isCorrect) extraClass = 'wrong-shake';
+                    else if (!isChecked && isCorrect) extraClass = 'correction-amber';
+                }
+
+                eqDiv.innerHTML += `
+                    <label class="cursor-${q.step > 2 ? 'default' : 'pointer'}">
+                        <input type="radio" name="eq-var" class="hidden radio-input eq-rb" value="${eq.id}" ${isChecked ? 'checked' : ''} ${q.step > 2 ? 'disabled' : ''}>
+                        <div class="checkbox-label justify-center text-sm ${extraClass}">${eq.html}</div>
+                    </label>
+                `;
+            });
+
+            // Part 4: Algebraic Solution
+            const algDiv = document.getElementById('alg-container');
+            algDiv.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const isChecked = q.selections.alg == idx;
+                const isCorrect = q.correctAlgIndex == idx;
+                let extraClass = '';
+                
+                if (q.step > 3) {
+                    if (isChecked && isCorrect) extraClass = 'correct-green';
+                    else if (isChecked && !isCorrect) extraClass = 'wrong-shake';
+                    else if (!isChecked && isCorrect) extraClass = 'correction-amber';
+                }
+
+                algDiv.innerHTML += `
+                    <label class="cursor-${q.step > 3 ? 'default' : 'pointer'}">
+                        <input type="radio" name="alg-var" class="hidden radio-input alg-rb" value="${idx}" ${isChecked ? 'checked' : ''} ${q.step > 3 ? 'disabled' : ''}>
+                        <div class="checkbox-label text-sm ${extraClass}">${opt}</div>
+                    </label>
+                `;
+            });
+
+            // Injection of Algebraic Steps
+            if (q.step > 3) {
+                let stepsDiv = document.getElementById('algebra-steps');
+                stepsDiv.innerHTML = '<h3 class="font-bold text-slate-700 mb-2 border-b border-emerald-300 pb-1">Algebraic Steps:</h3>';
+                q.steps.forEach((step, index) => {
+                    stepsDiv.innerHTML += `<div class="font-mono text-sm mb-1 text-slate-800">${index + 1}. ${step}</div>`;
+                });
+            }
+        }
+
+        function handleActionClick() {
+            const q = state.questions[state.currentIndex];
+
+            if (q.step === 1) {
+                const knownCbs = document.querySelectorAll('.known-cb');
+                q.selections.knowns = Array.from(knownCbs).filter(cb => cb.checked).map(cb => cb.value);
+                
+                const findSelected = document.querySelector('.find-rb:checked');
+                q.selections.find = findSelected ? findSelected.value : null;
+
+                let correctCount = q.knowns.filter(k => q.selections.knowns.includes(k)).length;
+                let wrongCount = q.selections.knowns.filter(k => !q.knowns.includes(k)).length;
+                state.score += Math.max(0, correctCount - wrongCount);
+                if (q.selections.find === q.find) state.score += 1;
+
+                q.step = 2;
+            } 
+            else if (q.step === 2) {
+                const eqSelected = document.querySelector('.eq-rb:checked');
+                q.selections.eq = eqSelected ? parseInt(eqSelected.value) : null;
+
+                if (q.selections.eq === q.eqId) state.score += 1;
+                
+                q.step = 3;
+            } 
+            else if (q.step === 3) {
+                const algSelected = document.querySelector('.alg-rb:checked');
+                q.selections.alg = algSelected ? parseInt(algSelected.value) : null;
+
+                if (q.selections.alg === q.correctAlgIndex) state.score += 1;
+
+                // Save final choices for the review sheet
+                state.answers.push({
+                    qText: q.text,
+                    correctAlg: q.correctAlgString,
+                    eqStr: EQUATIONS.find(e => e.id === q.eqId).html,
+                    findLabel: VAR_LABELS[q.find],
+                    knownsLabel: q.knowns.map(k => VAR_LABELS[k]).join(', '),
+                    steps: q.steps
+                });
+
+                q.step = 4;
+            } 
+            else if (q.step === 4) {
+                state.currentIndex++;
+                state.furthestIndex = Math.max(state.furthestIndex, state.currentIndex);
+                
+                if (state.currentIndex >= state.questions.length) {
+                    finishQuiz();
+                    return;
+                }
+            }
+
+            updateScoreUI();
+            renderQuestion();
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            let displayScore = state.score + state.basePoints + state.bonus;
+
+            const percentage = displayScore / state.maxScore;
+            const titleEl = document.getElementById('result-title');
+            const resultNameEl = document.getElementById('result-name');
+
+            // Alter praise based on 90% threshold
+            if (percentage >= 0.9) {
+                resultNameEl.innerText = `Great job, ${state.studentName || 'Student'}!`;
+            } else {
+                resultNameEl.innerText = `Please review your sheet and try again, ${state.studentName || 'Student'}.`;
+            }
+
+            document.getElementById('final-score').innerText = displayScore;
+            document.getElementById('max-score').innerText = state.maxScore;
+
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('verify-code').innerText = code;
+
+            const isPerfect = state.score === (QUIZ_LENGTH * 6);
+
+            if (isPerfect) {
+                const effusiveMessages = [
+                    "Absolute Perfection! You are a Kinematics Master!",
+                    "Flawless Victory! Newton would be proud!",
+                    "Incredible! A pristine score, you're a physics prodigy!",
+                    "Stunningly Perfect! You crushed every single question!",
+                    "Spectacular! An absolutely perfect run!",
+                    "Unstoppable! You've mastered constant acceleration!",
+                    "Phenomenal! A flawless display of physics brilliance!",
+                    "Galileo Level Genius! Perfect Score!",
+                    "Transcendent! You conquered the laws of motion!",
+                    "Perfection Achieved! A masterpiece of kinematics!"
+                ];
+                titleEl.innerText = effusiveMessages[Math.floor(Math.random() * effusiveMessages.length)];
+                titleEl.className = "text-3xl md:text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-blue-600";
+                document.getElementById('try-again-btn').classList.add('hidden');
+                fireConfetti();
+            } else {
+                if (percentage >= 0.9) {
+                    titleEl.innerText = "Excellent Work!";
+                } else {
+                    titleEl.innerText = "Quiz Complete";
+                }
+                titleEl.className = "text-4xl font-black mb-2 text-slate-800";
+                document.getElementById('try-again-btn').classList.remove('hidden');
+            }
+        }
+
+        function updateScoreUI() {
+            let displayScore = state.score + state.basePoints + state.bonus;
+            document.getElementById('live-score').innerText = displayScore;
+        }
+
+        function generateReviewSheet() {
+            let displayScore = state.score + state.basePoints + state.bonus;
+
+            let htmlContent = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+                    h1 { color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px; }
+                    .question-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+                    .score-box { font-size: 1.2em; font-weight: bold; background: #e2e8f0; display: inline-block; padding: 10px 20px; border-radius: 5px; margin-bottom: 30px; }
+                    .step-header { font-weight: bold; margin-top: 15px; color: #475569; }
+                    .alg-solution { background: #dcfce7; padding: 10px; border-radius: 4px; margin-top: 10px; font-family: monospace; font-size: 1.1em;}
+                    .deriv-steps { background: #f1f5f9; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.95em; white-space: pre-line; }
+                </style>
+            </head>
+            <body>
+                <h1>Kinematics Review Sheet</h1>
+                <p><strong>Student:</strong> ${state.studentName || 'Student'}</p>
+                <div class="score-box">Final Score: ${displayScore} / ${state.maxScore}</div>
+                <h2>Worked Solutions</h2>
+            `;
+
+            state.answers.forEach((ans, i) => {
+                let stepsHtml = ans.steps.map((s, idx) => `${idx + 1}. ${s}`).join('\n');
+                htmlContent += `
+                <div class="question-box">
+                    <p><strong>Question ${i+1}:</strong> ${ans.qText}</p>
+                    <p class="step-header">1. Identify Variables</p>
+                    <ul>
+                        <li><strong>Knowns (Explicit/Implied):</strong> ${ans.knownsLabel}</li>
+                        <li><strong>Target to Find:</strong> ${ans.findLabel}</li>
+                    </ul>
+                    <p class="step-header">2. Select Equation</p>
+                    <p>Equation used: <strong>${ans.eqStr}</strong></p>
+                    <p class="step-header">3. Algebraic Solution Steps</p>
+                    <div class="deriv-steps">${stepsHtml}</div>
+                    <div class="alg-solution">Final: ${ans.correctAlg}</div>
+                </div>
+                `;
+            });
+
+            htmlContent += `</body></html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Kinematics_Review_${state.studentName || 'Student'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        let particles = [];
+        function fireConfetti() {
+            const canvas = document.getElementById('confetti');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const colors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#ec4899'];
+            
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height,
+                    r: Math.random() * 6 + 2,
+                    dx: Math.random() * 20 - 10,
+                    dy: Math.random() * -20 - 10,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.floor(Math.random() * 10) - 10,
+                    tiltAngleInc: (Math.random() * 0.07) + 0.05,
+                    tiltAngle: 0
+                });
+            }
+
+            function render() {
+                requestAnimationFrame(render);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach((p, index) => {
+                    p.tiltAngle += p.tiltAngleInc;
+                    p.y += p.dy;
+                    p.x += p.dx;
+                    p.dy += 0.5;
+
+                    ctx.beginPath();
+                    ctx.lineWidth = p.r;
+                    ctx.strokeStyle = p.color;
+                    ctx.moveTo(p.x + p.tilt + p.r, p.y);
+                    ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+                    ctx.stroke();
+
+                    if (p.y > canvas.height) particles.splice(index, 1);
+                });
+            }
+            render();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            state.studentName = document.getElementById('student-name').value.trim();
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            setupQuiz();
+            renderQuestion();
+        });
+
+        document.getElementById('action-btn').addEventListener('click', handleActionClick);
+
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            if (state.currentIndex > 0) {
+                state.currentIndex--;
+                renderQuestion();
+            }
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            if (state.currentIndex < state.furthestIndex) {
+                state.currentIndex++;
+                renderQuestion();
+            }
+        });
+
+        document.getElementById('try-again-btn').addEventListener('click', () => {
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            setupQuiz();
+            renderQuestion();
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            location.reload();
+        });
+
+        document.getElementById('download-btn').addEventListener('click', generateReviewSheet);
+
+    </script>
+</body>
+</html>
