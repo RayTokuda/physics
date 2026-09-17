@@ -83,8 +83,17 @@
                     </div>
                 </div>
                 
-                <div class="mt-6 flex justify-end">
-                    <button onclick="app.submitAnswer()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-colors text-lg">Submit Answer</button>
+                <!-- Feedback Section (Hidden by default) -->
+                <div id="quiz-feedback" class="mt-6 p-4 rounded-lg hide">
+                    <!-- Feedback content injected here -->
+                </div>
+
+                <div class="mt-6 flex justify-between items-center">
+                    <button id="btn-prev" onclick="app.prevQuestion()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded shadow-sm transition-colors hide">Previous</button>
+                    <div class="flex-grow flex justify-end gap-2">
+                        <button id="btn-submit" onclick="app.submitAnswer()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-colors text-lg">Submit Answer</button>
+                        <button id="btn-next" onclick="app.nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow-sm transition-colors hide">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -267,6 +276,7 @@
             allScenarios: createScenarios(),
             activeQuestions: [],
             currentQIdx: 0,
+            viewingQIdx: 0, // Track which question is currently being viewed
             score: 0,
             studentName: '',
             results: [], 
@@ -323,6 +333,7 @@
 
                 this.selectQuestions(count);
                 this.currentQIdx = 0;
+                this.viewingQIdx = 0;
                 this.score = 0;
                 this.results = [];
                 this.showView('view-quiz');
@@ -359,15 +370,126 @@
 
             renderCurrentQuestion() {
                 this.stopAllAnimations();
-                const q = this.activeQuestions[this.currentQIdx];
-                document.getElementById('quiz-header').innerText = `Question ${this.currentQIdx + 1} of ${this.activeQuestions.length} — Operator: ${this.studentName}`;
+                const q = this.activeQuestions[this.viewingQIdx];
+                document.getElementById('quiz-header').innerText = `Question ${this.viewingQIdx + 1} of ${this.activeQuestions.length} — Operator: ${this.studentName}`;
                 document.getElementById('quiz-score-badge').innerText = `Score: ${this.score}`;
                 document.getElementById('quiz-question-text').innerText = q.text;
                 
-                document.getElementById('ans-time').value = '';
-                document.getElementById('ans-alt').value = '';
+                const timeInput = document.getElementById('ans-time');
+                const altInput = document.getElementById('ans-alt');
+                const submitBtn = document.getElementById('btn-submit');
+                const prevBtn = document.getElementById('btn-prev');
+                const nextBtn = document.getElementById('btn-next');
+                const feedbackDiv = document.getElementById('quiz-feedback');
+
+                // Check if this question has been answered
+                const pastResult = this.results[this.viewingQIdx];
+
+                if (pastResult) {
+                    // Viewing a past question
+                    timeInput.value = pastResult.ansT;
+                    altInput.value = pastResult.ansY;
+                    timeInput.disabled = true;
+                    altInput.disabled = true;
+                    submitBtn.classList.add('hide');
+                    
+                    this.showFeedback(pastResult);
+                } else {
+                    // Viewing the active question
+                    timeInput.value = '';
+                    altInput.value = '';
+                    timeInput.disabled = false;
+                    altInput.disabled = false;
+                    submitBtn.classList.remove('hide');
+                    feedbackDiv.classList.add('hide');
+                }
+
+                // Navigation buttons logic
+                if (this.viewingQIdx > 0) {
+                    prevBtn.classList.remove('hide');
+                } else {
+                    prevBtn.classList.add('hide');
+                }
+
+                if (this.viewingQIdx < this.currentQIdx) {
+                    nextBtn.classList.remove('hide');
+                } else {
+                    nextBtn.classList.add('hide');
+                }
 
                 this.startAnimation('quiz-canvas', q);
+            },
+            
+            showFeedback(result) {
+                const feedbackDiv = document.getElementById('quiz-feedback');
+                feedbackDiv.classList.remove('hide', 'bg-green-100', 'border-green-500', 'bg-red-100', 'border-red-500', 'bg-yellow-100', 'border-yellow-500');
+                
+                const q = result.q;
+                let html = '';
+
+                if (result.tCorrect && result.yCorrect) {
+                    feedbackDiv.classList.add('bg-green-100', 'border-l-4', 'border-green-500');
+                    html = `
+                        <h4 class="font-bold text-green-800 mb-2">Excellent! Both answers are correct.</h4>
+                        <p class="text-sm text-green-700">Time: ${q.ansT.toFixed(2)}s | Altitude: ${q.ansY.toFixed(2)}m</p>
+                    `;
+                } else {
+                    feedbackDiv.classList.add('bg-red-100', 'border-l-4', 'border-red-500');
+                    html = `<h4 class="font-bold text-red-800 mb-2">Not quite right. Let's review:</h4><ul class="list-disc ml-5 text-sm text-red-700 space-y-2">`;
+                    
+                    if (!result.tCorrect) {
+                        const A = 0.5 * q.a1 - 0.5 * q.a2;
+                        const B = q.v1 - q.v2;
+                        const C = q.H1 - q.H2;
+                        let eq = "";
+                        if (Math.abs(A) > 0.001) {
+                            eq = `(${A})t² + (${B})t + (${C}) = 0`;
+                        } else {
+                            eq = `(${B})t + (${C}) = 0`;
+                        }
+                        
+                        html += `<li><strong>Time:</strong> Your answer was ${result.ansT}s. The correct time is <strong>${q.ansT.toFixed(2)}s</strong>. <br>
+                                 <span class="text-xs text-gray-600">Solve for t by setting y₁ = y₂: ${eq}</span></li>`;
+                    } else {
+                         html += `<li><strong>Time:</strong> Correct! (${q.ansT.toFixed(2)}s)</li>`;
+                    }
+
+                    if (!result.yCorrect) {
+                        html += `<li><strong>Altitude:</strong> Your answer was ${result.ansY}m. The correct altitude is <strong>${q.ansY.toFixed(2)}m</strong>. <br>
+                                 <span class="text-xs text-gray-600">Plug t = ${q.ansT.toFixed(2)}s back into either y₁ or y₂ equation.</span></li>`;
+                    } else {
+                         html += `<li><strong>Altitude:</strong> Correct! (${q.ansY.toFixed(2)}m)</li>`;
+                    }
+                    html += `</ul>`;
+                    
+                    // Add a button to proceed to the next question if this was just submitted
+                    if (this.viewingQIdx === this.currentQIdx - 1 && this.currentQIdx < this.activeQuestions.length) {
+                         html += `<div class="mt-4 flex justify-end"><button onclick="app.nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition-colors">Continue to Next Question</button></div>`;
+                    }
+                }
+                
+                // If perfect, also show continue button if it's the latest question
+                if (result.tCorrect && result.yCorrect && this.viewingQIdx === this.currentQIdx - 1 && this.currentQIdx < this.activeQuestions.length) {
+                    html += `<div class="mt-4 flex justify-end"><button onclick="app.nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition-colors">Continue to Next Question</button></div>`;
+                }
+
+                feedbackDiv.innerHTML = html;
+            },
+            
+            prevQuestion() {
+                if (this.viewingQIdx > 0) {
+                    this.viewingQIdx--;
+                    this.renderCurrentQuestion();
+                }
+            },
+
+            nextQuestion() {
+                if (this.viewingQIdx < this.currentQIdx) {
+                    this.viewingQIdx++;
+                    this.renderCurrentQuestion();
+                } else if (this.currentQIdx >= this.activeQuestions.length) {
+                    this.finishQuiz();
+                }
             },
 
             submitAnswer() {
@@ -407,14 +529,28 @@
                 }
 
                 this.score += pts;
-                this.results.push({ q, ansT, ansY, pts, tCorrect, yCorrect });
+                const result = { q, ansT, ansY, pts, tCorrect, yCorrect };
+                this.results.push(result);
 
-                if (this.currentQIdx < this.activeQuestions.length - 1) {
-                    this.currentQIdx++;
-                    this.renderCurrentQuestion();
-                } else {
-                    this.finishQuiz();
+                this.currentQIdx++;
+                
+                // Keep viewing the current question to show feedback
+                this.showFeedback(result);
+                document.getElementById('ans-time').disabled = true;
+                document.getElementById('ans-alt').disabled = true;
+                document.getElementById('btn-submit').classList.add('hide');
+                
+                // Update navigation buttons
+                if (this.viewingQIdx > 0) document.getElementById('btn-prev').classList.remove('hide');
+                
+                // If it's the last question, show "Finish" button instead of "Continue" in feedback
+                if (this.currentQIdx >= this.activeQuestions.length) {
+                    const feedbackDiv = document.getElementById('quiz-feedback');
+                    const finishBtnHtml = `<div class="mt-4 flex justify-end"><button onclick="app.finishQuiz()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded shadow transition-colors">Finish Assignment</button></div>`;
+                    feedbackDiv.innerHTML += finishBtnHtml;
                 }
+                
+                document.getElementById('quiz-score-badge').innerText = `Score: ${this.score}`;
             },
 
             finishQuiz() {
