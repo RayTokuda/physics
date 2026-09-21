@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Sailboat Simulator</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #1e3a5f;
+            overflow-y: auto; /* Allow vertical scrolling */
+        }
+
+        h1 {
+            color: #1e3a5f;
+            margin-bottom: 20px;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 90vmin;
+            max-width: 800px;
+            height: 60vmin;
+            max-height: 500px;
+            border: 2px solid #60a5fa;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #e0f2fe;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90vmin;
+            max-width: 800px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #334155;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+        }
+
+        .dial-group {
+            align-items: center;
+        }
+
+        .semi-dial-container {
+            width: 140px;
+            height: 70px;
+            border-bottom-left-radius: 140px;
+            border-bottom-right-radius: 140px;
+            background: conic-gradient(from 90deg at 50% 0%, #cbd5e1 0deg, #e2e8f0 180deg);
+            position: relative;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: inset 0 -4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(255, 255, 255, 0.5);
+            border: 2px solid #94a3b8;
+            border-top: none;
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        .semi-dial-center {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 10px;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            background: #334155;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+
+        .semi-dial-pointer {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 4px;
+            height: 55px;
+            background: #ef4444;
+            border-radius: 2px;
+            transform-origin: 50% 0%;
+            transition: transform 0.05s linear;
+            z-index: 1;
+            transform: translateX(-50%) rotate(0rad);
+        }
+
+        .dial-container {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(from 180deg at 50% 50%, #e2e8f0 0deg, #cbd5e1 360deg);
+            position: relative;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: inset 0 4px 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(255, 255, 255, 0.5);
+            border: 2px solid #94a3b8;
+            touch-action: none; /* Prevents screen scrolling while turning dial */
+        }
+
+        .dial-center {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #334155;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+
+        .dial-pointer {
+            position: absolute;
+            top: 48px;
+            left: 50px;
+            width: 40px;
+            height: 4px;
+            background: #ef4444;
+            border-radius: 2px;
+            transform-origin: 0% 50%;
+            transition: transform 0.05s linear;
+            z-index: 1;
+        }
+
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 20px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            background-color: #e2e8f0;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .toggle input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle input[type="checkbox"]:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .toggle input[type="checkbox"]:checked::before {
+            transform: translateX(20px);
+        }
+
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-item .label {
+            font-weight: bold;
+        }
+
+        .reset-button {
+            padding: 10px 20px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+            align-self: center;
+            margin-top: 10px;
+        }
+
+        .reset-button:hover {
+            background-color: #2563eb;
+        }
+
+        .reset-button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <h1>Sailboat Simulator</h1>
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="velocity-hud" style="position: absolute; top: 12px; right: 12px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 8px 14px; border-radius: 8px; backdrop-filter: blur(4px); font-family: sans-serif; border: 1px solid rgba(255,255,255,0.15); pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #facc15; margin-bottom: 2px;">Boat Velocity</div>
+            <div style="font-size: 18px; font-weight: 700;" id="hudSpeedKnots">0.0 knots</div>
+            <div style="font-size: 12px; opacity: 0.85;" id="hudSpeedDetails">0.0 m/s • 0° E</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group dial-group">
+            <label>Sail Angle (Rel to Stern): <span id="sailAngleValue">0</span>° (<span id="sailSideDisplay">Center</span>)</label>
+            <div class="semi-dial-container" id="sailDialContainer">
+                <div class="semi-dial-center"></div>
+                <div class="semi-dial-pointer" id="sailDialPointer"></div>
+            </div>
+        </div>
+        <div class="control-group dial-group">
+            <label>Boat Direction: <span id="boatDirectionValue">0</span>°</label>
+            <div class="dial-container" id="dialContainer">
+                <div class="dial-center"></div>
+                <div class="dial-pointer" id="dialPointer" style="transform: rotate(0rad);"></div>
+            </div>
+        </div>
+
+        <div class="toggle-container">
+            <div class="toggle">
+                <input type="checkbox" id="showForceVectorToggle" checked>
+                <label for="showForceVectorToggle">Show Wind Force Vector</label>
+            </div>
+            <div class="toggle">
+                <input type="checkbox" id="showComponentsToggle" checked>
+                <label for="showComponentsToggle">Show Force Components</label>
+            </div>
+            <div class="toggle">
+                <input type="checkbox" id="showApparentWindToggle" checked>
+                <label for="showApparentWindToggle">Show Apparent Wind Vector</label>
+            </div>
+            <div class="toggle">
+                <input type="checkbox" id="showBoatVelocityVectorToggle" checked>
+                <label for="showBoatVelocityVectorToggle">Show Boat Velocity Vector</label>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-item">
+                <span class="label">Wind Speed:</span>
+                <span id="windSpeedDisplay"></span>
+            </div>
+            <div class="info-item">
+                <span class="label">Boat Ground Speed:</span>
+                <span id="boatSpeedDisplay"></span>
+            </div>
+            <div class="info-item">
+                <span class="label">Boat Speed (Knots):</span>
+                <span id="boatSpeedKnotsDisplay"></span>
+            </div>
+            <div class="info-item">
+                <span class="label">Boat Direction:</span>
+                <span id="boatDirectionDisplay"></span>
+            </div>
+            <div class="info-item">
+                <span class="label">Boat Velocity Direction:</span>
+                <span id="boatVelocityDirectionDisplay"></span>
+            </div>
+        </div>
+        <button class="reset-button" id="resetButton">Reset Boat Velocity</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Get control elements
+            const sailDialContainer = document.getElementById('sailDialContainer');
+            const sailDialPointer = document.getElementById('sailDialPointer');
+            const sailAngleValueDisplay = document.getElementById('sailAngleValue');
+            const sailSideDisplay = document.getElementById('sailSideDisplay');
+            const boatDirectionValueDisplay = document.getElementById('boatDirectionValue');
+            const dialContainer = document.getElementById('dialContainer');
+            const dialPointer = document.getElementById('dialPointer');
+            const showForceToggle = document.getElementById('showForceVectorToggle');
+            const showComponentsToggle = document.getElementById('showComponentsToggle');
+            const showApparentWindToggle = document.getElementById('showApparentWindToggle');
+            const showBoatVelocityVectorToggle = document.getElementById('showBoatVelocityVectorToggle');
+            const windSpeedDisplay = document.getElementById('windSpeedDisplay');
+            const boatSpeedDisplay = document.getElementById('boatSpeedDisplay');
+            const boatSpeedKnotsDisplay = document.getElementById('boatSpeedKnotsDisplay');
+            const boatDirectionDisplay = document.getElementById('boatDirectionDisplay');
+            const boatVelocityDirectionDisplay = document.getElementById('boatVelocityDirectionDisplay');
+            const resetButton = document.getElementById('resetButton');
+            const hudSpeedKnots = document.getElementById('hudSpeedKnots');
+            const hudSpeedDetails = document.getElementById('hudSpeedDetails');
+
+            // Simulation parameters
+            const WIND_SPEED = 10; // Predetermined wind speed
+            const WIND_DIRECTION = Math.PI / 2; // Wind from North (blowing South visually)
+            
+            // Tuned constants for "virtuous cycle" (high speed when trimming optimally into apparent wind)
+            const WIND_FORCE_CONSTANT = 0.005; 
+            const WATER_FRICTION_PARALLEL = 0.002; // Very low drag moving forward to allow high top speeds
+            const WATER_FRICTION_PERPENDICULAR = 0.25; // Much higher resistance sideways
+            const BOAT_MASS = 50;
+            const WATER_LINE_COUNT = 50;
+            const FORCE_VECTOR_SCALE = 15; // Adjusted scale for all vectors
+            let waterLines = [];
+            
+            // Boat state
+            let boatX = canvas.width / 2;
+            let boatY = canvas.height / 2;
+            let boatAngle = 0; // Facing East initially
+            let boatVelocityX = 0;
+            let boatVelocityY = 0;
+
+            // User controls state
+            let sailAngleRelative = 0; // 0 rad = aligned with stern (centerline)
+            let showForceVector = showForceToggle.checked;
+            let showForceComponents = showComponentsToggle.checked;
+            let showApparentWindVector = showApparentWindToggle.checked;
+            let showBoatVelocityVector = showBoatVelocityVectorToggle.checked;
+
+            // Function to draw water lines
+            function initWaterLines() {
+                waterLines = [];
+                for (let i = 0; i < WATER_LINE_COUNT; i++) {
+                    waterLines.push({
+                        x: Math.random() * canvas.width * 2 - canvas.width / 2,
+                        y: Math.random() * canvas.height * 2 - canvas.height / 2,
+                        length: 5 + Math.random() * 15,
+                        opacity: 0.1 + Math.random() * 0.2
+                    });
+                }
+            }
+            
+            // Set up canvas size and responsiveness
+            function setCanvasSize() {
+                const container = document.getElementById('canvas-container');
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                initWaterLines(); // Re-initialize water lines on resize
+            }
+            
+            setCanvasSize();
+            window.addEventListener('resize', setCanvasSize);
+
+            // --- 180-Degree Semi-Circular Sail Dial Logic ---
+            let isDraggingSailDial = false;
+
+            function updateSailDial(e) {
+                if (e.cancelable) e.preventDefault();
+                const rect = sailDialContainer.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top; // Pivot point at top-center (mast)
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+                
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                }
+
+                const dx = clientX - cx;
+                const dy = clientY - cy;
+                
+                // Calculate angle relative to straight down (0rad = stern centerline)
+                let angle = Math.atan2(dx, dy);
+                
+                // Clamp angle to [-PI/2, PI/2] (180 degrees range)
+                if (angle < -Math.PI / 2) angle = -Math.PI / 2;
+                if (angle > Math.PI / 2) angle = Math.PI / 2;
+
+                sailAngleRelative = angle;
+                // Pointer tip rotates directly towards mouse/finger position
+                sailDialPointer.style.transform = `translateX(-50%) rotate(${-sailAngleRelative}rad)`;
+                
+                const deg = Math.round(sailAngleRelative * 180 / Math.PI);
+                sailAngleValueDisplay.textContent = Math.abs(deg);
+                if (deg < -2) {
+                    sailSideDisplay.textContent = 'Port';
+                } else if (deg > 2) {
+                    sailSideDisplay.textContent = 'Starboard';
+                } else {
+                    sailSideDisplay.textContent = 'Center';
+                }
+            }
+
+            // Mouse, Touch, & Pointer Listeners for Sail Dial
+            function onSailDialStart(e) {
+                isDraggingSailDial = true;
+                if (e.pointerId && sailDialContainer.setPointerCapture) {
+                    try { sailDialContainer.setPointerCapture(e.pointerId); } catch(err) {}
+                }
+                updateSailDial(e);
+            }
+            function onSailDialMove(e) {
+                if (isDraggingSailDial) updateSailDial(e);
+            }
+            function onSailDialEnd(e) {
+                if (isDraggingSailDial) {
+                    isDraggingSailDial = false;
+                    if (e.pointerId && sailDialContainer.releasePointerCapture) {
+                        try { sailDialContainer.releasePointerCapture(e.pointerId); } catch(err) {}
+                    }
+                }
+            }
+
+            sailDialContainer.addEventListener('mousedown', onSailDialStart);
+            window.addEventListener('mousemove', onSailDialMove);
+            window.addEventListener('mouseup', onSailDialEnd);
+            
+            sailDialContainer.addEventListener('touchstart', onSailDialStart, {passive: false});
+            window.addEventListener('touchmove', onSailDialMove, {passive: false});
+            window.addEventListener('touchend', onSailDialEnd);
+            window.addEventListener('touchcancel', onSailDialEnd);
+
+            if (window.PointerEvent) {
+                sailDialContainer.addEventListener('pointerdown', onSailDialStart);
+                sailDialContainer.addEventListener('pointermove', onSailDialMove);
+                sailDialContainer.addEventListener('pointerup', onSailDialEnd);
+                sailDialContainer.addEventListener('pointercancel', onSailDialEnd);
+            }
+
+            // --- Circular Dial Logic ---
+            let isDraggingDial = false;
+
+            function updateDial(e) {
+                if (e.cancelable) e.preventDefault(); // Prevent scrolling on touch
+                const rect = dialContainer.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+                
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                }
+                
+                boatAngle = Math.atan2(clientY - cy, clientX - cx);
+                dialPointer.style.transform = `rotate(${boatAngle}rad)`;
+                // Fix negative degrees for display mapping
+                boatDirectionValueDisplay.textContent = toDegrees(boatAngle);
+            }
+
+            function onDialStart(e) {
+                isDraggingDial = true;
+                if (e.pointerId && dialContainer.setPointerCapture) {
+                    try { dialContainer.setPointerCapture(e.pointerId); } catch(err) {}
+                }
+                updateDial(e);
+            }
+            function onDialMove(e) {
+                if (isDraggingDial) updateDial(e);
+            }
+            function onDialEnd(e) {
+                if (isDraggingDial) {
+                    isDraggingDial = false;
+                    if (e.pointerId && dialContainer.releasePointerCapture) {
+                        try { dialContainer.releasePointerCapture(e.pointerId); } catch(err) {}
+                    }
+                }
+            }
+
+            dialContainer.addEventListener('mousedown', onDialStart);
+            window.addEventListener('mousemove', onDialMove);
+            window.addEventListener('mouseup', onDialEnd);
+            
+            dialContainer.addEventListener('touchstart', onDialStart, {passive: false});
+            window.addEventListener('touchmove', onDialMove, {passive: false});
+            window.addEventListener('touchend', onDialEnd);
+            window.addEventListener('touchcancel', onDialEnd);
+
+            if (window.PointerEvent) {
+                dialContainer.addEventListener('pointerdown', onDialStart);
+                dialContainer.addEventListener('pointermove', onDialMove);
+                dialContainer.addEventListener('pointerup', onDialEnd);
+                dialContainer.addEventListener('pointercancel', onDialEnd);
+            }
+
+            showForceToggle.addEventListener('change', (e) => {
+                showForceVector = e.target.checked;
+            });
+
+            showComponentsToggle.addEventListener('change', (e) => {
+                showForceComponents = e.target.checked;
+            });
+            
+            showApparentWindToggle.addEventListener('change', (e) => {
+                showApparentWindVector = e.target.checked;
+            });
+
+            showBoatVelocityVectorToggle.addEventListener('change', (e) => {
+                showBoatVelocityVector = e.target.checked;
+            });
+            
+            // Add event listener for the reset button
+            resetButton.addEventListener('click', () => {
+                boatX = canvas.width / 2;
+                boatY = canvas.height / 2;
+                boatVelocityX = 0; 
+                boatVelocityY = 0;
+                
+                // Update sail and boat direction angles on reset
+                sailAngleRelative = 0;
+                boatAngle = 0;
+                sailAngleValueDisplay.textContent = 0;
+                sailSideDisplay.textContent = 'Center';
+                sailDialPointer.style.transform = `translateX(-50%) rotate(0rad)`;
+                boatDirectionValueDisplay.textContent = 0;
+                dialPointer.style.transform = `rotate(0rad)`;
+
+                // Re-initialize water lines to reset their positions
+                initWaterLines(); 
+            });
+
+            // Utility functions
+            function toDegrees(radians) {
+                const degrees = (radians * 180 / Math.PI) % 360;
+                return (degrees < 0 ? degrees + 360 : degrees).toFixed(0);
+            }
+
+            function toCardinal(radians) {
+                const degrees = (radians * 180 / Math.PI + 360) % 360;
+                if (degrees > 337.5 || degrees <= 22.5) return 'E';
+                if (degrees > 22.5 && degrees <= 67.5) return 'NE';
+                if (degrees > 67.5 && degrees <= 112.5) return 'N';
+                if (degrees > 112.5 && degrees <= 157.5) return 'NW';
+                if (degrees > 157.5 && degrees <= 202.5) return 'W';
+                if (degrees > 202.5 && degrees <= 247.5) return 'SW';
+                if (degrees > 247.5 && degrees <= 292.5) return 'S';
+                return 'SE';
+            }
+
+            function drawArrow(ctx, startX, startY, endX, endY, color, width, label = null) {
+                const arrowSize = 8;
+                const angle = Math.atan2(endY - startY, endX - startX);
+
+                ctx.save();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+
+                // Draw arrowhead
+                ctx.beginPath();
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - arrowSize * Math.cos(angle - Math.PI / 6), endY - arrowSize * Math.sin(angle - Math.PI / 6));
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - arrowSize * Math.cos(angle + Math.PI / 6), endY - arrowSize * Math.sin(angle + Math.PI / 6));
+                ctx.stroke();
+                ctx.restore();
+
+                if (label) {
+                    ctx.fillStyle = color;
+                    ctx.font = '12px Inter';
+                    const textX = endX + 10 * Math.cos(angle);
+                    const textY = endY + 10 * Math.sin(angle);
+                    ctx.fillText(label, textX, textY);
+                }
+            }
+
+            // Redrawing the drawWater function for a more accurate simulation
+            function drawWater() {
+                const cameraX = boatX;
+                const cameraY = boatY;
+                const waterMoveSpeed = 0.5;
+
+                for (let i = 0; i < WATER_LINE_COUNT; i++) {
+                    let line = waterLines[i];
+                    
+                    // The illusion of movement is created by offsetting the line's position by the camera's position
+                    let drawX = line.x - cameraX * waterMoveSpeed;
+                    let drawY = line.y - cameraY * waterMoveSpeed;
+
+                    // Wrap-around logic to keep lines on screen relative to the camera
+                    if (drawX < -canvas.width/2) drawX += canvas.width;
+                    if (drawX > canvas.width/2) drawX -= canvas.width;
+                    if (drawY < -canvas.height/2) drawY += canvas.height;
+                    if (drawY > canvas.height/2) drawY -= canvas.height;
+
+                    // Update the line's position for the next frame
+                    waterLines[i].x = drawX + cameraX * waterMoveSpeed;
+                    waterLines[i].y = drawY + cameraY * waterMoveSpeed;
+
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(30, 58, 95, ${line.opacity})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(drawX, drawY);
+                    ctx.lineTo(drawX + line.length, drawY);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+            
+            // Main animation loop
+            function animate() {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // --- Physics Calculations ---
+                // 1. Calculate apparent wind velocity (wind relative to the boat)
+                const windVelX = WIND_SPEED * Math.cos(WIND_DIRECTION);
+                const windVelY = WIND_SPEED * Math.sin(WIND_DIRECTION);
+                const apparentWindX = windVelX - boatVelocityX;
+                const apparentWindY = windVelY - boatVelocityY;
+                const apparentWindSpeed = Math.sqrt(apparentWindX * apparentWindX + apparentWindY * apparentWindY);
+                const apparentWindAngle = Math.atan2(apparentWindY, apparentWindX);
+
+                // 2. Calculate wind force on the sail
+                // The sail attaches at the mast and extends rearward toward the stern (Math.PI in boat frame)
+                const sailAbsAngle = boatAngle + Math.PI - sailAngleRelative;
+                
+                // Angle of attack: difference between apparent wind direction and sail line
+                let angleOfAttack = apparentWindAngle - sailAbsAngle;
+                
+                // Normalize angle of attack to [-PI, PI]
+                while (angleOfAttack > Math.PI) angleOfAttack -= 2 * Math.PI;
+                while (angleOfAttack < -Math.PI) angleOfAttack += 2 * Math.PI;
+                
+                // Aerodynamic Model: Virtuous Cycle (Stall-based Lift & Drag)
+                const STALL_ANGLE = 15 * Math.PI / 180;
+                let liftCoeff = 0;
+                let dragCoeff = 0;
+
+                if (Math.abs(angleOfAttack) < STALL_ANGLE) {
+                    liftCoeff = 2.5 * Math.sin((Math.PI / 2) * (angleOfAttack / STALL_ANGLE));
+                    dragCoeff = 0.05 + 0.1 * Math.pow(angleOfAttack / STALL_ANGLE, 2);
+                } else {
+                    liftCoeff = 2.5 * Math.sign(angleOfAttack) * Math.sin(STALL_ANGLE) * Math.cos(Math.abs(angleOfAttack) - STALL_ANGLE);
+                    if (Math.abs(liftCoeff) < 0) liftCoeff = 0;
+                    dragCoeff = 1.0 - 0.8 * Math.cos(angleOfAttack); 
+                }
+                
+                const windForceMagnitude = WIND_FORCE_CONSTANT * apparentWindSpeed * apparentWindSpeed;
+
+                // Lift force is perpendicular to the apparent wind direction
+                const liftForce = windForceMagnitude * liftCoeff;
+                const liftForceAngle = apparentWindAngle + Math.PI / 2;
+                const liftForceX = liftForce * Math.cos(liftForceAngle);
+                const liftForceY = liftForce * Math.sin(liftForceAngle);
+
+                // Drag force is in the direction of the apparent wind
+                const dragForce = windForceMagnitude * dragCoeff; 
+                const dragForceAngle = apparentWindAngle;
+                const dragForceX = dragForce * Math.cos(dragForceAngle);
+                const dragForceY = dragForce * Math.sin(dragForceAngle);
+                
+                // 3. Sum lift and drag to get total wind force
+                const windForceX = liftForceX + dragForceX;
+                const windForceY = liftForceY + dragForceY;
+
+                // 4. Update velocity
+                const totalForceX = windForceX;
+                const totalForceY = windForceY;
+
+                boatVelocityX += totalForceX / BOAT_MASS;
+                boatVelocityY += totalForceY / BOAT_MASS;
+
+                // Apply water friction based on direction (simulating the keel)
+                const boatVelMagnitude = Math.sqrt(boatVelocityX * boatVelocityX + boatVelocityY * boatVelocityY);
+                const boatVelocityAngle = Math.atan2(boatVelocityY, boatVelocityX);
+                const relativeAngle = boatVelocityAngle - boatAngle;
+
+                // Decompose velocity into parallel and perpendicular components
+                const parallelVel = boatVelMagnitude * Math.cos(relativeAngle);
+                const perpendicularVel = boatVelMagnitude * Math.sin(relativeAngle);
+
+                // Apply different friction to each component
+                const newParallelVel = parallelVel * (1 - WATER_FRICTION_PARALLEL);
+                const newPerpendicularVel = perpendicularVel * (1 - WATER_FRICTION_PERPENDICULAR);
+                
+                // Recompose the velocity vector
+                const newBoatVelMagnitude = Math.sqrt(newParallelVel * newParallelVel + newPerpendicularVel * newPerpendicularVel);
+                const newBoatVelocityAngle = boatAngle + Math.atan2(newPerpendicularVel, newParallelVel);
+                
+                boatVelocityX = newBoatVelMagnitude * Math.cos(newBoatVelocityAngle);
+                boatVelocityY = newBoatVelMagnitude * Math.sin(newBoatVelocityAngle);
+
+                // Update position
+                boatX += boatVelocityX;
+                boatY += boatVelocityY;
+
+                // --- Drawing ---
+
+                // Camera follow logic: Translate the entire canvas to keep the boat centered
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                drawWater();
+                
+                // Draw wind direction arrow (fixed to the top-left of the view)
+                const windArrowX = -canvas.width/2 + 50;
+                const windArrowY = -canvas.height/2 + 50;
+                const windArrowLength = WIND_SPEED * FORCE_VECTOR_SCALE;
+                drawArrow(ctx, windArrowX, windArrowY,
+                    windArrowX + windArrowLength * Math.cos(WIND_DIRECTION),
+                    windArrowY + windArrowLength * Math.sin(WIND_DIRECTION),
+                    '#4ade80', 2, 'Wind');
+
+                // Draw apparent wind vector
+                if (showApparentWindVector) {
+                    const apparentWindArrowLength = apparentWindSpeed * FORCE_VECTOR_SCALE;
+                    drawArrow(ctx, 0, 0,
+                        apparentWindArrowLength * Math.cos(apparentWindAngle),
+                        apparentWindArrowLength * Math.sin(apparentWindAngle),
+                        '#22d3ee', 2, 'Apparent Wind');
+                }
+
+                // Draw boat velocity vector
+                if (showBoatVelocityVector) {
+                    const boatSpeed = Math.sqrt(boatVelocityX * boatVelocityX + boatVelocityY * boatVelocityY);
+                    const boatSpeedKnotsVector = boatSpeed * 1.94384;
+                    const velocityArrowLength = boatSpeed * FORCE_VECTOR_SCALE;
+                    drawArrow(ctx, 0, 0,
+                        velocityArrowLength * Math.cos(newBoatVelocityAngle),
+                        velocityArrowLength * Math.sin(newBoatVelocityAngle),
+                        '#facc15', 3, `Velocity (${boatSpeedKnotsVector.toFixed(1)} kts)`);
+                }
+
+                // Apply a second translation and rotation for the boat
+                ctx.rotate(boatAngle);
+
+                // Draw boat hull
+                ctx.fillStyle = '#4b5563';
+                ctx.beginPath();
+                ctx.moveTo(25, 0); // Front tip
+                ctx.bezierCurveTo(15, 10, -25, 10, -25, 0); // Bottom curve
+                ctx.bezierCurveTo(-25, -10, 15, -10, 25, 0); // Top curve
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw mast as a circle
+                const mastX = 10;
+                const mastY = 0;
+                const mastRadius = 3;
+                ctx.fillStyle = '#334155';
+                ctx.beginPath();
+                ctx.arc(mastX, mastY, mastRadius, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw sail extending backward from mast towards stern
+                const sailLength = 40;
+                const sailStartRelX = mastX;
+                const sailStartRelY = mastY;
+                
+                // In boat local frame, stern direction is Math.PI. Sail swings with sailAngleRelative
+                const sailInBoatAngle = Math.PI - sailAngleRelative;
+                const sailEndRelX = mastX + sailLength * Math.cos(sailInBoatAngle);
+                const sailEndRelY = mastY + sailLength * Math.sin(sailInBoatAngle);
+
+                // Control point for the curved belly of the sail
+                const controlPointDistance = 12;
+                const bulgeDirection = Math.sign(Math.sin(angleOfAttack)) || 1;
+                const controlX = (sailStartRelX + sailEndRelX) / 2 + bulgeDirection * controlPointDistance * Math.cos(sailInBoatAngle + Math.PI/2);
+                const controlY = (sailStartRelY + sailEndRelY) / 2 + bulgeDirection * controlPointDistance * Math.sin(sailInBoatAngle + Math.PI/2);
+
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.moveTo(sailStartRelX, sailStartRelY);
+                ctx.quadraticCurveTo(controlX, controlY, sailEndRelX, sailEndRelY);
+                ctx.lineTo(mastX, mastY);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw rudder at the back of the boat
+                ctx.save();
+                ctx.translate(-28, 0);
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(0, -2, 5, 4);
+                ctx.restore();
+
+                // --- Force Vector Drawing (Relative to the boat) ---
+                const centerOfEffortDist = 0.6 * sailLength;
+                const centerOfEffortRelX = mastX + centerOfEffortDist * Math.cos(sailInBoatAngle);
+                const centerOfEffortRelY = mastY + centerOfEffortDist * Math.sin(sailInBoatAngle);
+
+                // Draw wind force vector on sail
+                if (showForceVector) {
+                    drawArrow(ctx, centerOfEffortRelX, centerOfEffortRelY,
+                        centerOfEffortRelX + windForceX * FORCE_VECTOR_SCALE,
+                        centerOfEffortRelY + windForceY * FORCE_VECTOR_SCALE,
+                        '#ef4444', 3, 'Wind Force');
+                }
+
+                // Draw force components
+                if (showForceComponents) {
+                    // Decompose total wind force into components parallel and perpendicular to boat's direction
+                    const boatDirX = Math.cos(boatAngle);
+                    const boatDirY = Math.sin(boatAngle);
+                    const parallelForce = windForceX * boatDirX + windForceY * boatDirY;
+                    const perpendicularForce = windForceX * (-boatDirY) + windForceY * boatDirX;
+
+                    const parallelForceMagnitude = parallelForce * FORCE_VECTOR_SCALE;
+                    const perpendicularForceMagnitude = perpendicularForce * FORCE_VECTOR_SCALE;
+
+                    // Parallel component
+                    drawArrow(ctx, centerOfEffortRelX, centerOfEffortRelY,
+                        centerOfEffortRelX + parallelForceMagnitude * boatDirX,
+                        centerOfEffortRelY + parallelForceMagnitude * boatDirY,
+                        '#f97316', 2, 'Parallel');
+
+                    // Perpendicular component
+                    drawArrow(ctx, centerOfEffortRelX, centerOfEffortRelY,
+                        centerOfEffortRelX - perpendicularForceMagnitude * boatDirY,
+                        perpendicularForceMagnitude * boatDirX,
+                        '#8b5cf6', 2, 'Perpendicular');
+                }
+                
+                ctx.restore();
+
+                // Update info panel
+                const boatSpeed = Math.sqrt(boatVelocityX * boatVelocityX + boatVelocityY * boatVelocityY);
+                const boatSpeedKnots = boatSpeed * 1.94384;
+                windSpeedDisplay.textContent = `${WIND_SPEED.toFixed(1)} m/s`;
+                boatSpeedDisplay.textContent = `${boatSpeed.toFixed(1)} m/s`;
+                boatSpeedKnotsDisplay.textContent = `${boatSpeedKnots.toFixed(1)} knots`;
+                boatDirectionDisplay.textContent = `${toDegrees(boatAngle)}° ${toCardinal(boatAngle)}`;
+                
+                boatVelocityDirectionDisplay.textContent = `${toDegrees(newBoatVelocityAngle)}° ${toCardinal(newBoatVelocityAngle)}`;
+
+                if (hudSpeedKnots && hudSpeedDetails) {
+                    hudSpeedKnots.textContent = `${boatSpeedKnots.toFixed(1)} knots`;
+                    hudSpeedDetails.textContent = `${boatSpeed.toFixed(1)} m/s • ${toDegrees(newBoatVelocityAngle)}° ${toCardinal(newBoatVelocityAngle)}`;
+                }
+
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+    </script>
+</body>
+</html>
