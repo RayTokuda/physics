@@ -273,8 +273,8 @@
         <canvas id="gameCanvas"></canvas>
         <div id="velocity-hud" style="position: absolute; top: 12px; right: 12px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 8px 14px; border-radius: 8px; backdrop-filter: blur(4px); font-family: sans-serif; border: 1px solid rgba(255,255,255,0.15); pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
             <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #facc15; margin-bottom: 2px;">Boat Velocity</div>
-            <div style="font-size: 18px; font-weight: 700;" id="hudSpeedKnots">0.0 knots</div>
-            <div style="font-size: 12px; opacity: 0.85;" id="hudSpeedDetails">0.0 m/s • 0° E</div>
+            <div style="font-size: 18px; font-weight: 700;" id="hudSpeedKnots">0.0 m/s</div>
+            <div style="font-size: 12px; opacity: 0.85;" id="hudSpeedDetails">0° E</div>
         </div>
     </div>
 
@@ -323,10 +323,6 @@
                 <span id="boatSpeedDisplay"></span>
             </div>
             <div class="info-item">
-                <span class="label">Boat Speed (Knots):</span>
-                <span id="boatSpeedKnotsDisplay"></span>
-            </div>
-            <div class="info-item">
                 <span class="label">Boat Direction:</span>
                 <span id="boatDirectionDisplay"></span>
             </div>
@@ -357,7 +353,6 @@
             const showBoatVelocityVectorToggle = document.getElementById('showBoatVelocityVectorToggle');
             const windSpeedDisplay = document.getElementById('windSpeedDisplay');
             const boatSpeedDisplay = document.getElementById('boatSpeedDisplay');
-            const boatSpeedKnotsDisplay = document.getElementById('boatSpeedKnotsDisplay');
             const boatDirectionDisplay = document.getElementById('boatDirectionDisplay');
             const boatVelocityDirectionDisplay = document.getElementById('boatVelocityDirectionDisplay');
             const resetButton = document.getElementById('resetButton');
@@ -368,13 +363,13 @@
             const WIND_SPEED = 10; // Predetermined wind speed
             const WIND_DIRECTION = Math.PI / 2; // Wind from North (blowing South visually)
             
-            // Tuned constants for "virtuous cycle" (high speed when trimming optimally into apparent wind)
-            const WIND_FORCE_CONSTANT = 0.005; 
-            const WATER_FRICTION_PARALLEL = 0.002; // Very low drag moving forward to allow high top speeds
-            const WATER_FRICTION_PERPENDICULAR = 0.25; // Much higher resistance sideways
+            // Tuned constants for high performance wingsail aerodynamic behavior
+            const WIND_FORCE_CONSTANT = 0.0055; 
+            const WATER_FRICTION_PARALLEL = 0.002; // Minimal forward drag
+            const WATER_FRICTION_PERPENDICULAR = 0.28; // Strong keel lateral resistance
             const BOAT_MASS = 50;
             const WATER_LINE_COUNT = 50;
-            const FORCE_VECTOR_SCALE = 15; // Adjusted scale for all vectors
+            const FORCE_VECTOR_SCALE = 15;
             let waterLines = [];
             
             // Boat state
@@ -687,8 +682,31 @@
                 const apparentWindSpeed = Math.sqrt(apparentWindX * apparentWindX + apparentWindY * apparentWindY);
                 const apparentWindAngle = Math.atan2(apparentWindY, apparentWindX);
 
-                // 2. Calculate wind force on the sail
-                // The sail attaches at the mast and extends rearward toward the stern (Math.PI in boat frame)
+                // 2. Calculate True Wind Angle (TWA) relative to boat heading
+                let twa = Math.abs((WIND_DIRECTION - boatAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+                let twaDegrees = Math.round(twa * 180 / Math.PI);
+
+                // Determine Point of Sail based on TWA
+                let pointOfSail = "";
+                if (twaDegrees < 35) {
+                    pointOfSail = "In Irons (No-Go Zone)";
+                } else if (twaDegrees < 65) {
+                    pointOfSail = "Close-Hauled (Upwind)";
+                } else if (twaDegrees < 115) {
+                    pointOfSail = "Beam Reach (Perpendicular)";
+                } else if (twaDegrees < 155) {
+                    pointOfSail = "Broad Reach (Downwind)";
+                } else {
+                    pointOfSail = "Running (Dead Downwind)";
+                }
+
+                // 3. Apparent Wind Angle relative to boat bow
+                let awaRelBow = apparentWindAngle - boatAngle;
+                while (awaRelBow > Math.PI) awaRelBow -= 2 * Math.PI;
+                while (awaRelBow < -Math.PI) awaRelBow += 2 * Math.PI;
+                let awaDegrees = Math.round(Math.abs(awaRelBow) * 180 / Math.PI);
+
+                // 4. Calculate wind force on the sail
                 const sailAbsAngle = boatAngle + Math.PI - sailAngleRelative;
                 
                 // Angle of attack: difference between apparent wind direction and sail line
@@ -698,16 +716,21 @@
                 while (angleOfAttack > Math.PI) angleOfAttack -= 2 * Math.PI;
                 while (angleOfAttack < -Math.PI) angleOfAttack += 2 * Math.PI;
                 
-                // Aerodynamic Model: Virtuous Cycle (Stall-based Lift & Drag)
-                const STALL_ANGLE = 15 * Math.PI / 180;
+                // Aerodynamic Model: High Efficiency Foil with Stall Dynamics
+                // If pointed dead into wind (In Irons), kill aerodynamic lift
+                const STALL_ANGLE = 12 * Math.PI / 180;
                 let liftCoeff = 0;
                 let dragCoeff = 0;
 
-                if (Math.abs(angleOfAttack) < STALL_ANGLE) {
-                    liftCoeff = 2.5 * Math.sin((Math.PI / 2) * (angleOfAttack / STALL_ANGLE));
-                    dragCoeff = 0.05 + 0.1 * Math.pow(angleOfAttack / STALL_ANGLE, 2);
+                if (twaDegrees < 30) {
+                    // No-Go Zone: Sail stalls/flaps completely
+                    liftCoeff = 0;
+                    dragCoeff = 0.8;
+                } else if (Math.abs(angleOfAttack) < STALL_ANGLE) {
+                    liftCoeff = 2.8 * Math.sin((Math.PI / 2) * (angleOfAttack / STALL_ANGLE));
+                    dragCoeff = 0.04 + 0.08 * Math.pow(angleOfAttack / STALL_ANGLE, 2);
                 } else {
-                    liftCoeff = 2.5 * Math.sign(angleOfAttack) * Math.sin(STALL_ANGLE) * Math.cos(Math.abs(angleOfAttack) - STALL_ANGLE);
+                    liftCoeff = 2.8 * Math.sign(angleOfAttack) * Math.sin(STALL_ANGLE) * Math.cos(Math.abs(angleOfAttack) - STALL_ANGLE);
                     if (Math.abs(liftCoeff) < 0) liftCoeff = 0;
                     dragCoeff = 1.0 - 0.8 * Math.cos(angleOfAttack); 
                 }
@@ -726,11 +749,11 @@
                 const dragForceX = dragForce * Math.cos(dragForceAngle);
                 const dragForceY = dragForce * Math.sin(dragForceAngle);
                 
-                // 3. Sum lift and drag to get total wind force
+                // Sum lift and drag to get total wind force
                 const windForceX = liftForceX + dragForceX;
                 const windForceY = liftForceY + dragForceY;
 
-                // 4. Update velocity
+                // Update velocity
                 const totalForceX = windForceX;
                 const totalForceY = windForceY;
 
@@ -755,7 +778,7 @@
                 const newBoatVelocityAngle = boatAngle + Math.atan2(newPerpendicularVel, newParallelVel);
                 
                 boatVelocityX = newBoatVelMagnitude * Math.cos(newBoatVelocityAngle);
-                boatVelocityY = newBoatVelMagnitude * Math.sin(newBoatVelocityAngle);
+                boatVelocityY = newBoatVelocityAngle ? newBoatVelMagnitude * Math.sin(newBoatVelocityAngle) : 0;
 
                 // Update position
                 boatX += boatVelocityX;
@@ -789,12 +812,11 @@
                 // Draw boat velocity vector
                 if (showBoatVelocityVector) {
                     const boatSpeed = Math.sqrt(boatVelocityX * boatVelocityX + boatVelocityY * boatVelocityY);
-                    const boatSpeedKnotsVector = boatSpeed * 1.94384;
                     const velocityArrowLength = boatSpeed * FORCE_VECTOR_SCALE;
                     drawArrow(ctx, 0, 0,
                         velocityArrowLength * Math.cos(newBoatVelocityAngle),
                         velocityArrowLength * Math.sin(newBoatVelocityAngle),
-                        '#facc15', 3, `Velocity (${boatSpeedKnotsVector.toFixed(1)} kts)`);
+                        '#facc15', 3, `Velocity (${boatSpeed.toFixed(1)} m/s)`);
                 }
 
                 // Apply a second translation and rotation for the boat
@@ -890,17 +912,15 @@
 
                 // Update info panel
                 const boatSpeed = Math.sqrt(boatVelocityX * boatVelocityX + boatVelocityY * boatVelocityY);
-                const boatSpeedKnots = boatSpeed * 1.94384;
                 windSpeedDisplay.textContent = `${WIND_SPEED.toFixed(1)} m/s`;
                 boatSpeedDisplay.textContent = `${boatSpeed.toFixed(1)} m/s`;
-                boatSpeedKnotsDisplay.textContent = `${boatSpeedKnots.toFixed(1)} knots`;
                 boatDirectionDisplay.textContent = `${toDegrees(boatAngle)}° ${toCardinal(boatAngle)}`;
                 
                 boatVelocityDirectionDisplay.textContent = `${toDegrees(newBoatVelocityAngle)}° ${toCardinal(newBoatVelocityAngle)}`;
 
                 if (hudSpeedKnots && hudSpeedDetails) {
-                    hudSpeedKnots.textContent = `${boatSpeedKnots.toFixed(1)} knots`;
-                    hudSpeedDetails.textContent = `${boatSpeed.toFixed(1)} m/s • ${toDegrees(newBoatVelocityAngle)}° ${toCardinal(newBoatVelocityAngle)}`;
+                    hudSpeedKnots.textContent = `${boatSpeed.toFixed(1)} m/s`;
+                    hudSpeedDetails.textContent = `${toDegrees(newBoatVelocityAngle)}° ${toCardinal(newBoatVelocityAngle)}`;
                 }
 
                 requestAnimationFrame(animate);
