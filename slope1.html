@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinematics Graph Matching Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Darker blue-gray */
+            color: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .quiz-container {
+            background-color: #1f2937; /* Even darker blue-gray */
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 2rem;
+            width: 100%;
+            max-width: 1000px;
+        }
+        .prompt-graph-container {
+            background-color: #374151;
+            border-radius: 1rem;
+            padding: 1rem;
+            border: 2px solid #4b5563;
+        }
+        .graph-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .graph-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .graph-option-card {
+            background-color: #4b5563;
+            border: 3px solid transparent;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            transform: scale(1);
+        }
+        .graph-option-card:hover {
+            transform: scale(1.05);
+            border-color: #60a5fa;
+        }
+        .graph-option-card.correct {
+            border-color: #4ade80;
+            background-color: #22c55e20;
+        }
+        .graph-option-card.incorrect {
+            border-color: #f87171;
+            background-color: #ef444420;
+        }
+        canvas {
+            border-radius: 0.5rem;
+            background-color: #1f2937;
+            width: 100%;
+            height: auto;
+        }
+        .feedback-box {
+            background-color: #111827;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            border-left: 5px solid #f87171;
+            display: none;
+        }
+        .result-box-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .result-box {
+            background-color: #1f2937;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 90%;
+            max-width: 500px;
+        }
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 9999;
+        }
+        .confetti {
+            width: 10px;
+            height: 20px;
+            background-color: var(--color);
+            position: absolute;
+            opacity: 0;
+            animation: fall 5s linear infinite;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotateZ(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <!-- Header -->
+        <div class="text-center border-b border-gray-700 pb-4 mb-6">
+            <h1 class="text-4xl font-extrabold text-white">Kinematics Graph Quiz</h1>
+            <p id="question-prompt" class="text-lg text-gray-400 mt-2"></p>
+        </div>
+
+        <!-- Prompt Graph -->
+        <div class="prompt-graph-container">
+            <h2 id="prompt-graph-title" class="text-center text-xl font-bold mb-2 text-gray-200"></h2>
+            <canvas id="prompt-canvas"></canvas>
+        </div>
+
+        <!-- Answer Options -->
+        <div id="graph-options" class="graph-options mt-6">
+            <!-- Graph options are dynamically generated here -->
+        </div>
+        
+        <!-- Feedback Box -->
+        <div id="feedback-box" class="feedback-box">
+            <p id="feedback-title" class="text-lg font-bold text-red-400 mb-2"></p>
+            <p id="feedback-message" class="text-gray-300"></p>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <div id="score-display" class="text-xl font-bold text-gray-300">Score: 0 / 0</div>
+            <button id="next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105" style="display: none;">Next</button>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="result-box-container" class="result-box-container">
+        <div class="result-box">
+            <h3 id="result-title" class="text-4xl font-extrabold mb-4"></h3>
+            <p id="result-message" class="text-lg text-gray-300 mb-6"></p>
+            <div class="flex flex-col space-y-4">
+                 <button id="bonus-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200" style="display: none;">Attempt Bonus Question!</button>
+                 <button id="restart-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200">Restart Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confetti-container" class="confetti-container"></div>
+
+    <script>
+        // --- DOM Elements ---
+        const questionPromptEl = document.getElementById('question-prompt');
+        const promptGraphTitleEl = document.getElementById('prompt-graph-title');
+        const promptCanvas = document.getElementById('prompt-canvas');
+        const graphOptionsEl = document.getElementById('graph-options');
+        const scoreDisplayEl = document.getElementById('score-display');
+        const nextBtnEl = document.getElementById('next-btn');
+        const feedbackBoxEl = document.getElementById('feedback-box');
+        const feedbackTitleEl = document.getElementById('feedback-title');
+        const feedbackMessageEl = document.getElementById('feedback-message');
+        const resultBoxContainerEl = document.getElementById('result-box-container');
+        const resultTitleEl = document.getElementById('result-title');
+        const resultMessageEl = document.getElementById('result-message');
+        const restartBtnEl = document.getElementById('restart-btn');
+        const bonusBtnEl = document.getElementById('bonus-btn');
+        const confettiContainerEl = document.getElementById('confetti-container');
+
+        // --- Game State ---
+        const state = {
+            questions: [],
+            currentQuestionIndex: 0,
+            score: 0,
+            totalQuestions: 5,
+            isAnswered: false,
+        };
+
+        // --- Motion & Graph Logic ---
+
+        function getRandom(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+        
+        function generateMotionParameters() {
+            const a = Math.random() < 0.25 ? 0 : (Math.random() < 0.5 ? 1 : -1) * getRandom(0.5, 2);
+            const v0 = (Math.random() < 0.25 && a !== 0) ? 0 : (Math.random() < 0.5 ? 1 : -1) * getRandom(2, 5);
+            const x0 = (Math.random() < 0.25) ? 0 : (Math.random() < 0.5 ? 1 : -1) * getRandom(2, 5);
+            return { x0, v0, a, jerk: 0 }; 
+        }
+        
+        function generateDistractors(correctParams, questionType) {
+            const distractors = new Map();
+            const p = correctParams;
+
+            const getSignature = (params) => {
+                const [, answer] = questionType.split('_to_');
+                if (answer === 'a-t') return `a=${params.a.toFixed(2)},jerk=${(params.jerk || 0).toFixed(2)}`;
+                if (answer === 'v-t') return `v0_sign=${Math.sign(params.v0)},a_sign=${Math.sign(params.a)}`;
+                return `x0=${params.x0.toFixed(2)}, v0=${params.v0.toFixed(2)}, a=${params.a.toFixed(2)}`;
+            };
+
+            const addDistractor = (params) => {
+                if (distractors.size >= 4) return;
+                const sig = getSignature(params);
+                if (!distractors.has(sig)) {
+                    distractors.set(sig, params);
+                }
+            };
+
+            addDistractor(p);
+
+            const potentialDistractors = [];
+            if (questionType.endsWith('_to_a-t')) {
+                potentialDistractors.push({ ...p, a: 0, jerk: 0 });
+                potentialDistractors.push({ ...p, a: (p.a !== 0 ? -p.a : (Math.random() > 0.5 ? 1 : -1)), jerk: 0 });
+                potentialDistractors.push({ ...p, a: getRandom(-1, 1), jerk: (Math.random() > 0.5 ? 1 : -1) * getRandom(0.3, 0.8) });
+
+            } else if (questionType.endsWith('_to_v-t')) {
+                // --- FIX: Generate conceptually different distractors for v-t graphs ---
+                // 1. Opposite acceleration (slope)
+                potentialDistractors.push({ ...p, a: -p.a });
+                // 2. Zero acceleration (constant velocity / horizontal line)
+                if (p.a !== 0) potentialDistractors.push({ ...p, a: 0 });
+                // 3. Opposite initial velocity (y-intercept)
+                potentialDistractors.push({ ...p, v0: -p.v0 });
+                // 4. Zero initial velocity
+                if (p.v0 !== 0) potentialDistractors.push({ ...p, v0: 0 });
+                 // 5. A different non-zero initial velocity if original was zero
+                if (p.v0 === 0) potentialDistractors.push({ ...p, v0: (Math.random() > 0.5 ? 1 : -1) * getRandom(2, 4) });
+                // 6. A different non-zero acceleration if original was zero
+                if (p.a === 0) potentialDistractors.push({ ...p, a: (Math.random() > 0.5 ? 1 : -1) * getRandom(0.5, 1.5) });
+            }
+
+            shuffleArray(potentialDistractors);
+
+            for (const distractorParams of potentialDistractors) {
+                addDistractor(distractorParams);
+            }
+
+            let attempts = 0;
+            while(distractors.size < 4 && attempts < 20) {
+                addDistractor(generateMotionParameters());
+                attempts++;
+            }
+
+            distractors.delete(getSignature(p));
+            return Array.from(distractors.values()).slice(0, 3);
+        }
+
+        function drawGraph(canvas, type, params, duration = 5, scaleOverride = null) {
+            const { x0, v0, a, jerk } = params;
+            const ctx = canvas.getContext('2d');
+            const { width, height } = canvas;
+            ctx.clearRect(0, 0, width, height);
+
+            const data = [];
+            const timeStep = duration / 100;
+            for (let t = 0; t <= duration; t += timeStep) {
+                if (type === 'position') data.push(x0 + v0 * t + 0.5 * a * t * t);
+                else if (type === 'velocity') data.push(v0 + a * t);
+                else if (type === 'acceleration') {
+                    data.push(a + (jerk || 0) * t);
+                }
+            }
+
+            let viewMin, viewMax;
+
+            if (scaleOverride) {
+                viewMin = scaleOverride.min;
+                viewMax = scaleOverride.max;
+            } else {
+                const dataMin = Math.min(...data);
+                const dataMax = Math.max(...data);
+                viewMin = Math.min(dataMin, 0);
+                viewMax = Math.max(dataMax, 0);
+            }
+            
+            let padding = (viewMax - viewMin) * 0.15;
+            if (padding === 0) padding = 1;
+
+            const plotMax = viewMax + padding;
+            const plotMin = viewMin - padding;
+            const plotRange = plotMax - plotMin;
+            
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 2;
+            ctx.font = '12px Inter';
+            ctx.fillStyle = '#e5e7eb';
+
+            const yAxisX = ctx.lineWidth;
+            ctx.beginPath();
+            ctx.moveTo(yAxisX, 0);
+            ctx.lineTo(yAxisX, height);
+            ctx.stroke();
+
+            let zeroY_pixels = plotRange > 0 ? height * (1 - (0 - plotMin) / plotRange) : height / 2;
+            const axisMargin = 1;
+            if (zeroY_pixels < axisMargin) zeroY_pixels = axisMargin;
+            if (zeroY_pixels > height - axisMargin) zeroY_pixels = height - axisMargin;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, zeroY_pixels);
+            ctx.lineTo(width, zeroY_pixels);
+            ctx.stroke();
+            
+            ctx.textAlign = 'center';
+
+            let timeLabelY = zeroY_pixels - 5;
+            ctx.textBaseline = 'alphabetic';
+            if (timeLabelY < 12) {
+                timeLabelY = zeroY_pixels + 5;
+                ctx.textBaseline = 'top';
+            }
+            ctx.fillText('Time', width - 20, timeLabelY);
+
+            const typeLabels = { 'position': 'Pos', 'velocity': 'Vel', 'acceleration': 'Acc' };
+            ctx.textBaseline = 'alphabetic';
+            ctx.textAlign = 'left';
+            ctx.fillText(typeLabels[type], yAxisX + 5, 12);
+
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            data.forEach((val, i) => {
+                const plotWidth = width - yAxisX;
+                const x = yAxisX + (i / (data.length - 1)) * plotWidth;
+                let y = height / 2;
+                if (plotRange > 0) {
+                    y = height * (1 - (val - plotMin) / plotRange);
+                }
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function getFeedback(type, params) {
+            const { v0, a } = params;
+            let feedback = '';
+
+            if (type === 'x-t_to_v-t') {
+                feedback = '<strong>Recall:</strong> The slope of a position-time graph gives the velocity. ';
+                if (a === 0) {
+                    feedback += `The position graph is a straight line, meaning its slope (velocity) is constant. Since the slope is ${v0 > 0 ? 'positive' : 'negative'}, the velocity graph must be a horizontal line ${v0 > 0 ? 'above' : 'below'} the time axis.`;
+                } else {
+                    feedback += `The position graph is a parabola. Its slope is changing. `;
+                    if (a > 0) feedback += `Since the parabola opens upwards, its slope is constantly increasing. This means the velocity graph must be a straight line with a positive slope. `;
+                    else feedback += `Since the parabola opens downwards, its slope is constantly decreasing. This means the velocity graph must be a straight line with a negative slope. `;
+                    if (v0 > 0) feedback += `The initial slope is positive, so the velocity graph must start above the time axis.`
+                    else if (v0 < 0) feedback += `The initial slope is negative, so the velocity graph must start below the time axis.`
+                    else feedback += `The initial slope is zero (horizontal), so the velocity graph must start at zero.`
+                }
+            } else { // v-t to a-t
+                feedback = '<strong>Recall:</strong> The slope of a velocity-time graph gives the acceleration. The velocity graph is a straight line, which means its slope is constant. Therefore, the acceleration graph MUST be a horizontal line. ';
+                if (a === 0) {
+                    feedback += `The slope is zero, so the acceleration is zero (a=0).`;
+                } else {
+                    feedback += `Since the slope is ${a > 0 ? 'positive' : 'negative'}, the acceleration is constant and ${a > 0 ? 'positive' : 'negative'}.`;
+                }
+            }
+            return feedback;
+        }
+        
+        function generateQuizQuestions() {
+            state.questions = [];
+            
+            const questionTemplates = [
+                { type: 'v-t_to_a-t', accelSign: 1 },
+                { type: 'v-t_to_a-t', accelSign: -1 },
+                { type: 'v-t_to_a-t', accelSign: 0 },
+                { type: 'x-t_to_v-t', accelSign: 1 },
+                { type: 'x-t_to_v-t', accelSign: -1 },
+                { type: 'x-t_to_v-t', accelSign: 0 },
+            ];
+
+            shuffleArray(questionTemplates); 
+
+            const generateSpecificMotion = (accelSign) => {
+                const a = accelSign === 0 ? 0 : accelSign * getRandom(0.5, 2);
+                const v0 = (Math.random() < 0.25 && a !== 0) ? 0 : (Math.random() < 0.5 ? 1 : -1) * getRandom(2, 5);
+                const x0 = (Math.random() < 0.25) ? 0 : (Math.random() < 0.5 ? 1 : -1) * getRandom(2, 5);
+                return { x0, v0, a, jerk: 0 };
+            };
+            
+            for (let i = 0; i < state.totalQuestions; i++) {
+                const template = questionTemplates[i % questionTemplates.length];
+                const type = template.type;
+                
+                const correctParams = generateSpecificMotion(template.accelSign);
+                const distractorParams = generateDistractors(correctParams, type);
+                
+                const options = shuffleArray([...distractorParams, correctParams]);
+                const correctIndex = options.findIndex(opt => 
+                    opt.x0 === correctParams.x0 && opt.v0 === correctParams.v0 && opt.a === correctParams.a && (opt.jerk || 0) === (correctParams.jerk || 0)
+                );
+
+                state.questions.push({ type, correctParams, options, correctIndex, feedback: getFeedback(type, correctParams) });
+            }
+            
+            const bonusType = 'x-t_to_v-t';
+            const bonusParams = {x0: getRandom(-5,5), v0:getRandom(3,6), a: -getRandom(0.5,2), jerk: 0};
+            const bonusDistractors = generateDistractors(bonusParams, bonusType);
+            const bonusOptions = shuffleArray([...bonusDistractors, bonusParams]);
+            state.bonusQuestion = {
+                type: bonusType,
+                correctParams: bonusParams,
+                options: bonusOptions,
+                correctIndex: bonusOptions.findIndex(opt => 
+                    opt.x0 === bonusParams.x0 && opt.v0 === bonusParams.v0 && opt.a === bonusParams.a && (opt.jerk || 0) === (bonusParams.jerk || 0)
+                ),
+                feedback: getFeedback(bonusType, bonusParams)
+            };
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- Game Flow ---
+
+        function startGame() {
+            state.score = 0;
+            state.currentQuestionIndex = 0;
+            state.isAnswered = false;
+            resultBoxContainerEl.style.display = 'none';
+            confettiContainerEl.innerHTML = '';
+            nextBtnEl.style.display = 'none';
+            generateQuizQuestions();
+            showQuestion();
+        }
+
+        function showQuestion(isBonus = false) {
+            feedbackBoxEl.style.display = 'none';
+            nextBtnEl.style.display = 'none';
+            state.isAnswered = false;
+            
+            const question = isBonus ? state.bonusQuestion : state.questions[state.currentQuestionIndex];
+            const [promptType, answerType] = question.type.split('_to_');
+            const typeMap = { 'x-t': 'Position', 'v-t': 'Velocity', 'a-t': 'Acceleration' };
+            const typeNameMap = { 'x-t': 'position', 'v-t': 'velocity', 'a-t': 'acceleration' };
+
+            questionPromptEl.textContent = `Select the correct ${typeMap[answerType]} vs. Time graph that matches the given ${typeMap[promptType]} vs. Time graph.`;
+            promptGraphTitleEl.textContent = `${typeMap[promptType]} vs. Time`;
+            scoreDisplayEl.textContent = `Score: ${state.score} / ${isBonus ? state.totalQuestions : state.currentQuestionIndex}`;
+            
+            promptCanvas.width = 400;
+            promptCanvas.height = 250;
+            drawGraph(promptCanvas, typeNameMap[promptType], question.correctParams);
+
+            let globalMin = Infinity;
+            let globalMax = -Infinity;
+            const duration = 5;
+
+            question.options.map(params => {
+                const data = [];
+                const timeStep = duration / 100;
+                for (let t = 0; t <= duration; t += timeStep) {
+                     if (typeNameMap[answerType] === 'position') data.push(params.x0 + params.v0 * t + 0.5 * params.a * t * t);
+                     else if (typeNameMap[answerType] === 'velocity') data.push(params.v0 + params.a * t);
+                     else if (typeNameMap[answerType] === 'acceleration') data.push(params.a + (params.jerk || 0) * t);
+                }
+                const dataMin = Math.min(...data);
+                const dataMax = Math.max(...data);
+                if (dataMin < globalMin) globalMin = dataMin;
+                if (dataMax > globalMax) globalMax = dataMax;
+                return data;
+            });
+            
+            const globalScale = { min: Math.min(globalMin, 0), max: Math.max(globalMax, 0) };
+
+            graphOptionsEl.innerHTML = '';
+            question.options.forEach((params, index) => {
+                const card = document.createElement('div');
+                card.classList.add('graph-option-card');
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 250;
+                canvas.height = 250;
+                
+                card.appendChild(canvas);
+                graphOptionsEl.appendChild(card);
+                
+                drawGraph(canvas, typeNameMap[answerType], params, duration, globalScale);
+                
+                card.addEventListener('click', () => handleAnswer(card, index, isBonus));
+            });
+        }
+        
+        function handleAnswer(card, selectedIndex, isBonus) {
+            if (state.isAnswered) return;
+            state.isAnswered = true;
+
+            const question = isBonus ? state.bonusQuestion : state.questions[state.currentQuestionIndex];
+            const { correctIndex, feedback } = question;
+
+            if (selectedIndex === correctIndex) {
+                state.score++;
+                card.classList.add('correct');
+            } else {
+                card.classList.add('incorrect');
+                if(correctIndex > -1 && correctIndex < graphOptionsEl.children.length) {
+                    graphOptionsEl.children[correctIndex].classList.add('correct');
+                }
+                feedbackTitleEl.textContent = "Not Quite! Here's the Breakdown:";
+                feedbackMessageEl.innerHTML = feedback;
+                feedbackBoxEl.style.display = 'block';
+            }
+            
+            if (isBonus) {
+                 setTimeout(() => showFinalResults(selectedIndex === correctIndex), 1000);
+            } else {
+                 scoreDisplayEl.textContent = `Score: ${state.score} / ${state.currentQuestionIndex + 1}`;
+                 nextBtnEl.style.display = 'block';
+            }
+        }
+        
+        function nextQuestion() {
+            state.currentQuestionIndex++;
+            if (state.currentQuestionIndex >= state.totalQuestions) {
+                showResults();
+            } else {
+                showQuestion();
+            }
+        }
+
+        function showResults() {
+             resultBoxContainerEl.style.display = 'flex';
+             restartBtnEl.style.display = 'block';
+
+            if (state.score === state.totalQuestions) {
+                resultTitleEl.textContent = 'Perfect Score!';
+                resultMessageEl.textContent = `Incredible work! You got ${state.score}/${state.totalQuestions}. Ready for a true challenge?`;
+                bonusBtnEl.style.display = 'block';
+                restartBtnEl.style.display = 'none';
+            } else {
+                showFinalResults(false);
+            }
+        }
+
+        function showFinalResults(bonusSuccess = false) {
+             resultBoxContainerEl.style.display = 'flex';
+             bonusBtnEl.style.display = 'none';
+             restartBtnEl.style.display = 'block';
+             
+             let finalScore = state.score;
+             const total = state.totalQuestions;
+             
+             if(bonusSuccess) {
+                finalScore = total + 1;
+                resultTitleEl.textContent = 'Kinematics Master!';
+                resultMessageEl.innerHTML = `You've achieved a flawless victory! <br>Final Score: <span class="font-extrabold text-yellow-400 text-2xl">${finalScore}/${total}</span>`;
+                triggerConfetti();
+             } else {
+                const scoreForMessage = (state.currentQuestionIndex >= total && finalScore === total && !bonusSuccess) ? total : finalScore;
+
+                const messages = [
+                    "Keep practicing! Every attempt is progress.", // 0
+                    "A good start! Review the feedback to learn more.", // 1
+                    "Solid effort! You're building a good foundation.", // 2
+                    "Nice job! You have a strong grasp of the concepts.", // 3
+                    "Excellent! You're very close to mastering this.", // 4
+                    "Outstanding! You aced the main quiz!" // 5
+                ];
+                 if (state.currentQuestionIndex >= total && finalScore === total && !bonusSuccess) {
+                     resultTitleEl.textContent = "So Close!";
+                     resultMessageEl.innerHTML = `You aced the main quiz but missed the bonus. A fantastic effort! <br>Final Score: <span class="font-bold text-xl">${finalScore}/${total}</span>`;
+                 } else {
+                    resultTitleEl.textContent = 'Quiz Complete!';
+                    resultMessageEl.innerHTML = `${messages[scoreForMessage] || messages[0]} <br>Final Score: <span class="font-bold text-xl">${finalScore}/${total}</span>`;
+                 }
+             }
+             scoreDisplayEl.textContent = `Final Score: ${finalScore > total ? total : finalScore} / ${total}`;
+        }
+        
+        function triggerConfetti() {
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+                confettiContainerEl.appendChild(confetti);
+            }
+            setTimeout(() => confettiContainerEl.innerHTML = '', 5000);
+        }
+
+        // --- Event Listeners ---
+        nextBtnEl.addEventListener('click', nextQuestion);
+        restartBtnEl.addEventListener('click', startGame);
+        bonusBtnEl.addEventListener('click', () => {
+            resultBoxContainerEl.style.display = 'none';
+            showQuestion(true);
+        });
+
+        // --- Initial Start ---
+        window.onload = startGame;
+    </script>
+</body>
+</html>
+
+Download
+Displaying kinematics graphing match quiz.html.
