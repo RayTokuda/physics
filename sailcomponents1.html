@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sailboat Vector Challenge 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        #gameCanvas {
+            background-color: #1e3a8a; /* Deep blue water for the game canvas */
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        #confettiCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen p-2 sm:p-4 overflow-hidden">
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <div id="game-container" class="w-full max-w-6xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 relative z-10">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-gray-700 pb-4">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-xl sm:text-3xl font-extrabold text-cyan-400 text-center sm:text-left">Sailboat Vector Challenge 1</h1>
+                <span id="studentBadge" class="hidden bg-cyan-900/80 text-cyan-200 border border-cyan-500/50 text-xs sm:text-sm px-3 py-1 rounded-full font-semibold"></span>
+            </div>
+            <div class="flex items-center space-x-2 sm:space-x-4 text-md mt-2 sm:mt-0">
+                <div class="bg-gray-700 px-4 py-2 rounded-lg shadow-inner flex items-baseline">
+                    <span class="text-lg font-medium text-gray-200">Score: <span id="score" class="font-extrabold text-yellow-400 text-2xl sm:text-3xl ml-1 drop-shadow-md">0</span></span>
+                </div>
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Problem: <span id="problem" class="font-bold text-green-400">1 / 5</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow w-full flex flex-col lg:flex-row gap-4 min-h-0">
+            <!-- Left Panel: Info & Controls -->
+            <div class="lg:w-1/3 flex flex-col bg-gray-900/50 rounded-lg p-4">
+                <div class="flex-grow overflow-y-auto pr-2">
+                    <div id="instructions-section">
+                        <h2 class="text-lg font-bold text-amber-400 mb-2 border-b border-gray-700 pb-2">Instructions</h2>
+                        <p id="instructions" class="text-gray-300">The wind creates a force perpendicular to the sail (yellow vector). Your task is to resolve this force into two components:</p>
+                        <ul class="list-disc list-inside text-gray-300 mt-2 space-y-1">
+                            <li>One parallel to the boat's hull (thrust).</li>
+                            <li>One perpendicular to the boat's hull (heeling).</li>
+                        </ul>
+                         <p class="mt-2" id="feedback-text"></p>
+                    </div>
+                    
+                    <div id="motion-prediction-section" class="hidden mt-4">
+                         <h2 class="text-lg font-bold text-amber-400 mb-2 border-b border-gray-700 pb-2">Phase 2: Predict Motion</h2>
+                         <p class="text-gray-300 mb-3">Based on your components, will the boat move forward, backward, or stay still?</p>
+                         <div class="space-y-2 text-lg">
+                             <div><label class="flex items-center cursor-pointer"><input type="radio" name="motion" value="forward" class="mr-2 h-4 w-4 text-cyan-500"> Forward</label></div>
+                             <div><label class="flex items-center cursor-pointer"><input type="radio" name="motion" value="backward" class="mr-2 h-4 w-4 text-cyan-500"> Backward</label></div>
+                             <div><label class="flex items-center cursor-pointer"><input type="radio" name="motion" value="stationary" class="mr-2 h-4 w-4 text-cyan-500"> Stationary</label></div>
+                         </div>
+                    </div>
+                </div>
+
+                <div class="flex-shrink-0 flex flex-col justify-center items-center mt-4 space-y-2 pt-4 border-t border-gray-700">
+                    <button id="checkButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Check Components</button>
+                    <button id="motionButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg transition-all duration-200 hidden disabled:opacity-50 disabled:cursor-not-allowed">Submit Prediction</button>
+                    <div class="flex gap-2 w-full">
+                        <button id="resetButton" class="w-1/2 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-3 rounded-lg text-sm transition-all duration-200">Erase Line</button>
+                        <button id="quitButton" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-3 rounded-lg text-sm transition-all duration-200">Quit & Score</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas -->
+            <div id="canvasContainer" class="flex-grow w-full min-h-[300px] lg:min-h-0 relative rounded-lg overflow-hidden bg-gray-900/50">
+                 <canvas id="gameCanvas" class="absolute top-0 left-0 w-full h-full block touch-none"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Name Input Modal (Start Screen) -->
+    <div id="nameModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl border border-gray-700 max-w-md w-full">
+            <div class="text-4xl mb-3">⛵</div>
+            <h2 class="text-2xl font-bold text-cyan-400 mb-2">Welcome to Challenge 1</h2>
+            <p class="text-gray-300 text-sm mb-6">Master force vector decomposition on sailboats. Please enter your full name to get started:</p>
+            <form id="nameForm" onsubmit="handleNameSubmit(event)" class="space-y-4">
+                <input type="text" id="studentNameInput" placeholder="Enter Student Name" required class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 text-center font-medium">
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-xl transition-transform duration-200 hover:scale-105 shadow-lg">Start Challenge</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- General / Results Modal -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+        <div id="modalContent" class="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl border border-gray-700 transform scale-95 opacity-0 modal max-w-lg w-full">
+            <h2 id="modalTitle" class="text-2xl sm:text-3xl font-extrabold mb-3"></h2>
+            <p id="modalMessage" class="text-base sm:text-lg text-gray-200 mb-6 leading-relaxed"></p>
+            <div id="verificationContainer" class="hidden mb-6 p-3 bg-gray-900/80 rounded-lg border border-gray-700/60">
+                <p class="text-xs text-gray-400 tracking-wider font-mono">OFFICIAL VERIFICATION CODE</p>
+                <p id="verificationCode" class="text-sm font-mono font-bold text-cyan-400 tracking-widest mt-1 select-all"></p>
+            </div>
+            <div id="modalButtons" class="flex justify-center gap-3 flex-wrap">
+                <button id="modalButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer') || canvas.parentElement;
+        const scoreEl = document.getElementById('score');
+        const problemEl = document.getElementById('problem');
+        const instructionsEl = document.getElementById('instructions');
+        const feedbackEl = document.getElementById('feedback-text');
+        const checkButton = document.getElementById('checkButton');
+        const resetButton = document.getElementById('resetButton');
+        const quitButton = document.getElementById('quitButton');
+        const motionSection = document.getElementById('motion-prediction-section');
+        const motionButton = document.getElementById('motionButton');
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const modalButtonsEl = document.getElementById('modalButtons');
+        const verificationContainer = document.getElementById('verificationContainer');
+        const verificationCodeEl = document.getElementById('verificationCode');
+        const nameModal = document.getElementById('nameModal');
+        const studentNameInput = document.getElementById('studentNameInput');
+        const studentBadge = document.getElementById('studentBadge');
+
+        // State variables
+        let studentName = "";
+        let score = 0, currentProblemIndex = 0;
+        let problems = [];
+        let windForce, parallelComp, perpComp;
+        let userComponents = [], currentDrawingComponent = null;
+        let gameState = 'drawing';
+        let mistakesThisGame = false;
+        let perfectComponents = true; // For high precision 11/10 bonus
+        let isBonusRound = false;
+        const TOLERANCE = 15;
+        const BULLSEYE_TOLERANCE = 5;
+        const VECTOR_ZERO_THRESHOLD = 1;
+        let closeModalTimeout = null;
+
+        const CONGRATS_MESSAGES = [
+            "You are a true master of vector physics! Absolutely astonishing performance!",
+            "Virtuoso level execution! The wind and waves bend to your calculations!",
+            "Unbelievable accuracy! You made vector decomposition look like child's play!",
+            "Mind-blowing precision! Newton himself is standing up and applauding!",
+            "Galileo level genius! Every component was positioned with absolute perfection!",
+            "Phenomenal work! You have conquered forces, angles, and thrust like a seasoned sea captain!",
+            "A masterclass in vector kinematics! Flawless analytical thinking!",
+            "Sensational talent! You solved these vector components with surgical precision!",
+            "Outstanding spatial reasoning! You are an absolute physics superstar!",
+            "Stunning performance! Perfect vector resolution from start to finish!",
+            "Extraordinary triumph! Your understanding of force components is peerless!",
+            "Magnificent sailing mechanics! You calculated every vector like a pro computational physicist!",
+            "Top-tier mathematical brilliance! You completely dominated this exercise!",
+            "A breathtaking display of vector analysis! Pure intellectual perfection!",
+            "Sublime accuracy! Your force resolution skills are second to none!",
+            "A legendary run! You navigated through every single force diagram effortlessly!",
+            "Incredible physical intuition! You resolved those vectors with complete mastery!",
+            "Supreme excellence! Your vector components were aligned to perfection!",
+            "Epic triumph! You wield physics principles like magic!",
+            "Astonishing speed and accuracy! You are officially a Vector Champion!",
+            "World-class mechanics work! Every parallel and perpendicular vector was spot on!",
+            "Absolute perfection! You solved all vector decomposition problems flawlessly!",
+            "A stellar achievement! Your vector decomposition skills are truly astronomical!",
+            "Brilliant work! You turned complex force vectors into an easy victory!",
+            "Flawless execution! You resolved every force vector with absolute mastery!",
+            "Astounding analytical power! Your force component drawing was pristine!",
+            "Infallible physics intuition! You dominated both thrust and heeling components!",
+            "An immaculate performance! You didn't miss a single degree or pixel!",
+            "Phenomenal vector mastery! You are top of the class in nautical mechanics!",
+            "Heroic physics skills! You resolved force components like a master engineer!",
+            "A masterpiece of problem solving! Every vector tail and tip was flawless!",
+            "Radiant intellect on display! You completely dismantled these force problems!",
+            "Masterful navigation! Your force calculations guarantee smooth sailing!",
+            "An awe-inspiring score! Your vector component accuracy is off the charts!",
+            "Dynamite performance! You crushed every single force component problem!",
+            "A triumph of logic and geometry! You resolved vectors like a natural!",
+            "Spectacular physics victory! You hit every vector component dead center!",
+            "Unrivaled mechanics expertise! You resolved those thrust vectors like a genius!",
+            "Pure brilliance! Your vector resolution technique is textbook perfect!",
+            "A truly majestic performance! You sailed through every force resolution!",
+            "Grade-A vector expertise! You made resolving forces look easy!",
+            "Tremendous accomplishment! You mastered vector components in record time!",
+            "Virtually flawless execution! You possess legendary physics intuition!",
+            "A sensational score! You resolved force components with extreme flair!",
+            "Glorious analytical prowess! The laws of mechanics are clearly your best friend!",
+            "Exceptional skill! You nailed every parallel thrust and perpendicular heel vector!",
+            "Mind-bending precision! You resolved vector components with absolute mastery!",
+            "A golden performance! Your force vector breakdown was pure art!",
+            "Formidable intellect! You crushed every single sailboat mechanics puzzle!",
+            "Superb performance! You mastered vector addition and resolution inside out!",
+            "Astounding success! You drew vector components with absolute confidence!",
+            "Prodigious physics talent! Your force decomposition is flawless!",
+            "Unbeatable precision! You resolved every force vector like an absolute expert!",
+            "A crowning achievement! You conquered the sailboat vector challenge with ease!",
+            "Exemplary mechanics work! You broke down every force vector effortlessly!",
+            "Dazzling spatial skill! Your component vectors were spot on every time!",
+            "Unstoppable vector mastery! You solved every single layout with ease!",
+            "Phenomenal clarity of thought! Your force component intuition is top notch!",
+            "A pristine scorecard! You resolved thrust and heeling vectors like a champion!",
+            "Incredible visual precision! Your vector alignment was 100% sharp!",
+            "Remarkable vector breakdown! You conquered every sailboat geometry with ease!",
+            "First-rate physical insight! Your resolution of wind forces was flawless!",
+            "A triumph of mechanics! You resolved every single force component flawlessly!",
+            "Elite physics capabilities! You handled every vector scenario like a true scholar!",
+            "Inspiring performance! You showed complete command of vector components!",
+            "Striking accuracy! You resolved all thrust forces with absolute certainty!",
+            "Breathtaking vector mastery! You navigated the forces of nature perfectly!",
+            "Grand slam physics score! You nailed every component vector on the boat!",
+            "Unmatched accuracy! Your component drawings were pinpoint perfect!",
+            "Sensational vector prowess! You decoded sailboat forces with ease!",
+            "Astonishing vector clarity! You resolved every force diagram effortlessly!",
+            "Peak physics performance! You reached the pinnacle of vector decomposition!",
+            "Incomparable skill! You resolved every force component with unmatched finesse!",
+            "Master-class vector breakdown! Every parallel component was right on target!",
+            "Tremendous vector fluency! You read the sailboat force diagrams like a book!",
+            "Exquisite physical accuracy! You resolved forces with zero error!",
+            "Magical spatial intelligence! You drew vector components with total authority!",
+            "Sublime force mechanics! You decomposed every vector flawlessly!",
+            "Supreme vector expertise! Your understanding of sailboat mechanics is elite!",
+            "Monumental victory! You resolved every force component with total precision!",
+            "Unflappable accuracy! You solved every vector problem with supreme ease!",
+            "Radiant mechanics talent! Your force component solutions were crystalline!",
+            "Superlative skill! You resolved forces with the mind of a true physicist!",
+            "A legendary showcase of talent! You mastered vector resolution completely!",
+            "Brilliant vector execution! You drew every thrust vector with zero hesitation!",
+            "Commanding victory! You resolved all sailboat force components like a master!",
+            "Flawless scientific skill! Your vector drawings were textbook grade!",
+            "Peerless vector decomposition! You proved your mastery of classical mechanics!",
+            "Spectacular physics intuition! You resolved forces with ultimate precision!",
+            "Out-of-this-world score! Your vector skills are lightyears ahead!",
+            "A triumph of applied mathematics! You decomposed forces like a seasoned professor!",
+            "Astonishing force resolution! You nailed both parallel and perpendicular vectors!",
+            "Precious physical insight! You resolved force components without breaking a sweat!",
+            "Superior vector dexterity! Your component drawings were perfectly scaled!",
+            "Majestic force breakdown! You conquered every boat angle with ease!",
+            "Phenomenal mechanics execution! You resolved vector components in record time!",
+            "Infallible vector accuracy! You solved every component puzzle effortlessly!",
+            "Top-tier physical intuition! You resolved thrust vectors like a true captain!",
+            "Unrivaled vector power! You conquered the sailboat challenge with a flawless score!",
+            "Absolute mechanical dominance! You solved every single vector diagram effortlessly!",
+            "Supercharged physics brain! You resolved force vectors like a supercomputer!",
+            "A masterclass in nautical physics! You conquered the vector challenge completely!"
+        ];
+
+        function handleNameSubmit(e) {
+            e.preventDefault();
+            const val = studentNameInput.value.trim();
+            if (!val) return;
+            studentName = val;
+            studentBadge.textContent = `Student: ${studentName}`;
+            studentBadge.classList.remove('hidden');
+            nameModal.classList.add('hidden');
+            startGame();
+        }
+
+        const confettiCanvas = document.getElementById('confettiCanvas');
+        const cCtx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+        let confettiAnimationId = null;
+
+        function resizeConfettiCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeConfettiCanvas);
+        resizeConfettiCanvas();
+
+        function launchBallisticConfettiRound() {
+            const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#06b6d4'];
+            const particleCount = 100;
+            const origins = [
+                { x: window.innerWidth * 0.15, y: window.innerHeight },
+                { x: window.innerWidth * 0.5, y: window.innerHeight },
+                { x: window.innerWidth * 0.85, y: window.innerHeight }
+            ];
+
+            origins.forEach(orig => {
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+                    const speed = Math.random() * 18 + 14;
+                    confettiParticles.push({
+                        x: orig.x,
+                        y: orig.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        gravity: 0.35,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        size: Math.random() * 8 + 6,
+                        rotation: Math.random() * Math.PI * 2,
+                        vRot: (Math.random() - 0.5) * 0.2,
+                        opacity: 1,
+                        drag: 0.985
+                    });
+                }
+            });
+
+            if (!confettiAnimationId) {
+                animateConfetti();
+            }
+        }
+
+        function triggerBallisticConfetti(rounds) {
+            confettiParticles = [];
+            for (let r = 0; r < rounds; r++) {
+                setTimeout(() => {
+                    launchBallisticConfettiRound();
+                }, r * 900);
+            }
+        }
+
+        function animateConfetti() {
+            cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const p = confettiParticles[i];
+                p.vx *= p.drag;
+                p.vy *= p.drag;
+                p.vy += p.gravity;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rotation += p.vRot;
+                p.opacity -= 0.006;
+
+                if (p.opacity <= 0 || p.y > confettiCanvas.height + 50) {
+                    confettiParticles.splice(i, 1);
+                    continue;
+                }
+
+                cCtx.save();
+                cCtx.translate(p.x, p.y);
+                cCtx.rotate(p.rotation);
+                cCtx.globalAlpha = Math.max(0, p.opacity);
+                cCtx.fillStyle = p.color;
+                cCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                cCtx.restore();
+            }
+
+            if (confettiParticles.length > 0) {
+                confettiAnimationId = requestAnimationFrame(animateConfetti);
+            } else {
+                confettiAnimationId = null;
+                cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            }
+        }
+
+        function generateVerificationCode(name, scoreVal) {
+            const cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
+            let hash = 0;
+            const str = `${name}-${scoreVal}-${Date.now()}`;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            const hashHex = Math.abs(hash).toString(16).toUpperCase().padStart(6, '0');
+            return `SVC1-${cleanName}-${scoreVal}PTS-${hashHex}`;
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvasContainer.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return; // Wait for layout to resolve
+            
+            // Adjust the internal drawing buffer based on true screen dimensions
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            draw();
+        }
+
+        function startGame() {
+            score = 0;
+            currentProblemIndex = 0;
+            mistakesThisGame = false;
+            perfectComponents = true;
+            isBonusRound = false;
+            generateProblems();
+            startProblem();
+        }
+
+        function generateProblems() {
+            problems = [];
+            const configs = [];
+            const minAngleRad = 8 * Math.PI / 180;
+            const cosMin = Math.cos(minAngleRad);
+            const sinMin = Math.sin(minAngleRad);
+
+            // 5 problem configurations
+            configs.push({type: 'stationary'});
+            configs.push({type: 'parallel'});
+            configs.push({type: 'forward'});
+            configs.push({type: 'backward'});
+            configs.push({type: Math.random() < 0.5 ? 'forward' : 'backward'});
+
+            const finalConfigs = [];
+            for(const config of configs) {
+                 let newConfig;
+                 do {
+                     const boatAngle = Math.random() * 360;
+                     let sailAngle;
+                     switch(config.type) {
+                         case 'stationary':
+                             sailAngle = boatAngle + 180 + (Math.random() * 10 - 5);
+                             break;
+                         case 'parallel':
+                             sailAngle = boatAngle + (Math.random() < 0.5 ? -90 : 90);
+                             break;
+                         case 'forward':
+                             sailAngle = boatAngle - 90 + (Math.random() * 60 - 30);
+                             break;
+                         case 'backward':
+                              sailAngle = boatAngle + 90 + (Math.random() * 60 - 30);
+                             break;
+                     }
+                     newConfig = {b: boatAngle, s: sailAngle};
+                 } while ((config.type === 'forward' || config.type === 'backward') && isComponentTooSmall(newConfig, sinMin, cosMin));
+                 finalConfigs.push(newConfig);
+            }
+
+            for (const config of finalConfigs) {
+                const boatAngleRad = config.b * Math.PI / 180;
+                const sailAngleRad = (config.s % 360 + 360) % 360 * Math.PI / 180;
+                let forceAngleRad;
+                if (Math.cos(sailAngleRad) >= 0) { forceAngleRad = sailAngleRad + Math.PI / 2; } 
+                else { forceAngleRad = sailAngleRad - Math.PI / 2; }
+                const forceVector = { dx: Math.cos(forceAngleRad), dy: Math.sin(forceAngleRad) };
+                const boatVector = { dx: Math.cos(boatAngleRad), dy: Math.sin(boatAngleRad) };
+                const dotProduct = forceVector.dx * boatVector.dx + forceVector.dy * boatVector.dy;
+                let expectedMotion;
+                if (dotProduct > 0.1) { expectedMotion = 'forward'; } 
+                else if (dotProduct < -0.1) { expectedMotion = 'backward'; }
+                else { expectedMotion = 'stationary'; }
+                problems.push({ boatAngle: config.b, sailAngle: config.s, expectedMotion: expectedMotion });
+            }
+            
+            // Shuffle problems
+            for (let i = problems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [problems[i], problems[j]] = [problems[j], problems[i]];
+            }
+        }
+
+        function isComponentTooSmall(config, sinMin, cosMin) {
+            const boatAngleRad = config.b * Math.PI / 180;
+            const sailAngleRad = (config.s % 360 + 360) % 360 * Math.PI / 180;
+            let forceAngleRad;
+            if (Math.cos(sailAngleRad) >= 0) { forceAngleRad = sailAngleRad + Math.PI / 2; } 
+            else { forceAngleRad = sailAngleRad - Math.PI / 2; }
+            const forceVector = { dx: Math.cos(forceAngleRad), dy: Math.sin(forceAngleRad) };
+            const boatVector = { dx: Math.cos(boatAngleRad), dy: Math.sin(boatAngleRad) };
+            const dotProduct = forceVector.dx * boatVector.dx + forceVector.dy * boatVector.dy;
+            return Math.abs(dotProduct) > cosMin || Math.abs(dotProduct) < sinMin;
+        }
+
+        function startProblem() {
+            gameState = 'drawing';
+            userComponents = [];
+            currentDrawingComponent = null;
+            updateUI();
+            resetUI();
+            
+            const problem = problems[currentProblemIndex];
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            const origin = { x: w / 2, y: h / 2 };
+
+            const boatAngleRad = problem.boatAngle * Math.PI / 180;
+            const sailAngleRad = problem.sailAngle * Math.PI / 180;
+            const forceMagnitude = 120;
+            let forceAngleRad;
+            if (Math.cos(sailAngleRad) >= 0) { forceAngleRad = sailAngleRad + Math.PI / 2; } 
+            else { forceAngleRad = sailAngleRad - Math.PI / 2; }
+
+            const mastOffsetX = 20;
+            const mastX = origin.x + mastOffsetX * Math.cos(boatAngleRad);
+            const mastY = origin.y + mastOffsetX * Math.sin(boatAngleRad);
+            const sailLength = 70;
+            const sailEndX_relative = sailLength * Math.cos(sailAngleRad);
+            const sailEndY_relative = sailLength * Math.sin(sailAngleRad);
+            const sailCenterX = mastX + sailEndX_relative / 2;
+            const sailCenterY = mastY + sailEndY_relative / 2;
+
+            windForce = { x: sailCenterX, y: sailCenterY, dx: forceMagnitude * Math.cos(forceAngleRad), dy: forceMagnitude * Math.sin(forceAngleRad), color: '#f59e0b' };
+            const boatVector = { dx: Math.cos(boatAngleRad), dy: Math.sin(boatAngleRad) };
+            const dotProduct = windForce.dx * boatVector.dx + windForce.dy * boatVector.dy;
+
+            if (problem.expectedMotion === 'stationary') {
+                 parallelComp = { x: sailCenterX, y: sailCenterY, dx: 0, dy: 0, color: '#22c55e' };
+            } else {
+                 parallelComp = { x: sailCenterX, y: sailCenterY, dx: dotProduct * boatVector.dx, dy: dotProduct * boatVector.dy, color: '#22c55e' };
+            }
+            perpComp = { x: sailCenterX, y: sailCenterY, dx: windForce.dx - parallelComp.dx, dy: windForce.dy - parallelComp.dy, color: '#ef4444' };
+            
+            if (isBonusRound) {
+                instructionsEl.innerHTML = "<b>Expert Challenge!</b> The main force vector is hidden. Visualize it based on the sail, then draw the parallel and perpendicular components.";
+            }
+
+            draw();
+        }
+
+        function draw() {
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWind(w, h);
+            const problem = problems[currentProblemIndex];
+            if (problem) {
+                drawBoat(w / 2, h / 2, problem.boatAngle, problem.sailAngle);
+            }
+            if (windForce && !isBonusRound) drawVector(windForce, { lineWidth: 5 });
+            userComponents.forEach(comp => drawVector(comp));
+            if (currentDrawingComponent) drawVector(currentDrawingComponent);
+        }
+        
+        function drawWind(w, h) {
+             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+             ctx.lineWidth = 1;
+             const amplitude = 4;
+             const frequency = 0.04;
+             for (let i = 0; i < 5; i++) {
+                 const x_base = (w / 6) * (i + 1);
+                 ctx.setLineDash([4, 8]);
+                 ctx.beginPath();
+                 ctx.moveTo(x_base, 0);
+                 for (let y = 1; y < h; y++) {
+                     ctx.lineTo(x_base + amplitude * Math.sin(y * frequency + i), y);
+                 }
+                 ctx.stroke();
+                 ctx.setLineDash([]);
+                 const endY = h - 2;
+                 const endX = x_base + amplitude * Math.sin(endY * frequency + i);
+                 ctx.beginPath();
+                 ctx.moveTo(endX, endY);
+                 ctx.lineTo(endX - 5, endY - 10);
+                 ctx.moveTo(endX, endY);
+                 ctx.lineTo(endX + 5, endY - 10);
+                 ctx.stroke();
+             }
+        }
+        
+        function drawBoat(x, y, boatAngleDeg, sailAngleDeg) {
+            const boatAngleRad = boatAngleDeg * Math.PI / 180;
+            const sailAngleRad = sailAngleDeg * Math.PI / 180;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(boatAngleRad);
+            
+            // Draw dotted centerline guide for parallel component
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 8]);
+            ctx.moveTo(-3000, 0); // Extend far beyond canvas bounds
+            ctx.lineTo(3000, 0);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#854d0e';
+            ctx.strokeStyle = '#422006';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(80, 0); 
+            ctx.quadraticCurveTo(30, -30, -70, -20);
+            ctx.lineTo(-80, -10);
+            ctx.lineTo(-80, 10);
+            ctx.quadraticCurveTo(-70, 20, -70, 20);
+            ctx.quadraticCurveTo(30, 30, 80, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#a1a1aa';
+            ctx.fillRect(15, -5, 10, 10);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(x,y);
+            ctx.rotate(boatAngleRad);
+            ctx.translate(20, 0);
+            ctx.rotate(-boatAngleRad);
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            const sailEndX = 70 * Math.cos(sailAngleRad);
+            const sailEndY = 70 * Math.sin(sailAngleRad);
+            let bulgeDirRad;
+            if (Math.cos(sailAngleRad) >= 0) { bulgeDirRad = sailAngleRad + Math.PI / 2; } 
+            else { bulgeDirRad = sailAngleRad - Math.PI / 2; }
+            const bulgeDist = 15;
+            const controlX = (sailEndX/2) + bulgeDist * Math.cos(bulgeDirRad);
+            const controlY = (sailEndY/2) + bulgeDist * Math.sin(bulgeDirRad);
+            ctx.quadraticCurveTo(controlX, controlY, sailEndX, sailEndY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawVector(vector, options = {}) {
+            ctx.strokeStyle = options.color || vector.color;
+            ctx.fillStyle = options.color || vector.color;
+            ctx.lineWidth = options.lineWidth || 3;
+            const headlen = 10;
+            const angle = Math.atan2(vector.dy, vector.dx);
+            ctx.beginPath(); ctx.moveTo(vector.x, vector.y); ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+        }
+
+        function onDown(evt) {
+            evt.preventDefault();
+            if (gameState !== 'drawing' || userComponents.length >= 2) return;
+            const pos = getMousePos(evt);
+            currentDrawingComponent = { x: pos.x, y: pos.y, dx: 0, dy: 0, color: '#a8a29e' };
+        }
+        function onMove(evt) {
+            evt.preventDefault();
+            if (!currentDrawingComponent) return;
+            const pos = getMousePos(evt);
+            currentDrawingComponent.dx = pos.x - currentDrawingComponent.x;
+            currentDrawingComponent.dy = pos.y - currentDrawingComponent.y;
+            draw();
+        }
+        function onUp() {
+            if (!currentDrawingComponent) return;
+            if (Math.hypot(currentDrawingComponent.dx, currentDrawingComponent.dy) > 10) {
+                 if (userComponents.length === 0) currentDrawingComponent.color = '#3b82f6';
+                 else currentDrawingComponent.color = '#8b5cf6';
+                userComponents.push(currentDrawingComponent);
+            }
+            currentDrawingComponent = null;
+            const isParallelZero = Math.hypot(parallelComp.dx, parallelComp.dy) < VECTOR_ZERO_THRESHOLD;
+            const isPerpZero = Math.hypot(perpComp.dx, perpComp.dy) < VECTOR_ZERO_THRESHOLD;
+            if ((isParallelZero || isPerpZero) && userComponents.length === 1) { checkButton.disabled = false; } 
+            else if (userComponents.length >= 2) { checkButton.disabled = false; }
+            draw();
+        }
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.clientX || evt.touches[0].clientX;
+            const clientY = evt.clientY || evt.touches[0].clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        function checkComponents() {
+            let feedback = "";
+            const isParallelZero = Math.hypot(parallelComp.dx, parallelComp.dy) < VECTOR_ZERO_THRESHOLD;
+            const isPerpZero = Math.hypot(perpComp.dx, perpComp.dy) < VECTOR_ZERO_THRESHOLD;
+
+            let singleComponentCorrect = false;
+            let doubleComponentCorrect = false;
+
+            if (userComponents.length === 1) {
+                if (isParallelZero) {
+                    if (isVectorMatch(userComponents[0], perpComp, TOLERANCE) && isArrangementCorrect(userComponents[0], {x:0,y:0,dx:0,dy:0})) {
+                        if (!isVectorMatch(userComponents[0], perpComp, BULLSEYE_TOLERANCE)) perfectComponents = false;
+                        singleComponentCorrect = true;
+                    } else { feedback = "The perpendicular component is incorrect."; }
+                } else if (isPerpZero) {
+                     if (isVectorMatch(userComponents[0], parallelComp, TOLERANCE) && isArrangementCorrect(userComponents[0], {x:0,y:0,dx:0,dy:0})) {
+                        if (!isVectorMatch(userComponents[0], parallelComp, BULLSEYE_TOLERANCE)) perfectComponents = false;
+                        singleComponentCorrect = true;
+                    } else { feedback = "The parallel component is incorrect."; }
+                } else { feedback = "This situation requires two components, but only one is drawn."; }
+            }
+            else if (userComponents.length === 2) {
+                if(isParallelZero || isPerpZero) {
+                    feedback = "This situation only requires one component, but two are drawn.";
+                } else {
+                    const u1 = userComponents[0], u2 = userComponents[1];
+                    const match1_ok = isVectorMatch(u1, parallelComp, TOLERANCE) && isVectorMatch(u2, perpComp, TOLERANCE);
+                    const match2_ok = isVectorMatch(u1, perpComp, TOLERANCE) && isVectorMatch(u2, parallelComp, TOLERANCE);
+                    if (match1_ok || match2_ok) {
+                        if (isArrangementCorrect(u1, u2)) {
+                            const match1_perfect = isVectorMatch(u1, parallelComp, BULLSEYE_TOLERANCE) && isVectorMatch(u2, perpComp, BULLSEYE_TOLERANCE);
+                            const match2_perfect = isVectorMatch(u1, perpComp, BULLSEYE_TOLERANCE) && isVectorMatch(u2, parallelComp, BULLSEYE_TOLERANCE);
+                            if (!(match1_perfect || match2_perfect)) perfectComponents = false;
+                            doubleComponentCorrect = true;
+                        } else { feedback = "The components are correct, but not arranged properly." }
+                    } else {
+                        let parallelWrong = !isVectorMatch(u1, parallelComp, TOLERANCE) && !isVectorMatch(u2, parallelComp, TOLERANCE);
+                        let perpWrong = !isVectorMatch(u1, perpComp, TOLERANCE) && !isVectorMatch(u2, perpComp, TOLERANCE);
+                        if(parallelWrong && perpWrong) feedback = "Both components seem incorrect.";
+                        else if (parallelWrong) feedback = "The component parallel to the boat is incorrect.";
+                        else if (perpWrong) feedback = "The component perpendicular to the boat is incorrect.";
+                    }
+                }
+            }
+
+            if (singleComponentCorrect || doubleComponentCorrect) {
+                transitionToPrediction();
+            } else {
+                mistakesThisGame = true;
+                perfectComponents = false;
+                feedbackEl.innerHTML = `<span class="font-bold text-red-400">Not quite.</span> ${feedback}`;
+            }
+        }
+
+        function transitionToPrediction() {
+            score++;
+            updateUI();
+            feedbackEl.innerHTML = `<span class="font-bold text-green-400">Correct!</span> Components drawn perfectly.`;
+            gameState = 'predicting';
+            checkButton.classList.add('hidden');
+            motionSection.classList.remove('hidden');
+            motionButton.classList.remove('hidden');
+            resetButton.disabled = true;
+        }
+        
+        function isVectorMatch(userVec, correctVec, tolerance) {
+            return Math.abs(userVec.dx - correctVec.dx) < tolerance && Math.abs(userVec.dy - correctVec.dy) < tolerance;
+        }
+
+        function isArrangementCorrect(u1, u2) {
+            if (Math.hypot(u2.dx, u2.dy) < VECTOR_ZERO_THRESHOLD) return Math.hypot(u1.x - windForce.x, u1.y - windForce.y) < TOLERANCE;
+            const tailMatch = Math.hypot(u1.x - windForce.x, u1.y - windForce.y) < TOLERANCE && Math.hypot(u2.x - windForce.x, u2.y - windForce.y) < TOLERANCE;
+            const tip1 = Math.hypot(u1.x - windForce.x, u1.y - windForce.y) < TOLERANCE && Math.hypot(u1.x+u1.dx - u2.x, u1.y+u1.dy - u2.y) < TOLERANCE && Math.hypot(u2.x+u2.dx - (windForce.x+windForce.dx), u2.y+u2.dy - (windForce.y+windForce.dy)) < TOLERANCE;
+            const tip2 = Math.hypot(u2.x - windForce.x, u2.y - windForce.y) < TOLERANCE && Math.hypot(u2.x+u2.dx - u1.x, u2.y+u2.dy - u1.y) < TOLERANCE && Math.hypot(u1.x+u1.dx - (windForce.x+windForce.dx), u1.y+u1.dy - (windForce.y+windForce.dy)) < TOLERANCE;
+            return tailMatch || tip1 || tip2;
+        }
+
+        function checkMotion() {
+            const selectedMotion = document.querySelector('input[name="motion"]:checked');
+            if (!selectedMotion) return;
+            motionButton.disabled = true;
+            const problem = problems[currentProblemIndex];
+            const correctMotion = problem.expectedMotion;
+            if (selectedMotion.value === correctMotion) {
+                score++;
+                const message = `The boat will move ${correctMotion}. You earned 2/2 points for this problem.`;
+                showModal('Correct!', message, nextProblem, 'Continue');
+            } else {
+                mistakesThisGame = true;
+                perfectComponents = false;
+                const message = `The correct motion was ${correctMotion}. The parallel component determines forward or backward movement.`;
+                showModal('Incorrect', message, nextProblem, 'Continue');
+            }
+        }
+        
+        function nextProblem() {
+            currentProblemIndex++;
+            if (currentProblemIndex >= problems.length) {
+                if (isBonusRound) {
+                    endGame(true);
+                } else if (!mistakesThisGame) {
+                    offerBonusRound();
+                } else {
+                    endGame(false);
+                }
+            } else {
+                startProblem();
+            }
+        }
+
+        function handleQuit() {
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'Yes, Quit & Score';
+            confirmBtn.className = 'bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-lg text-md';
+            confirmBtn.onclick = () => { closeModal(); endGame(false); };
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Keep Playing';
+            cancelBtn.className = 'bg-gray-600 hover:bg-gray-700 text-white font-bold py-2.5 px-6 rounded-lg text-md';
+            cancelBtn.onclick = () => { closeModal(); };
+
+            showModal('Quit Challenge?', `Are you sure you want to end the challenge now, ${studentName}? Your current score of ${score} will be awarded.`, null, [confirmBtn, cancelBtn]);
+        }
+
+        function offerBonusRound() {
+             const title = `Flawless Run, ${studentName}! 🎉`;
+             const message = `Incredible work! You've completed the standard challenge without a single mistake. Would you like to attempt the Expert Bonus Challenge for a maximum score of 12/10?`;
+             
+             const acceptBtn = document.createElement('button');
+             acceptBtn.textContent = 'Accept Expert Challenge';
+             acceptBtn.className = 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg';
+             acceptBtn.onclick = () => { closeModal(); startBonusRound(); };
+
+             const declineBtn = document.createElement('button');
+             declineBtn.textContent = 'Claim Current Score';
+             declineBtn.className = 'bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg';
+             declineBtn.onclick = () => { closeModal(); endGame(false); };
+             
+             showModal(title, message, null, [acceptBtn, declineBtn]);
+        }
+        
+        function startBonusRound() {
+            isBonusRound = true;
+            problems.push({});
+            generateProblems();
+            currentProblemIndex = problems.length - 1;
+            startProblem();
+        }
+        
+        function endGame(bonusSuccess) {
+            let title, message;
+            const maxBaseScore = 10;
+            let finalScore = score;
+            let percentage = Math.round((finalScore / maxBaseScore) * 100);
+            
+            let confettiRounds = 0;
+            const randomEffusiveMsg = CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
+
+            if (bonusSuccess) {
+                finalScore = 12;
+                percentage = 120;
+                confettiRounds = 3;
+                title = `🏆 LEGENDARY ULTIMATE MASTERY! 🏆`;
+                message = `Hold your head high, <b>${studentName}</b>! You achieved an unbeatable <b>12/10 (120%)</b> by conquering the Expert Challenge without a single mistake!<br><br><span class="text-yellow-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+            } else if (!mistakesThisGame && perfectComponents) {
+                finalScore = 11;
+                percentage = 110;
+                confettiRounds = 2;
+                title = `🌟 PERFECTIONIST EXTRAORDINAIRE! 🌟`;
+                message = `Astonishing precision, <b>${studentName}</b>! You completed all rounds on your first try with ultra-high precision, earning a score of <b>11/10 (110%)</b>!<br><br><span class="text-yellow-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+            } else if (!mistakesThisGame || finalScore >= 10) {
+                finalScore = 10;
+                percentage = 100;
+                confettiRounds = 1;
+                title = `🎉 FLAWLESS SCORE! CONGRATULATIONS ${studentName.toUpperCase()}! 🎉`;
+                message = `Sensational effort, <b>${studentName}</b>! You finished with a perfect score of <b>10/10 (100%)</b>!<br><br><span class="text-cyan-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+            } else if (percentage >= 80) {
+                title = `Great Job, ${studentName}! 👍`;
+                message = `Congratulations! You scored <b>${finalScore}/10 (${percentage}%)</b>, successfully passing the challenge! Outstanding effort!`;
+            } else {
+                title = `Keep Trying, ${studentName}! 💪`;
+                message = `You earned <b>${finalScore}/10 (${percentage}%)</b>. You need at least <b>80% (8/10)</b> to pass this challenge. Give it another shot—you've got this!`;
+            }
+
+            if (confettiRounds > 0) {
+                triggerBallisticConfetti(confettiRounds);
+            }
+
+            // Display verification code
+            const vCode = generateVerificationCode(studentName, finalScore);
+            verificationCodeEl.textContent = vCode;
+            verificationContainer.classList.remove('hidden');
+
+            const btnText = percentage < 80 ? 'Try Again' : 'Play Again';
+            
+            showModal(title, message, () => {
+                // When replaying, student name is preserved
+                startGame();
+            }, btnText);
+        }
+        
+        function resetUI() {
+            checkButton.disabled = true;
+            checkButton.classList.remove('hidden');
+            motionSection.classList.add('hidden');
+            motionButton.classList.remove('hidden');
+            motionButton.disabled = false;
+            resetButton.disabled = false;
+            feedbackEl.innerHTML = '';
+            const radios = document.querySelectorAll('input[name="motion"]');
+            radios.forEach(r => r.checked = false);
+            if (!isBonusRound) {
+                instructionsEl.innerHTML = `<p>The wind creates a force perpendicular to the sail (yellow vector). Your task is to resolve this force into two components:</p><ul class="list-disc list-inside text-gray-300 mt-2 space-y-1"><li>One parallel to the boat's hull (thrust).</li><li>One perpendicular to the boat's hull (heeling).</li></ul>`;
+            }
+        }
+        
+        function resetProblem() {
+            userComponents = [];
+            currentDrawingComponent = null;
+            checkButton.disabled = true;
+            feedbackEl.innerHTML = '';
+            draw();
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            if (isBonusRound) {
+                problemEl.textContent = 'Bonus Round';
+            } else {
+                problemEl.textContent = `${Math.min(currentProblemIndex + 1, problems.length)} / ${problems.length}`;
+            }
+        }
+
+        function showModal(title, message, onButtonClick, buttons) {
+            if (closeModalTimeout) { clearTimeout(closeModalTimeout); closeModalTimeout = null; }
+            modalTitleEl.innerHTML = title;
+            modalMessageEl.innerHTML = message;
+            
+            modalButtonsEl.innerHTML = '';
+            if (Array.isArray(buttons)) {
+                buttons.forEach(btn => modalButtonsEl.appendChild(btn));
+            } else {
+                const btn = document.createElement('button');
+                btn.textContent = buttons;
+                btn.className = 'bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105 shadow-lg';
+                btn.onclick = () => { closeModal(); if (onButtonClick) onButtonClick(); };
+                modalButtonsEl.appendChild(btn);
+            }
+
+            feedbackModal.classList.remove('hidden');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal() {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            closeModalTimeout = setTimeout(() => { 
+                feedbackModal.classList.add('hidden'); 
+                verificationContainer.classList.add('hidden');
+            }, 300);
+        }
+
+        const resizeObserver = new ResizeObserver(() => {
+            setupCanvas();
+        });
+        resizeObserver.observe(canvasContainer);
+
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onUp);
+        checkButton.addEventListener('click', checkComponents);
+        motionButton.addEventListener('click', checkMotion);
+        resetButton.addEventListener('click', resetProblem);
+        quitButton.addEventListener('click', handleQuit);
+    </script>
+</body>
+</html>
