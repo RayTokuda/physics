@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sailboat Vector Challenge 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+            background-color: #1e3a8a; /* Deep blue water */
+        }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen p-2 sm:p-4 overflow-hidden relative">
+
+    <div id="startScreen" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 p-8 rounded-2xl text-center shadow-2xl max-w-md w-full border border-gray-700">
+            <h1 class="text-3xl sm:text-4xl font-bold text-cyan-400 mb-2">Sailboat Vector Challenge 2</h1>
+            <p class="text-gray-400 mb-6">Master the physics of sailing.</p>
+            <input type="text" id="studentNameInput" placeholder="Enter your first name" class="w-full p-3 rounded-lg bg-gray-900 text-white mb-4 border border-gray-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-center text-lg">
+            <button id="beginButton" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 text-lg shadow-lg hover:shadow-cyan-500/50">Begin Challenge</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="w-full max-w-6xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 opacity-0 transition-opacity duration-500 hidden">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-gray-700 pb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-cyan-400 mb-2 sm:mb-0 text-center">Sailboat Vector Challenge 2</h1>
+            <div class="flex items-center space-x-2 sm:space-x-4 text-md">
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Score: <span id="score" class="font-bold text-yellow-400">0</span></span>
+                </div>
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Problem: <span id="problem" class="font-bold text-green-400">1 / 5</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow w-full flex flex-col lg:flex-row gap-4 min-h-0">
+            <!-- Left Panel: Info & Controls -->
+            <div class="lg:w-1/3 flex flex-col bg-gray-900/50 rounded-lg p-4">
+                <div class="flex-grow overflow-y-auto pr-2">
+                    <div id="instructions-section">
+                        <h2 class="text-lg font-bold text-amber-400 mb-2 border-b border-gray-700 pb-2">Phase 1: Wind Force</h2>
+                        <p id="instructions" class="text-gray-300">Draw the main force vector created by the wind. It must be perpendicular to the sail. The length does not matter.</p>
+                         <p id="feedback-text" class="mt-2 font-semibold"></p>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex-shrink-0 flex flex-col justify-center items-center mt-4 space-y-3 pt-4 border-t border-gray-700">
+                    <button id="submitButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow">Check Force</button>
+                    <button id="resetButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow">Erase & Try Again</button>
+                    <button id="quitButton" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200 shadow mt-2">Quit & Get Score</button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas -->
+            <div class="flex-grow w-full h-64 lg:h-auto min-h-0 relative rounded-lg overflow-hidden bg-gray-900/50">
+                 <canvas id="gameCanvas" class="absolute top-0 left-0"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+        <div id="modalContent" class="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl border border-gray-700 transform scale-95 opacity-0 modal max-w-lg w-full">
+            <h2 id="modalTitle" class="text-3xl font-bold mb-4 text-white"></h2>
+            <div id="modalMessage" class="text-lg mb-6 text-gray-200"></div>
+            <div id="modalButtons" class="flex justify-center gap-4 flex-wrap">
+                <!-- Buttons injected via JS -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('game-container');
+        const startScreen = document.getElementById('startScreen');
+        const studentNameInput = document.getElementById('studentNameInput');
+        const beginButton = document.getElementById('beginButton');
+        
+        const scoreEl = document.getElementById('score');
+        const problemEl = document.getElementById('problem');
+        const instructionsTitleEl = document.querySelector('#instructions-section h2');
+        const instructionsEl = document.getElementById('instructions');
+        const feedbackEl = document.getElementById('feedback-text');
+        
+        const submitButton = document.getElementById('submitButton');
+        const resetButton = document.getElementById('resetButton');
+        const quitButton = document.getElementById('quitButton');
+        
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const modalButtonsEl = document.getElementById('modalButtons');
+        
+        // Game State
+        let studentName = "";
+        let score = 0, currentProblemIndex = 0;
+        let problems = [];
+        let playerForce = null, parallelComp = null, perpComp = null;
+        let userComponents = [], currentDrawingVector = null;
+        let correctForceAngleRad = 0;
+        let gameState = 'drawing_force'; 
+        let mistakesThisGame = false;
+        let isBonusRound = false;
+        
+        const TOTAL_PROBLEMS = 5;
+        const BASE_MAX_SCORE = TOTAL_PROBLEMS * 2;
+        const ANGLE_TOLERANCE_RAD = 0.12; 
+        const PLACEMENT_TOLERANCE = 25;
+        const VECTOR_MATCH_TOLERANCE = 15 * 1.05; 
+        let closeModalTimeout = null;
+
+        const CONGRATS_MESSAGES = ["Wow!", "Amazing!", "Incredible!", "Stunning!", "Unbelievable!", "Magnificent!", "Superb!", "Fantastic!", "Phenomenal!", "Outstanding!", "Extraordinary!", "Exceptional!", "Brilliant!", "Genius!", "Masterful!", "Perfect!", "Flawless!", "Pristine!", "Impeccable!", "Supreme!", "Sublime!", "Glorious!", "Majestic!", "Divine!", "Heavenly!", "Stellar!", "Cosmic!", "Galactic!", "Universal!", "Legendary!", "Mythical!", "Epic!", "Heroic!", "Victorious!", "Triumphant!", "Champion!", "Unbeatable!", "Invincible!", "Unstoppable!", "Dominant!", "Powerful!", "Forceful!", "Mighty!", "Formidable!", "Impressive!", "Awe-inspiring!", "Breathtaking!", "Mind-blowing!", "Jaw-dropping!", "Eye-popping!", "Sensational!", "Spectacular!", "Dazzling!", "Radiant!", "Luminous!", "Shining!", "Gleaming!", "Sparkling!", "Glittering!", "Vibrant!", "Dynamic!", "Energetic!", "Vigorous!", "Spirited!", "Lively!", "Vivacious!", "Electric!", "Magnetic!", "Captivating!", "Mesmerizing!", "Hypnotic!", "Enchanting!", "Magical!", "Miraculous!", "Wonderful!", "Marvelous!", "Fabulous!", "Terrific!", "Splendid!", "Excellent!", "First-class!", "Top-notch!", "World-class!", "Grade A!", "Ace!", "Superstar!", "Virtuoso!", "Prodigy!", "Savant!", "Einstein-level!", "Newton-esque!", "Galileo-like!"];
+
+        function initApp() {
+            beginButton.addEventListener('click', () => {
+                const name = studentNameInput.value.trim();
+                if(name) {
+                    studentName = name;
+                    startScreen.classList.add('hidden');
+                    gameContainer.classList.remove('hidden');
+                    setTimeout(() => gameContainer.classList.remove('opacity-0'), 50);
+                    setupCanvas();
+                    startGame();
+                } else {
+                    studentNameInput.classList.add('border-red-500', 'animate-pulse');
+                    setTimeout(() => studentNameInput.classList.remove('animate-pulse'), 1000);
+                }
+            });
+            quitButton.addEventListener('click', () => endGame(false, true));
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            draw();
+        }
+
+        function startGame() {
+            score = 0;
+            currentProblemIndex = 0;
+            mistakesThisGame = false;
+            isBonusRound = false;
+            generateProblems();
+            startProblem();
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function generateProblems() {
+            problems = [];
+            const MIN_ANGLE_DIFF_RAD = 15 * Math.PI / 180;
+            let problemTypes = ['mixed', 'mixed', 'mixed', 'perp', 'para', 'mixed'];
+            shuffleArray(problemTypes);
+
+            for (let i = 0; i < TOTAL_PROBLEMS + 1; i++) {
+                let boatAngle, sailAngle, boatAngleRad, sailAngleRad;
+                const type = problemTypes[i];
+
+                if (type === 'mixed') {
+                    let diff;
+                    do {
+                        boatAngle = Math.random() * 360;
+                        sailAngle = Math.random() * 360;
+                        boatAngleRad = boatAngle * Math.PI / 180;
+                        sailAngleRad = sailAngle * Math.PI / 180;
+                        let forceAngleRad = sailAngleRad + Math.PI / 2;
+                        let angleDiff = Math.abs(forceAngleRad - boatAngleRad);
+                        angleDiff = Math.min(angleDiff, 2 * Math.PI - angleDiff);
+                        const isTooCloseToParallel = angleDiff < MIN_ANGLE_DIFF_RAD || Math.abs(angleDiff - Math.PI) < MIN_ANGLE_DIFF_RAD;
+                        const isTooCloseToPerpendicular = Math.abs(angleDiff - Math.PI / 2) < MIN_ANGLE_DIFF_RAD;
+                        diff = isTooCloseToParallel || isTooCloseToPerpendicular;
+                    } while (diff);
+                } else {
+                    sailAngle = Math.random() * 360;
+                    sailAngleRad = sailAngle * Math.PI / 180;
+                    let forceAngleRad = sailAngleRad + Math.PI / 2;
+                    if (type === 'perp') {
+                        boatAngleRad = forceAngleRad + (Math.PI / 2) * (Math.random() > 0.5 ? 1 : -1);
+                    } else { 
+                        boatAngleRad = forceAngleRad + Math.PI * (Math.random() > 0.5 ? 1 : 0);
+                    }
+                    boatAngle = boatAngleRad * 180 / Math.PI;
+                }
+                problems.push({ boatAngle, sailAngle, type: type });
+            }
+        }
+
+        function startProblem() {
+            gameState = 'drawing_force';
+            playerForce = null;
+            userComponents = [];
+            currentDrawingVector = null;
+            
+            const problem = problems[currentProblemIndex];
+            const sailAngleRad = problem.sailAngle * Math.PI / 180;
+
+            if (Math.cos(sailAngleRad) >= 0) { correctForceAngleRad = sailAngleRad + Math.PI / 2; } 
+            else { correctForceAngleRad = sailAngleRad - Math.PI / 2; }
+            
+            updateUI();
+            resetUI();
+            draw();
+        }
+
+        function draw() {
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawWind(w, h);
+            const problem = problems[currentProblemIndex];
+            if (problem) {
+                drawBoat(w / 2, h / 2, problem.boatAngle, problem.sailAngle);
+            }
+            if (playerForce) drawVector(playerForce);
+            userComponents.forEach(comp => drawVector(comp));
+            if (currentDrawingVector) drawVector(currentDrawingVector);
+        }
+        
+        function drawWind(w, h) {
+             ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 1;
+             for (let i = 0; i < 5; i++) {
+                 const x_base = (w / 6) * (i + 1); ctx.setLineDash([4, 8]);
+                 ctx.beginPath(); ctx.moveTo(x_base, 0);
+                 for (let y = 1; y < h; y++) { ctx.lineTo(x_base + 4 * Math.sin(y * 0.04 + i), y); }
+                 ctx.stroke(); ctx.setLineDash([]);
+             }
+        }
+        
+        function drawBoat(x, y, boatAngleDeg, sailAngleDeg) {
+            const boatAngleRad = boatAngleDeg * Math.PI / 180; 
+            const sailAngleRad = sailAngleDeg * Math.PI / 180;
+            ctx.save(); 
+            ctx.translate(x, y); 
+            ctx.rotate(boatAngleRad);
+
+            // Dotted guide line along the axis of the ship
+            ctx.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 12]);
+            ctx.beginPath();
+            ctx.moveTo(-canvas.width, 0);
+            ctx.lineTo(canvas.width, 0);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Hull
+            ctx.fillStyle = '#854d0e'; ctx.strokeStyle = '#422006'; ctx.lineWidth = 3;
+            ctx.beginPath(); 
+            ctx.moveTo(80, 0); 
+            ctx.quadraticCurveTo(30, -30, -70, -20); 
+            ctx.lineTo(-80, -10);
+            ctx.lineTo(-80, 10); 
+            ctx.quadraticCurveTo(-70, 20, -70, 20); 
+            ctx.quadraticCurveTo(30, 30, 80, 0);
+            ctx.closePath(); 
+            ctx.fill(); 
+            ctx.stroke();
+            ctx.fillStyle = '#a1a1aa'; 
+            ctx.fillRect(15, -5, 10, 10);
+            ctx.restore();
+            
+            // Sail
+            ctx.save(); 
+            ctx.translate(x,y); 
+            ctx.rotate(boatAngleRad); 
+            ctx.translate(20, 0); 
+            ctx.rotate(-boatAngleRad);
+            ctx.strokeStyle = '#e2e8f0'; 
+            ctx.lineWidth = 2;
+            ctx.beginPath(); 
+            ctx.moveTo(0,0);
+            const sailEndX = 70 * Math.cos(sailAngleRad); 
+            const sailEndY = 70 * Math.sin(sailAngleRad);
+            let bulgeDirRad;
+            if (Math.cos(sailAngleRad) >= 0) { 
+                bulgeDirRad = sailAngleRad + Math.PI / 2; 
+            } else { 
+                bulgeDirRad = sailAngleRad - Math.PI / 2; 
+            }
+            const controlX = (sailEndX/2) + 15 * Math.cos(bulgeDirRad); 
+            const controlY = (sailEndY/2) + 15 * Math.sin(bulgeDirRad);
+            ctx.quadraticCurveTo(controlX, controlY, sailEndX, sailEndY); 
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawVector(vector, options = {}) {
+            ctx.strokeStyle = options.color || vector.color; ctx.fillStyle = options.color || vector.color;
+            ctx.lineWidth = options.lineWidth || 3;
+            const headlen = 12; const angle = Math.atan2(vector.dy, vector.dx);
+            ctx.beginPath(); ctx.moveTo(vector.x, vector.y); ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+        }
+
+        function onDown(evt) {
+            evt.preventDefault();
+            if (gameState === 'problem_over') return;
+            const pos = getMousePos(evt);
+            currentDrawingVector = { x: pos.x, y: pos.y, dx: 0, dy: 0, color: '#a8a29e' };
+        }
+
+        function onMove(evt) {
+            evt.preventDefault();
+            if (!currentDrawingVector) return;
+            const pos = getMousePos(evt);
+            currentDrawingVector.dx = pos.x - currentDrawingVector.x;
+            currentDrawingVector.dy = pos.y - currentDrawingVector.y;
+            draw();
+        }
+
+        function onUp() {
+            if (!currentDrawingVector) return;
+            if (Math.hypot(currentDrawingVector.dx, currentDrawingVector.dy) < 10) {
+                currentDrawingVector = null;
+                return;
+            }
+            if (gameState === 'drawing_force') {
+                playerForce = currentDrawingVector;
+            } else if (gameState === 'drawing_components') {
+                if(userComponents.length < 2) userComponents.push(currentDrawingVector);
+            }
+            currentDrawingVector = null;
+            submitButton.disabled = false;
+            draw();
+        }
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.clientX || evt.touches[0].clientX;
+            const clientY = evt.clientY || evt.touches[0].clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        function handleSubmit() {
+            if (gameState === 'drawing_force') checkForce();
+            else if (gameState === 'drawing_components') checkComponents();
+        }
+        
+        function checkForce() {
+            if (!playerForce) return;
+            const playerAngle = Math.atan2(playerForce.dy, playerForce.dx);
+            
+            const normalize = angle => (angle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+            const a1 = normalize(playerAngle);
+            const a2 = normalize(correctForceAngleRad);
+            const a3 = normalize(correctForceAngleRad + Math.PI);
+
+            const diff1 = Math.abs(a1 - a2);
+            const diff2 = Math.abs(a1 - a3);
+
+            const angleIsCorrect = Math.min(diff1, 2*Math.PI - diff1) < ANGLE_TOLERANCE_RAD || Math.min(diff2, 2*Math.PI-diff2) < ANGLE_TOLERANCE_RAD;
+            
+            const problem = problems[currentProblemIndex];
+            const w = canvas.offsetWidth; const h = canvas.offsetHeight;
+            const origin = {x: w/2, y: h/2};
+            const boatAngleRad = problem.boatAngle * Math.PI / 180;
+            const sailAngleRad = problem.sailAngle * Math.PI / 180;
+
+            const mastX = origin.x + 20 * Math.cos(boatAngleRad);
+            const mastY = origin.y + 20 * Math.sin(boatAngleRad);
+            const sailEndX_relative = 70 * Math.cos(sailAngleRad);
+            const sailEndY_relative = 70 * Math.sin(sailAngleRad);
+            const sailCenterX = mastX + sailEndX_relative / 2;
+            const sailCenterY = mastY + sailEndY_relative / 2;
+
+            const placementIsCorrect = Math.hypot(playerForce.x - sailCenterX, playerForce.y - sailCenterY) < PLACEMENT_TOLERANCE;
+
+            if (angleIsCorrect && placementIsCorrect) {
+                transitionToComponents();
+            } else {
+                mistakesThisGame = true;
+                let feedback = "";
+                if (!placementIsCorrect) feedback = "The vector must start from the center of the sail.";
+                else if (!angleIsCorrect) feedback = "The vector is not perpendicular to the sail.";
+                feedbackEl.innerHTML = `<span class="text-red-400">Not quite.</span> ${feedback}`;
+            }
+        }
+        
+        function transitionToComponents() {
+            gameState = 'drawing_components';
+            if (!isBonusRound) score += 1; 
+            updateUI();
+            
+            playerForce.color = '#f59e0b'; 
+            
+            const problem = problems[currentProblemIndex];
+            const boatAngleRad = problem.boatAngle * Math.PI / 180;
+            const boatVector = { dx: Math.cos(boatAngleRad), dy: Math.sin(boatAngleRad) };
+            const dotProduct = playerForce.dx * boatVector.dx + playerForce.dy * boatVector.dy;
+
+            parallelComp = { 
+                x: playerForce.x, y: playerForce.y,
+                dx: dotProduct * boatVector.dx, dy: dotProduct * boatVector.dy 
+            };
+            perpComp = {
+                x: playerForce.x, y: playerForce.y,
+                dx: playerForce.dx - parallelComp.dx, dy: playerForce.dy - parallelComp.dy 
+            };
+            
+            resetUIForComponents();
+            draw();
+        }
+
+        function checkComponents() {
+            if (userComponents.length === 0) return;
+
+            const problemType = problems[currentProblemIndex].type;
+            const isPurePerp = problemType === 'perp';
+            const isPureParallel = problemType === 'para';
+
+            if (isPurePerp || isPureParallel) {
+                if (userComponents.length !== 1) {
+                    feedbackEl.innerHTML = `<span class="text-red-400">Incorrect.</span> This force only has one component. You should only draw one vector.`;
+                    mistakesThisGame = true;
+                    return;
+                }
+                const correctComp = isPurePerp ? perpComp : parallelComp;
+                const name = isPurePerp ? "Perpendicular (heeling)" : "Parallel (thrust)";
+                
+                if (isVectorMatch(userComponents[0], correctComp).match) {
+                    if (!isBonusRound) score += 1;
+                    else score += 1;
+                    
+                    gameState = 'problem_over';
+                    if (isBonusRound) {
+                        endGame(true, false);
+                    } else {
+                        showModal('Correct!', `Great job, ${studentName}! Problem Complete.`, nextProblem, 'Continue');
+                    }
+                } else {
+                    mistakesThisGame = true;
+                    const analysis = analyzeSingleComponent(userComponents[0], correctComp, name);
+                    feedbackEl.innerHTML = `<span class="text-red-400">Incorrect.</span> ${analysis.msg}`;
+                }
+                return;
+            }
+            
+            let parallelDrawn = null, perpDrawn = null;
+            if (isVectorMatch(userComponents[0], parallelComp).match || isVectorMatch(userComponents[0], parallelComp, true, perpComp).match) parallelDrawn = userComponents[0];
+            else if (isVectorMatch(userComponents[0], perpComp).match || isVectorMatch(userComponents[0], perpComp, true, parallelComp).match) perpDrawn = userComponents[0];
+
+            if(userComponents.length > 1) {
+                if (!parallelDrawn && (isVectorMatch(userComponents[1], parallelComp).match || isVectorMatch(userComponents[1], parallelComp, true, perpComp).match)) parallelDrawn = userComponents[1];
+                if (!perpDrawn && (isVectorMatch(userComponents[1], perpComp).match || isVectorMatch(userComponents[1], perpComp, true, parallelComp).match)) perpDrawn = userComponents[1];
+            }
+
+            if(parallelDrawn && perpDrawn) {
+                if (!isBonusRound) score += 1; 
+                else score += 1;
+                
+                gameState = 'problem_over';
+                if (isBonusRound) {
+                    endGame(true, false);
+                } else {
+                    showModal('Correct!', `Great job, ${studentName}! Problem Complete.`, nextProblem, 'Continue');
+                }
+            } else {
+                mistakesThisGame = true;
+                let feedback = "";
+                
+                if (userComponents.length === 1) {
+                    const u1 = userComponents[0];
+                    const angleErrorParallel = getAngleDiff(u1, parallelComp);
+                    const angleErrorPerp = getAngleDiff(u1, perpComp);
+                    
+                    let analysis;
+                    if (angleErrorParallel < angleErrorPerp) {
+                        analysis = analyzeSingleComponent(u1, parallelComp, "Parallel (thrust)");
+                        feedback = analysis.msg + " The perpendicular component is missing.";
+                    } else {
+                        analysis = analyzeSingleComponent(u1, perpComp, "Perpendicular (heeling)");
+                        feedback = analysis.msg + " The parallel component is missing.";
+                    }
+                } else if (userComponents.length === 2) {
+                    const u1 = userComponents[0];
+                    const u2 = userComponents[1];
+
+                    const error1 = getAngleDiff(u1, parallelComp) + getAngleDiff(u2, perpComp);
+                    const error2 = getAngleDiff(u1, perpComp) + getAngleDiff(u2, parallelComp);
+
+                    let assumedParallel, assumedPerp;
+                    if (error1 <= error2) {
+                        assumedParallel = u1;
+                        assumedPerp = u2;
+                    } else {
+                        assumedParallel = u2;
+                        assumedPerp = u1;
+                    }
+
+                    const analysisPara = analyzeSingleComponent(assumedParallel, parallelComp, "Parallel (thrust)", assumedPerp);
+                    const analysisPerp = analyzeSingleComponent(assumedPerp, perpComp, "Perpendicular (heeling)", assumedParallel);
+                    
+                    const feedbackParts = [];
+                    if (!analysisPara.isCorrect) feedbackParts.push(analysisPara.msg);
+                    if (!analysisPerp.isCorrect) feedbackParts.push(analysisPerp.msg);
+                    
+                    feedback = feedbackParts.join(' ');
+                }
+                
+                feedbackEl.innerHTML = `<span class="text-red-400">Incorrect.</span> ${feedback}`;
+            }
+        }
+
+        function analyzeSingleComponent(drawn, correct, name, otherDrawn = null) {
+            const otherCorrect = name === "Parallel (thrust)" ? perpComp : parallelComp;
+            if (isVectorMatch(drawn, correct).match || (otherDrawn && isVectorMatch(drawn, correct, true, otherCorrect).match)) {
+                return { isCorrect: true, msg: "" };
+            }
+            const angleDiff = getAngleDiff(drawn, correct);
+            const drawnLen = Math.hypot(drawn.dx, drawn.dy);
+            const correctLen = Math.hypot(correct.dx, correct.dy);
+            const isDirectionCorrect = angleDiff < ANGLE_TOLERANCE_RAD;
+            const isLengthCorrect = Math.abs(drawnLen - correctLen) < VECTOR_MATCH_TOLERANCE;
+            
+            if (isDirectionCorrect && isLengthCorrect) { return { isCorrect: false, msg: `The ${name} component is drawn in the wrong place.` }; }
+            let issues = [];
+            if (!isDirectionCorrect) issues.push("wrong direction");
+            if (!isLengthCorrect) issues.push(`length (${drawnLen < correctLen ? "it's too short" : "it's too long"})`);
+            return { isCorrect: false, msg: `The ${name} component has the ${issues.join(' and ')}.` };
+        }
+
+        function getAngleDiff(vec1, vec2) {
+             if (Math.hypot(vec1.dx, vec1.dy) < 1 || Math.hypot(vec2.dx, vec2.dy) < 1) return Math.PI; 
+             const angle1 = Math.atan2(vec1.dy, vec1.dx);
+             const angle2 = Math.atan2(vec2.dy, vec2.dx);
+             let diff = Math.abs(angle1 - angle2);
+             return Math.min(diff, 2 * Math.PI - diff);
+        }
+
+        function isVectorMatch(userVec, correctVec, tipToTail = false, otherCorrectVec = null) {
+            if (!userVec) return { match: false };
+            let startX = playerForce.x;
+            let startY = playerForce.y;
+            if (tipToTail) {
+                if (!otherCorrectVec) return { match: false };
+                startX += otherCorrectVec.dx;
+                startY += otherCorrectVec.dy;
+            }
+            const startOk = Math.hypot(userVec.x - startX, userVec.y - startY) < PLACEMENT_TOLERANCE;
+            const componentsOk = Math.abs(userVec.dx - correctVec.dx) < VECTOR_MATCH_TOLERANCE && Math.abs(userVec.dy - correctVec.dy) < VECTOR_MATCH_TOLERANCE;
+            return { match: startOk && componentsOk };
+        }
+
+        function nextProblem() {
+            currentProblemIndex++;
+            if (currentProblemIndex >= TOTAL_PROBLEMS) {
+                if (!mistakesThisGame && score === TOTAL_PROBLEMS * 2) {
+                    offerBonusRound();
+                } else {
+                    endGame(false, false);
+                }
+            } else {
+                startProblem();
+            }
+        }
+        
+        function offerBonusRound() {
+             const title = "Flawless Performance!";
+             const message = `You've completed the main challenge perfectly, ${studentName}! Do you wish to attempt an Expert Challenge for extra credit?`;
+             
+             const acceptBtn = document.createElement('button');
+             acceptBtn.textContent = 'Accept Challenge';
+             acceptBtn.className = 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg m-2 shadow';
+             acceptBtn.onclick = () => { closeModal(); startBonusRound(); };
+
+             const declineBtn = document.createElement('button');
+             declineBtn.textContent = 'No, Thanks';
+             declineBtn.className = 'bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg m-2 shadow';
+             declineBtn.onclick = () => { closeModal(); endGame(false, false); };
+             
+             showModal(title, message, null, [acceptBtn, declineBtn]);
+        }
+        
+        function startBonusRound() {
+            isBonusRound = true;
+            currentProblemIndex = TOTAL_PROBLEMS; 
+            startProblem();
+        }
+        
+        function endGame(bonusSuccess, earlyQuit) {
+            let title, message;
+            const percentage = score / BASE_MAX_SCORE;
+            const randStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const verCode = `VER-${dateStr}-${score}-${randStr}`;
+
+            const extraText = `<br><br><small class="text-gray-400 text-xs font-mono tracking-widest block border-t border-gray-700 pt-4 mt-4">Verification Code: ${verCode}</small>`;
+            
+            let tryAgainText = 'Play Again';
+            
+            const scoreDisplay = `<div class="text-6xl sm:text-7xl font-bold text-yellow-400 my-6 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">${score} <span class="text-4xl text-yellow-600">/ ${BASE_MAX_SCORE}</span></div><div class="text-2xl mb-4 font-semibold text-gray-300">(${Math.round(percentage*100)}%)</div>`;
+
+            if (bonusSuccess) {
+                title = "Absolute Mastery!";
+                const effusiveMsg = CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
+                message = `Incredible work, ${studentName}!! ${effusiveMsg} You conquered the Expert Challenge! ${scoreDisplay}`;
+                launchBallisticConfetti(500);
+            } else if (percentage >= 1.0) {
+                title = "A Flawless Victory!";
+                const effusiveMsg = CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
+                message = `Phenomenal job, ${studentName}!! ${effusiveMsg} You completed the challenge without a single mistake. ${scoreDisplay} You are a true vector master!`;
+                launchBallisticConfetti(200);
+            } else if (percentage < 0.8 && !earlyQuit) {
+                 title = "Keep Practicing!";
+                 message = `Hey ${studentName}, your score is: ${scoreDisplay} Let's try to get that above 80%! I know you can do it.`;
+                 tryAgainText = "Try Again";
+            } else {
+                 title = earlyQuit ? 'Challenge Ended Early' : 'Challenge Complete!';
+                 message = `Good job, ${studentName}. Your final score is: ${scoreDisplay} ${score > 6 ? 'Great effort!' : 'Keep practicing!'}`;
+            }
+
+            showModal(title, message + extraText, restartGame, tryAgainText);
+        }
+        
+        function restartGame() {
+            startGame(); // Bypasses the name screen since studentName is saved
+        }
+        
+        // Ballistic Physics Particle System for Confetti
+        function launchBallisticConfetti(count) {
+            const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6'];
+            
+            for (let i = 0; i < count; i++) {
+                const confetto = document.createElement('div');
+                confetto.classList.add('confetti');
+                document.body.appendChild(confetto);
+                
+                // Initial State at bottom center
+                let x = window.innerWidth / 2;
+                let y = window.innerHeight;
+                
+                // Physics properties
+                const angle = (Math.random() * Math.PI) - (Math.PI / 2); // -90 to 90 deg
+                const velocity = Math.random() * 25 + 15; // 15 to 40
+                let vx = Math.sin(angle) * velocity;
+                let vy = -Math.cos(angle) * velocity;
+                const gravity = 0.5 + Math.random() * 0.3;
+                const drag = 0.99;
+                
+                // Visuals
+                confetto.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                let rotation = Math.random() * 360;
+                let rotationSpeed = (Math.random() - 0.5) * 20;
+
+                function animateConfetto() {
+                    vy += gravity;
+                    vx *= drag;
+                    vy *= drag;
+                    x += vx;
+                    y += vy;
+                    rotation += rotationSpeed;
+
+                    confetto.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+                    
+                    if (y < window.innerHeight + 50) {
+                        requestAnimationFrame(animateConfetto);
+                    } else {
+                        confetto.remove();
+                    }
+                }
+                
+                // Stagger launch
+                setTimeout(() => requestAnimationFrame(animateConfetto), Math.random() * 500);
+            }
+        }
+
+        function resetUI() {
+            instructionsTitleEl.textContent = 'Phase 1: Wind Force';
+            instructionsEl.textContent = 'Draw the main force vector created by the wind. It must be perpendicular to the sail and start from its center. The length does not matter.';
+            submitButton.textContent = 'Check Force';
+            submitButton.disabled = true;
+            feedbackEl.innerHTML = '';
+        }
+
+        function resetUIForComponents() {
+            instructionsTitleEl.textContent = 'Phase 2: Resolve Force';
+            const problemType = problems[currentProblemIndex].type;
+            const isPurePerp = problemType === 'perp';
+            const isPureParallel = problemType === 'para';
+            if (isPurePerp) {
+                instructionsEl.textContent = 'This force is perfectly perpendicular to the boat. Draw the single heeling component.';
+            } else if (isPureParallel) {
+                instructionsEl.textContent = 'This force is perfectly parallel to the boat. Draw the single thrust component.';
+            } else {
+                instructionsEl.textContent = 'Now, resolve the force vector you drew into two components: one parallel to the boat (thrust) and one perpendicular to the boat (heeling).';
+            }
+            submitButton.textContent = 'Check Components';
+            submitButton.disabled = true;
+            feedbackEl.innerHTML = `<span class="text-green-400">Correct!</span> Force vector is good. Now draw its components.`;
+        }
+        
+        function resetProblem() {
+            if (gameState === 'drawing_force') {
+                playerForce = null;
+            } else if (gameState === 'drawing_components') {
+                userComponents = [];
+            }
+            currentDrawingVector = null;
+            submitButton.disabled = true;
+            feedbackEl.innerHTML = '';
+            draw();
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            if (isBonusRound) {
+                problemEl.textContent = 'Bonus!';
+            } else {
+                problemEl.textContent = `${Math.min(currentProblemIndex + 1, TOTAL_PROBLEMS)} / ${TOTAL_PROBLEMS}`;
+            }
+        }
+
+        function showModal(title, message, onButtonClick, buttons) {
+            if (closeModalTimeout) { clearTimeout(closeModalTimeout); closeModalTimeout = null; }
+            modalTitleEl.textContent = title;
+            modalMessageEl.innerHTML = message; // Using innerHTML to allow the <small> and <br> tags
+            
+            modalButtonsEl.innerHTML = '';
+            if (Array.isArray(buttons)) {
+                buttons.forEach(btn => modalButtonsEl.appendChild(btn));
+            } else {
+                const btn = document.createElement('button');
+                btn.textContent = buttons;
+                btn.className = 'bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-8 rounded-lg text-lg shadow';
+                btn.onclick = () => { closeModal(); onButtonClick(); };
+                modalButtonsEl.appendChild(btn);
+            }
+
+            feedbackModal.classList.remove('hidden');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal() {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            closeModalTimeout = setTimeout(() => { feedbackModal.classList.add('hidden'); }, 300);
+        }
+        
+        // Event Listeners
+        window.addEventListener('resize', setupCanvas);
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('touchstart', onDown, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onUp);
+        submitButton.addEventListener('click', handleSubmit);
+        resetButton.addEventListener('click', resetProblem);
+        
+        // Initialize App
+        initApp();
+    </script>
+</body>
+</html>
