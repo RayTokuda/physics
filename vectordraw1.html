@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vector Addition Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden; /* Prevent scrolling entirely */
+            overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+        }
+        canvas {
+            touch-action: none; /* Prevent default touch actions like scrolling while dragging */
+            -webkit-tap-highlight-color: transparent;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0.8;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen w-screen p-2 sm:p-4 overflow-hidden relative">
+
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm bg-opacity-95 transition-opacity duration-500">
+        <h1 class="text-4xl sm:text-5xl font-bold text-cyan-400 mb-2 text-center drop-shadow-lg">Vector Addition</h1>
+        <p class="text-lg text-gray-400 mb-8 text-center max-w-md">Master physics by placing vectors tip-to-tail and drawing the resultant vector.</p>
+        
+        <div class="bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl flex flex-col items-center w-full max-w-md border border-gray-700">
+            <label for="playerNameInput" class="text-xl mb-4 text-gray-200 font-semibold text-center w-full">Enter your name, Physicist:</label>
+            <input type="text" id="playerNameInput" class="w-full bg-gray-900 text-white border-2 border-gray-600 rounded-lg px-4 py-3 mb-2 text-lg focus:outline-none focus:border-cyan-500 transition-colors shadow-inner text-center" placeholder="e.g. Marie Curie" autocomplete="off">
+            <p id="nameError" class="text-red-400 text-sm mb-4 h-5 opacity-0 transition-opacity">Please enter a valid name.</p>
+            <button id="startGameBtn" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 active:scale-95 w-full shadow-lg">Start Challenge</button>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="w-full max-w-4xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-3 sm:p-6 border border-gray-700">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-3 sm:mb-4 border-b border-gray-700 pb-3 sm:pb-4 gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-cyan-400 text-center sm:text-left truncate w-full" id="welcomeMessage">Vector Challenge</h1>
+            <div class="flex items-center space-x-2 sm:space-x-4 text-sm sm:text-lg w-full sm:w-auto justify-center sm:justify-end">
+                
+                <!-- Score and Verification Code Block -->
+                <div class="bg-gray-700 px-3 py-2 rounded-lg flex flex-col items-center min-w-[100px] sm:min-w-[120px] shadow-inner border border-gray-600">
+                    <span>Score: <span id="score" class="font-bold text-yellow-400 text-lg sm:text-xl">0</span></span>
+                    <!-- Small print verification code -->
+                    <span id="verificationCode" class="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 font-mono tracking-widest hidden uppercase" title="Unique Session Verification Code"></span>
+                </div>
+                
+                <div class="bg-gray-700 px-3 py-2 rounded-lg min-w-[100px] text-center shadow-inner border border-gray-600 flex items-center justify-center h-full">
+                    <span>Round: <span id="round" class="font-bold text-green-400">1 / 5</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div id="instructions" class="text-center bg-gray-700/50 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-gray-200 shadow-inner border border-gray-600/50 text-sm sm:text-base font-medium">
+            Drag the vectors to place them tip-to-tail. The order doesn't matter!
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="flex-grow w-full h-0 min-h-0 relative rounded-xl overflow-hidden bg-gray-900 shadow-inner border border-gray-700 touch-none">
+             <!-- touch-none class enforces no scrolling over the canvas -->
+             <canvas id="gameCanvas" class="absolute top-0 left-0 touch-none"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex justify-center items-center mt-3 sm:mt-4 space-x-3 sm:space-x-4 w-full">
+            <button id="checkButton" class="flex-1 max-w-[200px] bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md text-sm sm:text-base active:scale-95" disabled>Check Placement</button>
+            <button id="secondaryButton" class="flex-1 max-w-[200px] bg-red-600 hover:bg-red-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl transition-all duration-200 shadow-md text-sm sm:text-base active:scale-95">Reset Vectors</button>
+        </div>
+    </div>
+
+    <!-- Modal for feedback -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-2xl p-6 sm:p-8 text-center shadow-2xl border border-gray-600 transform scale-95 opacity-0 modal max-w-lg w-full">
+            <h2 id="modalTitle" class="text-2xl sm:text-3xl font-bold mb-4 text-white"></h2>
+            <p id="modalMessage" class="text-base sm:text-lg mb-6 text-gray-300"></p>
+            <div class="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <button id="modalButton" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-transform duration-200 hover:scale-105 active:scale-95 shadow-lg">Continue</button>
+                <button id="modalButtonSecondary" class="w-full sm:w-auto bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-transform duration-200 hover:scale-105 active:scale-95 shadow-lg hidden"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.querySelector('.flex-grow');
+
+        // UI Elements
+        const scoreEl = document.getElementById('score');
+        const roundEl = document.getElementById('round');
+        const instructionsEl = document.getElementById('instructions');
+        const checkButton = document.getElementById('checkButton');
+        const secondaryButton = document.getElementById('secondaryButton');
+        const verificationCodeEl = document.getElementById('verificationCode');
+        const welcomeMessageEl = document.getElementById('welcomeMessage');
+
+        // Start Screen Elements
+        const startScreen = document.getElementById('startScreen');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const nameError = document.getElementById('nameError');
+
+        // Modal Elements
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const modalButton = document.getElementById('modalButton');
+        const modalButtonSecondary = document.getElementById('modalButtonSecondary');
+
+        // Game State Variables
+        let playerName = "";
+        let score = 0;
+        let round = 1;
+        let level = 1;
+        let vectors = [];
+        let draggingVector = null;
+        let userResultant = null;
+        let isDrawingResultant = false;
+        let dragOffsetX, dragOffsetY;
+        let gameState = 'placing_vectors'; // placing_vectors, drawing_resultant, round_over
+
+        // Constants
+        const SNAP_TOLERANCE = 20; // Tolerance for snapping vectors tip-to-tail
+        const HOVER_TOLERANCE = 25; // Tolerance for showing the grab cursor (larger for touch/ease of use)
+
+        const PERFECT_5_MESSAGES = [
+            "Perfect 5/5! <NAME>, you are a vector virtuoso!",
+            "Flawless execution! <NAME>, physics bows to your intellect!",
+            "Incredible work, <NAME>! You've mastered the vector verse.",
+            "Superb job, <NAME>! Your vector skills are unparalleled.",
+            "Phenomenal, <NAME>! That was textbook perfect.",
+            "Fantastic, <NAME>! You're a true mathematical force.",
+            "Outstanding! You've got the magic touch, <NAME>.",
+            "Perfecto, <NAME>! You're on another plane of understanding.",
+            "Cosmic work, <NAME>! Your skills are out of this world.",
+            "Dynamite, <NAME>! You blew that challenge away.",
+            "Electrifying! A shocking display of talent, <NAME>!",
+            "Spotless victory! <NAME>, your precision is admirable.",
+            "Genius-level execution! Einstein would be proud of you, <NAME>!",
+            "Heroic! You saved the day with math, <NAME>!",
+            "Jaw-dropping! My vectors are spinning, <NAME>!",
+            "Kudos! A truly legendary performance, <NAME>!",
+            "Luminous, <NAME>! Your intellect is shining bright!",
+            "Majestic! A royal display of vector skills from <NAME>!",
+            "Nirvana! <NAME>, you've reached physics enlightenment!",
+            "Prime talent! You're unstoppable, <NAME>!",
+            "Priceless! A moment of pure genius from <NAME>!",
+            "Quantum leap! You've jumped to the top, <NAME>!",
+            "Radiant! You're glowing with success, <NAME>!",
+            "Stellar! A star performance from our own <NAME>!",
+            "Terrific! Simply terrific vector addition, <NAME>!",
+            "Unbelievable, <NAME>! You perfectly obey the laws of physics!",
+            "Veni, vidi, vici! <NAME> came, saw, and conquered vectors!",
+            "Wonderful! A wonder of the physics world, <NAME>!",
+            "X-cellent! <NAME>, you've hit the exact mark!",
+            "Yielding perfection! That's a lot of skill, <NAME>!",
+            "Zesty! You've added some real spice to physics, <NAME>!",
+            "Amazing! A masterclass in vector addition by <NAME>.",
+            "Bravo, <NAME>! An applause-worthy 5/5 performance.",
+            "Champion! <NAME>, you are the vector champion.",
+            "Dazzling! A truly brilliant solution from <NAME>.",
+            "Exceptional, <NAME>! Way beyond standard expectations.",
+            "Glorious! A victory for the ages, <NAME>.",
+            "Honorable! A display of great skill and precision, <NAME>.",
+            "Illustrious! <NAME>, your name goes in the hall of fame.",
+            "Jubilant! A reason to celebrate your 5/5, <NAME>.",
+            "Keen! A sharp mind at work, well done <NAME>.",
+            "Legendary! <NAME>'s skills are the stuff of legends.",
+            "Marvelous! Utterly and completely marvelous, <NAME>.",
+            "Noble! A noble effort with a perfect result, <NAME>.",
+            "Optimal! The absolute perfect 5/5 solution, <NAME>.",
+            "Peerless! Without equal in the realm of vectors, <NAME>.",
+            "Quintessential perfection! You nailed it, <NAME>.",
+            "Resplendent! A shining 5/5 for <NAME>.",
+            "Supreme! The highest order of vector skill, <NAME>.",
+            "Triumphant! <NAME> stands victorious with a 5/5!"
+        ];
+
+        const PERFECT_6_MESSAGES = [
+            "A cosmological anomaly! <NAME>, your 6/5 defies the known laws of physics!",
+            "<NAME>, you didn't just break the ceiling, you shattered the physics continuum!",
+            "Absolute perfection doesn't exist... wait, <NAME> just achieved 6/5! I stand corrected!",
+            "Is that Isaac Newton? No, it's <NAME> scoring an impossible 6/5!",
+            "They said it couldn't be done, but <NAME> just rewrote the textbooks with a 6/5!",
+            "Reality bends to your will, <NAME>! A transcendent 6 out of 5!",
+            "We are witnessing a paradigm shift! <NAME>, your 6/5 will be studied for centuries!",
+            "Galileo, Newton, Einstein, and now... <NAME>! Welcome to the Pantheon of Physics!",
+            "A 6/5? <NAME>, you must have hacked the matrix of the universe!",
+            "Unfathomable genius! <NAME>, you've achieved a multidimensional victory!",
+            "The Nobel Prize committee is calling... <NAME> just scored a 6/5!",
+            "You didn't just add vectors, <NAME>, you multiplied the bounds of human potential!",
+            "Astounding! <NAME> has officially unlocked the 6th dimension of vector addition!",
+            "A literal god amongst mortals! <NAME>, this 6/5 is simply divine!",
+            "The cosmos aligns in awe of <NAME>'s flawless 6 out of 5!",
+            "Forget the laws of physics, <NAME> just made up their own with this 6/5!",
+            "Immaculate! Infallible! <NAME> achieves the mythical 6/5 score!",
+            "An intellectual supernova! <NAME>'s 6/5 score outshines all others!",
+            "It's over 9000! Actually, it's 6/5, which is even more impressive, <NAME>!",
+            "The fabric of spacetime vibrates with <NAME>'s monumental 6/5 achievement!",
+            "Shattering the scale! <NAME>, your 6/5 is mathematically impossible yet here we are!",
+            "A singularity of pure talent! <NAME> achieves the absolute max: 6/5!",
+            "We are unworthy! <NAME> blesses us with a miraculous 6 out of 5!",
+            "Mind-bending mastery! <NAME>, the universe bows to your vector supremacy!",
+            "An epochal triumph! <NAME>'s 6/5 marks a new era in mathematical history!",
+            "Breathtaking! <NAME> just gave a masterclass on how to break the scale!",
+            "The apex of human achievement! <NAME> stands alone with a 6/5!",
+            "Is it possible to learn this power? <NAME> is a vector Jedi Master!",
+            "An undisputed masterpiece of physics by <NAME>! 6/5 is yours!",
+            "Galactic brain activated! <NAME> foresaw the vectors and achieved 6/5!",
+            "The oracle spoke of one who would score 6/5... The prophecy is fulfilled by <NAME>!",
+            "Flawless victory is an understatement. <NAME> achieved a transcendent 6/5!",
+            "Even a supercomputer couldn't predict <NAME> getting a 6 out of 5!",
+            "A reality-warping display of intellect! <NAME> claims the 6/5!",
+            "Legendary status unlocked. <NAME> is now a certified vector deity!",
+            "Infinity and beyond! <NAME>'s 6/5 pushes past all theoretical limits!",
+            "The epitome of exactness! <NAME>, your 6/5 is a scientific miracle!",
+            "A marvel of the modern world! <NAME>'s 6/5 will be immortalized!",
+            "They will build statues to commemorate <NAME>'s 6/5 score!",
+            "Physics is completed. <NAME> beat the game with a 6/5!",
+            "Astrophysicists are weeping in joy! <NAME> has brought balance with a 6/5!",
+            "The golden ratio of scores! <NAME> secures the beautiful 6/5!",
+            "A majestic display of unparalleled cognitive superiority by <NAME>! 6/5!",
+            "We're running out of adjectives for <NAME>'s staggering 6/5 victory!",
+            "Surpassing the supreme! <NAME> goes beyond plus ultra for a 6/5!",
+            "The pinnacle of perfection! <NAME>, there is nowhere left to climb after this 6/5!",
+            "A quantum anomaly of success! <NAME> collapses the wave function to a 6/5!",
+            "A breathtakingly perfect anomaly! <NAME>, your 6/5 is historic!",
+            "The undisputed champion of the universe! <NAME> takes the 6/5 crown!",
+            "End of the line. <NAME> achieved the 6/5. Physics has peaked."
+        ];
+
+        startGameBtn.addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            if (name.length > 0) {
+                playerName = name;
+                startScreen.classList.add('opacity-0');
+                startScreen.style.pointerEvents = 'none'; // Prevent clicks during fade out
+                setTimeout(() => {
+                    startScreen.classList.add('hidden');
+                    welcomeMessageEl.textContent = `Hello, ${playerName}!`;
+                    startGame();
+                }, 500); // Wait for transition
+            } else {
+                nameError.classList.remove('opacity-0');
+                setTimeout(() => nameError.classList.add('opacity-0'), 3000);
+            }
+        });
+
+        // Allow pressing Enter to start
+        playerNameInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                startGameBtn.click();
+            }
+        });
+
+        function getRandomMessage(type) {
+            let msgList;
+            if (type === 5) {
+                msgList = PERFECT_5_MESSAGES;
+            } else if (type === 6) {
+                msgList = PERFECT_6_MESSAGES;
+            } else {
+                return `Great job, ${playerName}!`; // Fallback
+            }
+            const randIndex = Math.floor(Math.random() * msgList.length);
+            return msgList[randIndex].replace(/<NAME>/g, playerName);
+        }
+
+        function generateVerificationCode(name) {
+            if (!name) return "";
+            // Get first 3 letters, pad with X if needed, uppercase
+            const cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            const prefix = (cleanName + 'XXX').substring(0, 3);
+            
+            // Generate a random string to mix it into
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let randomStr = '';
+            for (let i = 0; i < 6; i++) {
+                randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            
+            // Distribute the 3 prefix letters in order
+            let arr = randomStr.split('');
+            let positions = [];
+            while (positions.length < 3) {
+                let pos = Math.floor(Math.random() * 9); // Total length will be 9
+                if (!positions.includes(pos)) positions.push(pos);
+            }
+            positions.sort((a, b) => a - b);
+            
+            arr.splice(positions[0], 0, prefix[0]);
+            arr.splice(positions[1], 0, prefix[1]);
+            arr.splice(positions[2], 0, prefix[2]);
+            
+            return arr.join('');
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            const totalRounds = level === 1 ? 5 : 1;
+            const currentRound = level === 1 ? round : 1;
+            const roundText = level === 1 ? `${currentRound} / ${totalRounds}` : "Bonus Round!";
+            roundEl.textContent = roundText;
+            
+            // Update Verification Code
+            const code = generateVerificationCode(playerName);
+            verificationCodeEl.textContent = code;
+            verificationCodeEl.classList.remove('hidden');
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = gameContainer.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            draw();
+        }
+
+        function startGame() {
+            score = 0;
+            round = 1;
+            level = 1;
+            setupCanvas();
+            updateUI();
+            startRound();
+        }
+        
+        function startRound() {
+            gameState = 'placing_vectors';
+            userResultant = null;
+            isDrawingResultant = false;
+            checkButton.disabled = true;
+            checkButton.textContent = 'Check Placement';
+            secondaryButton.textContent = 'Reset Vectors';
+            instructionsEl.textContent = 'Drag the vectors to place them tip-to-tail. The order doesn\'t matter!';
+            canvas.style.cursor = 'default';
+
+            const vectorCount = level === 1 ? 2 : 3;
+            generateVectors(vectorCount);
+            draw();
+        }
+
+        function generateVectors(count) {
+            const MIN_RESULTANT_LENGTH = 50; 
+            let resultantMagnitude = 0;
+
+            do {
+                vectors = [];
+                const colors = ['#06b6d4', '#f59e0b', '#10b981']; // cyan, amber, emerald
+                const canvasWidth = canvas.offsetWidth;
+                const canvasHeight = canvas.offsetHeight;
+
+                // Responsive sizing
+                const padding = Math.min(canvasWidth, canvasHeight) * 0.15; 
+                const maxVectorComponent = Math.min(canvasWidth, canvasHeight) * 0.25; 
+                const minVectorComponent = Math.min(canvasWidth, canvasHeight) * 0.1;  
+
+                let totalDx = 0;
+                let totalDy = 0;
+
+                for (let i = 0; i < count; i++) {
+                    const dx = (Math.random() * (maxVectorComponent - minVectorComponent) + minVectorComponent) * (Math.random() > 0.5 ? 1 : -1);
+                    const dy = (Math.random() * (maxVectorComponent - minVectorComponent) + minVectorComponent) * (Math.random() > 0.5 ? 1 : -1);
+
+                    totalDx += dx;
+                    totalDy += dy;
+
+                    let x, y, tipX, tipY;
+                    let attempts = 0;
+                    
+                    do {
+                        x = Math.random() * (canvasWidth - 2 * padding) + padding;
+                        y = Math.random() * (canvasHeight - 2 * padding) + padding;
+                        tipX = x + dx;
+                        tipY = y + dy;
+                        attempts++;
+                    } while ((tipX < padding || tipX > canvasWidth - padding || tipY < padding || tipY > canvasHeight - padding) && attempts < 50);
+
+                    if (attempts >= 50) {
+                         x = canvasWidth / 2;
+                         y = canvasHeight / 2;
+                    }
+
+                    vectors.push({
+                        x: x,
+                        y: y,
+                        dx: dx,
+                        dy: dy,
+                        color: colors[i % colors.length],
+                        id: i
+                    });
+                }
+                resultantMagnitude = Math.hypot(totalDx, totalDy);
+            } while (resultantMagnitude < MIN_RESULTANT_LENGTH);
+        }
+        
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.offsetWidth; x += 20) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.offsetHeight);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.offsetHeight; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.offsetWidth, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawVector(vector, isThick = false) {
+            ctx.strokeStyle = vector.color;
+            ctx.fillStyle = vector.color;
+            ctx.lineWidth = isThick ? 6 : 4; // Thicker if resultant
+
+            const headlen = isThick ? 14 : 12; // Slightly larger head for readability
+            const angle = Math.atan2(vector.dy, vector.dx);
+
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(vector.x, vector.y);
+            ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.stroke();
+            
+            // Draw arrowhead
+            ctx.beginPath();
+            ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw small circles at tail and tip to indicate grab points implicitly
+            ctx.beginPath();
+            ctx.arc(vector.x, vector.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            vectors.forEach(v => drawVector(v));
+
+            if (gameState === 'drawing_resultant' && userResultant) {
+                drawVector(userResultant, true);
+            }
+        }
+        
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // Handle both touch and mouse safely
+            let clientX, clientY;
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+                clientX = evt.changedTouches[0].clientX;
+                clientY = evt.changedTouches[0].clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function onDown(evt) {
+            // Prevent default only for touch events to avoid scrolling
+            if(evt.type.includes('touch')) evt.preventDefault();
+            const pos = getMousePos(evt);
+
+            if (gameState === 'placing_vectors') {
+                for (let i = vectors.length - 1; i >= 0; i--) {
+                    const v = vectors[i];
+                    const distToTail = Math.hypot(pos.x - v.x, pos.y - v.y);
+                    const distToTip = Math.hypot(pos.x - (v.x + v.dx), pos.y - (v.y + v.dy));
+                    if (distToTail < HOVER_TOLERANCE || distToTip < HOVER_TOLERANCE) {
+                        draggingVector = v;
+                        dragOffsetX = pos.x - v.x;
+                        dragOffsetY = pos.y - v.y;
+                        canvas.style.cursor = 'grabbing';
+                        return;
+                    }
+                }
+            } else if (gameState === 'drawing_resultant') {
+                userResultant = {
+                    x: pos.x,
+                    y: pos.y,
+                    dx: 0,
+                    dy: 0,
+                    color: '#ec4899' // pink
+                };
+                isDrawingResultant = true;
+            }
+        }
+        
+        function onMove(evt) {
+            if(evt.type.includes('touch')) evt.preventDefault();
+            const pos = getMousePos(evt);
+
+            if (gameState === 'placing_vectors') {
+                if (draggingVector) {
+                    // Update dragging position
+                    draggingVector.x = pos.x - dragOffsetX;
+                    draggingVector.y = pos.y - dragOffsetY;
+                    
+                    // Snap vectors tip-to-tail
+                    vectors.forEach(v => {
+                        if (v.id === draggingVector.id) return;
+                        
+                        // Tip of v to tail of draggingVector
+                        if (Math.hypot((v.x + v.dx) - draggingVector.x, (v.y + v.dy) - draggingVector.y) < SNAP_TOLERANCE) {
+                             draggingVector.x = v.x + v.dx;
+                             draggingVector.y = v.y + v.dy;
+                        }
+                        // Tail of v to tip of draggingVector
+                        if (Math.hypot(v.x - (draggingVector.x + draggingVector.dx), v.y - (draggingVector.y + draggingVector.dy)) < SNAP_TOLERANCE) {
+                             draggingVector.x = v.x - draggingVector.dx;
+                             draggingVector.y = v.y - draggingVector.dy;
+                        }
+                    });
+                    canvas.style.cursor = 'grabbing';
+                    draw();
+                } else {
+                    // Calculate HOVER state to change cursor shape to a hand
+                    let isHovering = false;
+                    for (let i = 0; i < vectors.length; i++) {
+                        const v = vectors[i];
+                        const distToTail = Math.hypot(pos.x - v.x, pos.y - v.y);
+                        const distToTip = Math.hypot(pos.x - (v.x + v.dx), pos.y - (v.y + v.dy));
+                        if (distToTail < HOVER_TOLERANCE || distToTip < HOVER_TOLERANCE) {
+                            isHovering = true;
+                            break;
+                        }
+                    }
+                    canvas.style.cursor = isHovering ? 'grab' : 'default';
+                }
+            } else if (gameState === 'drawing_resultant') {
+                if (isDrawingResultant) {
+                    userResultant.dx = pos.x - userResultant.x;
+                    userResultant.dy = pos.y - userResultant.y;
+                    draw();
+                }
+                // Cursor is already handled to crosshair during this phase via DOM
+            }
+        }
+
+        function onUp(evt) {
+            if (gameState === 'placing_vectors' && draggingVector) {
+                draggingVector = null;
+                // Re-evaluate cursor immediately after dropping
+                const pos = getMousePos(evt);
+                let isHovering = false;
+                for (let i = 0; i < vectors.length; i++) {
+                    const v = vectors[i];
+                    if (Math.hypot(pos.x - v.x, pos.y - v.y) < HOVER_TOLERANCE || Math.hypot(pos.x - (v.x + v.dx), pos.y - (v.y + v.dy)) < HOVER_TOLERANCE) {
+                        isHovering = true; break;
+                    }
+                }
+                canvas.style.cursor = isHovering ? 'grab' : 'default';
+                checkVectorsPlacement();
+            } else if (gameState === 'drawing_resultant' && isDrawingResultant) {
+                isDrawingResultant = false;
+                if (userResultant) {
+                    checkButton.disabled = false;
+                }
+            }
+        }
+
+        function checkVectorsPlacement() {
+            let connections = 0;
+            for (let i = 0; i < vectors.length; i++) {
+                for (let j = 0; j < vectors.length; j++) {
+                    if (i === j) continue;
+                    const v1 = vectors[i];
+                    const v2 = vectors[j];
+                    if (Math.hypot((v1.x + v1.dx) - v2.x, (v1.y + v1.dy) - v2.y) < SNAP_TOLERANCE) {
+                        connections++;
+                    }
+                }
+            }
+            if (connections >= vectors.length - 1) {
+                checkButton.disabled = false;
+            } else {
+                checkButton.disabled = true;
+            }
+        }
+        
+        function handleCheckButtonClick() {
+            if (gameState === 'placing_vectors') {
+                gameState = 'drawing_resultant';
+                checkButton.disabled = true;
+                checkButton.textContent = 'Check Resultant';
+                secondaryButton.textContent = 'Erase Resultant';
+                instructionsEl.textContent = 'Perfect! Now draw the resultant vector from the first tail to the final tip.';
+                canvas.style.cursor = 'crosshair';
+            } else if (gameState === 'drawing_resultant') {
+                if (!userResultant) return;
+                checkResultant();
+            }
+        }
+        
+        function handleSecondaryButtonClick() {
+            if (secondaryButton.textContent === 'Erase Resultant') {
+                userResultant = null;
+                isDrawingResultant = false;
+                checkButton.disabled = true;
+                draw();
+            } else {
+                startRound();
+            }
+        }
+
+        function checkResultant() {
+            if (!userResultant) return;
+
+            let startVector = null;
+            let endVector = null;
+
+            vectors.forEach(v => {
+                let isTailConnected = false;
+                let isTipConnected = false;
+                vectors.forEach(otherV => {
+                    if (v.id === otherV.id) return;
+                    if (Math.hypot(v.x - (otherV.x + otherV.dx), v.y - (otherV.y + otherV.dy)) < SNAP_TOLERANCE) isTailConnected = true;
+                    if (Math.hypot((v.x + v.dx) - otherV.x, (v.y + v.dy) - otherV.y) < SNAP_TOLERANCE) isTipConnected = true;
+                });
+                if (!isTailConnected) startVector = v;
+                if (!isTipConnected) endVector = v;
+            });
+            
+            if (!startVector || !endVector) {
+                 const isNearZero = Math.hypot(userResultant.dx, userResultant.dy) < SNAP_TOLERANCE;
+                 const isNearTail = vectors.some(v => Math.hypot(userResultant.x - v.x, userResultant.y - v.y) < SNAP_TOLERANCE);
+                 if (isNearZero && isNearTail) correctAnswer(); else incorrectAnswer();
+                 return;
+            }
+
+            const correctStartX = startVector.x;
+            const correctStartY = startVector.y;
+            const correctEndX = endVector.x + endVector.dx;
+            const correctEndY = endVector.y + endVector.dy;
+
+            const startPointCorrect = Math.hypot(userResultant.x - correctStartX, userResultant.y - correctStartY) < SNAP_TOLERANCE;
+            const endPointCorrect = Math.hypot((userResultant.x + userResultant.dx) - correctEndX, (userResultant.y + userResultant.dy) - correctEndY) < SNAP_TOLERANCE;
+
+            if (startPointCorrect && endPointCorrect) {
+                correctAnswer();
+            } else {
+                incorrectAnswer();
+            }
+        }
+        
+        function handleEndGameSummary() {
+            if (score === 5) {
+                // Should not hit this branch directly if they decline bonus, but just in case
+                showModal('Amazing!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver);
+            } else if (score === 4) {
+                showModal('Great Job!', `You scored ${score}/5. Just one point shy of perfect, ${playerName}! Well done!`, gameOver);
+            } else if (score <= 3) {
+                // Gently invite them to practice again
+                showModal('Keep Practicing!', `You scored ${score}/5, ${playerName}. Physics takes time and practice. Would you like to try again?`, gameOver);
+            } else {
+                showModal('Game Over', `You finished with a score of ${score}/5. Well done, ${playerName}!`, gameOver);
+            }
+        }
+
+        function correctAnswer() {
+            score++;
+            updateUI();
+            
+            if (level === 1 && round === 5 && score === 5) {
+                showModal(
+                    'Perfect Score!', 
+                    `Amazing job, ${playerName}! You got 5/5! ${getRandomMessage(5)} Do you want to try a tougher bonus round for a chance to score 6/5?`, 
+                    () => { 
+                        level = 2; round = 1; updateUI(); startRound();
+                    },
+                    { 
+                        primaryText: 'Challenge Me!',
+                        secondaryText: 'No Thanks',
+                        onClick: () => { 
+                            showModal('Congratulations!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver);
+                            launchConfetti();
+                        }
+                    }
+                );
+            } else if (level === 2 && round === 1 && score === 6) {
+                showModal('6/5 - GOD TIER!', getRandomMessage(6), gameOver);
+                launchConfetti();
+                setTimeout(launchConfetti, 1000); // Double the celebration
+            } else if (round >= 5 && level === 1) {
+                handleEndGameSummary();
+            } else {
+                round++;
+                updateUI();
+                showModal('Correct!', 'Spot on! Get ready for the next round.', startRound);
+            }
+        }
+
+        function incorrectAnswer() {
+            if (level === 2) {
+                showModal('So Close!', `You didn't get the bonus, but you still finished with a perfect score of 5 out of 5, ${playerName}!`, gameOver);
+            } else {
+                 if (round >= 5) {
+                    handleEndGameSummary();
+                } else {
+                    round++;
+                    updateUI();
+                    showModal('Not Quite!', `That wasn\'t the correct resultant vector. Don't worry ${playerName}, let's try the next round.`, startRound);
+                }
+            }
+        }
+        
+        function gameOver() {
+            startGame();
+            closeModal();
+        }
+        
+        function showModal(title, message, onButtonClick, secondaryOptions = null) {
+            modalTitleEl.textContent = title;
+            modalMessageEl.textContent = message;
+            
+            modalButton.onclick = () => {
+                closeModal();
+                onButtonClick();
+            };
+
+            if (secondaryOptions) {
+                modalButton.textContent = secondaryOptions.primaryText || 'Yes';
+                modalButtonSecondary.textContent = secondaryOptions.secondaryText || 'No';
+                modalButtonSecondary.classList.remove('hidden');
+                modalButtonSecondary.onclick = () => {
+                    closeModal();
+                    secondaryOptions.onClick();
+                };
+            } else {
+                modalButton.textContent = 'Continue';
+                modalButtonSecondary.classList.add('hidden');
+            }
+            
+            feedbackModal.classList.remove('hidden');
+            
+            setTimeout(() => {
+                feedbackModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeModal() {
+            feedbackModal.querySelector('.modal').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                feedbackModal.classList.add('hidden');
+            }, 300);
+        }
+
+        function launchConfetti() {
+            for (let i = 0; i < 200; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = -20 + 'px';
+                
+                // Randomly shape to square or circle
+                if(Math.random() > 0.5) confetti.style.borderRadius = '50%';
+                
+                // Varied vibrant colors
+                const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6'];
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Randomize fall speed and rotation
+                const duration = Math.random() * 3 + 2; 
+                confetti.style.animationDuration = `${duration}s`;
+                confetti.style.animationDelay = Math.random() * 1 + 's';
+                
+                // Parallax scaling
+                confetti.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    if (confetti.parentNode) confetti.parentNode.removeChild(confetti);
+                }, (duration + 1) * 1000);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            if(gameState !== 'placing_vectors' && gameState !== 'drawing_resultant') return; // Don't resize aggressively if game hasn't fully started
+            setupCanvas();
+        });
+        
+        // Mouse Listeners
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('mouseleave', (e) => { 
+             if (draggingVector || isDrawingResultant) onUp(e);
+        });
+
+        // Touch Listeners mapping directly to logic
+        canvas.addEventListener('touchstart', onDown, {passive: false});
+        canvas.addEventListener('touchmove', onMove, {passive: false});
+        canvas.addEventListener('touchend', onUp, {passive: false});
+        canvas.addEventListener('touchcancel', onUp, {passive: false});
+
+        checkButton.addEventListener('click', handleCheckButtonClick);
+        secondaryButton.addEventListener('click', handleSecondaryButtonClick);
+
+        // Pre-setup canvas sizing behind the modal
+        setupCanvas();
+    </script>
+</body>
+</html>
