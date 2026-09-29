@@ -408,21 +408,17 @@
             const letters = (cleanName + 'XXX').substring(0, 3).split('');
             
             const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            const codeLength = 9;
+            const codeLength = 10;
             
-            const indices = [];
-            while (indices.length < 3) {
-                const randIndex = Math.floor(Math.random() * codeLength);
-                if (!indices.includes(randIndex)) {
-                    indices.push(randIndex);
-                }
-            }
-            indices.sort((a, b) => a - b);
+            // Guarantee spacing between the 3 name letters while maintaining sequential order
+            const i0 = Math.floor(Math.random() * 2);             // Pos 0 or 1
+            const i1 = i0 + 2 + Math.floor(Math.random() * 2);   // Pos 3 to 5 (separated by filler chars)
+            const i2 = i1 + 2 + Math.floor(Math.random() * 2);   // Pos 6 to 9 (separated by filler chars)
             
             const result = new Array(codeLength);
-            result[indices[0]] = letters[0];
-            result[indices[1]] = letters[1];
-            result[indices[2]] = letters[2];
+            result[i0] = letters[0];
+            result[i1] = letters[1];
+            result[i2] = letters[2];
             
             for (let i = 0; i < codeLength; i++) {
                 if (!result[i]) {
