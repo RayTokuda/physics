@@ -9,25 +9,12 @@
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            overflow: hidden; /* Prevent scrolling entirely */
-            overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+            overflow: hidden;
+            overscroll-behavior: none;
         }
         canvas {
-            touch-action: none; /* Prevent default touch actions like scrolling while dragging */
+            touch-action: none;
             -webkit-tap-highlight-color: transparent;
-        }
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            opacity: 0.8;
-            animation: fall linear forwards;
-        }
-        @keyframes fall {
-            to {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
         }
         .modal {
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -36,7 +23,6 @@
 </head>
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen w-screen p-2 sm:p-4 overflow-hidden relative">
 
-    <!-- Start Screen Overlay -->
     <div id="startScreen" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm bg-opacity-95 transition-opacity duration-500">
         <h1 class="text-4xl sm:text-5xl font-bold text-cyan-400 mb-2 text-center drop-shadow-lg">Vector Addition</h1>
         <p class="text-lg text-gray-400 mb-8 text-center max-w-md">Master physics by placing vectors tip-to-tail and drawing the resultant vector.</p>
@@ -49,7 +35,6 @@
         </div>
     </div>
 
-    <!-- Game Container -->
     <div id="game-container" class="w-full max-w-4xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-3 sm:p-6 border border-gray-700">
         
         <!-- Header -->
@@ -57,11 +42,9 @@
             <h1 class="text-xl sm:text-2xl font-bold text-cyan-400 text-center sm:text-left truncate w-full" id="welcomeMessage">Vector Challenge</h1>
             <div class="flex items-center space-x-2 sm:space-x-4 text-sm sm:text-lg w-full sm:w-auto justify-center sm:justify-end">
                 
-                <!-- Score and Verification Code Block -->
-                <div class="bg-gray-700 px-3 py-2 rounded-lg flex flex-col items-center min-w-[100px] sm:min-w-[120px] shadow-inner border border-gray-600">
+                <!-- Score Block -->
+                <div class="bg-gray-700 px-3 py-2 rounded-lg flex flex-col items-center justify-center min-w-[100px] sm:min-w-[120px] shadow-inner border border-gray-600">
                     <span>Score: <span id="score" class="font-bold text-yellow-400 text-lg sm:text-xl">0</span></span>
-                    <!-- Small print verification code -->
-                    <span id="verificationCode" class="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 font-mono tracking-widest hidden uppercase" title="Unique Session Verification Code"></span>
                 </div>
                 
                 <div class="bg-gray-700 px-3 py-2 rounded-lg min-w-[100px] text-center shadow-inner border border-gray-600 flex items-center justify-center h-full">
@@ -70,14 +53,13 @@
             </div>
         </div>
 
-        <!-- Instructions -->
+        <!-- Instructions Banner -->
         <div id="instructions" class="text-center bg-gray-700/50 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-gray-200 shadow-inner border border-gray-600/50 text-sm sm:text-base font-medium">
             Drag the vectors to place them tip-to-tail. The order doesn't matter!
         </div>
 
         <!-- Canvas Area -->
         <div class="flex-grow w-full h-0 min-h-0 relative rounded-xl overflow-hidden bg-gray-900 shadow-inner border border-gray-700 touch-none">
-             <!-- touch-none class enforces no scrolling over the canvas -->
              <canvas id="gameCanvas" class="absolute top-0 left-0 touch-none"></canvas>
         </div>
 
@@ -88,11 +70,11 @@
         </div>
     </div>
 
-    <!-- Modal for feedback -->
     <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
         <div class="bg-gray-800 rounded-2xl p-6 sm:p-8 text-center shadow-2xl border border-gray-600 transform scale-95 opacity-0 modal max-w-lg w-full">
             <h2 id="modalTitle" class="text-2xl sm:text-3xl font-bold mb-4 text-white"></h2>
-            <p id="modalMessage" class="text-base sm:text-lg mb-6 text-gray-300"></p>
+            <p id="modalMessage" class="text-base sm:text-lg mb-3 text-gray-300"></p>
+            <p id="modalVerificationCode" class="text-xs text-gray-400 font-mono tracking-wider mb-6 hidden"></p>
             <div class="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
                 <button id="modalButton" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-transform duration-200 hover:scale-105 active:scale-95 shadow-lg">Continue</button>
                 <button id="modalButtonSecondary" class="w-full sm:w-auto bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-transform duration-200 hover:scale-105 active:scale-95 shadow-lg hidden"></button>
@@ -100,10 +82,19 @@
         </div>
     </div>
 
+    <!-- Confetti FX Canvas -->
+    <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full hidden"></canvas>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gameContainer = document.querySelector('.flex-grow');
+
+        // Confetti Canvas Elements
+        const confettiCanvas = document.getElementById('confettiCanvas');
+        const confettiCtx = confettiCanvas ? confettiCanvas.getContext('2d') : null;
+        let confettiParticles = [];
+        let confettiAnimationId = null;
 
         // UI Elements
         const scoreEl = document.getElementById('score');
@@ -111,7 +102,6 @@
         const instructionsEl = document.getElementById('instructions');
         const checkButton = document.getElementById('checkButton');
         const secondaryButton = document.getElementById('secondaryButton');
-        const verificationCodeEl = document.getElementById('verificationCode');
         const welcomeMessageEl = document.getElementById('welcomeMessage');
 
         // Start Screen Elements
@@ -124,11 +114,13 @@
         const feedbackModal = document.getElementById('feedbackModal');
         const modalTitleEl = document.getElementById('modalTitle');
         const modalMessageEl = document.getElementById('modalMessage');
+        const modalVerificationCodeEl = document.getElementById('modalVerificationCode');
         const modalButton = document.getElementById('modalButton');
         const modalButtonSecondary = document.getElementById('modalButtonSecondary');
 
         // Game State Variables
         let playerName = "";
+        let sessionVerificationCode = "";
         let score = 0;
         let round = 1;
         let level = 1;
@@ -136,13 +128,15 @@
         let draggingVector = null;
         let userResultant = null;
         let isDrawingResultant = false;
+        let vectorsPlacedCorrectly = false;
         let dragOffsetX, dragOffsetY;
-        let gameState = 'placing_vectors'; // placing_vectors, drawing_resultant, round_over
+        let gameState = 'placing_vectors';
 
         // Constants
-        const SNAP_TOLERANCE = 20; // Tolerance for snapping vectors tip-to-tail
-        const HOVER_TOLERANCE = 25; // Tolerance for showing the grab cursor (larger for touch/ease of use)
+        const SNAP_TOLERANCE = 20;
+        const HOVER_TOLERANCE = 25;
 
+        // Congratulatory Messages Pools
         const PERFECT_5_MESSAGES = [
             "Perfect 5/5! <NAME>, you are a vector virtuoso!",
             "Flawless execution! <NAME>, physics bows to your intellect!",
@@ -249,24 +243,146 @@
             "End of the line. <NAME> achieved the 6/5. Physics has peaked."
         ];
 
+        function setupCanvas() {
+            if (!gameContainer) return;
+            const rect = gameContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            draw();
+        }
+
+        function startGame() {
+            score = 0;
+            round = 1;
+            level = 1;
+            updateUI();
+            startRound();
+        }
+
+        function generateVectors(count) {
+            vectors = [];
+            const colors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899'];
+            const margin = 80;
+            const availWidth = Math.max(200, canvas.width - margin * 2);
+            const availHeight = Math.max(200, canvas.height - margin * 2);
+
+            for (let i = 0; i < count; i++) {
+                let dx = (Math.random() * 120 - 60);
+                let dy = (Math.random() * 120 - 60);
+                if (Math.hypot(dx, dy) < 40) {
+                    dx = dx >= 0 ? 50 : -50;
+                    dy = dy >= 0 ? 50 : -50;
+                }
+
+                const x = margin + Math.random() * Math.max(20, availWidth - Math.abs(dx));
+                const y = margin + Math.random() * Math.max(20, availHeight - Math.abs(dy));
+
+                vectors.push({
+                    id: i,
+                    x: x,
+                    y: y,
+                    dx: dx,
+                    dy: dy,
+                    color: colors[i % colors.length]
+                });
+            }
+        }
+
+        function startRound() {
+            gameState = 'placing_vectors';
+            vectorsPlacedCorrectly = false;
+            userResultant = null;
+            isDrawingResultant = false;
+            checkButton.disabled = true;
+            checkButton.textContent = 'Check Placement';
+            secondaryButton.textContent = 'Reset Vectors';
+            
+            instructionsEl.className = 'text-center bg-gray-700/50 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-gray-200 shadow-inner border border-gray-600/50 text-sm sm:text-base font-medium transition-all duration-300';
+            instructionsEl.textContent = 'Drag the vectors to place them tip-to-tail. The order doesn\'t matter!';
+            canvas.style.cursor = 'default';
+
+            const vectorCount = level === 1 ? 2 : 3;
+            generateVectors(vectorCount);
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle grid
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            const gridSize = 30;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw component vectors
+            vectors.forEach(v => drawVector(v, false));
+
+            // Draw user resultant if present
+            if (userResultant) {
+                drawVector(userResultant, true);
+            }
+        }
+
+        function drawVector(vector, isThick = false) {
+            const drawColor = (vectorsPlacedCorrectly && !isThick) ? '#22c55e' : vector.color;
+
+            ctx.strokeStyle = drawColor;
+            ctx.fillStyle = drawColor;
+            ctx.lineWidth = isThick ? 6 : 4;
+
+            const headlen = isThick ? 14 : 12;
+            const angle = Math.atan2(vector.dy, vector.dx);
+
+            // Line
+            ctx.beginPath();
+            ctx.moveTo(vector.x, vector.y);
+            ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.stroke();
+            
+            // Arrowhead
+            ctx.beginPath();
+            ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            
+            // Tail joint
+            ctx.beginPath();
+            ctx.arc(vector.x, vector.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
         startGameBtn.addEventListener('click', () => {
             const name = playerNameInput.value.trim();
             if (name.length > 0) {
                 playerName = name;
+                sessionVerificationCode = generateVerificationCode(playerName);
                 startScreen.classList.add('opacity-0');
-                startScreen.style.pointerEvents = 'none'; // Prevent clicks during fade out
+                startScreen.style.pointerEvents = 'none';
                 setTimeout(() => {
                     startScreen.classList.add('hidden');
                     welcomeMessageEl.textContent = `Hello, ${playerName}!`;
                     startGame();
-                }, 500); // Wait for transition
+                }, 500);
             } else {
                 nameError.classList.remove('opacity-0');
                 setTimeout(() => nameError.classList.add('opacity-0'), 3000);
             }
         });
 
-        // Allow pressing Enter to start
         playerNameInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 startGameBtn.click();
@@ -280,7 +396,7 @@
             } else if (type === 6) {
                 msgList = PERFECT_6_MESSAGES;
             } else {
-                return `Great job, ${playerName}!`; // Fallback
+                return `Great job, ${playerName}!`;
             }
             const randIndex = Math.floor(Math.random() * msgList.length);
             return msgList[randIndex].replace(/<NAME>/g, playerName);
@@ -288,31 +404,33 @@
 
         function generateVerificationCode(name) {
             if (!name) return "";
-            // Get first 3 letters, pad with X if needed, uppercase
             const cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
-            const prefix = (cleanName + 'XXX').substring(0, 3);
+            const letters = (cleanName + 'XXX').substring(0, 3).split('');
             
-            // Generate a random string to mix it into
             const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            let randomStr = '';
-            for (let i = 0; i < 6; i++) {
-                randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+            const codeLength = 9;
+            
+            const indices = [];
+            while (indices.length < 3) {
+                const randIndex = Math.floor(Math.random() * codeLength);
+                if (!indices.includes(randIndex)) {
+                    indices.push(randIndex);
+                }
+            }
+            indices.sort((a, b) => a - b);
+            
+            const result = new Array(codeLength);
+            result[indices[0]] = letters[0];
+            result[indices[1]] = letters[1];
+            result[indices[2]] = letters[2];
+            
+            for (let i = 0; i < codeLength; i++) {
+                if (!result[i]) {
+                    result[i] = chars.charAt(Math.floor(Math.random() * chars.length));
+                }
             }
             
-            // Distribute the 3 prefix letters in order
-            let arr = randomStr.split('');
-            let positions = [];
-            while (positions.length < 3) {
-                let pos = Math.floor(Math.random() * 9); // Total length will be 9
-                if (!positions.includes(pos)) positions.push(pos);
-            }
-            positions.sort((a, b) => a - b);
-            
-            arr.splice(positions[0], 0, prefix[0]);
-            arr.splice(positions[1], 0, prefix[1]);
-            arr.splice(positions[2], 0, prefix[2]);
-            
-            return arr.join('');
+            return result.join('');
         }
 
         function updateUI() {
@@ -322,159 +440,13 @@
             const roundText = level === 1 ? `${currentRound} / ${totalRounds}` : "Bonus Round!";
             roundEl.textContent = roundText;
             
-            // Update Verification Code
-            const code = generateVerificationCode(playerName);
-            verificationCodeEl.textContent = code;
-            verificationCodeEl.classList.remove('hidden');
-        }
-
-        function setupCanvas() {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = gameContainer.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
-            canvas.style.width = `${rect.width}px`;
-            canvas.style.height = `${rect.height}px`;
-            draw();
-        }
-
-        function startGame() {
-            score = 0;
-            round = 1;
-            level = 1;
-            setupCanvas();
-            updateUI();
-            startRound();
-        }
-        
-        function startRound() {
-            gameState = 'placing_vectors';
-            userResultant = null;
-            isDrawingResultant = false;
-            checkButton.disabled = true;
-            checkButton.textContent = 'Check Placement';
-            secondaryButton.textContent = 'Reset Vectors';
-            instructionsEl.textContent = 'Drag the vectors to place them tip-to-tail. The order doesn\'t matter!';
-            canvas.style.cursor = 'default';
-
-            const vectorCount = level === 1 ? 2 : 3;
-            generateVectors(vectorCount);
-            draw();
-        }
-
-        function generateVectors(count) {
-            const MIN_RESULTANT_LENGTH = 50; 
-            let resultantMagnitude = 0;
-
-            do {
-                vectors = [];
-                const colors = ['#06b6d4', '#f59e0b', '#10b981']; // cyan, amber, emerald
-                const canvasWidth = canvas.offsetWidth;
-                const canvasHeight = canvas.offsetHeight;
-
-                // Responsive sizing
-                const padding = Math.min(canvasWidth, canvasHeight) * 0.15; 
-                const maxVectorComponent = Math.min(canvasWidth, canvasHeight) * 0.25; 
-                const minVectorComponent = Math.min(canvasWidth, canvasHeight) * 0.1;  
-
-                let totalDx = 0;
-                let totalDy = 0;
-
-                for (let i = 0; i < count; i++) {
-                    const dx = (Math.random() * (maxVectorComponent - minVectorComponent) + minVectorComponent) * (Math.random() > 0.5 ? 1 : -1);
-                    const dy = (Math.random() * (maxVectorComponent - minVectorComponent) + minVectorComponent) * (Math.random() > 0.5 ? 1 : -1);
-
-                    totalDx += dx;
-                    totalDy += dy;
-
-                    let x, y, tipX, tipY;
-                    let attempts = 0;
-                    
-                    do {
-                        x = Math.random() * (canvasWidth - 2 * padding) + padding;
-                        y = Math.random() * (canvasHeight - 2 * padding) + padding;
-                        tipX = x + dx;
-                        tipY = y + dy;
-                        attempts++;
-                    } while ((tipX < padding || tipX > canvasWidth - padding || tipY < padding || tipY > canvasHeight - padding) && attempts < 50);
-
-                    if (attempts >= 50) {
-                         x = canvasWidth / 2;
-                         y = canvasHeight / 2;
-                    }
-
-                    vectors.push({
-                        x: x,
-                        y: y,
-                        dx: dx,
-                        dy: dy,
-                        color: colors[i % colors.length],
-                        id: i
-                    });
-                }
-                resultantMagnitude = Math.hypot(totalDx, totalDy);
-            } while (resultantMagnitude < MIN_RESULTANT_LENGTH);
-        }
-        
-        function drawGrid() {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.lineWidth = 1;
-            for (let x = 0; x <= canvas.offsetWidth; x += 20) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.offsetHeight);
-                ctx.stroke();
-            }
-            for (let y = 0; y <= canvas.offsetHeight; y += 20) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.offsetWidth, y);
-                ctx.stroke();
-            }
-        }
-
-        function drawVector(vector, isThick = false) {
-            ctx.strokeStyle = vector.color;
-            ctx.fillStyle = vector.color;
-            ctx.lineWidth = isThick ? 6 : 4; // Thicker if resultant
-
-            const headlen = isThick ? 14 : 12; // Slightly larger head for readability
-            const angle = Math.atan2(vector.dy, vector.dx);
-
-            // Draw line
-            ctx.beginPath();
-            ctx.moveTo(vector.x, vector.y);
-            ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy);
-            ctx.stroke();
-            
-            // Draw arrowhead
-            ctx.beginPath();
-            ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
-            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
-            ctx.closePath();
-            ctx.fill();
-            
-            // Draw small circles at tail and tip to indicate grab points implicitly
-            ctx.beginPath();
-            ctx.arc(vector.x, vector.y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawGrid();
-            vectors.forEach(v => drawVector(v));
-
-            if (gameState === 'drawing_resultant' && userResultant) {
-                drawVector(userResultant, true);
+            if (!sessionVerificationCode && playerName) {
+                sessionVerificationCode = generateVerificationCode(playerName);
             }
         }
         
         function getMousePos(evt) {
             const rect = canvas.getBoundingClientRect();
-            // Handle both touch and mouse safely
             let clientX, clientY;
             if (evt.touches && evt.touches.length > 0) {
                 clientX = evt.touches[0].clientX;
@@ -493,7 +465,6 @@
         }
 
         function onDown(evt) {
-            // Prevent default only for touch events to avoid scrolling
             if(evt.type.includes('touch')) evt.preventDefault();
             const pos = getMousePos(evt);
 
@@ -516,7 +487,7 @@
                     y: pos.y,
                     dx: 0,
                     dy: 0,
-                    color: '#ec4899' // pink
+                    color: '#ec4899'
                 };
                 isDrawingResultant = true;
             }
@@ -528,20 +499,16 @@
 
             if (gameState === 'placing_vectors') {
                 if (draggingVector) {
-                    // Update dragging position
                     draggingVector.x = pos.x - dragOffsetX;
                     draggingVector.y = pos.y - dragOffsetY;
                     
-                    // Snap vectors tip-to-tail
                     vectors.forEach(v => {
                         if (v.id === draggingVector.id) return;
                         
-                        // Tip of v to tail of draggingVector
                         if (Math.hypot((v.x + v.dx) - draggingVector.x, (v.y + v.dy) - draggingVector.y) < SNAP_TOLERANCE) {
                              draggingVector.x = v.x + v.dx;
                              draggingVector.y = v.y + v.dy;
                         }
-                        // Tail of v to tip of draggingVector
                         if (Math.hypot(v.x - (draggingVector.x + draggingVector.dx), v.y - (draggingVector.y + draggingVector.dy)) < SNAP_TOLERANCE) {
                              draggingVector.x = v.x - draggingVector.dx;
                              draggingVector.y = v.y - draggingVector.dy;
@@ -550,7 +517,6 @@
                     canvas.style.cursor = 'grabbing';
                     draw();
                 } else {
-                    // Calculate HOVER state to change cursor shape to a hand
                     let isHovering = false;
                     for (let i = 0; i < vectors.length; i++) {
                         const v = vectors[i];
@@ -569,14 +535,12 @@
                     userResultant.dy = pos.y - userResultant.y;
                     draw();
                 }
-                // Cursor is already handled to crosshair during this phase via DOM
             }
         }
 
         function onUp(evt) {
             if (gameState === 'placing_vectors' && draggingVector) {
                 draggingVector = null;
-                // Re-evaluate cursor immediately after dropping
                 const pos = getMousePos(evt);
                 let isHovering = false;
                 for (let i = 0; i < vectors.length; i++) {
@@ -617,11 +581,15 @@
         function handleCheckButtonClick() {
             if (gameState === 'placing_vectors') {
                 gameState = 'drawing_resultant';
+                vectorsPlacedCorrectly = true;
                 checkButton.disabled = true;
                 checkButton.textContent = 'Check Resultant';
                 secondaryButton.textContent = 'Erase Resultant';
-                instructionsEl.textContent = 'Perfect! Now draw the resultant vector from the first tail to the final tip.';
+                
+                instructionsEl.className = 'text-center bg-emerald-900/60 border border-emerald-500/80 p-3 sm:p-4 rounded-xl mb-3 sm:mb-4 text-emerald-200 shadow-lg shadow-emerald-950/40 text-sm sm:text-base font-semibold transition-all duration-300';
+                instructionsEl.textContent = '✓ Correct Placement! Now draw the resultant vector from the first tail to the final tip.';
                 canvas.style.cursor = 'crosshair';
+                draw();
             } else if (gameState === 'drawing_resultant') {
                 if (!userResultant) return;
                 checkResultant();
@@ -681,15 +649,14 @@
         
         function handleEndGameSummary() {
             if (score === 5) {
-                // Should not hit this branch directly if they decline bonus, but just in case
-                showModal('Amazing!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver);
+                showModal('Amazing!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver, null, 'Try Again', true);
+                launchBallisticConfettiBursts(2);
             } else if (score === 4) {
-                showModal('Great Job!', `You scored ${score}/5. Just one point shy of perfect, ${playerName}! Well done!`, gameOver);
+                showModal('Great Job!', `You scored ${score}/5. Just one point shy of perfect, ${playerName}! Well done!`, gameOver, null, 'Try Again', true);
             } else if (score <= 3) {
-                // Gently invite them to practice again
-                showModal('Keep Practicing!', `You scored ${score}/5, ${playerName}. Physics takes time and practice. Would you like to try again?`, gameOver);
+                showModal('Keep Practicing!', `You scored ${score}/5, ${playerName}. Physics takes time and practice. Would you like to try again?`, gameOver, null, 'Try Again', true);
             } else {
-                showModal('Game Over', `You finished with a score of ${score}/5. Well done, ${playerName}!`, gameOver);
+                showModal('Game Over', `You finished with a score of ${score}/5. Well done, ${playerName}!`, gameOver, null, 'Try Again', true);
             }
         }
 
@@ -708,15 +675,14 @@
                         primaryText: 'Challenge Me!',
                         secondaryText: 'No Thanks',
                         onClick: () => { 
-                            showModal('Congratulations!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver);
-                            launchConfetti();
+                            showModal('Congratulations!', `You finished with a perfect score of 5 out of 5! ${getRandomMessage(5)}`, gameOver, null, 'Try Again', true);
+                            launchBallisticConfettiBursts(2);
                         }
                     }
                 );
             } else if (level === 2 && round === 1 && score === 6) {
-                showModal('6/5 - GOD TIER!', getRandomMessage(6), gameOver);
-                launchConfetti();
-                setTimeout(launchConfetti, 1000); // Double the celebration
+                showModal('6/5 - GOD TIER!', getRandomMessage(6), gameOver, null, 'Try Again', true);
+                launchBallisticConfettiBursts(3);
             } else if (round >= 5 && level === 1) {
                 handleEndGameSummary();
             } else {
@@ -728,7 +694,8 @@
 
         function incorrectAnswer() {
             if (level === 2) {
-                showModal('So Close!', `You didn't get the bonus, but you still finished with a perfect score of 5 out of 5, ${playerName}!`, gameOver);
+                showModal('So Close!', `You didn't get the bonus, but you still finished with a perfect score of 5 out of 5, ${playerName}!`, gameOver, null, 'Try Again', true);
+                launchBallisticConfettiBursts(2);
             } else {
                  if (round >= 5) {
                     handleEndGameSummary();
@@ -745,10 +712,17 @@
             closeModal();
         }
         
-        function showModal(title, message, onButtonClick, secondaryOptions = null) {
+        function showModal(title, message, onButtonClick, secondaryOptions = null, primaryButtonText = null, showCode = false) {
             modalTitleEl.textContent = title;
             modalMessageEl.textContent = message;
             
+            if (showCode && sessionVerificationCode) {
+                modalVerificationCodeEl.textContent = `Verification Code: ${sessionVerificationCode}`;
+                modalVerificationCodeEl.classList.remove('hidden');
+            } else {
+                modalVerificationCodeEl.classList.add('hidden');
+            }
+
             modalButton.onclick = () => {
                 closeModal();
                 onButtonClick();
@@ -763,7 +737,7 @@
                     secondaryOptions.onClick();
                 };
             } else {
-                modalButton.textContent = 'Continue';
+                modalButton.textContent = primaryButtonText || 'Continue';
                 modalButtonSecondary.classList.add('hidden');
             }
             
@@ -781,41 +755,115 @@
             }, 300);
         }
 
-        function launchConfetti() {
-            for (let i = 0; i < 200; i++) {
-                const confetti = document.createElement('div');
-                confetti.classList.add('confetti');
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.top = -20 + 'px';
-                
-                // Randomly shape to square or circle
-                if(Math.random() > 0.5) confetti.style.borderRadius = '50%';
-                
-                // Varied vibrant colors
-                const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6'];
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                
-                // Randomize fall speed and rotation
-                const duration = Math.random() * 3 + 2; 
-                confetti.style.animationDuration = `${duration}s`;
-                confetti.style.animationDelay = Math.random() * 1 + 's';
-                
-                // Parallax scaling
-                confetti.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
-                document.body.appendChild(confetti);
+        function resizeConfettiCanvas() {
+            if (!confettiCanvas) return;
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
 
+        function launchSingleBallisticBurst(originXRatio, angleDegrees, spreadDegrees) {
+            if (!confettiCanvas || !confettiCtx) return;
+            resizeConfettiCanvas();
+            confettiCanvas.classList.remove('hidden');
+            
+            const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#38bdf8', '#facc15'];
+            const particleCount = 80;
+            const originX = window.innerWidth * originXRatio;
+            const originY = window.innerHeight;
+
+            for (let i = 0; i < particleCount; i++) {
+                const rad = ((angleDegrees + (Math.random() - 0.5) * spreadDegrees) * Math.PI) / 180;
+                const speed = Math.random() * 16 + 14;
+                confettiParticles.push({
+                    x: originX,
+                    y: originY,
+                    vx: Math.cos(rad) * speed,
+                    vy: Math.sin(rad) * speed,
+                    gravity: 0.45,
+                    drag: 0.98,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 9 + 6,
+                    rotation: Math.random() * Math.PI * 2,
+                    vRot: (Math.random() - 0.5) * 0.3,
+                    shape: Math.random() > 0.4 ? 'rect' : 'circle',
+                    alpha: 1
+                });
+            }
+
+            if (!confettiAnimationId) {
+                animateConfetti();
+            }
+        }
+
+        function launchBallisticConfettiBursts(burstCount) {
+            if (burstCount === 2) {
+                launchSingleBallisticBurst(0.2, -65, 35);
                 setTimeout(() => {
-                    if (confetti.parentNode) confetti.parentNode.removeChild(confetti);
-                }, (duration + 1) * 1000);
+                    launchSingleBallisticBurst(0.8, -115, 35);
+                }, 300);
+            } else if (burstCount === 3) {
+                launchSingleBallisticBurst(0.15, -60, 35);
+                setTimeout(() => {
+                    launchSingleBallisticBurst(0.85, -120, 35);
+                }, 250);
+                setTimeout(() => {
+                    launchSingleBallisticBurst(0.5, -90, 65);
+                }, 500);
+            }
+        }
+
+        function animateConfetti() {
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const p = confettiParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.vx *= p.drag;
+                p.vy *= p.drag;
+                p.rotation += p.vRot;
+                
+                if (p.y > window.innerHeight - 80) {
+                    p.alpha -= 0.02;
+                }
+
+                if (p.alpha <= 0 || p.y > window.innerHeight + 50) {
+                    confettiParticles.splice(i, 1);
+                    continue;
+                }
+
+                confettiCtx.save();
+                confettiCtx.globalAlpha = Math.max(0, p.alpha);
+                confettiCtx.translate(p.x, p.y);
+                confettiCtx.rotate(p.rotation);
+                confettiCtx.fillStyle = p.color;
+
+                if (p.shape === 'rect') {
+                    confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+                } else {
+                    confettiCtx.beginPath();
+                    confettiCtx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                    confettiCtx.fill();
+                }
+                confettiCtx.restore();
+            }
+
+            if (confettiParticles.length > 0) {
+                confettiAnimationId = requestAnimationFrame(animateConfetti);
+            } else {
+                confettiAnimationId = null;
+                confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+                confettiCanvas.classList.add('hidden');
             }
         }
 
         window.addEventListener('resize', () => {
-            if(gameState !== 'placing_vectors' && gameState !== 'drawing_resultant') return; // Don't resize aggressively if game hasn't fully started
             setupCanvas();
+            resizeConfettiCanvas();
         });
         
-        // Mouse Listeners
+        // Input Listeners
         canvas.addEventListener('mousedown', onDown);
         canvas.addEventListener('mousemove', onMove);
         canvas.addEventListener('mouseup', onUp);
@@ -823,7 +871,6 @@
              if (draggingVector || isDrawingResultant) onUp(e);
         });
 
-        // Touch Listeners mapping directly to logic
         canvas.addEventListener('touchstart', onDown, {passive: false});
         canvas.addEventListener('touchmove', onMove, {passive: false});
         canvas.addEventListener('touchend', onUp, {passive: false});
@@ -832,7 +879,9 @@
         checkButton.addEventListener('click', handleCheckButtonClick);
         secondaryButton.addEventListener('click', handleSecondaryButtonClick);
 
-        // Pre-setup canvas sizing behind the modal
+        window.onload = function() {
+            setupCanvas();
+        };
         setupCanvas();
     </script>
 </body>
