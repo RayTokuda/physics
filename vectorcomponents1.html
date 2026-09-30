@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Component Excercise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0.7;
+            animation: fall 5s linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen p-2 sm:p-4 overflow-hidden">
+
+    <div id="game-container" class="w-full max-w-5xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-gray-700 pb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-cyan-400 mb-2 sm:mb-0 text-center">Vector Component Excercise</h1>
+            <div class="flex items-center space-x-2 sm:space-x-4 text-md">
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Score: <span id="score" class="font-bold text-yellow-400">0</span></span>
+                </div>
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Round: <span id="round" class="font-bold text-green-400">1 / 4</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow w-full flex flex-col lg:flex-row gap-4 min-h-0">
+            <!-- Left Panel: Info & Inputs -->
+            <div class="lg:w-1/3 flex flex-col bg-gray-900/50 rounded-lg p-4 justify-between">
+                <div>
+                    <div id="vector-info" class="text-center bg-gray-700/50 p-3 rounded-lg mb-4">
+                        <h2 class="font-bold text-lg text-amber-400">Given Vector (V)</h2>
+                        <p>Magnitude: <span id="magnitude" class="font-semibold">--</span></p>
+                        <p>Angle: <span id="angle" class="font-semibold">--</span>° (from +x axis)</p>
+                    </div>
+                    <div id="instructions" class="text-center text-gray-300 mb-4">
+                        1. Draw the X and Y components.
+                    </div>
+                </div>
+                <div id="input-section" class="space-y-4">
+                    <p class="text-center font-semibold">2. Enter Component Values:</p>
+                    <div>
+                        <label for="x-component-input" class="block text-sm font-medium text-cyan-400">X-Component (Vx)</label>
+                        <input type="number" id="x-component-input" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., -45.5">
+                    </div>
+                    <div>
+                        <label for="y-component-input" class="block text-sm font-medium text-emerald-400">Y-Component (Vy)</label>
+                        <input type="number" id="y-component-input" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g., 25.0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas -->
+            <div class="flex-grow w-full h-64 lg:h-auto min-h-0 relative rounded-lg overflow-hidden bg-gray-900/50">
+                 <canvas id="gameCanvas" class="absolute top-0 left-0"></canvas>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex justify-center items-center mt-4 space-x-4">
+            <button id="checkButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200">Check Answer</button>
+            <button id="resetButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200">Reset Round</button>
+        </div>
+    </div>
+
+    <!-- Name Prompt Modal -->
+    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl border border-cyan-500 max-w-md w-full">
+            <h2 class="text-3xl font-bold mb-4 text-cyan-400">Welcome!</h2>
+            <p class="text-lg mb-6 text-gray-300">Please enter your name to start the quiz.</p>
+            <input type="text" id="studentNameInput" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 mb-6 text-center text-lg" placeholder="Your Name">
+            <button id="startQuizBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105 w-full disabled:opacity-50 disabled:cursor-not-allowed" disabled>Start Quiz</button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center shadow-xl border border-gray-700 transform scale-95 opacity-0 modal max-w-md">
+            <h2 id="modalTitle" class="text-3xl font-bold mb-4 cursor-move"></h2>
+            <p id="modalMessage" class="text-lg mb-6"></p>
+            <div id="modal-buttons" class="flex justify-center items-center space-x-4">
+                <button id="modalButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105">Continue</button>
+                <button id="modalButtonSecondary" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105 hidden"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = canvas.parentElement;
+
+        // UI
+        const scoreEl = document.getElementById('score');
+        const roundEl = document.getElementById('round');
+        const instructionsEl = document.getElementById('instructions');
+        const magnitudeEl = document.getElementById('magnitude');
+        const angleEl = document.getElementById('angle');
+        const xInput = document.getElementById('x-component-input');
+        const yInput = document.getElementById('y-component-input');
+        const checkButton = document.getElementById('checkButton');
+        const resetButton = document.getElementById('resetButton');
+        
+        // Modals
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const modalButton = document.getElementById('modalButton');
+        const modalButtonSecondary = document.getElementById('modalButtonSecondary');
+        
+        const nameModal = document.getElementById('nameModal');
+        const studentNameInput = document.getElementById('studentNameInput');
+        const startQuizBtn = document.getElementById('startQuizBtn');
+
+        let score = 0, round = 1, level = 1;
+        let originalVector = null, userComponents = [], currentDrawingComponent = null;
+        let gameState = 'drawing'; // drawing, input, checked
+        let quadrantOrder = [];
+        let studentName = "";
+        const PIXELS_PER_UNIT = 30; // 1 unit = 1 grid mark (30px)
+        const TOLERANCE = 15; // pixel tolerance for drawing
+        const VALUE_TOLERANCE = 0.1; // 10% tolerance for numerical input
+        const UNITS = ['m', 'm/s', 'm/s²', 'N'];
+        let currentUnit = '';
+
+        const CONGRATS_MESSAGES = ["Wow!", "Amazing!", "Incredible!", "Stunning!", "Unbelievable!", "Magnificent!", "Superb!", "Fantastic!", "Phenomenal!", "Outstanding!", "Extraordinary!", "Exceptional!", "Brilliant!", "Genius!", "Masterful!", "Perfect!", "Flawless!", "Pristine!", "Impeccable!", "Supreme!", "Sublime!", "Glorious!", "Majestic!", "Divine!", "Heavenly!", "Stellar!", "Cosmic!", "Galactic!", "Universal!", "Legendary!", "Mythical!", "Epic!", "Heroic!", "Victorious!", "Triumphant!", "Champion!", "Unbeatable!", "Invincible!", "Unstoppable!", "Dominant!", "Powerful!", "Forceful!", "Mighty!", "Formidable!", "Impressive!", "Awe-inspiring!", "Breathtaking!", "Mind-blowing!", "Jaw-dropping!", "Eye-popping!", "Sensational!", "Spectacular!", "Dazzling!", "Radiant!", "Luminous!", "Shining!", "Gleaming!", "Sparkling!", "Glittering!", "Vibrant!", "Dynamic!", "Energetic!", "Vigorous!", "Spirited!", "Lively!", "Vivacious!", "Electric!", "Magnetic!", "Captivating!", "Mesmerizing!", "Hypnotic!", "Enchanting!", "Magical!", "Miraculous!", "Wonderful!", "Marvelous!", "Fabulous!", "Terrific!", "Splendid!", "Excellent!", "First-class!", "Top-notch!", "World-class!", "Grade A!", "Ace!", "Superstar!", "Virtuoso!", "Prodigy!", "Savant!", "Einstein-level!", "Newton-esque!", "Galileo-like!", "You're a physics god!", "The vector vanquisher!", "Component conqueror!", "King of kinematics!", "Queen of quadrants!", "The magnitude master!", "Duke of direction!", "Duchess of displacement!", "You've got the vector factor!", "Nailed it!", "Spot on!", "Bullseye!", "Direct hit!", "Nothing but net!", "Home run!", "Touchdown!", "Goal!", "Checkmate!", "Winner!", "You rock!", "You rule!", "You're the best!", "You're on fire!", "Smoking!", "Blazing!", "Sizzling!", "Red hot!", "Too cool for school!", "Off the charts!", "Out of this world!", "Beyond belief!", "Are you even real?", "Simply the greatest.", "A true inspiration.", "Setting the standard.", "Raising the bar.", "In a league of your own.", "One of a kind.", "A rare talent.", "Truly gifted.", "Born for this.", "Effortless.", "Graceful.", "Elegant.", "Artistic.", "Creative.", "Innovative.", "Ingenious.", "Resourceful.", "Clever.", "Smart.", "Sharp.", "Astute.", "Perceptive.", "Discerning.", "Wise.", "Profound.", "Deep.", "Thoughtful.", "Analytical.", "Logical.", "Precise.", "Accurate.", "Meticulous.", "Thorough.", "Comprehensive.", "Complete.", "Total package.", "The real deal.", "Authentic.", "Genuine.", "Pure talent.", "Unadulterated skill.", "Sheer brilliance.", "A sight to behold.", "A joy to watch.", "Truly remarkable.", "Never seen anything like it.", "History in the making.", "For the record books.", "One for the ages.", "Unforgettable.", "Memorable.", "Lasting impression.", "Legacy built.", "Bravo!", "Encore!", "Standing ovation.", "Two thumbs up.", "Five stars.", "10/10.", "A++."];
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = gameContainer.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            draw();
+        }
+
+        function initApp() {
+            // Wait for name input before starting the game logic
+            studentNameInput.addEventListener('input', () => {
+                startQuizBtn.disabled = studentNameInput.value.trim().length === 0;
+            });
+
+            startQuizBtn.addEventListener('click', () => {
+                studentName = studentNameInput.value.trim();
+                if (studentName) {
+                    nameModal.classList.add('hidden');
+                    startGame();
+                }
+            });
+            
+            // Allow pressing Enter to start
+            studentNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !startQuizBtn.disabled) {
+                    startQuizBtn.click();
+                }
+            });
+            
+            studentNameInput.focus();
+        }
+
+        function startGame() {
+            score = 2; round = 1; level = 1;
+            quadrantOrder = [1, 2, 3, 4];
+            shuffleArray(quadrantOrder);
+            startRound();
+        }
+
+        function startRound() {
+            gameState = 'drawing';
+            userComponents = [];
+            currentDrawingComponent = null;
+            updateUI();
+            resetInputs();
+            checkButton.disabled = false;
+            instructionsEl.innerHTML = `1. Draw the X and Y components.`;
+            generateVector();
+            draw();
+        }
+        
+        function generateVector() {
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
+            const quadrant = quadrantOrder[round - 1];
+            
+            const maxMag = Math.min(canvasWidth, canvasHeight) / (2 * PIXELS_PER_UNIT) * 0.8;
+            const minMag = maxMag * 0.4;
+
+            const magnitude = Math.random() * (maxMag - minMag) + minMag;
+            let angleDeg;
+
+            switch(quadrant) {
+                case 1: angleDeg = Math.random() * 70 + 10; break; // 10-80
+                case 2: angleDeg = Math.random() * 70 + 100; break; // 100-170
+                case 3: angleDeg = Math.random() * 70 + 190; break; // 190-260
+                case 4: angleDeg = Math.random() * 70 + 280; break; // 280-350
+            }
+            
+            const angleRad = angleDeg * Math.PI / 180;
+            const vx = magnitude * Math.cos(angleRad);
+            const vy = magnitude * Math.sin(angleRad);
+
+            originalVector = {
+                x: canvasWidth / 2, y: canvasHeight / 2,
+                dx: vx * PIXELS_PER_UNIT,
+                dy: -vy * PIXELS_PER_UNIT, // negative for canvas coords
+                vx: vx, vy: vy,
+                magnitude: magnitude, angle: angleDeg,
+                color: '#f59e0b'
+            };
+            
+            currentUnit = UNITS[Math.floor(Math.random() * UNITS.length)];
+            magnitudeEl.innerHTML = `${magnitude.toFixed(1)} <span class="text-gray-400">${currentUnit}</span>`;
+            angleEl.textContent = angleDeg.toFixed(1);
+        }
+        
+        function drawAxes() {
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            const originX = w / 2;
+            const originY = h / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            // X and Y axes
+            ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(w, originY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, h); ctx.stroke();
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let x = originX; x < w; x += PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+            for (let x = originX; x > 0; x -= PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+            for (let y = originY; y < h; y += PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+            for (let y = originY; y > 0; y -= PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+        }
+
+        function drawVector(vector, options = {}) {
+             ctx.strokeStyle = options.color || vector.color;
+            ctx.fillStyle = options.color || vector.color;
+            ctx.lineWidth = options.lineWidth || 4;
+            const headlen = 10;
+            const angle = Math.atan2(vector.dy, vector.dx);
+            ctx.beginPath(); ctx.moveTo(vector.x, vector.y); ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawAxes();
+            if (originalVector) { drawVector(originalVector); }
+            userComponents.forEach(comp => drawVector(comp));
+            if (currentDrawingComponent) { drawVector(currentDrawingComponent); }
+        }
+
+        // --- Event Handlers & Game Flow ---
+        function onDown(evt) {
+            evt.preventDefault();
+            if (gameState !== 'drawing' || userComponents.length >= 2) return;
+            const pos = getMousePos(evt);
+            currentDrawingComponent = { x: pos.x, y: pos.y, dx: 0, dy: 0, color: '#a8a29e' };
+        }
+
+        function onMove(evt) {
+            evt.preventDefault();
+            if (!currentDrawingComponent) return;
+            const pos = getMousePos(evt);
+            let dx = pos.x - currentDrawingComponent.x;
+            let dy = pos.y - currentDrawingComponent.y;
+            const hasX = userComponents.some(c => c.dy === 0);
+            const hasY = userComponents.some(c => c.dx === 0);
+            if (hasX) { dx = 0; } 
+            else if (hasY) { dy = 0; } 
+            else { Math.abs(dx) > Math.abs(dy) ? dy = 0 : dx = 0; }
+            currentDrawingComponent.dx = dx;
+            currentDrawingComponent.dy = dy;
+            currentDrawingComponent.color = dy === 0 ? '#06b6d4' : '#10b981';
+            draw();
+        }
+
+        function onUp() {
+            if (!currentDrawingComponent) return;
+            if (Math.hypot(currentDrawingComponent.dx, currentDrawingComponent.dy) > 5) {
+                userComponents.push(currentDrawingComponent);
+            }
+            currentDrawingComponent = null;
+            if (userComponents.length >= 2) {
+                gameState = 'input';
+                instructionsEl.innerHTML = `Great! Now enter the component values.`;
+            }
+            draw();
+        }
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.clientX || evt.touches[0].clientX;
+            const clientY = evt.clientY || evt.touches[0].clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        function checkAnswer() {
+            let drawingCorrect = false;
+            let valuesCorrect = false;
+            let scoreThisRound = 0;
+            let feedback = "";
+
+            const pointsForDrawing = 1;
+            const pointsForValues = 1;
+            const totalPointsThisRound = pointsForDrawing + pointsForValues;
+
+            // Part 1: Check Drawing
+            const xComp = userComponents.find(c => c.dy === 0);
+            const yComp = userComponents.find(c => c.dx === 0);
+            if (xComp && yComp) {
+                const xMagCorrect = Math.abs(xComp.dx - originalVector.dx) < TOLERANCE;
+                const yMagCorrect = Math.abs(yComp.dy - originalVector.dy) < TOLERANCE;
+                if (xMagCorrect && yMagCorrect) {
+                     const tailToTail = Math.hypot(xComp.x - originalVector.x, xComp.y - originalVector.y) < TOLERANCE && Math.hypot(yComp.x - originalVector.x, yComp.y - originalVector.y) < TOLERANCE;
+                     const tipToTail1 = Math.hypot(xComp.x-originalVector.x, xComp.y-originalVector.y)<TOLERANCE && Math.hypot(xComp.x+xComp.dx-yComp.x, xComp.y+xComp.dy-yComp.y)<TOLERANCE && Math.hypot(yComp.x+yComp.dx-originalVector.x-originalVector.dx, yComp.y+yComp.dy-originalVector.y-originalVector.dy)<TOLERANCE;
+                     const tipToTail2 = Math.hypot(yComp.x-originalVector.x, yComp.y-originalVector.y)<TOLERANCE && Math.hypot(yComp.x+yComp.dx-xComp.x, yComp.y+yComp.dy-xComp.y)<TOLERANCE && Math.hypot(xComp.x+xComp.dx-originalVector.x-originalVector.dx, xComp.y+xComp.dy-originalVector.y-originalVector.dy)<TOLERANCE;
+                     if (tailToTail || tipToTail1 || tipToTail2) {
+                        drawingCorrect = true;
+                     }
+                }
+            }
+            
+            // Part 2: Check Values
+            const xVal = parseFloat(xInput.value);
+            const yVal = parseFloat(yInput.value);
+            const xIsCorrect = Math.abs(xVal - originalVector.vx) < Math.abs(originalVector.vx * VALUE_TOLERANCE) + 0.1;
+            const yIsCorrect = Math.abs(yVal - originalVector.vy) < Math.abs(originalVector.vy * VALUE_TOLERANCE) + 0.1;
+            xInput.classList.toggle('ring-2', true);
+            yInput.classList.toggle('ring-2', true);
+            xInput.classList.toggle('ring-green-500', xIsCorrect);
+            xInput.classList.toggle('ring-red-500', !xIsCorrect);
+            yInput.classList.toggle('ring-green-500', yIsCorrect);
+            yInput.classList.toggle('ring-red-500', !yIsCorrect);
+
+            if (!isNaN(xVal) && !isNaN(yVal) && xIsCorrect && yIsCorrect) {
+                valuesCorrect = true;
+            }
+
+            // Determine score and feedback
+            if (drawingCorrect) scoreThisRound += pointsForDrawing;
+            if (valuesCorrect) scoreThisRound += pointsForValues;
+            
+            score += scoreThisRound;
+
+            if (scoreThisRound === totalPointsThisRound) {
+                 if (level === 1 && round === 4 && score === 10) {
+                    showFinalScoreModal();
+                } else if (level === 2 && score === 12) {
+                    showModal('Flawless Victory!', `12/10! ${getRandomCongrats()} You are a true master, ${studentName}!`, gameOver);
+                    multipleConfettiBursts();
+                } else if (round >= 4 || level === 2) {
+                    showFinalScoreModal();
+                } else {
+                    showModal('Perfect!', `Both the drawing and values are correct! (${scoreThisRound}/${totalPointsThisRound} points)`, () => { round++; startRound(); });
+                }
+            } else {
+                if (drawingCorrect && !valuesCorrect) {
+                    if (!xIsCorrect && !yIsCorrect) {
+                        feedback = `Your drawing is correct, but both the X and Y component values are incorrect. (${pointsForDrawing}/${totalPointsThisRound} points)`;
+                    } else if (!xIsCorrect) {
+                        feedback = `Your drawing is correct, but the X-component value is incorrect. Check your calculation. (${pointsForDrawing}/${totalPointsThisRound} points)`;
+                    } else { // !yIsCorrect
+                        feedback = `Your drawing is correct, but the Y-component value is incorrect. Check your calculation. (${pointsForDrawing}/${totalPointsThisRound} points)`;
+                    }
+                } else if (!drawingCorrect && valuesCorrect) {
+                    feedback = `Your values are correct, but the drawing is not placed correctly. (${pointsForValues}/${totalPointsThisRound} points)`;
+                } else { // !drawingCorrect && !valuesCorrect
+                    feedback = `Neither the drawing nor the values are correct. Check both and try again on the next round. (0/${totalPointsThisRound} points)`;
+                }
+                
+                if (round >= 4 || level === 2) {
+                     showFinalScoreModal();
+                } else {
+                     showModal('Not Quite', feedback, () => { round++; startRound(); });
+                }
+            }
+        }
+        
+        function generateVerificationCode(name) {
+            const randomString = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const timestamp = Date.now().toString(36).substring(4).toUpperCase();
+            
+            // Extract up to 3 letters from name, uppercase them
+            const nameLetters = name.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase().padEnd(3, 'X');
+            
+            // Distribute name letters into the code
+            return `${randomString.substring(0,2)}${nameLetters[0]}-${timestamp.substring(0,2)}${nameLetters[1]}-${randomString.substring(2,4)}${nameLetters[2]}`;
+        }
+
+        function showFinalScoreModal() {
+            let title = "";
+            let message = "";
+            let secondaryOpts = null;
+            
+            const vCode = generateVerificationCode(studentName);
+            const vCodeHtml = `<div class="mt-6 pt-4 border-t border-gray-700 text-xs text-gray-500 font-mono tracking-widest">Verification: ${vCode}</div>`;
+
+            if (score === 10) {
+                title = `Absolutely Brilliant, ${studentName}!`;
+                message = `You achieved a flawless 10/10! ${getRandomCongrats()} Your grasp of vector components is truly exceptional. <br><br> <span class="text-green-400 font-bold text-xl">+1 Extra Credit Point Awarded!</span> (Total: 11/10)${vCodeHtml}`;
+                multipleConfettiBursts();
+            } else if (score === 9) {
+                title = `Fantastic Job, ${studentName}!`;
+                message = `You scored 9 out of 10. That is an incredibly strong performance! You should be very proud of your understanding of this material.${vCodeHtml}`;
+                if(score >= 8) launchConfetti();
+            } else if (score >= 8) {
+                title = `Great Work, ${studentName}!`;
+                message = `You finished with a very solid ${score} out of 10. ${getRandomCongrats()}${vCodeHtml}`;
+                launchConfetti();
+            } else {
+                title = `Keep Practicing, ${studentName}!`;
+                message = `You scored ${score} out of 10. Vector components can be tricky. Please review the concepts and try again to improve your score!${vCodeHtml}`;
+            }
+
+            // For perfect score on level 1, offer bonus
+            if (level === 1 && score === 10) {
+                 secondaryOpts = { 
+                    primaryText: 'Try Bonus Round!', 
+                    secondaryText: 'Finish', 
+                    onClick: () => { 
+                        showModal('Congratulations!', message, gameOver); 
+                        multipleConfettiBursts(); 
+                    }
+                };
+                
+                // Override modal logic slightly for the bonus choice
+                modalTitleEl.innerHTML = title;
+                modalMessageEl.innerHTML = `You got 10/10! Do you want to try a bonus round?${vCodeHtml}`;
+                modalButton.onclick = () => { closeModal(); level = 2; round = 1; quadrantOrder = [Math.floor(Math.random()*4)+1]; startRound(); };
+                
+                modalButton.textContent = secondaryOpts.primaryText;
+                modalButtonSecondary.textContent = secondaryOpts.secondaryText;
+                modalButtonSecondary.classList.remove('hidden');
+                modalButtonSecondary.onclick = () => { closeModal(); secondaryOpts.onClick(); };
+                
+                feedbackModal.classList.remove('hidden');
+                setTimeout(() => feedbackModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0'), 10);
+
+            } else {
+                showModal(title, message, gameOver);
+                // We have to inject HTML because of the vCode formatting
+                modalMessageEl.innerHTML = message; 
+            }
+        }
+        
+        function multipleConfettiBursts() {
+            launchConfetti();
+            setTimeout(launchConfetti, 1000);
+            setTimeout(launchConfetti, 2200);
+        }
+
+        function resetInputs() {
+            xInput.value = '';
+            yInput.value = '';
+            xInput.disabled = false;
+            yInput.disabled = false;
+            xInput.classList.remove('ring-2', 'ring-green-500', 'ring-red-500');
+            yInput.classList.remove('ring-2', 'ring-green-500', 'ring-red-500');
+        }
+
+        function gameOver() {
+            closeModal();
+            startGame();
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            const roundText = level === 1 ? `${round} / 4` : "Bonus!";
+            roundEl.textContent = roundText;
+        }
+
+        function showModal(title, message, onButtonClick, secondaryOptions = null) {
+            modalTitleEl.textContent = title;
+            modalMessageEl.textContent = message;
+            modalButton.onclick = () => { closeModal(); onButtonClick(); };
+            if (secondaryOptions) {
+                modalButton.textContent = secondaryOptions.primaryText;
+                modalButtonSecondary.textContent = secondaryOptions.secondaryText;
+                modalButtonSecondary.classList.remove('hidden');
+                modalButtonSecondary.onclick = () => { closeModal(); secondaryOptions.onClick(); };
+            } else {
+                modalButton.textContent = 'Continue';
+                modalButtonSecondary.classList.add('hidden');
+            }
+            feedbackModal.classList.remove('hidden');
+            setTimeout(() => feedbackModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal() {
+            const modalContent = feedbackModal.querySelector('.modal');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                feedbackModal.classList.add('hidden');
+                // Restore flex centering for the next time the modal opens
+                if (!feedbackModal.classList.contains('flex')) {
+                   feedbackModal.classList.add('flex', 'items-center', 'justify-center');
+                }
+                // Reset modal position
+                modalContent.style.position = '';
+                modalContent.style.top = '';
+                modalContent.style.left = '';
+            }, 300);
+        }
+
+        function getRandomCongrats() {
+            return CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
+        }
+        
+        function launchConfetti() {
+            for (let i = 0; i < 200; i++) {
+                const confetto = document.createElement('div');
+                confetto.classList.add('confetti');
+                confetto.style.left = Math.random() * 100 + 'vw';
+                confetto.style.top = -20 + 'px';
+                confetto.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                confetto.style.animationDelay = Math.random() * 3 + 's';
+                confetto.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
+                document.body.appendChild(confetto);
+                setTimeout(() => confetto.remove(), 5000);
+            }
+        }
+
+        function makeDraggable(elmnt, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const dragHandle = handle || elmnt;
+
+            dragHandle.onmousedown = dragMouseDown;
+            dragHandle.ontouchstart = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                const target = e.target || e.srcElement;
+                if (target.tagName === 'BUTTON' || target.tagName === 'INPUT') return;
+                
+                e.preventDefault();
+                pos3 = e.clientX || e.touches[0].clientX;
+                pos4 = e.clientY || e.touches[0].clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                document.ontouchend = closeDragElement;
+                document.ontouchmove = elementDrag;
+                
+                // Change from flex centering to absolute positioning to allow dragging
+                if (feedbackModal.classList.contains('flex')) {
+                    feedbackModal.classList.remove('flex', 'items-center', 'justify-center');
+                    elmnt.style.position = 'absolute';
+                    const rect = elmnt.getBoundingClientRect();
+                    elmnt.style.left = rect.left + 'px';
+                    elmnt.style.top = rect.top + 'px';
+                }
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+
+                pos1 = pos3 - clientX;
+                pos2 = pos4 - clientY;
+                pos3 = clientX;
+                pos4 = clientY;
+                
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                document.ontouchend = null;
+                document.ontouchmove = null;
+            }
+        }
+
+        window.addEventListener('resize', setupCanvas);
+        canvas.addEventListener('mousedown', onDown);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onUp);
+        canvas.addEventListener('touchstart', onDown);
+        canvas.addEventListener('touchmove', onMove);
+        canvas.addEventListener('touchend', onUp);
+        checkButton.addEventListener('click', checkAnswer);
+        resetButton.addEventListener('click', startRound);
+
+        setupCanvas();
+        initApp(); // Changed from startGame() to wait for name
+
+        const modalContent = feedbackModal.querySelector('.modal');
+        makeDraggable(modalContent, modalTitleEl);
+    </script>
+</body>
+</html>
