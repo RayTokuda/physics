@@ -5,30 +5,151 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Earth Wizard Physics Simulator</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e24; color: #f5f5f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { background: #2b2b36; padding: 30px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 800px; width: 100%; position: relative; }
-        h1 { color: #4caf50; text-align: center; }
-        .problem-text { font-size: 1.1em; line-height: 1.6; background: #383845; padding: 20px; border-radius: 8px; border-left: 5px solid #4caf50; margin-bottom: 20px; }
-        .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #1e1e24; 
+            color: #f5f5f5; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        .container { 
+            background: #2b2b36; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            max-width: 800px; 
+            width: 100%; 
+            position: relative; 
+            box-sizing: border-box;
+        }
+        h1 { color: #4caf50; text-align: center; margin-top: 0; }
+        
+        /* Input styling */
         .input-group { display: flex; flex-direction: column; }
         label { margin-bottom: 5px; font-weight: bold; color: #a5a5b0; }
-        input[type="number"] { padding: 10px; border-radius: 5px; border: 1px solid #555; background: #1e1e24; color: #fff; font-size: 1em; }
-        .buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
-        button { padding: 10px 16px; font-size: 0.95em; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        input[type="text"], input[type="number"] { 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #555; 
+            background: #1e1e24; 
+            color: #fff; 
+            font-size: 1em; 
+        }
+        
+        .problem-text { 
+            font-size: 1.1em; 
+            line-height: 1.6; 
+            background: #383845; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border-left: 5px solid #4caf50; 
+            margin-bottom: 20px; 
+        }
+        .inputs { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        .buttons { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            flex-wrap: wrap; 
+            margin-bottom: 20px; 
+        }
+        button { 
+            padding: 10px 16px; 
+            font-size: 0.95em; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+        }
         button.primary { background: #4caf50; color: white; }
         button.primary:hover { background: #45a049; }
         button.secondary { background: #2196f3; color: white; }
         button.secondary:hover { background: #1976d2; }
         button.accent { background: #9c27b0; color: white; }
         button.accent:hover { background: #7b1fa2; }
-        canvas { background: #87CEEB; border-radius: 8px; width: 100%; max-width: 800px; height: 400px; display: block; border: 2px solid #555; }
         
-        /* Updated Win Screen CSS for Fullscreen bulletproof display */
-        #winScreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
-        .win-content { z-index: 10001; text-align: center; background: rgba(43, 43, 54, 0.9); padding: 40px; border-radius: 15px; border: 2px solid #4caf50; box-shadow: 0 0 50px rgba(76, 175, 80, 0.4); }
-        .win-content h2 { color: #ffd700; font-size: 3em; margin: 0 0 10px 0; text-shadow: 0 0 20px #ffaa00; }
-        .win-content p { color: #fff; font-size: 1.2em; margin-bottom: 25px; }
-        canvas#confettiCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10000; }
+        /* Hint box styling */
+        .hint-box { 
+            background: #4a3333; 
+            border-left: 5px solid #f44336; 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            border-radius: 8px; 
+            line-height: 1.5; 
+            display: none; 
+        }
+        .hint-box code { 
+            background: #2b2b36; 
+            padding: 3px 6px; 
+            border-radius: 4px; 
+            color: #ffb74d; 
+            font-family: monospace; 
+        }
+        
+        canvas { 
+            background: #87CEEB; 
+            border-radius: 8px; 
+            width: 100%; 
+            max-width: 800px; 
+            height: 400px; 
+            display: block; 
+            border: 2px solid #555; 
+        }
+        
+        /* Fullscreen Win Screen Overlay */
+        #winScreen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            background: rgba(0,0,0,0.85); 
+            display: none; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 9999; 
+        }
+        .win-content { 
+            z-index: 10001; 
+            text-align: center; 
+            background: rgba(43, 43, 54, 0.95); 
+            padding: 40px; 
+            border-radius: 15px; 
+            border: 2px solid #4caf50; 
+            box-shadow: 0 0 50px rgba(76, 175, 80, 0.4); 
+            max-width: 90%;
+        }
+        .win-content h2 { 
+            color: #ffd700; 
+            font-size: 2.5em; 
+            margin: 0 0 15px 0; 
+            text-shadow: 0 0 20px #ffaa00; 
+        }
+        .win-content p { 
+            color: #fff; 
+            font-size: 1.2em; 
+            margin-bottom: 25px; 
+            line-height: 1.5;
+        }
+        canvas#confettiCanvas { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+            z-index: 10000; 
+        }
     </style>
 </head>
 <body>
@@ -36,25 +157,30 @@
 <div class="container">
     <h1>🧙‍♂️ Wizard Kinematics Simulator</h1>
     
+    <div class="input-group" style="margin-bottom: 20px;">
+        <label for="studentName">🧙 Student Wizard Name:</label>
+        <input type="text" id="studentName" placeholder="Enter your name here..." style="padding: 10px; border-radius: 5px; border: 1px solid #4caf50; background: #1e1e24; color: #fff; font-size: 1.05em;">
+    </div>
+
     <div class="problem-text" id="problemText">
         Loading problem...
     </div>
 
     <div class="inputs">
         <div class="input-group">
-            <label>a) Max height of wizard (m):</label>
+            <label for="ansA">a) Max height of wizard (m):</label>
             <input type="number" id="ansA" step="0.01">
         </div>
         <div class="input-group">
-            <label>b) Time in air before landing (s):</label>
+            <label for="ansB">b) Time in air before landing (s):</label>
             <input type="number" id="ansB" step="0.01">
         </div>
         <div class="input-group">
-            <label>c) Time of catch (s):</label>
+            <label for="ansC">c) Time of catch (s):</label>
             <input type="number" id="ansC" step="0.01">
         </div>
         <div class="input-group">
-            <label>d) Height of catch (m):</label>
+            <label for="ansD">d) Height of catch (m):</label>
             <input type="number" id="ansD" step="0.01">
         </div>
     </div>
@@ -66,15 +192,17 @@
         <button class="secondary" onclick="generateProblem()">New Variation</button>
     </div>
 
+    <div id="hintBox" class="hint-box"></div>
+
     <canvas id="simCanvas" width="800" height="400"></canvas>
 </div>
 
-<!-- Win Screen moved outside the container to be true fullscreen -->
+<!-- Win Screen Modal -->
 <div id="winScreen">
     <canvas id="confettiCanvas"></canvas>
     <div class="win-content">
-        <h2>MAGIC MASTERED!</h2>
-        <p>You successfully caught the magic sword!</p>
+        <h2 id="winHeader">MAGIC MASTERED!</h2>
+        <p id="winMessage">You successfully caught the magic sword!</p>
         <button class="primary" onclick="generateProblem()" style="font-size: 1.2em; padding: 12px 24px;">Play Again</button>
     </div>
 </div>
@@ -94,15 +222,23 @@
     let particles = [];
     let confettiAnimationId = null;
 
+    const winMessages = [
+        "Incredible work, {name}! You have truly mastered the kinematics of magic!",
+        "Splendid calculation, {name}! You timed the wizard's jump and catch with legendary precision!",
+        "Brilliant physics skills, {name}! The magical sword is rightfully yours!",
+        "Astonishing work, Archmage {name}! Gravity and motion equations bend to your will!",
+        "Outstanding, {name}! You solved all four kinematics challenges perfectly!"
+    ];
+
     function generateProblem() {
-        // Reset Win Screen
         document.getElementById('winScreen').style.display = 'none';
-        if(confettiAnimationId) {
+        document.getElementById('hintBox').style.display = 'none';
+        
+        if (confettiAnimationId) {
             cancelAnimationFrame(confettiAnimationId);
             confettiAnimationId = null;
         }
 
-        // Clear Inputs
         ['ansA', 'ansB', 'ansC', 'ansD'].forEach(id => {
             let el = document.getElementById(id);
             el.value = '';
@@ -115,7 +251,7 @@
         let t1, t2, catchHeight, tLand;
         let attempts = 0;
 
-        while(!valid && attempts < 500) {
+        while (!valid && attempts < 500) {
             attempts++;
             yw0 = Math.floor(Math.random() * 15) + 20; 
             ys0 = yw0 + Math.floor(Math.random() * 10) + 8; 
@@ -125,18 +261,18 @@
             let A = 0.5 * g;
             let B = vs - vw0;
             let C = ys0 - yw0;
-            let discriminant = B*B - 4*A*C;
+            let discriminant = B * B - 4 * A * C;
             
-            if(discriminant > 0) {
-                t1 = (-B - Math.sqrt(discriminant)) / (2*A);
-                t2 = (-B + Math.sqrt(discriminant)) / (2*A);
+            if (discriminant > 0) {
+                t1 = (-B - Math.sqrt(discriminant)) / (2 * A);
+                t2 = (-B + Math.sqrt(discriminant)) / (2 * A);
                 tLand = (vw0 + Math.sqrt(vw0 * vw0 + 2 * g * yw0)) / g;
 
-                if(t1 > 0 && t2 > 0 && t2 < tLand) {
+                if (t1 > 0 && t2 > 0 && t2 < tLand) {
                     let v_wizard_at_t2 = vw0 - g * t2;
                     catchHeight = ys0 + vs * t2;
 
-                    if(v_wizard_at_t2 < 0 && catchHeight > 0) {
+                    if (v_wizard_at_t2 < 0 && catchHeight > 0) {
                         valid = true;
                     }
                 }
@@ -176,18 +312,43 @@
         let c = parseFloat(document.getElementById('ansC').value);
         let d = parseFloat(document.getElementById('ansD').value);
 
-        let correct = 0;
-        correct += validateInput('ansA', a, currentAnswers.a);
-        correct += validateInput('ansB', b, currentAnswers.b);
-        correct += validateInput('ansC', c, currentAnswers.c);
-        correct += validateInput('ansD', d, currentAnswers.d);
+        let correctA = validateInput('ansA', a, currentAnswers.a);
+        let correctB = validateInput('ansB', b, currentAnswers.b);
+        let correctC = validateInput('ansC', c, currentAnswers.c);
+        let correctD = validateInput('ansD', d, currentAnswers.d);
 
-        if(correct === 4) triggerWin();
+        let correct = correctA + correctB + correctC + correctD;
+        let hintBox = document.getElementById('hintBox');
+
+        if (correct === 4) {
+            hintBox.style.display = 'none';
+            triggerWin();
+        } else {
+            let hints = [];
+            if (!correctA) {
+                hints.push("<strong>Hint for a):</strong> You can find this using <code>v² = v₀² + 2a(x - x₀)</code> and solving for x, given that x₀ is the height of the cliff, v = 0 at peak, and a = -9.8 m/s².");
+            }
+            if (!correctB) {
+                hints.push("<strong>Hint for b):</strong> Try using <code>x - x₀ = v₀t + ½at²</code> with (x - x₀) = negative cliff height, v₀ = initial velocity of the wizard, and a = -9.8 m/s². You can solve the quadratic equation or plot <code>y = ${currentParams.yw0.toFixed(1)} + ${currentParams.vw0.toFixed(1)}x - 4.9x²</code> on Desmos to find when the height hits zero.");
+            }
+            if (!correctC || !correctD) {
+                let vsSign = currentParams.vs < 0 ? "-" : "+";
+                let vsVal = Math.abs(currentParams.vs).toFixed(1);
+                hints.push(`<strong>Hint for c/d):</strong> The catch happens when their heights are equal. Try plotting both equations on Desmos (using x for time):<br>
+                Wizard: <code>y = ${currentParams.yw0.toFixed(1)} + ${currentParams.vw0.toFixed(1)}x - 4.9x²</code><br>
+                Sword: <code>y = ${currentParams.ys0.toFixed(1)} ${vsSign} ${vsVal}x</code><br>
+                Find their intersection point on the way down!`);
+            }
+            hints.push("<em>Please try again!</em>");
+            
+            hintBox.innerHTML = hints.join("<br><br>");
+            hintBox.style.display = 'block';
+        }
     }
 
     function validateInput(id, userVal, trueVal) {
         let el = document.getElementById(id);
-        if(!isNaN(userVal) && Math.abs(userVal - trueVal) / trueVal < 0.015) {
+        if (!isNaN(userVal) && Math.abs(userVal - trueVal) / trueVal < 0.015) {
             el.style.borderColor = "#4caf50";
             el.style.backgroundColor = "#2e3b32";
             return 1;
@@ -203,7 +364,7 @@
     }
 
     function drawStaticScene() {
-        if(animationId) cancelAnimationFrame(animationId);
+        if (animationId) cancelAnimationFrame(animationId);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         ctx.fillStyle = '#228B22';
@@ -236,13 +397,13 @@
     }
 
     function playAnimation(continueToGround) {
-        if(animationId) cancelAnimationFrame(animationId);
+        if (animationId) cancelAnimationFrame(animationId);
         let startTime = performance.now();
         let targetTime = continueToGround ? currentParams.tLand : currentParams.t2;
 
         function step(time) {
             let t = (time - startTime) / 1000;
-            if(t > targetTime) t = targetTime;
+            if (t > targetTime) t = targetTime;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
@@ -252,21 +413,21 @@
             ctx.fillRect(0, getYPixel(currentParams.yw0), 100, currentParams.yw0 * scale);
 
             let wizardY = currentParams.yw0 + currentParams.vw0 * t - 0.5 * g * t * t;
-            if(wizardY < 0) wizardY = 0; 
+            if (wizardY < 0) wizardY = 0; 
 
             let wizardX = 100 + (t * 15);
             if (wizardX > 140) wizardX = 140;
 
             drawWizard(wizardX, wizardY);
             
-            if(t >= currentParams.t2) {
+            if (t >= currentParams.t2) {
                 drawSword(wizardX + 5, wizardY);
             } else {
                 let swordY = currentParams.ys0 + currentParams.vs * t;
                 drawSword(140, swordY);
             }
 
-            if(t < targetTime) {
+            if (t < targetTime) {
                 animationId = requestAnimationFrame(step);
             }
         }
@@ -294,17 +455,25 @@
             this.y += this.vy;
             this.rotation += this.rotSpeed;
         }
-        draw(ctx) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation * Math.PI / 180);
-            ctx.fillStyle = this.color;
-            ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
-            ctx.restore();
+        draw(c) {
+            c.save();
+            c.translate(this.x, this.y);
+            c.rotate(this.rotation * Math.PI / 180);
+            c.fillStyle = this.color;
+            c.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+            c.restore();
         }
     }
 
     function triggerWin() {
+        const nameInput = document.getElementById('studentName').value.trim();
+        const studentName = nameInput ? nameInput : "Wizard";
+        
+        const randomMsg = winMessages[Math.floor(Math.random() * winMessages.length)].replace(/{name}/g, studentName);
+        
+        document.getElementById('winHeader').innerText = `MAGIC MASTERED, ${studentName.toUpperCase()}!`;
+        document.getElementById('winMessage').innerText = randomMsg;
+
         const winScreen = document.getElementById('winScreen');
         winScreen.style.display = 'flex';
         
@@ -312,11 +481,11 @@
         confettiCanvas.height = window.innerHeight;
         
         particles = [];
-        for(let i = 0; i < 200; i++) {
+        for (let i = 0; i < 200; i++) {
             particles.push(new Particle(confettiCanvas.width, confettiCanvas.height));
         }
 
-        if(confettiAnimationId) cancelAnimationFrame(confettiAnimationId);
+        if (confettiAnimationId) cancelAnimationFrame(confettiAnimationId);
         
         function animateConfetti() {
             confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
