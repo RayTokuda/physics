@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Components Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0.7;
+            animation: fall 5s linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen p-2 sm:p-4 overflow-hidden">
+
+    <div id="game-container" class="w-full max-w-5xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-gray-700 pb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-cyan-400 mb-2 sm:mb-0 text-center">Vector Components Calculator</h1>
+            <div class="flex items-center space-x-2 sm:space-x-4 text-md">
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Score: <span id="score" class="font-bold text-yellow-400">0</span></span>
+                </div>
+                <div class="bg-gray-700 px-3 py-2 rounded-lg">
+                    <span>Round: <span id="round" class="font-bold text-green-400">1 / 3</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow w-full flex flex-col lg:flex-row gap-4 min-h-0">
+            <!-- Left Panel: Info & Inputs -->
+            <div class="lg:w-1/2 flex flex-col bg-gray-900/50 rounded-lg p-4 justify-center">
+                 <div id="vector-info" class="text-center bg-gray-700/50 p-3 rounded-lg mb-4">
+                    <h2 class="font-bold text-lg text-amber-400">Given Vector (V)</h2>
+                    <p>Magnitude: <span id="magnitude" class="font-semibold">--</span></p>
+                    <p>Angle: <span id="angle" class="font-semibold">--</span>° (from +x axis)</p>
+                </div>
+                <div id="instructions" class="text-center text-gray-300 mb-4">
+                   Use the magnitude and angle to calculate the vector components.
+                </div>
+                <div id="input-section" class="space-y-4">
+                    <div>
+                        <label for="x-component-input" class="block text-sm font-medium text-cyan-400">X-Component (Vx)</label>
+                        <input type="number" id="x-component-input" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., -45.5">
+                    </div>
+                    <div>
+                        <label for="y-component-input" class="block text-sm font-medium text-emerald-400">Y-Component (Vy)</label>
+                        <input type="number" id="y-component-input" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g., 25.0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas for Visualization -->
+            <div class="flex-grow w-full h-64 lg:h-auto min-h-0 relative rounded-lg overflow-hidden bg-gray-900/50 lg:w-1/2">
+                 <canvas id="gameCanvas" class="absolute top-0 left-0"></canvas>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex justify-center items-center mt-4 space-x-4">
+            <button id="checkButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200">Check Answer</button>
+            <button id="resetButton" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200">Reset Game</button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center shadow-xl border border-gray-700 transform scale-95 opacity-0 modal max-w-md">
+            <h2 id="modalTitle" class="text-3xl font-bold mb-4 cursor-move"></h2>
+            <p id="modalMessage" class="text-lg mb-6"></p>
+            <div id="modal-buttons" class="flex justify-center items-center space-x-4">
+                <button id="modalButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105">Continue</button>
+                <button id="modalButtonSecondary" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105 hidden"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = canvas.parentElement;
+
+        // UI
+        const scoreEl = document.getElementById('score');
+        const roundEl = document.getElementById('round');
+        const magnitudeEl = document.getElementById('magnitude');
+        const angleEl = document.getElementById('angle');
+        const xInput = document.getElementById('x-component-input');
+        const yInput = document.getElementById('y-component-input');
+        const checkButton = document.getElementById('checkButton');
+        const resetButton = document.getElementById('resetButton');
+        
+        // Modal
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const modalButton = document.getElementById('modalButton');
+        const modalButtonSecondary = document.getElementById('modalButtonSecondary');
+
+        let score = 0, round = 1;
+        let originalVector = null;
+        let quadrantOrder = [];
+        const TOTAL_ROUNDS = 3;
+        const VALUE_TOLERANCE = 0.05; // 5% tolerance for numerical input
+        const UNITS = ['m', 'm/s', 'm/s²', 'N'];
+        let currentUnit = '';
+
+        const CONGRATS_MESSAGES = ["Wow!", "Amazing!", "Incredible!", "Stunning!", "Unbelievable!", "Magnificent!", "Superb!", "Fantastic!", "Phenomenal!", "Outstanding!", "Extraordinary!", "Exceptional!", "Brilliant!", "Genius!", "Masterful!", "Perfect!", "Flawless!", "Pristine!", "Impeccable!", "Supreme!", "Sublime!", "Glorious!", "Majestic!", "Divine!", "Heavenly!", "Stellar!", "Cosmic!", "Galactic!", "Universal!", "Legendary!", "Mythical!", "Epic!", "Heroic!", "Victorious!", "Triumphant!", "Champion!", "Unbeatable!", "Invincible!", "Unstoppable!", "Dominant!", "Powerful!", "Forceful!", "Mighty!", "Formidable!", "Impressive!", "Awe-inspiring!", "Breathtaking!", "Mind-blowing!", "Jaw-dropping!", "Eye-popping!", "Sensational!", "Spectacular!", "Dazzling!", "Radiant!", "Luminous!", "Shining!", "Gleaming!", "Sparkling!", "Glittering!", "Vibrant!", "Dynamic!", "Energetic!", "Vigorous!", "Spirited!", "Lively!", "Vivacious!", "Electric!", "Magnetic!", "Captivating!", "Mesmerizing!", "Hypnotic!", "Enchanting!", "Magical!", "Miraculous!", "Wonderful!", "Marvelous!", "Fabulous!", "Terrific!", "Splendid!", "Excellent!", "First-class!", "Top-notch!", "World-class!", "Grade A!", "Ace!", "Superstar!", "Virtuoso!", "Prodigy!", "Savant!", "Einstein-level!", "Newton-esque!", "Galileo-like!", "You're a physics god!", "The vector vanquisher!", "Component conqueror!", "King of kinematics!", "Queen of quadrants!", "The magnitude master!", "Duke of direction!", "Duchess of displacement!", "You've got the vector factor!", "Nailed it!", "Spot on!", "Bullseye!", "Direct hit!", "Nothing but net!", "Home run!", "Touchdown!", "Goal!", "Checkmate!", "Winner!", "You rock!", "You rule!", "You're the best!", "You're on fire!", "Smoking!", "Blazing!", "Sizzling!", "Red hot!", "Too cool for school!", "Off the charts!", "Out of this world!", "Beyond belief!", "Are you even real?", "Simply the greatest.", "A true inspiration.", "Setting the standard.", "Raising the bar.", "In a league of your own.", "One of a kind.", "A rare talent.", "Truly gifted.", "Born for this.", "Effortless.", "Graceful.", "Elegant.", "Artistic.", "Creative.", "Innovative.", "Ingenious.", "Resourceful.", "Clever.", "Smart.", "Sharp.", "Astute.", "Perceptive.", "Discerning.", "Wise.", "Profound.", "Deep.", "Thoughtful.", "Analytical.", "Logical.", "Precise.", "Accurate.", "Meticulous.", "Thorough.", "Comprehensive.", "Complete.", "Total package.", "The real deal.", "Authentic.", "Genuine.", "Pure talent.", "Unadulterated skill.", "Sheer brilliance.", "A sight to behold.", "A joy to watch.", "Truly remarkable.", "Never seen anything like it.", "History in the making.", "For the record books.", "One for the ages.", "Unforgettable.", "Memorable.", "Lasting impression.", "Legacy built.", "Bravo!", "Encore!", "Standing ovation.", "Two thumbs up.", "Five stars.", "10/10.", "A++."];
+        
+        const FLAWLESS_MESSAGES = ["Are you a vector calculator? Because you're always right.", "Physics has a new monarch, and it is you.", "You didn't just break the curve, you created a new dimension of success.", "Your understanding of vectors is simply... resultant.", "Cosine, sine... it doesn't matter. You've mastered them all.", "That wasn't just flawless, it was a mathematical symphony.", "They said it couldn't be done. You proved them all wrong with a score of 6/5.", "Is there an angle you can't solve? The answer is no.", "You've gone above and beyond. Literally.", "This is not just a high score, it's a statement.", "The laws of physics bend to your will.", "Flawless. Utterly, completely, undeniably flawless.", "You're not in the 99th percentile, you're in the 6/5th percentile.", "This level of precision is unheard of.", "Are you secretly a sentient protractor?", "Every component calculated to perfection. Every single time.", "Vector analysis will never be the same.", "You've achieved what others thought was a rounding error.", "This is peak performance. Scratch that, this is beyond peak.", "Your brain must have a built-in GPU for vector processing.", "Absolutely transcendent.", "A god-tier performance.", "The scoreboard is broken, and it's your fault.", "You have ascended to a higher plane of understanding.", "This is the stuff of legends. Vector legends.", "Some people see vectors, you see the matrix.", "You've resolved every vector and every doubt.", "Simply put, a virtuoso of vectors.", "The epitome of analytical prowess.", "Your calculations are a work of art.", "This score is an outlier in the best possible way.", "You don't just solve problems, you dissolve them.", "Unprecedented. Unparalleled. Unbelievable.", "The force is clearly with you. And the velocity. And the acceleration.", "This is more than a grade, it's a new constant.", "Did you use a calculator, or are you THE calculator?", "Your skill is off the charts.", "A new chapter in physics history has been written by you.", "Quantum computers are jealous of your processing speed.", "You make complex problems look trivial.", "This is a mic-drop moment in physics.", "The definition of excellence has been updated.", "The system wasn't ready for this level of skill.", "You've found the resultant of success.", "A display of pure, unadulterated genius.", "The numbers don't lie, and neither does your score: perfection plus.", "Every quadrant, every angle, every time. Mastered.", "Your precision is a thing of beauty.", "There are no components to your success, it's a pure vector of greatness.", "You've reached the vector horizon.", "The apex of calculation.", "This is what happens when preparation meets brilliance.", "An absolute masterclass in trigonometry.", "You calculated your way to immortality.", "The student has become the master.", "There's perfect, and then there's what you just did.", "You've set a new gold standard.", "The final boss of vector calculation.", "A truly legendary accomplishment.", "Your name will be whispered in physics labs for generations.", "This is your magnum opus.", "You didn't just play the game, you redefined it.", "A flawless run. A stunning victory.", "The vector world is yours.", "Your mind is a finely tuned instrument of calculation.", "Perfection was the starting line for you.", "You've turned vector math into an art form.", "This is beyond comprehension.", "The human brain at its absolute finest.", "You have achieved vector nirvana.", "The chosen one of trigonometry.", "Your skill is of a cosmic magnitude.", "This is a result of sheer intellectual dominance.", "You've reached the summit of Mount Physics.", "The undisputed champion of components.", "Your logic is irrefutable, your score is impossible.", "You are the alpha and the omega of angles.", "A performance for the ages.", "This is what peak intellectual athleticism looks like.", "Your knowledge is both broad and deep. And correct.", "The game has been won. By you. Decisively.", "The standard has not been raised, it has been launched into orbit.", "You've cracked the code of the cosmos.", "A symphony of sine and cosine conducted by a master.", "This isn't just a win, it's a legacy.", "The components of your success are hard work and genius.", "You're a force of nature. A calculable one.", "The precision is just... staggering.", "You've conquered the Cartesian plane.", "This is the kind of result that inspires awe.", "Your focus is as sharp as a vector arrowhead.", "A perfect score wasn't enough for you, was it?", "This is a testament to your incredible mind.", "You've solved the equation of greatness.", "The world of physics just took notice.", "Your talent is a vector with infinite magnitude.", "This is a display of pure intellectual horsepower.", "You've achieved a state of vector equilibrium: perfect balance.", "The pinnacle of performance.", "Your work is a model of clarity and correctness.", "You've out-calculated the calculator.", "A true prodigy is among us.", "This is the result of relentless dedication.", "You have a beautiful mind.", "Your problem-solving skills are second to none.", "You've made the impossible look easy.", "A triumph of logic and reason.", "The master of magnitude and direction.", "Your intellect is a powerful force.", "This is a victory of the highest order.", "You are a luminary in the field of physics.", "Your potential is limitless.", "A remarkable exhibition of skill.", "You've surpassed all expectations.", "This is the signature of a true scholar.", "Your command of the subject is absolute.", "A flawless execution from start to finish.", "You are in a class all by yourself.", "The results speak for themselves: legendary.", "You possess a rare and profound talent.", "This achievement is a monumental one.", "You are a titan of trigonometry.", "Your mind moves with elegance and precision.", "This is a landmark achievement.", "You've set the bar to an impossible height.", "The embodiment of intellectual rigor.", "Your performance was nothing short of breathtaking.", "You are a beacon of brilliance.", "A stunning display of mental acuity.", "You have mastered the art and science of vectors.", "This is a historic moment.", "Your success is well-deserved.", "A victory etched in the annals of physics.", "You are a true pioneer.", "The journey to perfection is complete. And then some.", "You have an extraordinary gift.", "Your work is the stuff of academic legend.", "A flawless demonstration of expertise.", "You are a shining example of excellence.", "This is a triumph of the human mind.", "Your dedication has paid off in the most spectacular way.", "You are an inspiration to us all.", "A performance that will be remembered forever.", "You have achieved the pinnacle of success.", "The world is yours to calculate.", "Your future is as bright as your score.", "This is a moment to be savored.", "You have earned your place among the greats.", "Your intelligence is a formidable weapon.", "This is a victory for the ages.", "You have left an indelible mark.", "Your passion for knowledge is evident.", "A true scholar and a champion.", "The master of all things vector.", "You have unlocked a new level of achievement.", "Your mind is a treasure trove of knowledge.", "This is a moment of pure, unadulterated triumph.", "You are a force to be reckoned with.", "The very definition of a high achiever.", "Your success is a testament to your character.", "You have scaled the highest peaks of academia.", "This is a legacy-defining performance.", "You are a true visionary.", "Your work is a beacon of hope for future generations.", "You have inspired a new wave of thinkers.", "This is a victory for science and for you.", "Your name is now synonymous with excellence.", "You have redefined what is possible.", "A true masterpiece of calculation.", "Your intellect shines brightly.", "This is a moment that will go down in history.", "You are a true leader in your field.", "Your dedication to your craft is unparalleled.", "This is a victory that will echo through time.", "You have achieved a level of mastery that few can dream of.", "Your work is a gift to the world.", "This is a moment of pure, unadulterated genius.", "You are a true inspiration to all who know you."];
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = gameContainer.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            draw();
+        }
+
+        function startGame() {
+            score = 0; round = 1;
+            quadrantOrder = [1, 2, 3, 4];
+            shuffleArray(quadrantOrder);
+            startRound();
+        }
+
+        function startRound() {
+            updateUI();
+            resetInputs();
+            generateVector();
+            draw();
+        }
+        
+        function generateVector() {
+            const quadrant = quadrantOrder[round - 1];
+            
+            const magnitude = Math.random() * 90 + 10; // Magnitude between 10 and 100
+            let angleDeg;
+
+            switch(quadrant) {
+                case 1: angleDeg = Math.random() * 70 + 10; break; // 10-80
+                case 2: angleDeg = Math.random() * 70 + 100; break; // 100-170
+                case 3: angleDeg = Math.random() * 70 + 190; break; // 190-260
+                case 4: angleDeg = Math.random() * 70 + 280; break; // 280-350
+            }
+            
+            const angleRad = angleDeg * Math.PI / 180;
+            const vx = magnitude * Math.cos(angleRad);
+            const vy = magnitude * Math.sin(angleRad);
+            
+            // For drawing, we use a fixed pixel length to avoid giving visual clues
+            const displayMagnitudePx = Math.min(canvas.offsetWidth, canvas.offsetHeight) * 0.4;
+            const displayDx = displayMagnitudePx * Math.cos(angleRad);
+            const displayDy = -displayMagnitudePx * Math.sin(angleRad);
+
+
+            originalVector = {
+                x: canvas.offsetWidth / 2, y: canvas.offsetHeight / 2,
+                dx: displayDx,
+                dy: displayDy,
+                vx: vx, vy: vy,
+                magnitude: magnitude, angle: angleDeg,
+                color: '#f59e0b'
+            };
+            
+            currentUnit = UNITS[Math.floor(Math.random() * UNITS.length)];
+            magnitudeEl.innerHTML = `${magnitude.toFixed(1)} <span class="text-gray-400">${currentUnit}</span>`;
+            angleEl.textContent = angleDeg.toFixed(1);
+        }
+        
+        function drawAxes() {
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            const originX = w / 2;
+            const originY = h / 2;
+            const PIXELS_PER_UNIT = 30; // Grid spacing for visual effect only
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            // X and Y axes
+            ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(w, originY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, h); ctx.stroke();
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let x = originX; x < w; x += PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+            for (let x = originX; x > 0; x -= PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+            for (let y = originY; y < h; y += PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+            for (let y = originY; y > 0; y -= PIXELS_PER_UNIT) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+        }
+
+        function drawVector(vector, options = {}) {
+             ctx.strokeStyle = options.color || vector.color;
+            ctx.fillStyle = options.color || vector.color;
+            ctx.lineWidth = options.lineWidth || 4;
+            const headlen = 10;
+            const angle = Math.atan2(vector.dy, vector.dx);
+            ctx.beginPath(); ctx.moveTo(vector.x, vector.y); ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath(); ctx.fill();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawAxes();
+            if (originalVector) { drawVector(originalVector); }
+        }
+        
+        function checkAnswer() {
+            let scoreThisRound = 0;
+            let feedback = "";
+            const totalPointsThisRound = 2;
+
+            const xVal = parseFloat(xInput.value);
+            const yVal = parseFloat(yInput.value);
+            const xIsCorrect = Math.abs(xVal - originalVector.vx) < Math.abs(originalVector.vx * VALUE_TOLERANCE) + 0.1;
+            const yIsCorrect = Math.abs(yVal - originalVector.vy) < Math.abs(originalVector.vy * VALUE_TOLERANCE) + 0.1;
+
+            xInput.classList.toggle('ring-2', true);
+            yInput.classList.toggle('ring-2', true);
+            xInput.classList.toggle('ring-green-500', xIsCorrect);
+            xInput.classList.toggle('ring-red-500', !xIsCorrect);
+            yInput.classList.toggle('ring-green-500', yIsCorrect);
+            yInput.classList.toggle('ring-red-500', !yIsCorrect);
+
+            if (!isNaN(xVal) && xIsCorrect) scoreThisRound++;
+            if (!isNaN(yVal) && yIsCorrect) scoreThisRound++;
+            
+            score += scoreThisRound;
+
+            if (round >= TOTAL_ROUNDS) {
+                if (score === 6) {
+                    showModal('Flawless Victory!', `You got 6 out of 5! Well beyond perfect! ${getRandomFlawlessCongrats()}`, gameOver);
+                    launchConfetti();
+                } else if (score === 5) {
+                    showModal('Perfect Score!', `You finished with a perfect score of 5 out of 5! ${getRandomCongrats()}`, gameOver);
+                    launchConfetti();
+                } else {
+                    showModal('Game Over', `You finished with ${score} out of 5. Keep practicing!`, gameOver);
+                }
+            } else {
+                if (scoreThisRound === totalPointsThisRound) {
+                    showModal('Perfect!', `Both component values are correct! (+${scoreThisRound} points)`, () => { round++; startRound(); });
+                } else {
+                    if (!xIsCorrect && !yIsCorrect) {
+                        feedback = `Both the X and Y component values are incorrect. (+0 points)`;
+                    } else if (!xIsCorrect) {
+                        feedback = `The X-component value is incorrect. Check your calculation. (+1 point)`;
+                    } else { // !yIsCorrect
+                        feedback = `The Y-component value is incorrect. Check your calculation. (+1 point)`;
+                    }
+                    showModal('Not Quite', feedback, () => { round++; startRound(); });
+                }
+            }
+        }
+        
+        function resetInputs() {
+            xInput.value = '';
+            yInput.value = '';
+            xInput.classList.remove('ring-2', 'ring-green-500', 'ring-red-500');
+            yInput.classList.remove('ring-2', 'ring-green-500', 'ring-red-500');
+        }
+
+        function gameOver() {
+            closeModal();
+            startGame();
+        }
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            const roundText = `${round} / ${TOTAL_ROUNDS}`;
+            roundEl.textContent = roundText;
+        }
+
+        function showModal(title, message, onButtonClick, secondaryOptions = null) {
+            modalTitleEl.textContent = title;
+            modalMessageEl.textContent = message;
+            modalButton.onclick = () => { closeModal(); onButtonClick(); };
+            if (secondaryOptions) {
+                modalButton.textContent = secondaryOptions.primaryText;
+                modalButtonSecondary.textContent = secondaryOptions.secondaryText;
+                modalButtonSecondary.classList.remove('hidden');
+                modalButtonSecondary.onclick = () => { closeModal(); secondaryOptions.onClick(); };
+            } else {
+                modalButton.textContent = 'Continue';
+                modalButtonSecondary.classList.add('hidden');
+            }
+            feedbackModal.classList.remove('hidden');
+            setTimeout(() => feedbackModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal() {
+            const modalContent = feedbackModal.querySelector('.modal');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                feedbackModal.classList.add('hidden');
+                 if (!feedbackModal.classList.contains('flex')) {
+                   feedbackModal.classList.add('flex', 'items-center', 'justify-center');
+                }
+                modalContent.style.position = '';
+                modalContent.style.top = '';
+                modalContent.style.left = '';
+            }, 300);
+        }
+
+        function getRandomCongrats() {
+            return CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
+        }
+
+        function getRandomFlawlessCongrats() {
+            return FLAWLESS_MESSAGES[Math.floor(Math.random() * FLAWLESS_MESSAGES.length)];
+        }
+        
+        function launchConfetti() {
+            for (let i = 0; i < 200; i++) {
+                const confetto = document.createElement('div');
+                confetto.classList.add('confetti');
+                confetto.style.left = Math.random() * 100 + 'vw';
+                confetto.style.top = -20 + 'px';
+                confetto.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                confetto.style.animationDelay = Math.random() * 3 + 's';
+                confetto.style.transform = `scale(${Math.random() * 0.8 + 0.5})`;
+                document.body.appendChild(confetto);
+                setTimeout(() => confetto.remove(), 5000);
+            }
+        }
+        
+        function makeDraggable(elmnt, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const dragHandle = handle || elmnt;
+
+            dragHandle.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                const target = e.target || e.srcElement;
+                if (target.tagName === 'BUTTON' || target.tagName === 'INPUT') return;
+                
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                
+                if (feedbackModal.classList.contains('flex')) {
+                    feedbackModal.classList.remove('flex', 'items-center', 'justify-center');
+                    elmnt.style.position = 'absolute';
+                    const rect = elmnt.getBoundingClientRect();
+                    elmnt.style.left = rect.left + 'px';
+                    elmnt.style.top = rect.top + 'px';
+                }
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+
+        window.addEventListener('resize', setupCanvas);
+        checkButton.addEventListener('click', checkAnswer);
+        resetButton.addEventListener('click', startGame);
+
+        setupCanvas();
+        startGame();
+        makeDraggable(feedbackModal.querySelector('.modal'), modalTitleEl);
+
+    </script>
+</body>
+</html>
+
