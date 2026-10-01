@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vector Quiz</title>
+    <title id="page-title">Vector Guessing Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,18 +24,25 @@
             display: block;
             border-radius: 0.5rem;
             background-color: #1a202c;
-            cursor: grab; /* Default cursor for canvas */
+            cursor: grab;
         }
-        #game-container {
+        #game-container, #start-screen {
             max-width: 600px;
         }
         .option-btn {
-            transition: background-color 0.3s, border-color 0.3s;
+            transition: background-color 0.3s, border-color 0.3s, transform 0.1s;
             padding: 0.25rem;
+        }
+        .option-btn:active {
+            transform: scale(0.98);
         }
         .option-btn canvas {
             border-radius: 0.375rem;
             pointer-events: none;
+        }
+        .selected {
+            border-color: #fbbf24 !important; /* Yellow-400 */
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.3);
         }
         .correct {
             background-color: #22c55e !important;
@@ -52,43 +59,32 @@
         .toggle-checkbox:checked + .toggle-label {
             background-color: #4ade80;
         }
-        
-        .confetti {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .confetti-piece {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: hsl(var(--hue), 100%, 50%);
-            animation: confetti-fall 2s linear forwards;
-        }
-
-        @keyframes confetti-fall {
-            0% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(100vh) rotate(720deg);
-                opacity: 0;
-            }
-        }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div id="game-container" class="w-full mx-auto p-6 bg-gray-800 rounded-xl shadow-2xl space-y-4">
+    <!-- Start Screen -->
+    <div id="start-screen" class="w-full mx-auto p-8 bg-gray-800 rounded-xl shadow-2xl space-y-6 text-center">
+        <h1 id="start-title" class="game-title text-5xl font-bold text-cyan-400">Vector Guessing Game</h1>
+        <p class="text-gray-300 text-lg">Test your vector addition and subtraction skills.</p>
+        <div class="space-y-4 pt-4">
+            <input type="text" id="player-name" placeholder="Enter your name" class="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-cyan-400 text-lg text-center" />
+            <button id="start-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300">Begin Game</button>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="hidden w-full mx-auto p-6 bg-gray-800 rounded-xl shadow-2xl space-y-4 relative">
         <div class="flex justify-between items-center">
-            <h1 class="game-title text-3xl font-bold text-cyan-400">Vector Quiz</h1>
+            <h1 id="header-title" class="game-title text-3xl font-bold text-cyan-400">Vector Guessing Game</h1>
             <div class="flex items-center space-x-4">
+                 <div class="flex items-center space-x-2 text-sm text-gray-400">
+                    <label for="debug-toggle" class="cursor-pointer">Debug</label>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="debug-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                        <label for="debug-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-600 cursor-pointer"></label>
+                    </div>
+                </div>
                 <div class="text-right">
                     <p id="score" class="text-xl font-semibold">Score: 0</p>
                     <p id="question-counter" class="text-gray-400">Question: 1 / 5</p>
@@ -96,110 +92,263 @@
             </div>
         </div>
 
-        <div id="canvas-container">
+        <div id="debug-info" class="hidden font-mono text-sm bg-gray-700 p-2 rounded-md text-center"></div>
+
+        <div id="canvas-container" class="relative">
             <canvas id="vector-canvas"></canvas>
+            <div class="absolute top-2 left-2 flex flex-wrap gap-2 z-10">
+                <button id="flip-a-btn" class="bg-gray-800/80 hover:bg-cyan-700 text-cyan-300 border border-cyan-500/50 text-xs px-2.5 py-1.5 rounded-lg shadow backdrop-blur transition flex items-center gap-1 font-semibold">
+                    🔄 Flip A (<span id="label-a-state">A</span>)
+                </button>
+                <button id="flip-b-btn" class="bg-gray-800/80 hover:bg-fuchsia-700 text-fuchsia-300 border border-fuchsia-500/50 text-xs px-2.5 py-1.5 rounded-lg shadow backdrop-blur transition flex items-center gap-1 font-semibold">
+                    🔄 Flip B (<span id="label-b-state">B</span>)
+                </button>
+                <button id="flip-c-btn" class="hidden bg-gray-800/80 hover:bg-emerald-700 text-emerald-300 border border-emerald-500/50 text-xs px-2.5 py-1.5 rounded-lg shadow backdrop-blur transition flex items-center gap-1 font-semibold">
+                    🔄 Flip C (<span id="label-c-state">C</span>)
+                </button>
+                <button id="restore-btn" class="bg-gray-800/80 hover:bg-amber-700 text-amber-300 border border-amber-500/50 text-xs px-2.5 py-1.5 rounded-lg shadow backdrop-blur transition flex items-center gap-1 font-semibold">
+                    ↺ Restore
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 text-center mt-1">💡 <b>Trackpad Tip:</b> Click & drag vectors anywhere near their body or tips. Double-click or right-click a vector (or use top-left buttons) to flip it!</p>
         </div>
 
-        <div id="question-area" class="text-center">
+        <div id="question-area" class="text-center space-y-1">
+            <div id="bonus-banner" class="hidden bg-amber-500/20 text-amber-300 font-bold text-sm py-1 px-3 rounded-full inline-block border border-amber-400/40 animate-pulse">
+                🔥 BONUS ROUND (+1 POINT) 🔥
+            </div>
             <p id="question-text" class="text-2xl font-medium">Which vector represents the result?</p>
         </div>
 
         <div id="options-area" class="grid grid-cols-2 gap-4">
         </div>
 
-        <button id="next-btn" class="hidden w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition duration-300">Next Question</button>
+        <div class="flex space-x-4 mt-4">
+            <button id="submit-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-bold py-3 px-4 rounded-lg text-lg transition duration-300" disabled>Submit Answer</button>
+            <button id="next-btn" class="hidden w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition duration-300">Next Question</button>
+        </div>
 
-        <p id="feedback-text" class="text-center text-lg h-8"></p>
+        <p id="feedback-text" class="text-center text-lg h-8 font-bold"></p>
 
-        <div id="game-over-screen" class="hidden text-center space-y-4 py-8">
-            <h2 class="text-4xl font-bold">Quiz Complete!</h2>
-            <p id="final-score-text" class="text-2xl">Your score: 5 / 5</p>
-            <p id="final-feedback" class="text-lg text-gray-300"></p>
-            <div class="flex justify-center space-x-4">
-                <button id="play-again-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300">Play Again</button>
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="hidden text-center space-y-6 py-6">
+            <h2 id="end-title" class="text-4xl font-bold">Game Complete!</h2>
+            
+            <div class="space-y-1">
+                <p id="game-over-subtitle" class="text-sm font-medium text-gray-400 tracking-wide uppercase">Vector Guessing Game</p>
+                <p id="final-score-text" class="text-5xl font-extrabold drop-shadow-lg">Your score: 5 / 5</p>
+                <p id="unique-code" class="text-sm font-mono text-gray-500 tracking-widest opacity-80"></p>
+            </div>
+
+            <p id="final-feedback" class="text-xl text-gray-200 min-h-[4rem] flex items-center justify-center"></p>
+
+            <div class="flex justify-center space-x-4 pt-6">
+                <button id="play-again-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">Play Again</button>
             </div>
         </div>
     </div>
-    <div id="confetti-container" class="confetti"></div>
 
     <script>
     window.addEventListener('load', () => {
+        // ==========================================
+        // --- GAME CONFIGURATION & CONSTANTS ---
+        // ==========================================
+        const GAME_VERSION = 1; // Change this number (1-9) to update game title & unique final score colors!
+        const BONUS_POINT_FOR_PERFECT_SCORE = false; // Set to 'true' for instant bonus point, or 'false' to trigger the 3-vector Bonus Round!
+
+        // Map version numbers (1-9) to distinct Tailwind color classes for final score display
+        const VERSION_SCORE_COLORS = {
+            1: 'text-blue-400',
+            2: 'text-cyan-400',
+            3: 'text-emerald-400',
+            4: 'text-purple-400',
+            5: 'text-amber-400',
+            6: 'text-rose-400',
+            7: 'text-teal-400',
+            8: 'text-fuchsia-400',
+            9: 'text-indigo-400'
+        };
+
+        // DOM Elements
+        const pageTitleEl = document.getElementById('page-title');
+        const startTitleEl = document.getElementById('start-title');
+        const headerTitleEl = document.getElementById('header-title');
+        const gameOverSubtitleEl = document.getElementById('game-over-subtitle');
+
+        const startScreen = document.getElementById('start-screen');
+        const playerNameInput = document.getElementById('player-name');
+        const startBtn = document.getElementById('start-btn');
         const gameContainer = document.getElementById('game-container');
+        
         const canvas = document.getElementById('vector-canvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
         const questionCounterEl = document.getElementById('question-counter');
         const questionTextEl = document.getElementById('question-text');
         const questionArea = document.getElementById('question-area');
+        const bonusBannerEl = document.getElementById('bonus-banner');
         const optionsArea = document.getElementById('options-area');
+        const submitBtn = document.getElementById('submit-btn');
         const nextBtn = document.getElementById('next-btn');
         const feedbackTextEl = document.getElementById('feedback-text');
+        
         const gameOverScreen = document.getElementById('game-over-screen');
+        const endTitleEl = document.getElementById('end-title');
         const finalScoreTextEl = document.getElementById('final-score-text');
         const finalFeedbackEl = document.getElementById('final-feedback');
+        const uniqueCodeEl = document.getElementById('unique-code');
         const playAgainBtn = document.getElementById('play-again-btn');
-        const canvasContainer = document.getElementById('canvas-container');
-        const confettiContainer = document.getElementById('confetti-container');
         
+        const canvasContainer = document.getElementById('canvas-container');
+        const debugInfoEl = document.getElementById('debug-info');
+        const debugToggle = document.getElementById('debug-toggle');
+        const flipABtn = document.getElementById('flip-a-btn');
+        const flipBBtn = document.getElementById('flip-b-btn');
+        const flipCBtn = document.getElementById('flip-c-btn');
+        const restoreBtn = document.getElementById('restore-btn');
+        const labelAState = document.getElementById('label-a-state');
+        const labelBState = document.getElementById('label-b-state');
+        const labelCState = document.getElementById('label-c-state');
+
+        // Apply dynamic titles & version styling
+        function applyGameVersionTitles() {
+            const titleText = `Vector Guessing Game ${GAME_VERSION}`;
+            pageTitleEl.textContent = titleText;
+            startTitleEl.textContent = titleText;
+            headerTitleEl.textContent = titleText;
+            gameOverSubtitleEl.textContent = titleText;
+        }
+        applyGameVersionTitles();
+
+        // Game State
+        let playerName = "Student";
         let score = 0;
         let questionNumber = 1;
         const totalQuestions = 5;
-        let bonusQuestion = false;
-        let v1, v2, operation, correctAnswer;
+        let isBonusRound = false;
+        let bonusPointEarned = false;
+
+        let v1, v2, v3;
+        let operation1, operation2;
+        let correctAnswer;
+        let v1Flipped = false;
+        let v2Flipped = false;
+        let v3Flipped = false;
         let answerRevealed = false;
-        let v1Origin, v2Origin;
+        let isDebugMode = false;
+        let v1Origin, v2Origin, v3Origin;
+        
+        let selectedOptionData = null;
+        let selectedOptionElement = null;
 
         // Dragging state
         let isDragging = false;
         let draggedVectorName = null;
+        let hoveredVectorName = null;
         let dragOffset = { x: 0, y: 0 };
         const vectorScale = 8;
+        const MAX_RESULTANT_MAG_SQ = 144;
 
-        const encouragingFeedback = [ "Excellent!", "You're a vector virtuoso!", "Perfect!", "Precisely!", "That's it!", "Awesome job!" ];
-        const tryAgainFeedback = [ "Great effort! Ready for another challenge?", "You're getting the hang of it! Let's go again!", "Practice makes perfect. One more game?" ];
-        const superlativeCongratulations = [
-            "Vector Voyageur!", "Calculus Conqueror!", "Geometric Genius!", "Scalar Slayer!",
-            "Euclidean Enthusiast!", "Magnitude Mastermind!", "Directional Dynamo!", "Tensor Titan!",
-            "Orthogonal Oracle!", "Dimensional Dominator!", "Hyperplane Hero!", "Lineal Luminary!",
-            "Parallel Prodigy!", "Perpendicular Pundit!", "Matrix Marvel!", "Affine Authority!",
-            "Dot Product Demigod!", "Cross Product Czar!", "Basis Bonanza!", "Span Spelunker!",
-            "Norm Nurturer!", "Vector Validator!", "Vector Vindicator!", "Vector Voyager!",
-            "Differential Doyen!", "Integral Innovator!", "Kinematic King!", "Static Sensei!",
-            "Quantum Quizzard!", "Relativity Rocker!", "Galactic Geometer!", "Astro-Analyst!",
-            "Cosmic Calculator!", "Vector Virtuoso!", "Equation Epicure!", "Analytic Ace!",
-            "Projection Perfectionist!", "Gradient Guru!", "Divergence Deity!", "Curl Connoisseur!",
-            "Quaternion King!", "Transformational Triumphant!"
-        ];
-        
-        const MAX_RESULTANT_MAG_SQ = 100;
+        // Effusive Congratulations Generator
+        const adj = ["Vector-tastic", "Magnificent", "Astounding", "Phenomenal", "Brilliant", "Transcendent", "Unparalleled", "Spectacular", "Stellar", "Marvelous", "Incredible", "Flawless", "Masterful", "Supreme", "Peerless", "Infallible", "Galactic", "Quantum", "Astonishing", "Epic"];
+        const nouns = ["Vector Virtuoso", "Calculus Conqueror", "Geometric Genius", "Scalar Slayer", "Euclidean Enthusiast", "Magnitude Mastermind", "Directional Dynamo", "Tensor Titan", "Orthogonal Oracle", "Dimensional Dominator", "Hyperplane Hero", "Lineal Luminary", "Parallel Prodigy", "Matrix Marvel", "Dot Product Demigod", "Basis Boss", "Vector Voyager", "Projection Pro", "Coordinate Commander", "Space Sovereign"];
+        const phrases = ["You've mastered the grid!", "Flawless victory!", "The math gods bow to you!", "Pure perfection!", "Absolutely legendary!", "You're unstoppable!", "A magnificent display of skill!", "Vector perfection achieved!"];
 
-        function generateConfetti() {
-            for (let i = 0; i < 50; i++) {
-                const piece = document.createElement('div');
-                piece.classList.add('confetti-piece');
-                piece.style.top = `${Math.random() * 100}vh`;
-                piece.style.left = `${Math.random() * 100}vw`;
-                piece.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                piece.style.animationDelay = `${Math.random() * 0.5}s`;
-                confettiContainer.appendChild(piece);
-            }
-            setTimeout(() => {
-                confettiContainer.innerHTML = '';
-            }, 3000);
+        function getUniqueEffusiveMessage(name) {
+            const randomAdj = adj[Math.floor(Math.random() * adj.length)];
+            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+            const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+            return `${randomAdj} ${randomNoun}, ${name}! ${randomPhrase}`;
         }
 
-        function generateVisibleVector() {
-            const randComp = () => Math.floor(Math.random() * 19) - 9 || 1;
-            let x, y;
-            do {
-                x = randComp();
-                y = randComp();
-            } while (Math.abs(x) < 3 && Math.abs(y) < 3);
-            return { x, y };
+        function generateUniqueCode(name) {
+            const nameLetters = name.replace(/[^a-zA-Z]/g, '').padEnd(3, 'X').substring(0, 3).toUpperCase();
+            const totalLetters = Math.floor(Math.random() * 3) + 5;
+            const extraLettersCount = totalLetters - 3;
+            
+            const randLetter = () => String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            const randDigit = () => Math.floor(Math.random() * 10).toString();
+
+            let lettersArr = nameLetters.split('');
+            for (let i = 0; i < extraLettersCount; i++) {
+                const pos = Math.floor(Math.random() * (lettersArr.length + 1));
+                lettersArr.splice(pos, 0, randLetter());
+            }
+
+            let digitsArr = Array.from({ length: 7 }, randDigit);
+            let code = [];
+
+            while (lettersArr.length > 0 || digitsArr.length > 0) {
+                if (lettersArr.length > 0 && digitsArr.length > 0) {
+                    if (Math.random() < 0.5) code.push(lettersArr.shift());
+                    else code.push(digitsArr.shift());
+                } else if (lettersArr.length > 0) {
+                    code.push(lettersArr.shift());
+                } else {
+                    code.push(digitsArr.shift());
+                }
+            }
+            return code.join('');
+        }
+
+        function ballisticConfetti(originX, originY) {
+            const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d', '#4ade80', '#60a5fa'];
+            const particles = [];
+            
+            for (let i = 0; i < 70; i++) {
+                const p = document.createElement('div');
+                p.style.position = 'fixed';
+                p.style.left = originX + 'px';
+                p.style.top = originY + 'px';
+                p.style.width = (Math.random() * 8 + 6) + 'px';
+                p.style.height = (Math.random() * 8 + 6) + 'px';
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                p.style.zIndex = '9999';
+                p.style.pointerEvents = 'none';
+                document.body.appendChild(p);
+
+                const angle = Math.random() * Math.PI + Math.PI; 
+                const velocity = Math.random() * 15 + 15;
+                
+                particles.push({
+                    el: p,
+                    vx: Math.cos(angle) * velocity,
+                    vy: Math.sin(angle) * velocity,
+                    rot: Math.random() * 15 - 7.5,
+                    currentRot: Math.random() * 360,
+                    x: originX,
+                    y: originY
+                });
+            }
+
+            function animateParticles() {
+                let active = false;
+                particles.forEach(p => {
+                    if (p.y < window.innerHeight + 20) {
+                        active = true;
+                        p.vy += 0.6;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.currentRot += p.rot;
+                        p.el.style.transform = `translate(${p.x - originX}px, ${p.y - originY}px) rotate(${p.currentRot}deg)`;
+                    } else if (p.el.parentNode) {
+                        p.el.parentNode.removeChild(p.el);
+                    }
+                });
+                if (active) requestAnimationFrame(animateParticles);
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        function trigger3Bursts() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            ballisticConfetti(w / 2, h);
+            setTimeout(() => ballisticConfetti(w * 0.2, h), 600);
+            setTimeout(() => ballisticConfetti(w * 0.8, h), 1200);
         }
 
         function setupCanvas(width, height) {
-            ctx.resetTransform();
             const dpr = window.devicePixelRatio || 1;
             canvas.width = width * dpr;
             canvas.height = height * dpr;
@@ -208,71 +357,85 @@
             ctx.scale(1, -1);
         }
 
-        function drawVector(vec, origin, color, label) {
+        function generateVisibleVector() {
+            const randComp = () => Math.floor(Math.random() * 17) - 8 || 1;
+            let x, y;
+            do {
+                x = randComp();
+                y = randComp();
+            } while (Math.abs(x) < 2 && Math.abs(y) < 2);
+            return { x, y };
+        }
+
+        function drawVector(vec, origin, color, label, isHovered = false) {
             ctx.beginPath();
             ctx.moveTo(origin.x, origin.y);
             ctx.lineTo(origin.x + vec.x * vectorScale, origin.y + vec.y * vectorScale);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = isHovered ? 6 : 4;
             ctx.stroke();
-            const headlen = 10;
+
+            const headlen = 12;
             const angle = Math.atan2(vec.y, vec.x);
+            const headX = origin.x + vec.x * vectorScale;
+            const headY = origin.y + vec.y * vectorScale;
+
             ctx.beginPath();
-            ctx.moveTo(origin.x + vec.x * vectorScale, origin.y + vec.y * vectorScale);
-            ctx.lineTo(origin.x + vec.x * vectorScale - headlen * Math.cos(angle - Math.PI / 6), origin.y + vec.y * vectorScale - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.moveTo(origin.x + vec.x * vectorScale, origin.y + vec.y * vectorScale);
-            ctx.lineTo(origin.x + vec.x * vectorScale - headlen * Math.cos(angle + Math.PI / 6), origin.y + vec.y * vectorScale - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.moveTo(headX, headY);
+            ctx.lineTo(headX - headlen * Math.cos(angle - Math.PI / 6), headY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(headX, headY);
+            ctx.lineTo(headX - headlen * Math.cos(angle + Math.PI / 6), headY - headlen * Math.sin(angle + Math.PI / 6));
             ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = isHovered ? 6 : 4;
             ctx.stroke();
             
             ctx.save();
             ctx.scale(1, -1);
             ctx.fillStyle = color;
-            ctx.font = 'bold 16px Inter';
-            ctx.fillText(label, origin.x - 20, -(origin.y - 10));
+            ctx.font = 'bold 18px Inter';
+            ctx.fillText(label, origin.x - 22, -(origin.y - 12));
             ctx.restore();
         }
 
         function drawMiniVector(canvasEl, vec) {
-            const ctx = canvasEl.getContext('2d');
+            const miniCtx = canvasEl.getContext('2d');
             const rect = canvasEl.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
             canvasEl.width = rect.width * dpr;
             canvasEl.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
+            miniCtx.scale(dpr, dpr);
             
-            ctx.fillStyle = '#4a5568';
-            ctx.fillRect(0, 0, rect.width, rect.height);
+            miniCtx.fillStyle = '#4a5568';
+            miniCtx.fillRect(0, 0, rect.width, rect.height);
 
-            ctx.translate(rect.width / 2, rect.height / 2);
-            ctx.scale(1, -1);
+            miniCtx.translate(rect.width / 2, rect.height / 2);
+            miniCtx.scale(1, -1);
 
-            ctx.beginPath();
-            ctx.strokeStyle = '#2d3748';
-            ctx.lineWidth = 0.5;
-            ctx.moveTo(-rect.width / 2, 0); ctx.lineTo(rect.width / 2, 0);
-            ctx.moveTo(0, -rect.height / 2); ctx.lineTo(0, rect.height / 2);
-            ctx.stroke();
+            miniCtx.beginPath();
+            miniCtx.strokeStyle = '#2d3748';
+            miniCtx.lineWidth = 0.5;
+            miniCtx.moveTo(-rect.width / 2, 0); miniCtx.lineTo(rect.width / 2, 0);
+            miniCtx.moveTo(0, -rect.height / 2); miniCtx.lineTo(0, rect.height / 2);
+            miniCtx.stroke();
 
             const scale = 8;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(vec.x * scale, vec.y * scale);
-            ctx.strokeStyle = '#facc15';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            miniCtx.beginPath();
+            miniCtx.moveTo(0, 0);
+            miniCtx.lineTo(vec.x * scale, vec.y * scale);
+            miniCtx.strokeStyle = '#facc15';
+            miniCtx.lineWidth = 2;
+            miniCtx.stroke();
 
             const headlen = 8;
             const angle = Math.atan2(vec.y, vec.x);
-            ctx.beginPath();
-            ctx.moveTo(vec.x * scale, vec.y * scale);
-            ctx.lineTo(vec.x * scale - headlen * Math.cos(angle - Math.PI / 6), vec.y * scale - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.moveTo(vec.x * scale, vec.y * scale);
-            ctx.lineTo(vec.x * scale - headlen * Math.cos(angle + Math.PI / 6), vec.y * scale - headlen * Math.sin(angle + Math.PI / 6));
-            ctx.strokeStyle = '#facc15';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            miniCtx.beginPath();
+            miniCtx.moveTo(vec.x * scale, vec.y * scale);
+            miniCtx.lineTo(vec.x * scale - headlen * Math.cos(angle - Math.PI / 6), vec.y * scale - headlen * Math.sin(angle - Math.PI / 6));
+            miniCtx.moveTo(vec.x * scale, vec.y * scale);
+            miniCtx.lineTo(vec.x * scale - headlen * Math.cos(angle + Math.PI / 6), vec.y * scale - headlen * Math.sin(angle + Math.PI / 6));
+            miniCtx.strokeStyle = '#facc15';
+            miniCtx.lineWidth = 2;
+            miniCtx.stroke();
         }
         
         function drawGrid() {
@@ -306,88 +469,218 @@
             if (cssWidth === 0 || cssHeight === 0) return;
             ctx.clearRect(-cssWidth / 2, -cssHeight / 2, cssWidth, cssHeight);
             drawGrid();
-            drawVector(v1, v1Origin, '#67e8f9', 'A');
-            drawVector(v2, v2Origin, '#f0abfc', 'B');
+
+            const curV1 = v1Flipped ? { x: -v1.x, y: -v1.y } : v1;
+            const curV2 = v2Flipped ? { x: -v2.x, y: -v2.y } : v2;
+            const labelA = v1Flipped ? '-A' : 'A';
+            const labelB = v2Flipped ? '-B' : 'B';
+
+            drawVector(curV1, v1Origin, '#67e8f9', labelA, hoveredVectorName === 'A' || draggedVectorName === 'A');
+            drawVector(curV2, v2Origin, '#f0abfc', labelB, hoveredVectorName === 'B' || draggedVectorName === 'B');
+
+            if (isBonusRound && v3 && v3Origin) {
+                const curV3 = v3Flipped ? { x: -v3.x, y: -v3.y } : v3;
+                const labelC = v3Flipped ? '-C' : 'C';
+                drawVector(curV3, v3Origin, '#4ade80', labelC, hoveredVectorName === 'C' || draggedVectorName === 'C');
+            }
+        }
+
+        function isTooClose(a, b) {
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            if (dx * dx + dy * dy < 10) return true;
+
+            const magA = Math.hypot(a.x, a.y);
+            const magB = Math.hypot(b.x, b.y);
+            if (magA > 0 && magB > 0) {
+                const dot = (a.x * b.x + a.y * b.y) / (magA * magB);
+                if (dot > 0.82 && Math.abs(magA - magB) < 3) return true;
+            }
+            return false;
+        }
+
+        function toggleFlipVector(vectorName) {
+            if (vectorName === 'A') {
+                v1Flipped = !v1Flipped;
+                labelAState.textContent = v1Flipped ? '-A' : 'A';
+            } else if (vectorName === 'B') {
+                v2Flipped = !v2Flipped;
+                labelBState.textContent = v2Flipped ? '-B' : 'B';
+            } else if (vectorName === 'C' && isBonusRound) {
+                v3Flipped = !v3Flipped;
+                labelCState.textContent = v3Flipped ? '-C' : 'C';
+            }
+            draw2DScene();
+        }
+
+        function restoreVectors() {
+            v1Flipped = false;
+            v2Flipped = false;
+            v3Flipped = false;
+            labelAState.textContent = 'A';
+            labelBState.textContent = 'B';
+            labelCState.textContent = 'C';
+            draw2DScene();
         }
 
         function generateQuestion() {
             answerRevealed = false;
+            v1Flipped = false;
+            v2Flipped = false;
+            v3Flipped = false;
+            labelAState.textContent = 'A';
+            labelBState.textContent = 'B';
+            labelCState.textContent = 'C';
+
             feedbackTextEl.textContent = '';
+            
+            submitBtn.classList.remove('hidden');
+            submitBtn.disabled = true;
             nextBtn.classList.add('hidden');
             
-            let magSq;
-            do {
-                v1 = generateVisibleVector();
-                v2 = generateVisibleVector();
-                operation = Math.random() < 0.5 ? '+' : '-';
-                correctAnswer = (operation === '+') ? { x: v1.x + v2.x, y: v1.y + v2.y } : { x: v1.x - v2.x, y: v1.y - v2.y };
-                magSq = correctAnswer.x * correctAnswer.x + correctAnswer.y * correctAnswer.y;
-            } while (magSq > MAX_RESULTANT_MAG_SQ || (correctAnswer.x === 0 && correctAnswer.y === 0));
+            selectedOptionData = null;
+            selectedOptionElement = null;
 
-            questionTextEl.innerHTML = `Which vector represents <span class="font-bold text-cyan-300">A</span> ${operation} <span class="font-bold text-fuchsia-300">B</span>?`;
-            
-            const distractors = [];
-            distractors.push(operation === '+' ? { x: v1.x - v2.x, y: v1.y - v2.y } : { x: v1.x + v2.x, y: v1.y + v2.y });
-            if (operation === '-') {
-                distractors.push({ x: v2.x - v1.x, y: v2.y - v1.y });
+            if (isBonusRound) {
+                bonusBannerEl.classList.remove('hidden');
+                flipCBtn.classList.remove('hidden');
+                questionCounterEl.textContent = `Bonus Round`;
+
+                let magSq;
+                do {
+                    v1 = generateVisibleVector();
+                    v2 = generateVisibleVector();
+                    v3 = generateVisibleVector();
+                    operation1 = Math.random() < 0.5 ? '+' : '-';
+                    operation2 = Math.random() < 0.5 ? '+' : '-';
+
+                    let tempX = (operation1 === '+') ? v1.x + v2.x : v1.x - v2.x;
+                    let tempY = (operation1 === '+') ? v1.y + v2.y : v1.y - v2.y;
+
+                    correctAnswer = (operation2 === '+') 
+                        ? { x: tempX + v3.x, y: tempY + v3.y } 
+                        : { x: tempX - v3.x, y: tempY - v3.y };
+
+                    magSq = correctAnswer.x * correctAnswer.x + correctAnswer.y * correctAnswer.y;
+                } while (magSq > MAX_RESULTANT_MAG_SQ || (correctAnswer.x === 0 && correctAnswer.y === 0));
+
+                if (isDebugMode) {
+                    debugInfoEl.innerHTML = `A:&lang;${v1.x},${v1.y}&rang; B:&lang;${v2.x},${v2.y}&rang; C:&lang;${v3.x},${v3.y}&rang; Ans:&lang;${correctAnswer.x},${correctAnswer.y}&rang;`;
+                }
+
+                questionTextEl.innerHTML = `Which vector represents <span class="font-bold text-cyan-300">A</span> ${operation1} <span class="font-bold text-fuchsia-300">B</span> ${operation2} <span class="font-bold text-emerald-400">C</span>?`;
+
+                // 3-Vector Distractors
+                var rawDistractors = [
+                    { x: v1.x + v2.x + v3.x, y: v1.y + v2.y + v3.y },
+                    { x: v1.x - v2.x - v3.x, y: v1.y - v2.y - v3.y },
+                    { x: -correctAnswer.x, y: -correctAnswer.y },
+                    { x: correctAnswer.y, y: correctAnswer.x },
+                    { x: -correctAnswer.x, y: correctAnswer.y },
+                    { x: correctAnswer.x, y: -correctAnswer.y },
+                    { x: v1.x + v2.x, y: v1.y + v2.y },
+                    { x: v2.x + v3.x, y: v2.y + v3.y }
+                ];
             } else {
-                distractors.push({ x: -correctAnswer.x, y: -correctAnswer.y });
+                bonusBannerEl.classList.add('hidden');
+                flipCBtn.classList.add('hidden');
+                
+                let magSq;
+                do {
+                    v1 = generateVisibleVector();
+                    v2 = generateVisibleVector();
+                    operation1 = Math.random() < 0.5 ? '+' : '-';
+                    correctAnswer = (operation1 === '+') ? { x: v1.x + v2.x, y: v1.y + v2.y } : { x: v1.x - v2.x, y: v1.y - v2.y };
+                    magSq = correctAnswer.x * correctAnswer.x + correctAnswer.y * correctAnswer.y;
+                } while (magSq > MAX_RESULTANT_MAG_SQ || (correctAnswer.x === 0 && correctAnswer.y === 0));
+
+                if (isDebugMode) {
+                    debugInfoEl.innerHTML = `A:&lang;${v1.x},${v1.y}&rang; B:&lang;${v2.x},${v2.y}&rang; Correct:&lang;${correctAnswer.x},${correctAnswer.y}&rang;`;
+                }
+
+                questionTextEl.innerHTML = `Which vector represents <span class="font-bold text-cyan-300">A</span> ${operation1} <span class="font-bold text-fuchsia-300">B</span>?`;
+
+                var rawDistractors = [
+                    operation1 === '+' ? { x: v1.x - v2.x, y: v1.y - v2.y } : { x: v1.x + v2.x, y: v1.y + v2.y },
+                    operation1 === '-' ? { x: v2.x - v1.x, y: v2.y - v1.y } : { x: -correctAnswer.x, y: -correctAnswer.y },
+                    { x: correctAnswer.y, y: correctAnswer.x },
+                    { x: -correctAnswer.x, y: correctAnswer.y },
+                    { x: correctAnswer.x, y: -correctAnswer.y },
+                    { x: v1.x, y: v1.y },
+                    { x: v2.x, y: v2.y },
+                    { x: v1.x + 4, y: v1.y - 4 },
+                    { x: -v2.x, y: v2.y }
+                ];
             }
-            distractors.push({ x: correctAnswer.y, y: correctAnswer.x });
-            distractors.push({ x: -correctAnswer.x, y: correctAnswer.y });
-            distractors.push({ x: correctAnswer.x, y: -correctAnswer.y });
-            distractors.push(v1);
-            distractors.push(v2);
-            distractors.sort(() => Math.random() - 0.5);
+
+            rawDistractors.sort(() => Math.random() - 0.5);
 
             let options = [correctAnswer];
-            const usedOptions = new Set([`⟨${correctAnswer.x}, ${correctAnswer.y}⟩`]);
-
-            for (const distractor of distractors) {
+            for (const cand of rawDistractors) {
                 if (options.length >= 4) break;
-                const optionString = `⟨${distractor.x}, ${distractor.y}⟩`;
-                if (!usedOptions.has(optionString)) {
-                    options.push(distractor);
-                    usedOptions.add(optionString);
+                if (!options.some(opt => isTooClose(opt, cand))) {
+                    options.push(cand);
+                }
+            }
+
+            while (options.length < 4) {
+                const randVec = { x: Math.floor(Math.random() * 16) - 8, y: Math.floor(Math.random() * 16) - 8 };
+                if (!options.some(opt => isTooClose(opt, randVec))) {
+                    options.push(randVec);
                 }
             }
             
             options.sort(() => Math.random() - 0.5);
-            
             optionsArea.innerHTML = '';
+            
             options.forEach(opt => {
                 const btn = document.createElement('button');
-                btn.classList.add('option-btn', 'bg-gray-700', 'border-2', 'border-gray-600', 'hover:border-cyan-400', 'rounded-lg');
+                btn.classList.add('option-btn', 'bg-gray-700', 'border-2', 'border-gray-600', 'rounded-lg');
                 const miniCanvas = document.createElement('canvas');
                 miniCanvas.classList.add('w-full', 'h-60');
                 btn.appendChild(miniCanvas);
                 btn.dataset.answer = JSON.stringify(opt);
-                btn.addEventListener('click', checkAnswer);
+                btn.addEventListener('click', onOptionSelect);
                 optionsArea.appendChild(btn);
                 requestAnimationFrame(() => drawMiniVector(miniCanvas, opt));
             });
             draw2DScene();
         }
 
-        function checkAnswer(event) {
+        function onOptionSelect(event) {
             if (answerRevealed) return;
+            document.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('selected'));
+            selectedOptionElement = event.currentTarget;
+            selectedOptionElement.classList.add('selected');
+            selectedOptionData = JSON.parse(selectedOptionElement.dataset.answer);
+            submitBtn.disabled = false;
+        }
+
+        function checkAnswer() {
+            if (answerRevealed || !selectedOptionData) return;
             answerRevealed = true;
             
-            const selectedBtn = event.currentTarget;
-            const selectedAnswer = JSON.parse(selectedBtn.dataset.answer);
-
-            const isCorrect = selectedAnswer.x === correctAnswer.x && selectedAnswer.y === correctAnswer.y;
+            const isCorrect = selectedOptionData.x === correctAnswer.x && selectedOptionData.y === correctAnswer.y;
 
             if (isCorrect) {
-                score++;
-                scoreEl.textContent = `Score: ${score}`;
-                feedbackTextEl.textContent = encouragingFeedback[Math.floor(Math.random() * encouragingFeedback.length)];
-                feedbackTextEl.classList.add('text-green-400');
-                selectedBtn.classList.add('correct');
+                if (isBonusRound) {
+                    bonusPointEarned = true;
+                    score++;
+                    scoreEl.textContent = `Score: ${score}`;
+                    feedbackTextEl.textContent = "Correct! Bonus Point Earned! 🎉";
+                    feedbackTextEl.className = "text-center text-lg h-8 font-bold text-amber-300 animate-bounce";
+                } else {
+                    score++;
+                    scoreEl.textContent = `Score: ${score}`;
+                    feedbackTextEl.textContent = "Correct!";
+                    feedbackTextEl.className = "text-center text-lg h-8 font-bold text-green-400";
+                }
+                selectedOptionElement.classList.add('correct');
             } else {
-                feedbackTextEl.textContent = 'Not quite!';
-                feedbackTextEl.classList.add('text-red-400');
-                selectedBtn.classList.add('incorrect');
+                feedbackTextEl.textContent = isBonusRound ? 'Bonus Round Missed!' : 'Incorrect!';
+                feedbackTextEl.className = "text-center text-lg h-8 font-bold text-red-400";
+                selectedOptionElement.classList.add('incorrect');
+                
                 document.querySelectorAll('.option-btn').forEach(btn => {
                     const btnAnswer = JSON.parse(btn.dataset.answer);
                     if (btnAnswer.x === correctAnswer.x && btnAnswer.y === correctAnswer.y) {
@@ -396,33 +689,40 @@
                 });
             }
 
-            let nextBtnText = 'Next Question';
-            if (questionNumber === totalQuestions && score === totalQuestions && !bonusQuestion) {
-                nextBtnText = 'Start Bonus Round';
-            } else if (questionNumber === totalQuestions + 1) {
-                 nextBtnText = 'Finish Quiz';
+            document.querySelectorAll('.option-btn').forEach(btn => btn.classList.add('pointer-events-none'));
+            selectedOptionElement.classList.remove('selected');
+
+            submitBtn.classList.add('hidden');
+            
+            if (isBonusRound) {
+                nextBtn.textContent = 'Finish Game';
+            } else if (questionNumber === totalQuestions) {
+                if (!BONUS_POINT_FOR_PERFECT_SCORE && score === totalQuestions) {
+                    nextBtn.textContent = 'Enter Bonus Round! 🚀';
+                } else {
+                    nextBtn.textContent = 'Finish Game';
+                }
+            } else {
+                nextBtn.textContent = 'Next Question';
             }
-            nextBtn.textContent = nextBtnText;
             nextBtn.classList.remove('hidden');
         }
         
         function nextQuestion() {
-            if (questionNumber === totalQuestions && score === totalQuestions && !bonusQuestion) {
-                bonusQuestion = true;
-                questionNumber++;
-                questionCounterEl.textContent = `Question: ${questionNumber} / ${totalQuestions + 1}`;
-                generateQuestion();
-                nextBtn.textContent = 'Finish Quiz';
+            if (isBonusRound) {
+                endGame();
+            } else if (questionNumber === totalQuestions) {
+                // If perfect score and toggle is OFF -> Start 3-vector bonus round
+                if (!BONUS_POINT_FOR_PERFECT_SCORE && score === totalQuestions) {
+                    isBonusRound = true;
+                    generateQuestion();
+                } else {
+                    endGame();
+                }
             } else {
                 questionNumber++;
-                if (questionNumber > totalQuestions && !bonusQuestion) {
-                    endGame();
-                } else if (questionNumber > totalQuestions + 1 && bonusQuestion) {
-                    endGame();
-                } else {
-                    questionCounterEl.textContent = `Question: ${questionNumber} / ${totalQuestions}`;
-                    generateQuestion();
-                }
+                questionCounterEl.textContent = `Question: ${questionNumber} / ${totalQuestions}`;
+                generateQuestion();
             }
         }
 
@@ -430,21 +730,43 @@
             optionsArea.classList.add('hidden');
             questionArea.classList.add('hidden');
             nextBtn.classList.add('hidden');
+            submitBtn.classList.add('hidden');
             feedbackTextEl.classList.add('hidden');
 
-            let finalScoreDisplay = `${score} / ${totalQuestions}`;
-            let finalFeedbackText = tryAgainFeedback[Math.floor(Math.random() * tryAgainFeedback.length)];
-            
-            if (bonusQuestion && score === totalQuestions + 1) {
-                 finalScoreDisplay = `${score} / ${totalQuestions}`;
-                 finalFeedbackText = superlativeCongratulations[Math.floor(Math.random() * superlativeCongratulations.length)];
-                 generateConfetti();
-            } else if (score === totalQuestions) {
-                finalFeedbackText = 'Perfect score! You\'re a pro!';
+            const isPerfectStandard = score >= totalQuestions; // standard 5/5
+            let finalDisplayScore = score;
+            let bonusSuffix = "";
+
+            if (BONUS_POINT_FOR_PERFECT_SCORE && isPerfectStandard) {
+                finalDisplayScore = score + 1;
+                bonusSuffix = " (Bonus Point!)";
+            } else if (bonusPointEarned) {
+                bonusSuffix = " (Bonus Point!)";
             }
 
-            finalScoreTextEl.textContent = `Your final score: ${finalScoreDisplay}`;
-            finalFeedbackEl.textContent = finalFeedbackText;
+            finalScoreTextEl.textContent = `Your score: ${finalDisplayScore} / ${totalQuestions}${bonusSuffix}`;
+            
+            // Apply version-specific score color (defaults to cyan if version out of range)
+            const scoreColorClass = VERSION_SCORE_COLORS[GAME_VERSION] || 'text-cyan-400';
+            finalScoreTextEl.className = `text-5xl font-extrabold drop-shadow-lg ${scoreColorClass}`;
+
+            uniqueCodeEl.textContent = generateUniqueCode(playerName);
+
+            if (isPerfectStandard) {
+                endTitleEl.textContent = "Perfect Score!";
+                endTitleEl.className = "text-4xl font-bold text-yellow-400";
+                finalFeedbackEl.textContent = getUniqueEffusiveMessage(playerName);
+                trigger3Bursts();
+            } else if (score >= 4) {
+                endTitleEl.textContent = "Great Job!";
+                endTitleEl.className = "text-4xl font-bold text-green-400";
+                finalFeedbackEl.textContent = `Congratulations, ${playerName}! You're really getting the hang of vectors.`;
+            } else {
+                endTitleEl.textContent = "Keep Practicing!";
+                endTitleEl.className = "text-4xl font-bold text-white";
+                finalFeedbackEl.textContent = `Good effort, ${playerName}. Try again to master your vector skills!`;
+            }
+
             gameOverScreen.classList.remove('hidden');
         }
 
@@ -452,7 +774,8 @@
             score = 0;
             questionNumber = 1;
             answerRevealed = false;
-            bonusQuestion = false;
+            isBonusRound = false;
+            bonusPointEarned = false;
 
             scoreEl.textContent = `Score: 0`;
             questionCounterEl.textContent = `Question: 1 / ${totalQuestions}`;
@@ -461,11 +784,11 @@
             optionsArea.classList.remove('hidden');
             questionArea.classList.remove('hidden');
             feedbackTextEl.classList.remove('hidden');
-            nextBtn.textContent = 'Next Question';
+            feedbackTextEl.textContent = '';
             
-            // Re-randomize initial positions for a fresh start
             v1Origin = { x: (Math.random() - 0.7) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
             v2Origin = { x: (Math.random() - 0.3) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
+            v3Origin = { x: (Math.random() - 0.5) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
 
             handleResize();
             generateQuestion();
@@ -492,7 +815,6 @@
             return { x: translatedX, y: translatedY };
         }
 
-        // Helper function to calculate distance from a point to a line segment
         function distToSegmentSquared(p, a, b) {
             const l2 = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
             if (l2 === 0) return (p.x - a.x) * (p.x - a.x) + (p.y - a.y) * (p.y - a.y);
@@ -503,13 +825,29 @@
         }
 
         function getVectorAtPoint(point) {
-            const tolerance = 25; // Squared distance tolerance for easier clicking
-            const v1End = { x: v1Origin.x + v1.x * vectorScale, y: v1Origin.y + v1.y * vectorScale };
-            const v2End = { x: v2Origin.x + v2.x * vectorScale, y: v2Origin.y + v2.y * vectorScale };
+            const tolerance = 1600; 
+            const curV1 = v1Flipped ? { x: -v1.x, y: -v1.y } : v1;
+            const curV2 = v2Flipped ? { x: -v2.x, y: -v2.y } : v2;
+
+            const v1End = { x: v1Origin.x + curV1.x * vectorScale, y: v1Origin.y + curV1.y * vectorScale };
+            const v2End = { x: v2Origin.x + curV2.x * vectorScale, y: v2Origin.y + curV2.y * vectorScale };
             
-            if (distToSegmentSquared(point, v1Origin, v1End) <= tolerance) return 'A';
-            if (distToSegmentSquared(point, v2Origin, v2End) <= tolerance) return 'B';
-            
+            const dist1 = distToSegmentSquared(point, v1Origin, v1End);
+            const dist2 = distToSegmentSquared(point, v2Origin, v2End);
+
+            let dist3 = Infinity;
+            if (isBonusRound && v3 && v3Origin) {
+                const curV3 = v3Flipped ? { x: -v3.x, y: -v3.y } : v3;
+                const v3End = { x: v3Origin.x + curV3.x * vectorScale, y: v3Origin.y + curV3.y * vectorScale };
+                dist3 = distToSegmentSquared(point, v3Origin, v3End);
+            }
+
+            const minDist = Math.min(dist1, dist2, dist3);
+            if (minDist <= tolerance) {
+                if (minDist === dist1) return 'A';
+                if (minDist === dist2) return 'B';
+                if (minDist === dist3) return 'C';
+            }
             return null;
         }
 
@@ -519,32 +857,34 @@
             if (vectorName) {
                 isDragging = true;
                 draggedVectorName = vectorName;
-                const origin = vectorName === 'A' ? v1Origin : v2Origin;
+                let origin = v1Origin;
+                if (vectorName === 'B') origin = v2Origin;
+                if (vectorName === 'C') origin = v3Origin;
+
                 dragOffset.x = point.x - origin.x;
                 dragOffset.y = point.y - origin.y;
                 canvas.style.cursor = 'grabbing';
+                draw2DScene();
             }
         }
         
         function onDrag(event) {
             const point = getCanvasMousePosition(event);
             const vectorName = getVectorAtPoint(point);
-            if (!isDragging) {
-                if (vectorName) {
-                    canvas.style.cursor = 'pointer';
-                } else {
-                    canvas.style.cursor = 'grab';
-                }
+            
+            if (hoveredVectorName !== vectorName && !isDragging) {
+                hoveredVectorName = vectorName;
+                canvas.style.cursor = vectorName ? 'pointer' : 'grab';
+                draw2DScene();
             }
+
             if (!isDragging) return;
-            event.preventDefault(); // Prevent text selection
+            event.preventDefault(); 
             const newOrigin = { x: point.x - dragOffset.x, y: point.y - dragOffset.y };
 
-            if (draggedVectorName === 'A') {
-                v1Origin = newOrigin;
-            } else if (draggedVectorName === 'B') {
-                v2Origin = newOrigin;
-            }
+            if (draggedVectorName === 'A') v1Origin = newOrigin;
+            else if (draggedVectorName === 'B') v2Origin = newOrigin;
+            else if (draggedVectorName === 'C') v3Origin = newOrigin;
             
             draw2DScene();
         }
@@ -552,43 +892,80 @@
         function onDragEnd() {
             isDragging = false;
             draggedVectorName = null;
-            canvas.style.cursor = 'grab';
+            canvas.style.cursor = hoveredVectorName ? 'pointer' : 'grab';
+            draw2DScene();
         }
 
-        function init() {
-            if (gameContainer.clientWidth === 0) {
-                requestAnimationFrame(init);
-                return;
+        function onCanvasContextMenu(event) {
+            event.preventDefault();
+            const point = getCanvasMousePosition(event);
+            const vectorName = getVectorAtPoint(point);
+            if (vectorName) {
+                toggleFlipVector(vectorName);
             }
+        }
 
-            // Set initial random positions
+        function onCanvasDblClick(event) {
+            const point = getCanvasMousePosition(event);
+            const vectorName = getVectorAtPoint(point);
+            if (vectorName) {
+                toggleFlipVector(vectorName);
+            }
+        }
+
+        // Event Listeners
+        flipABtn.addEventListener('click', () => toggleFlipVector('A'));
+        flipBBtn.addEventListener('click', () => toggleFlipVector('B'));
+        flipCBtn.addEventListener('click', () => toggleFlipVector('C'));
+        restoreBtn.addEventListener('click', restoreVectors);
+
+        startBtn.addEventListener('click', () => {
+            const enteredName = playerNameInput.value.trim();
+            if (enteredName) playerName = enteredName;
+            
+            startScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            
             v1Origin = { x: (Math.random() - 0.7) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
             v2Origin = { x: (Math.random() - 0.3) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
+            v3Origin = { x: (Math.random() - 0.5) * (gameContainer.clientWidth / 8), y: (Math.random() - 0.5) * (gameContainer.clientHeight / 5) };
 
             handleResize();
-            requestAnimationFrame(() => {
-                generateQuestion();
-            });
+            generateQuestion();
+        });
 
-            window.addEventListener('resize', handleResize);
-            nextBtn.addEventListener('click', nextQuestion);
-            playAgainBtn.addEventListener('click', resetGame);
-            
-            // Mouse events for dragging
-            canvas.addEventListener('mousedown', onDragStart);
-            canvas.addEventListener('mousemove', onDrag);
-            canvas.addEventListener('mouseup', onDragEnd);
-            canvas.addEventListener('mouseleave', onDragEnd);
+        playerNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startBtn.click();
+        });
 
-            // Touch events for mobile dragging
-            canvas.addEventListener('touchstart', (e) => onDragStart(e.touches[0]), { passive: false });
-            canvas.addEventListener('touchmove', (e) => onDrag(e.touches[0]), { passive: false });
-            canvas.addEventListener('touchend', onDragEnd);
-        }
+        window.addEventListener('resize', handleResize);
+        submitBtn.addEventListener('click', checkAnswer);
+        nextBtn.addEventListener('click', nextQuestion);
+        playAgainBtn.addEventListener('click', resetGame);
+        
+        debugToggle.addEventListener('change', () => {
+            isDebugMode = debugToggle.checked;
+            if (isDebugMode) {
+                debugInfoEl.classList.remove('hidden');
+            } else {
+                debugInfoEl.classList.add('hidden');
+            }
+        });
 
-        init();
+        canvas.addEventListener('mousedown', onDragStart);
+        canvas.addEventListener('mousemove', onDrag);
+        canvas.addEventListener('mouseup', onDragEnd);
+        canvas.addEventListener('mouseleave', () => {
+            hoveredVectorName = null;
+            onDragEnd();
+        });
+        canvas.addEventListener('contextmenu', onCanvasContextMenu);
+        canvas.addEventListener('dblclick', onCanvasDblClick);
+
+        canvas.addEventListener('touchstart', (e) => onDragStart(e.touches[0]), { passive: false });
+        canvas.addEventListener('touchmove', (e) => onDrag(e.touches[0]), { passive: false });
+        canvas.addEventListener('touchend', onDragEnd);
     });
     </script>
 </body>
 </html>
-Displaying Vector Guessing Game v5.html.
