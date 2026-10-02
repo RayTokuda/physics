@@ -113,10 +113,9 @@
     <div id="feedbackModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
         <div id="modalContent" class="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl border border-gray-700 transform scale-95 opacity-0 modal max-w-lg w-full">
             <h2 id="modalTitle" class="text-2xl sm:text-3xl font-extrabold mb-3"></h2>
-            <p id="modalMessage" class="text-base sm:text-lg text-gray-200 mb-6 leading-relaxed"></p>
-            <div id="verificationContainer" class="hidden mb-6 p-3 bg-gray-900/80 rounded-lg border border-gray-700/60">
-                <p class="text-xs text-gray-400 tracking-wider font-mono">OFFICIAL VERIFICATION CODE</p>
-                <p id="verificationCode" class="text-sm font-mono font-bold text-cyan-400 tracking-widest mt-1 select-all"></p>
+            <p id="modalMessage" class="text-base sm:text-lg text-gray-200 mb-4 leading-relaxed"></p>
+            <div id="verificationContainer" class="hidden mb-4">
+                <p id="verificationCode" class="text-xs text-gray-500 font-mono tracking-widest select-all"></p>
             </div>
             <div id="modalButtons" class="flex justify-center gap-3 flex-wrap">
                 <button id="modalButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform duration-200 hover:scale-105">Continue</button>
@@ -369,7 +368,11 @@
         }
 
         function generateVerificationCode(name, scoreVal) {
-            const cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4) || 'STUD';
+            const cleanLetters = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            const l1 = cleanLetters[0] || 'X';
+            const l2 = cleanLetters[1] || 'Y';
+            const l3 = cleanLetters[2] || 'Z';
+
             let hash = 0;
             const str = `${name}-${scoreVal}-${Date.now()}`;
             for (let i = 0; i < str.length; i++) {
@@ -377,7 +380,7 @@
                 hash |= 0;
             }
             const hashHex = Math.abs(hash).toString(16).toUpperCase().padStart(6, '0');
-            return `SVC1-${cleanName}-${scoreVal}PTS-${hashHex}`;
+            return `S${l1}V-${hashHex.slice(0, 2)}${l2}C-${scoreVal}P${hashHex.slice(2, 4)}-${l3}${hashHex.slice(4, 6)}`;
         }
 
         function setupCanvas() {
@@ -750,12 +753,12 @@
             const correctMotion = problem.expectedMotion;
             if (selectedMotion.value === correctMotion) {
                 score++;
-                const message = `The boat will move ${correctMotion}. You earned 2/2 points for this problem.`;
+                const message = `Excellent prediction! The boat will move ${correctMotion}.`;
                 showModal('Correct!', message, nextProblem, 'Continue');
             } else {
                 mistakesThisGame = true;
                 perfectComponents = false;
-                const message = `The correct motion was ${correctMotion}. The parallel component determines forward or backward movement.`;
+                const message = `The boat will actually move ${correctMotion}. The component parallel to the hull determines forward or backward thrust.`;
                 showModal('Incorrect', message, nextProblem, 'Continue');
             }
         }
@@ -823,30 +826,37 @@
             let confettiRounds = 0;
             const randomEffusiveMsg = CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)];
 
+            let scoreDisplayHtml = '';
+
             if (bonusSuccess) {
                 finalScore = 12;
                 percentage = 120;
                 confettiRounds = 3;
                 title = `🏆 LEGENDARY ULTIMATE MASTERY! 🏆`;
-                message = `Hold your head high, <b>${studentName}</b>! You achieved an unbeatable <b>12/10 (120%)</b> by conquering the Expert Challenge without a single mistake!<br><br><span class="text-yellow-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+                scoreDisplayHtml = `<div class="text-5xl sm:text-6xl font-black text-yellow-300 drop-shadow-[0_0_20px_rgba(253,224,71,0.8)] tracking-wide my-4">${finalScore} / 10</div>`;
+                message = `Hold your head high, <b>${studentName}</b>! You achieved an unbeatable score by conquering the Expert Challenge without a single mistake!<br>${scoreDisplayHtml}<span class="text-yellow-300 font-semibold block mt-2">"${randomEffusiveMsg}"</span>`;
             } else if (!mistakesThisGame && perfectComponents) {
                 finalScore = 11;
                 percentage = 110;
                 confettiRounds = 2;
                 title = `🌟 PERFECTIONIST EXTRAORDINAIRE! 🌟`;
-                message = `Astonishing precision, <b>${studentName}</b>! You completed all rounds on your first try with ultra-high precision, earning a score of <b>11/10 (110%)</b>!<br><br><span class="text-yellow-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+                scoreDisplayHtml = `<div class="text-5xl sm:text-6xl font-black text-amber-300 drop-shadow-[0_0_20px_rgba(252,211,77,0.8)] tracking-wide my-4">${finalScore} / 10</div>`;
+                message = `Astonishing precision, <b>${studentName}</b>! You completed all rounds on your first try with ultra-high precision!<br>${scoreDisplayHtml}<span class="text-yellow-300 font-semibold block mt-2">"${randomEffusiveMsg}"</span>`;
             } else if (!mistakesThisGame || finalScore >= 10) {
                 finalScore = 10;
                 percentage = 100;
                 confettiRounds = 1;
                 title = `🎉 FLAWLESS SCORE! CONGRATULATIONS ${studentName.toUpperCase()}! 🎉`;
-                message = `Sensational effort, <b>${studentName}</b>! You finished with a perfect score of <b>10/10 (100%)</b>!<br><br><span class="text-cyan-300 font-semibold">"${randomEffusiveMsg}"</span>`;
+                scoreDisplayHtml = `<div class="text-5xl sm:text-6xl font-black text-cyan-300 drop-shadow-[0_0_20px_rgba(103,232,249,0.8)] tracking-wide my-4">${finalScore} / 10</div>`;
+                message = `Sensational effort, <b>${studentName}</b>! You finished with a perfect score!<br>${scoreDisplayHtml}<span class="text-cyan-300 font-semibold block mt-2">"${randomEffusiveMsg}"</span>`;
             } else if (percentage >= 80) {
                 title = `Great Job, ${studentName}! 👍`;
-                message = `Congratulations! You scored <b>${finalScore}/10 (${percentage}%)</b>, successfully passing the challenge! Outstanding effort!`;
+                scoreDisplayHtml = `<div class="text-4xl sm:text-5xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.7)] tracking-wide my-4">${finalScore} / 10</div>`;
+                message = `Congratulations! You successfully passed the challenge!<br>${scoreDisplayHtml}<span class="text-gray-300 font-medium block">Outstanding effort!</span>`;
             } else {
                 title = `Keep Trying, ${studentName}! 💪`;
-                message = `You earned <b>${finalScore}/10 (${percentage}%)</b>. You need at least <b>80% (8/10)</b> to pass this challenge. Give it another shot—you've got this!`;
+                scoreDisplayHtml = `<div class="text-4xl sm:text-5xl font-black text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)] tracking-wide my-4">${finalScore} / 10</div>`;
+                message = `You need at least 8/10 (80%) to pass this challenge.<br>${scoreDisplayHtml}<span class="text-gray-300 font-medium block">Give it another shot—you've got this!</span>`;
             }
 
             if (confettiRounds > 0) {
@@ -861,7 +871,6 @@
             const btnText = percentage < 80 ? 'Try Again' : 'Play Again';
             
             showModal(title, message, () => {
-                // When replaying, student name is preserved
                 startGame();
             }, btnText);
         }
