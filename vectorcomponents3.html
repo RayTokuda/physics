@@ -493,7 +493,7 @@
                 } else if (score === 5) {
                     showFinalScoreModal(
                         `Perfect Score, ${studentName}!`, 
-                        `You finished with a perfect score of 5 out of 5! ${getRandomCongrats()}`, 
+                        `You finished with 5 out of 5! ${getRandomCongrats()}\nCan you push for a flawless 6/5?`, 
                         score,
                         validationCode,
                         gameOver,
@@ -501,24 +501,24 @@
                     );
                     launchConfettiBurst(1);
                     resetButton.classList.remove('hidden');
-                } else if (score <= 3) {
+                } else if (score === 4) {
                     showFinalScoreModal(
-                        `Keep Trying, ${studentName}`, 
-                        `You got ${score} out of 5. Review the feedback and try again to improve your score!`, 
+                        `Great Job, ${studentName}!`, 
+                        `You scored 4 out of 5! Good effort, but a perfect score is 5/5 and the ultimate score is 6/5!`, 
                         score,
                         validationCode,
                         gameOver,
-                        'Try Again'
+                        'Try Again for 6/5'
                     );
                     resetButton.classList.remove('hidden');
                 } else {
                     showFinalScoreModal(
-                        `Game Over`, 
-                        `Good effort, ${studentName}! You finished with ${score} out of 5.`, 
+                        `Keep Trying, ${studentName}`, 
+                        `You got ${score} out of 5. Review the feedback and try again to reach 5/5 or the flawless 6/5!`, 
                         score,
                         validationCode,
                         gameOver,
-                        'Play Again'
+                        'Try Again'
                     );
                     resetButton.classList.remove('hidden');
                 }
@@ -636,51 +636,84 @@
             return FLAWLESS_MESSAGES[Math.floor(Math.random() * FLAWLESS_MESSAGES.length)];
         }
         
-        function launchConfettiBurst(bursts) {
+        function launchConfettiBurst(bursts = 3) {
             let currentBurst = 0;
+            // 3 distinct cannons across the screen
+            const cannons = [
+                { x: '25vw', angleMin: -80, angleMax: -40 },  // Left cannon
+                { x: '50vw', angleMin: -110, angleMax: -70 }, // Center cannon
+                { x: '75vw', angleMin: -140, angleMax: -100 } // Right cannon
+            ];
             
             function fire() {
-                launchConfetti();
+                const cannon = cannons[currentBurst % cannons.length];
+                launchConfetti(cannon.x, cannon.angleMin, cannon.angleMax);
                 currentBurst++;
                 if (currentBurst < bursts) {
-                    setTimeout(fire, 800); // 800ms between bursts
+                    setTimeout(fire, 600); // 600ms gap between each cannon burst
                 }
             }
             
             fire();
         }
 
-        function launchConfetti() {
-            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f'];
-            for (let i = 0; i < 100; i++) {
+        function launchConfetti(originX = '50vw', angleMin = -120, angleMax = -60) {
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#eab308', '#a855f7', '#06b6d4', '#f97316', '#ec4899'];
+            const count = 120; // Particle density per burst
+            
+            for (let i = 0; i < count; i++) {
                 const confetto = document.createElement('div');
                 confetto.classList.add('confetti');
-                // Create a ballistic trajectory
-                const angle = Math.random() * Math.PI + Math.PI; // Upwards
-                const velocity = Math.random() * 20 + 10;
-                const vx = Math.cos(angle) * velocity;
-                const vy = Math.sin(angle) * velocity;
                 
-                // Start from bottom center
-                confetto.style.left = '50vw';
+                // Random launch angle converted to radians
+                const angleDeg = angleMin + Math.random() * (angleMax - angleMin);
+                const angleRad = (angleDeg * Math.PI) / 180;
+                
+                // Ballistic initial velocity
+                const velocity = Math.random() * 26 + 18; 
+                const vx = Math.cos(angleRad) * velocity;
+                const vy = Math.sin(angleRad) * velocity; // Upward negative y
+                
+                const width = Math.random() * 8 + 6;
+                const height = Math.random() * 12 + 6;
+                const isCircle = Math.random() > 0.6;
+                
+                confetto.style.left = originX;
                 confetto.style.top = '100vh';
+                confetto.style.width = `${width}px`;
+                confetto.style.height = `${height}px`;
+                confetto.style.borderRadius = isCircle ? '50%' : '2px';
                 confetto.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                
-                // Remove old CSS animation if present
                 confetto.style.animation = 'none'; 
+                confetto.style.zIndex = '9999';
                 document.body.appendChild(confetto);
                 
-                const animation = confetto.animate([
-                    { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
-                    { transform: `translate(${vx * 20}vw, -${vy * 10}vh) rotate(360deg)`, opacity: 1, offset: 0.6 },
-                    { transform: `translate(${vx * 30}vw, 10vh) rotate(720deg)`, opacity: 0 }
+                const rotX = Math.random() * 720 - 360;
+                const rotY = Math.random() * 720 - 360;
+                const rotZ = Math.random() * 1080 - 540;
+                
+                // Ballistic arc trajectory animation (launch -> apex -> gravitational drop)
+                const anim = confetto.animate([
+                    { 
+                        transform: `translate(0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1)`, 
+                        opacity: 1 
+                    },
+                    { 
+                        transform: `translate(${vx * 12}px, ${vy * 18}px) rotateX(${rotX * 0.5}deg) rotateY(${rotY * 0.5}deg) rotateZ(${rotZ * 0.5}deg) scale(1.1)`, 
+                        opacity: 1, 
+                        offset: 0.4 
+                    },
+                    { 
+                        transform: `translate(${vx * 22}px, ${vy * 18 + 700}px) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg) scale(0.6)`, 
+                        opacity: 0 
+                    }
                 ], {
-                    duration: 2000 + Math.random() * 1000,
-                    easing: 'cubic-bezier(.17,.89,.32,1.28)',
+                    duration: 2200 + Math.random() * 800,
+                    easing: 'cubic-bezier(0.15, 0.85, 0.35, 1)',
                     fill: 'forwards'
                 });
                 
-                animation.onfinish = () => confetto.remove();
+                anim.onfinish = () => confetto.remove();
             }
         }
         
