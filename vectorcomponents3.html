@@ -120,6 +120,7 @@
             <h2 id="modalTitle" class="text-4xl font-bold mb-4 cursor-move pb-2 border-b border-gray-700"></h2>
             
             <div id="finalScoreContainer" class="hidden mb-6 flex flex-col items-center">
+                <div class="text-lg font-bold text-cyan-400 mb-2 uppercase tracking-widest">Vector Components 3</div>
                 <div id="finalScoreDisplay" class="text-6xl font-black text-yellow-400 drop-shadow-lg mb-1 tracking-wider"></div>
                 <div id="validationCode" class="text-xs text-gray-500 font-mono tracking-widest mt-1 opacity-70"></div>
             </div>
@@ -478,9 +479,9 @@
 
             if (round >= TOTAL_ROUNDS) {
                 checkButton.classList.add('hidden');
+                const validationCode = generateValidationCode(studentName);
                 
                 if (score === 6) {
-                    const validationCode = generateValidationCode(studentName);
                     showFinalScoreModal(
                         `Flawless Victory, ${studentName}!`, 
                         `${getRandomFlawlessCongrats()}`, 
@@ -490,14 +491,35 @@
                     );
                     launchConfettiBurst(3);
                 } else if (score === 5) {
-                    showModal(`Perfect Score, ${studentName}!`, `You finished with a perfect score of 5 out of 5! ${getRandomCongrats()}`, gameOver, {primaryText: 'Play Again', onClick: gameOver});
+                    showFinalScoreModal(
+                        `Perfect Score, ${studentName}!`, 
+                        `You finished with a perfect score of 5 out of 5! ${getRandomCongrats()}`, 
+                        score,
+                        validationCode,
+                        gameOver,
+                        'Play Again'
+                    );
                     launchConfettiBurst(1);
                     resetButton.classList.remove('hidden');
                 } else if (score <= 3) {
-                    showModal(`Keep Trying, ${studentName}`, `You got ${score} out of 5. Review the feedback and try again to improve your score!`, gameOver, {primaryText: 'Try Again', onClick: gameOver});
+                    showFinalScoreModal(
+                        `Keep Trying, ${studentName}`, 
+                        `You got ${score} out of 5. Review the feedback and try again to improve your score!`, 
+                        score,
+                        validationCode,
+                        gameOver,
+                        'Try Again'
+                    );
                     resetButton.classList.remove('hidden');
                 } else {
-                    showModal('Game Over', `Good effort, ${studentName}! You finished with ${score} out of 5.`, gameOver, {primaryText: 'Play Again', onClick: gameOver});
+                    showFinalScoreModal(
+                        `Game Over`, 
+                        `Good effort, ${studentName}! You finished with ${score} out of 5.`, 
+                        score,
+                        validationCode,
+                        gameOver,
+                        'Play Again'
+                    );
                     resetButton.classList.remove('hidden');
                 }
             } else {
@@ -532,7 +554,7 @@
             roundEl.textContent = roundText;
         }
 
-        function showFinalScoreModal(title, message, finalScore, validationCode, onButtonClick) {
+        function showFinalScoreModal(title, message, finalScore, validationCode, onButtonClick, buttonText = 'Continue') {
             modalTitleEl.textContent = title;
             modalTitleEl.classList.add('text-green-400');
             modalMessageEl.textContent = message;
@@ -547,7 +569,7 @@
 
             if (onButtonClick) {
                 modalButton.onclick = () => { closeModal(); onButtonClick(); };
-                modalButton.textContent = 'Continue';
+                modalButton.textContent = buttonText;
                 modalButton.classList.remove('hidden');
             } else {
                 // For 6/5, hide buttons
