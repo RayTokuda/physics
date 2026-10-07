@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Voyage 2: An Interactive Tutorial</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for custom typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- MathJax CDN for rendering mathematical formulas -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        .modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .feedback-text {
+            transition: opacity 0.3s;
+        }
+        /* Custom focus styles for better form field visibility */
+        .form-input:focus {
+            ring: 2px;
+            ring-cyan-400;
+            border-color: transparent;
+        }
+        .form-checkbox:checked {
+            background-color: #22d3ee;
+        }
+        .form-checkbox:focus {
+            ring: 2px;
+            ring-offset: 2px;
+            ring-offset-gray-800;
+            ring-cyan-400;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+            animation: confetti-fall 3s ease-out forwards;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen p-2 sm:p-4 overflow-hidden">
+
+    <!-- Confetti container for completion celebration (placed at body level with high z-index) -->
+    <div id="confetti-container" class="fixed inset-0 pointer-events-none z-[100]"></div>
+
+    <!-- Name Input Modal -->
+    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-6 sm:p-8 text-center shadow-2xl border border-cyan-500 max-w-md w-full">
+            <h2 class="text-2xl sm:text-3xl font-bold mb-2 text-cyan-400">Welcome, Navigator!</h2>
+            <p class="text-gray-300 text-sm mb-6">Please enter your name to chart your voyage and begin vector calculations.</p>
+            <input type="text" id="student-name-input" class="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white text-center text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 mb-6" placeholder="Enter your name" maxlength="25">
+            <button id="start-voyage-btn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all shadow-lg">Begin Voyage</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="w-full max-w-7xl h-full flex flex-col bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 relative">
+        
+        <!-- Header: Story Title and Scenario -->
+        <div class="border-b border-gray-700 pb-3 mb-4">
+            <h1 class="text-xl sm:text-3xl font-bold text-cyan-400 text-center mb-2">Vector Voyage 2</h1>
+            <p id="story-text" class="text-center text-gray-300 text-sm sm:text-base h-16 sm:h-12"></p>
+        </div>
+
+        <!-- Main Content Area: Step Input on Left, Canvas Display on Right -->
+        <div class="flex-grow w-full flex flex-col lg:flex-row gap-4 min-h-0">
+            
+            <!-- Left Panel: Interactive Tutorial Steps -->
+            <div class="lg:w-1/3 flex flex-col bg-gray-900/50 rounded-lg p-4 justify-between">
+                <div id="tutorial-steps">
+                    <!-- Step Content will be dynamically inserted here -->
+                </div>
+                <div class="mt-4">
+                    <button id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 text-lg">Submit</button>
+                    <p id="error-feedback" class="text-red-400 text-center mt-2 h-6 feedback-text opacity-0"></p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas & Vector Info -->
+            <div class="flex-grow w-full h-72 lg:h-auto min-h-0 rounded-lg lg:w-2/3 flex flex-col gap-4">
+                <div id="vector-info-panel" class="bg-gray-900/50 rounded-lg p-3 text-center grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div id="vector1-info" class="bg-gray-700/50 p-2 rounded-lg"></div>
+                    <div id="vector2-info" class="bg-gray-700/50 p-2 rounded-lg"></div>
+                </div>
+                <div class="flex-grow relative bg-gray-900/50 rounded-lg overflow-hidden">
+                    <canvas id="gameCanvas" class="absolute top-0 left-0"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Modal -->
+    <div id="completionModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center shadow-xl border border-gray-700 transform scale-95 opacity-0 modal max-w-lg w-full">
+            <h2 id="modalTitle" class="text-3xl font-bold mb-2"></h2>
+            
+            <!-- Prominent Score & Verification Code -->
+            <div id="scoreDisplay" class="text-5xl font-black text-amber-300 my-2 drop-shadow-md"></div>
+            <div id="verificationCode" class="text-xs font-mono text-gray-400 uppercase tracking-widest mb-4"></div>
+
+            <p id="modalMessage" class="text-base sm:text-lg mb-6 text-gray-300 leading-relaxed"></p>
+            <div class="flex justify-center items-center space-x-4">
+                <button id="download-button" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg text-lg">Solution Summary</button>
+                <button id="restart-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-lg">New Voyage</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summaryModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl p-6 shadow-xl border border-gray-700 transform scale-95 opacity-0 modal max-w-3xl w-full flex flex-col max-h-[90vh]">
+            <h2 class="text-2xl font-bold mb-3 text-cyan-400">Problem Solution & Mathematical Report</h2>
+            <!-- Scrollable HTML Mathematical Preview -->
+            <div id="summary-preview" class="flex-grow overflow-y-auto bg-gray-900 text-gray-200 p-4 sm:p-6 rounded-lg border border-gray-700 space-y-6 text-sm sm:text-base leading-relaxed">
+                <!-- Preview content generated dynamically via JS -->
+            </div>
+            <div class="mt-4 flex flex-wrap gap-3 justify-end items-center">
+                <button id="download-html-button" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Download HTML Doc
+                </button>
+                <button id="copy-button" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">Copy Text</button>
+                <button id="close-summary-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('game-container');
+        const canvasContainer = canvas.parentElement;
+        const storyTextEl = document.getElementById('story-text');
+        const tutorialStepsEl = document.getElementById('tutorial-steps');
+        const submitButton = document.getElementById('submit-button');
+        const errorFeedbackEl = document.getElementById('error-feedback');
+        const vector1InfoEl = document.getElementById('vector1-info');
+        const vector2InfoEl = document.getElementById('vector2-info');
+
+        // Name Modal Elements
+        const nameModal = document.getElementById('nameModal');
+        const studentNameInput = document.getElementById('student-name-input');
+        const startVoyageBtn = document.getElementById('start-voyage-btn');
+
+        // Modals & Score Elements
+        const completionModal = document.getElementById('completionModal');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const scoreDisplayEl = document.getElementById('scoreDisplay');
+        const verificationCodeEl = document.getElementById('verificationCode');
+        const modalMessageEl = document.getElementById('modalMessage');
+        const downloadButton = document.getElementById('download-button');
+        const restartButton = document.getElementById('restart-button');
+        const summaryModal = document.getElementById('summaryModal');
+        const summaryPreviewEl = document.getElementById('summary-preview');
+        const downloadHtmlButton = document.getElementById('download-html-button');
+        const copyButton = document.getElementById('copy-button');
+        const closeSummaryButton = document.getElementById('close-summary-button');
+
+        // --- Game State & Data ---
+        let studentName = 'Navigator';
+        let tutorialState = '';
+        let problem = {};
+        let errorCount = 0;
+        let stepAttemptCount = 0; // Tracks attempts for the active step
+        const VALUE_TOLERANCE = 0.05; // 5% tolerance for numerical answers
+
+        const TUTORIAL_FLOW = [
+            'ASK_V1_X', 'SHOW_V1_X',
+            'ASK_V1_Y', 'SHOW_V1_Y',
+            'SHOW_V1_IJK',
+            'ASK_V2_X', 'SHOW_V2_X',
+            'ASK_V2_Y', 'SHOW_V2_Y',
+            'SHOW_V2_IJK',
+            'ASK_VR_X', 'SHOW_VR_X',
+            'ASK_VR_Y', 'SHOW_VR_Y',
+            'ASK_VR_MAG', 'SHOW_VR_MAG',
+            'ASK_VR_DIR_FORMAT', 'ASK_VR_DIR_VALUE',
+            'COMPLETE'
+        ];
+
+        // Generate 100 unique superlative congratulatory messages for 16/15
+        const SUPERLATIVE_MESSAGES = Array.from({ length: 100 }, (_, i) => {
+            const descriptors = [
+                "a transcendent vector prodigy", "an unmatched mathematical genius", "a master navigator of the high seas",
+                "a legendary chartist of displacement", "an absolute titan of vector physics", "a supreme navigator without equal",
+                "a flawless nautical strategist", "a true commander of coordinate systems", "an elite vector Virtuoso", "a stellar cartographer"
+            ];
+            const praises = [
+                "Achieving a perfect 16/15 score with 0 mistakes is nothing short of miraculous!",
+                "Your calculations were 100% flawless across every single step!",
+                "Not a single error on your entire voyage—pure mathematical perfection!",
+                "You navigated the entire course with absolute laser accuracy!",
+                "You solved every vector component, magnitude, and angle without a single flaw!"
+            ];
+            const d = descriptors[i % descriptors.length];
+            const p = praises[Math.floor(i / descriptors.length) % praises.length];
+            return `Flawless Victory, {name}! You have proven yourself to be ${d}. ${p} (Rank #${i + 1} Admiral Grade)`;
+        });
+
+        // Generate 100 unique normal congratulatory messages for 15/15
+        const NORMAL_MESSAGES = Array.from({ length: 100 }, (_, i) => {
+            const complements = [
+                "Exceptional navigation skills!", "Brilliant problem-solving capabilities!",
+                "Outstanding vector calculations!", "Magnificent maritime analysis!",
+                "Superb mastery over coordinate systems!", "Fantastic analytical accuracy!",
+                "Impressive vector resolution skills!", "Top-tier nautical performance!"
+            ];
+            const c = complements[i % complements.length];
+            return `Bravo, {name}! ${c} You earned a stellar 15/15 score on this voyage. (Log Entry #${i + 1})`;
+        });
+
+        const VESSELS = ['research vessel', 'cargo freighter', 'submarine', 'pirate ship', 'fishing boat', 'icebreaker', 'cruise liner', 'exploration yacht', 'naval destroyer'];
+        const PLOT_HOOKS = [
+            { start: 'On a critical mission to deploy a network of scientific buoys, a', end: 'to successfully deploy the final buoy at the precise location.' },
+            { start: 'Evading a sudden tropical storm, the captain of a', end: 'to find safe harbor in a hidden cove.' },
+            { start: 'Following a recently discovered treasure map, a legendary', end: 'to pinpoint the location of the sunken treasure.' },
+            { start: 'On a long-haul journey to deliver vital medical supplies, a', end: 'to reach the remote island port before supplies run out.' },
+            { start: 'Conducting a deep-sea survey of a volcanic ridge, a', end: 'to arrive at the primary survey point.' },
+            { start: 'Navigating through treacherous arctic ice fields, a', end: 'to reach a stranded research station with critical supplies.' },
+            { start: 'On its maiden voyage through the scenic fjords, a', end: 'to give its passengers a view of the majestic glacier.' },
+            { start: 'Chasing rumors of a mythical creature, an', end: 'to find the creature\'s supposed lair.' }
+        ];
+
+        // --- Verification Code Generator ---
+        function generateVerificationCode(name) {
+            const cleanName = (name.replace(/[^a-zA-Z]/g, '') + 'NAV').toUpperCase();
+            const c1 = cleanName[0];
+            const c2 = cleanName[1];
+            const c3 = cleanName[2];
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const getRandomChar = () => chars.charAt(Math.floor(Math.random() * chars.length));
+
+            // Distributed non-consecutively across 15 chars (e.g. index 2, 7, 12)
+            let p1 = 2, p2 = 7, p3 = 12;
+            let result = [];
+            for (let i = 0; i < 15; i++) {
+                if (i === p1) result.push(c1);
+                else if (i === p2) result.push(c2);
+                else if (i === p3) result.push(c3);
+                else result.push(getRandomChar());
+            }
+            return result.join('');
+        }
+
+        function setTutorialState(newState) {
+            tutorialState = newState;
+            stepAttemptCount = 0; // Reset step attempt counter on state change
+            if (errorFeedbackEl) {
+                errorFeedbackEl.textContent = '';
+                errorFeedbackEl.classList.add('opacity-0');
+            }
+            updateTutorialUI();
+            draw();
+        }
+
+        function showFeedback(msg) {
+            if (errorFeedbackEl) {
+                errorFeedbackEl.textContent = msg;
+                errorFeedbackEl.classList.remove('opacity-0');
+            }
+        }
+
+        function closeCompletionModal() {
+            const modalEl = completionModal.querySelector('.modal');
+            if (modalEl) {
+                modalEl.classList.add('scale-95', 'opacity-0');
+            }
+            setTimeout(() => {
+                completionModal.classList.add('hidden');
+            }, 300);
+        }
+
+        function getMathExplanationHTML() {
+            return `
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-5 my-4">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3 border-b border-slate-700 pb-2">Vector Component Fundamentals</h3>
+                    <p class="text-gray-300 text-sm mb-3">
+                        When resolving any 2D displacement vector <span class="font-semibold text-amber-300">\\(\\vec{V}\\)</span> (or <span class="font-semibold text-amber-300">V⃗</span>) with length (magnitude) <span class="font-semibold text-amber-300">|\\(\\vec{V}\\)|</span> and direction angle <span class="font-semibold font-mono">&theta;</span> (measured from the positive East / X-axis), we project the vector onto orthogonal axes:
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
+                        <div class="bg-gray-900/80 p-3 rounded-lg border border-emerald-500/30">
+                            <div class="text-emerald-400 font-bold mb-1">East/West Component (x-axis, \\(\\hat{i}\\) / î)</div>
+                            <div class="font-mono text-base text-amber-300 my-1 bg-black/40 p-2 rounded text-center">V<sub>x</sub> = length &times; cos(&theta;) = |\\(\\vec{V}\\)| &middot; cos(&theta;)</div>
+                            <p class="text-xs text-gray-400 mt-2">
+                                <b class="text-gray-200">Why Cosine?</b> In a right triangle formed by the vector, the horizontal adjacent side is equal to the hypotenuse (length) multiplied by <span class="font-mono">cos(&theta;) = Adjacent / Hypotenuse</span>.
+                            </p>
+                        </div>
+                        <div class="bg-gray-900/80 p-3 rounded-lg border border-cyan-500/30">
+                            <div class="text-cyan-400 font-bold mb-1">North/South Component (y-axis, \\(\\hat{j}\\) / ĵ)</div>
+                            <div class="font-mono text-base text-amber-300 my-1 bg-black/40 p-2 rounded text-center">V<sub>y</sub> = length &times; sin(&theta;) = |\\(\\vec{V}\\)| &middot; sin(&theta;)</div>
+                            <p class="text-xs text-gray-400 mt-2">
+                                <b class="text-gray-200">Why Sine?</b> The vertical opposite side is equal to the hypotenuse (length) multiplied by <span class="font-mono">sin(&theta;) = Opposite / Hypotenuse</span>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateHTMLReport() {
+            if (!problem.v1) return '';
+            const v1 = problem.v1;
+            const v2 = problem.v2;
+            const vr = problem.vr;
+            const unit = problem.unit;
+            const code = generateVerificationCode(studentName);
+            const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Voyage 2 Solution Report - ${studentName}</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async><\/script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .formula-card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.25rem; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+    <div class="max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-10 shadow-2xl">
+        <!-- Header -->
+        <div class="border-b border-cyan-500/30 pb-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-cyan-400">VECTOR VOYAGE 2 REPORT</h1>
+                <p class="text-gray-400 text-sm mt-1">Navigator Solution & Mathematical Verification</p>
+            </div>
+            <div class="bg-gray-800 px-4 py-2 rounded-xl border border-gray-700 text-right">
+                <div class="text-xs text-gray-400 uppercase tracking-wider">Verification Code</div>
+                <div class="font-mono font-bold text-amber-400 text-lg">${code}</div>
+                <div class="text-xs text-gray-500 mt-1">${dateStr}</div>
+            </div>
+        </div>
+
+        <!-- Student & Scenario -->
+        <div class="formula-card">
+            <h2 class="text-xl font-bold text-amber-400 mb-2">Voyage Summary</h2>
+            <p class="text-gray-300"><b>Navigator Name:</b> ${studentName}</p>
+            <p class="text-gray-300 mt-2"><b>Scenario Narrative:</b> ${problem.story}</p>
+        </div>
+
+        <!-- Component Formula Reference -->
+        ${getMathExplanationHTML()}
+
+        <!-- Step-by-Step Calculations -->
+        <div class="space-y-6">
+            <!-- Vector 1 -->
+            <div class="formula-card">
+                <h3 class="text-lg font-bold text-amber-400 mb-2">1. Vector 1 (\\(\\vec{V}_1\\)) Component Calculation</h3>
+                <p class="text-sm text-gray-300 mb-3">Given: Magnitude = <b>${v1.magnitude.toFixed(1)} ${unit}</b> at angle &theta;<sub>1</sub> = <b>${v1.angle.toFixed(1)}&deg;</b> counter-clockwise from East.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-sm">
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-emerald-400 font-bold">V<sub>1x</sub></span> = length &times; cos(&theta;<sub>1</sub>)<br>
+                        = ${v1.magnitude.toFixed(1)} &times; cos(${v1.angle.toFixed(1)}&deg;)<br>
+                        = <b class="text-emerald-400">${v1.vx.toFixed(1)} ${unit}</b>
+                    </div>
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-cyan-400 font-bold">V<sub>1y</sub></span> = length &times; sin(&theta;<sub>1</sub>)<br>
+                        = ${v1.magnitude.toFixed(1)} &times; sin(${v1.angle.toFixed(1)}&deg;)<br>
+                        = <b class="text-cyan-400">${v1.vy.toFixed(1)} ${unit}</b>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs font-mono text-gray-400">
+                    Notation: \\(\\vec{V}_1\\) = (${v1.vx.toFixed(1)}\\(\\hat{i}\\) + ${v1.vy.toFixed(1)}\\(\\hat{j}\\)) ${unit}
+                </div>
+            </div>
+
+            <!-- Vector 2 -->
+            <div class="formula-card">
+                <h3 class="text-lg font-bold text-purple-400 mb-2">2. Vector 2 (\\(\\vec{V}_2\\)) Component Calculation</h3>
+                <p class="text-sm text-gray-300 mb-3">Given: Magnitude = <b>${v2.magnitude.toFixed(1)} ${unit}</b> at angle &theta;<sub>2</sub> = <b>${v2.angle.toFixed(1)}&deg;</b> counter-clockwise from East.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-sm">
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-emerald-400 font-bold">V<sub>2x</sub></span> = length &times; cos(&theta;<sub>2</sub>)<br>
+                        = ${v2.magnitude.toFixed(1)} &times; cos(${v2.angle.toFixed(1)}&deg;)<br>
+                        = <b class="text-emerald-400">${v2.vx.toFixed(1)} ${unit}</b>
+                    </div>
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-cyan-400 font-bold">V<sub>2y</sub></span> = length &times; sin(&theta;<sub>2</sub>)<br>
+                        = ${v2.magnitude.toFixed(1)} &times; sin(${v2.angle.toFixed(1)}&deg;)<br>
+                        = <b class="text-cyan-400">${v2.vy.toFixed(1)} ${unit}</b>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs font-mono text-gray-400">
+                    Notation: \\(\\vec{V}_2\\) = (${v2.vx.toFixed(1)}\\(\\hat{i}\\) + ${v2.vy.toFixed(1)}\\(\\hat{j}\\)) ${unit}
+                </div>
+            </div>
+
+            <!-- Resultant Vector -->
+            <div class="formula-card border-cyan-500/50">
+                <h3 class="text-lg font-bold text-pink-400 mb-2">3. Resultant Vector (\\(\\vec{V}_r\\)) Addition</h3>
+                <p class="text-sm text-gray-300 mb-3">Summing orthogonal components: \\(\\vec{V}_r = \\vec{V}_1 + \\vec{V}_2\\)</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-sm">
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-pink-400 font-bold">V<sub>rx</sub></span> = V<sub>1x</sub> + V<sub>2x</sub><br>
+                        = ${v1.vx.toFixed(1)} + (${v2.vx.toFixed(1)})<br>
+                        = <b class="text-pink-400">${vr.vx.toFixed(1)} ${unit}</b>
+                    </div>
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                        <span class="text-pink-400 font-bold">V<sub>ry</sub></span> = V<sub>1y</sub> + V<sub>2y</sub><br>
+                        = ${v1.vy.toFixed(1)} + (${v2.vy.toFixed(1)})<br>
+                        = <b class="text-pink-400">${vr.vy.toFixed(1)} ${unit}</b>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-900/80 p-3 rounded-lg">
+                        <div class="text-xs text-gray-400 uppercase">Pythagorean Magnitude</div>
+                        <div class="font-mono text-sm mt-1">
+                            |\\(\\vec{V}_r\\)| = &radic;(V<sub>rx</sub><sup>2</sup> + V<sub>ry</sub><sup>2</sup>)<br>
+                            = &radic;(${vr.vx.toFixed(1)}<sup>2</sup> + ${vr.vy.toFixed(1)}<sup>2</sup>)<br>
+                            = <b class="text-amber-300 text-lg">${vr.magnitude.toFixed(1)} ${unit}</b>
+                        </div>
+                    </div>
+                    <div class="bg-gray-900/80 p-3 rounded-lg">
+                        <div class="text-xs text-gray-400 uppercase">Direction Bearing</div>
+                        <div class="font-mono text-sm mt-1">
+                            Format Selected: <b>${vr.userDirectionFormat || 'CCW from East'}</b><br>
+                            Angle = <b class="text-amber-300 text-lg">${vr.angle.toFixed(1)}&deg;</b>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-xs text-gray-500 border-t border-gray-800 pt-4">
+            Vector Voyage Interactive Learning System &bull; Generated for ${studentName}
+        </div>
+    </div>
+</body>
+</html>`;
+        }
+
+        function generateSolutionSummaryText() {
+            if (!problem.v1) return '';
+            return `==================================================
+VECTOR VOYAGE 2 - SOLUTION SUMMARY
+Navigator: ${studentName}
+Verification Code: ${generateVerificationCode(studentName)}
+==================================================
+
+SCENARIO:
+${problem.story}
+
+FORMULAS:
+  X Component: Vx = length * cos(theta)
+  Y Component: Vy = length * sin(theta)
+
+1. VECTOR 1 (V1):
+   Magnitude: ${problem.v1.magnitude.toFixed(1)} ${problem.unit}
+   Direction: ${problem.v1.directionStr}
+   Components:
+     V1x = ${problem.v1.vx.toFixed(1)} ${problem.unit}
+     V1y = ${problem.v1.vy.toFixed(1)} ${problem.unit}
+   i-j Notation: V1 = (${problem.v1.vx.toFixed(1)} i + ${problem.v1.vy.toFixed(1)} j) ${problem.unit}
+
+2. VECTOR 2 (V2):
+   Magnitude: ${problem.v2.magnitude.toFixed(1)} ${problem.unit}
+   Direction: ${problem.v2.directionStr}
+   Components:
+     V2x = ${problem.v2.vx.toFixed(1)} ${problem.unit}
+     V2y = ${problem.v2.vy.toFixed(1)} ${problem.unit}
+   i-j Notation: V2 = (${problem.v2.vx.toFixed(1)} i + ${problem.v2.vy.toFixed(1)} j) ${problem.unit}
+
+3. RESULTANT VECTOR (Vr):
+   Vr_x = V1x + V2x = ${problem.vr.vx.toFixed(1)} ${problem.unit}
+   Vr_y = V1y + V2y = ${problem.vr.vy.toFixed(1)} ${problem.unit}
+   Magnitude = sqrt(Vr_x^2 + Vr_y^2) = ${problem.vr.magnitude.toFixed(1)} ${problem.unit}
+   Selected Direction Format: ${problem.vr.userDirectionFormat || 'N/A'}
+
+==================================================`;
+        }
+
+        function downloadHTMLReportDoc() {
+            const htmlContent = generateHTMLReport();
+            if (!htmlContent) return;
+
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const sanitizedName = studentName.replace(/[^a-zA-Z0-9]/g, '_');
+            a.href = url;
+            a.download = `Vector_Voyage_Report_${sanitizedName}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function advanceState() {
+            const currentIndex = TUTORIAL_FLOW.indexOf(tutorialState);
+            if (currentIndex < TUTORIAL_FLOW.length - 1) {
+                setTutorialState(TUTORIAL_FLOW[currentIndex + 1]);
+            }
+        }
+
+        function updateTutorialUI() {
+            let html = '';
+            let isInputStep = true;
+
+            switch (tutorialState) {
+                case 'ASK_V1_X':
+                    html = createInputStepHTML('Step 1: First Vector (V1)', 'What is the East/West (i) component of the first vector?', 'v1x-input', 'e.g., 45.5');
+                    break;
+                case 'SHOW_V1_X':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Correct!', `The East/West component is ${problem.v1.vx.toFixed(1)}. Let's find the next component.`);
+                    break;
+                 case 'ASK_V1_Y':
+                    html = createInputStepHTML('Step 1: First Vector (V1)', 'What is the North/South (j) component of the first vector?', 'v1y-input', 'e.g., -25.0');
+                    break;
+                case 'SHOW_V1_Y':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Excellent!', `The North/South component is ${problem.v1.vy.toFixed(1)}. Both components found!`);
+                    break;
+                case 'SHOW_V1_IJK':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Vector 1 Components', `In i-j notation, V1 is (${problem.v1.vx.toFixed(1)} i, ${problem.v1.vy.toFixed(1)} j) ${problem.unit}. Now for the second vector.`);
+                    break;
+                
+                // Vector 2
+                 case 'ASK_V2_X':
+                    html = createInputStepHTML('Step 2: Second Vector (V2)', 'What is the East/West (i) component of the second vector?', 'v2x-input', 'e.g., -30.1');
+                    break;
+                case 'SHOW_V2_X':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Correct!', `The East/West component is ${problem.v2.vx.toFixed(1)}.`);
+                    break;
+                 case 'ASK_V2_Y':
+                    html = createInputStepHTML('Step 2: Second Vector (V2)', 'What is the North/South (j) component of the second vector?', 'v2y-input', 'e.g., 55.2');
+                    break;
+                case 'SHOW_V2_Y':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Perfect!', `The North/South component is ${problem.v2.vy.toFixed(1)}.`);
+                    break;
+                case 'SHOW_V2_IJK':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Vector 2 Components', `In i-j notation, V2 is (${problem.v2.vx.toFixed(1)} i, ${problem.v2.vy.toFixed(1)} j) ${problem.unit}. Time to find the resultant!`);
+                    break;
+
+                // Resultant
+                 case 'ASK_VR_X':
+                    html = createInputStepHTML('Step 3: Resultant Vector (Vr)', `Add the i components to find the resultant East/West component.<br><b>V1</b>: (${problem.v1.vx.toFixed(1)} i, ${problem.v1.vy.toFixed(1)} j) <br><b>V2</b>: (${problem.v2.vx.toFixed(1)} i, ${problem.v2.vy.toFixed(1)} j)`, 'vrx-input');
+                    break;
+                case 'SHOW_VR_X':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('That\'s it!', `The resultant East/West component is ${problem.vr.vx.toFixed(1)}.`);
+                    break;
+                case 'ASK_VR_Y':
+                    html = createInputStepHTML('Step 3: Resultant Vector (Vr)', `Now add the j components to find the resultant North/South component.<br><b>V1</b>: (${problem.v1.vx.toFixed(1)} i, ${problem.v1.vy.toFixed(1)} j) <br><b>V2</b>: (${problem.v2.vx.toFixed(1)} i, ${problem.v2.vy.toFixed(1)} j)`, 'vry-input');
+                    break;
+                case 'SHOW_VR_Y':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('You got it!', `The resultant North/South component is ${problem.vr.vy.toFixed(1)}.`);
+                    break;
+                
+                // Magnitude
+                case 'ASK_VR_MAG':
+                    html = `
+                        <h2 class="text-xl font-bold text-amber-400 mb-2">Step 4: Resultant Magnitude</h2>
+                        <p class="text-gray-300 mb-2">How far is the vessel from its starting point?</p>
+                        <div class="bg-gray-700 p-3 rounded-lg text-center mb-4">
+                            <p class="text-lg">Magnitude = &radic;( i&sup2; + j&sup2; )</p>
+                            <p class="text-sm text-gray-400 mt-1">i = ${problem.vr.vx.toFixed(1)}, j = ${problem.vr.vy.toFixed(1)}</p>
+                        </div>
+                        <input type="number" id="vrmag-input" class="form-input mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Calculate the magnitude">
+                    `;
+                    break;
+                case 'SHOW_VR_MAG':
+                    isInputStep = false;
+                    html = createFeedbackStepHTML('Precisely!', `The total displacement is ${problem.vr.magnitude.toFixed(1)} ${problem.unit}. Just one step left!`);
+                    break;
+
+                // Direction
+                case 'ASK_VR_DIR_FORMAT':
+                    html = createDirectionFormatStepHTML();
+                    break;
+                case 'ASK_VR_DIR_VALUE':
+                     const question = `
+                        Enter the angle in degrees for your selected format: <b>${problem.vr.userDirectionFormat}</b>.
+                        <div class="bg-gray-700 p-2 rounded-lg text-center my-2 text-sm">
+                             Vr = (${problem.vr.vx.toFixed(1)} i, ${problem.vr.vy.toFixed(1)} j) ${problem.unit}
+                        </div>
+                     `;
+                     html = createInputStepHTML('Step 5: Resultant Direction', question, 'vrdir-input');
+                    break;
+
+                case 'COMPLETE':
+                    isInputStep = false;
+                    showCompletionModal();
+                    break;
+            }
+            tutorialStepsEl.innerHTML = html;
+            submitButton.textContent = isInputStep ? 'Submit Answer' : 'Continue';
+
+            // Auto-focus input and bind Enter key for easier submission
+            const currentInput = tutorialStepsEl.querySelector('input[type="number"], input[type="text"]');
+            if (currentInput) {
+                currentInput.focus();
+                currentInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        handleSubmit();
+                    }
+                });
+            }
+        }
+
+        function createInputStepHTML(title, question, inputId, placeholder = '') {
+            return `
+                <h2 class="text-xl font-bold text-amber-400 mb-2">${title}</h2>
+                <p class="text-gray-300 mb-4">${question}</p>
+                <input type="number" id="${inputId}" class="form-input mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="${placeholder}">
+            `;
+        }
+
+        function createFeedbackStepHTML(title, message) {
+            return `
+                <h2 class="text-xl font-bold text-green-400 mb-2">${title}</h2>
+                <p class="text-gray-300">${message}</p>
+            `;
+        }
+        
+        function createDirectionFormatStepHTML() {
+            const q = problem.vr.quadrant;
+            const options = {
+                1: ['North of East', 'East of North'],
+                2: ['North of West', 'West of North'],
+                3: ['South of West', 'West of South'],
+                4: ['South of East', 'East of South']
+            };
+            
+            let checkboxesHTML = options[q].map((opt, i) => `
+                <label for="dir-opt-${i}" class="flex items-center space-x-3">
+                    <input type="radio" id="dir-opt-${i}" name="direction_option" value="${opt}" class="form-checkbox h-5 w-5 rounded text-cyan-500 bg-gray-700 border-gray-600 focus:ring-cyan-500">
+                    <span>${opt}</span>
+                </label>
+            `).join('');
+
+            checkboxesHTML += `
+                 <label for="dir-opt-ccw" class="flex items-center space-x-3">
+                    <input type="radio" id="dir-opt-ccw" name="direction_option" value="CCW from East" class="form-checkbox h-5 w-5 rounded text-cyan-500 bg-gray-700 border-gray-600 focus:ring-cyan-500">
+                    <span>Counter-Clockwise from East</span>
+                </label>`;
+
+            return `
+                <h2 class="text-xl font-bold text-amber-400 mb-2">Step 5: Resultant Direction</h2>
+                <p class="text-gray-300 mb-4">How will you specify the direction of the final displacement?</p>
+                 <div class="bg-gray-700 p-3 rounded-lg text-center mb-4">
+                    <p class="text-lg">Vr = (${problem.vr.vx.toFixed(1)} i, ${problem.vr.vy.toFixed(1)} j) ${problem.unit}</p>
+                </div>
+                <div class="space-y-2">${checkboxesHTML}</div>
+            `;
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            draw();
+        }
+
+        function draw() {
+            const w = canvas.offsetWidth;
+            const h = canvas.offsetHeight;
+            ctx.clearRect(0, 0, w, h);
+            
+            // Draw Coordinate Axes
+            const originX = w / 2;
+            const originY = h / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(w, originY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, h); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '12px Poppins';
+            ctx.fillText('N', originX - 4, 15);
+            ctx.fillText('S', originX - 3, h - 5);
+            ctx.fillText('E', w - 15, originY + 5);
+            ctx.fillText('W', 5, originY + 5);
+
+            if (!problem.v1) return;
+
+            // Determine dynamic scale
+            const maxComponent = Math.max(
+                Math.abs(problem.v1.vx), Math.abs(problem.v1.vy),
+                Math.abs(problem.v2.vx), Math.abs(problem.v2.vy),
+                Math.abs(problem.vr.vx), Math.abs(problem.vr.vy)
+            );
+            const scale = Math.min(w, h) / (maxComponent * 2.5);
+
+            const currentStateIndex = TUTORIAL_FLOW.indexOf(tutorialState);
+            const v1_draw = { x: originX, y: originY, dx: problem.v1.vx * scale, dy: -problem.v1.vy * scale, color: '#f59e0b' };
+            drawVector(v1_draw);
+
+            if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_V1_X')) {
+                drawVector({ x: originX, y: originY, dx: v1_draw.dx, dy: 0, color: '#34d399' }, { lineWidth: 2, isComponent: true });
+            }
+            if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_V1_Y')) {
+                 drawVector({ x: originX + v1_draw.dx, y: originY, dx: 0, dy: v1_draw.dy, color: '#22d3ee' }, { lineWidth: 2, isComponent: true });
+            }
+            
+            const v2_start_x = originX + v1_draw.dx;
+            const v2_start_y = originY + v1_draw.dy;
+            const v2_draw = { x: v2_start_x, y: v2_start_y, dx: problem.v2.vx * scale, dy: -problem.v2.vy * scale, color: '#a78bfa' };
+
+            if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_V1_IJK')) {
+                drawVector(v2_draw);
+            }
+             if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_V2_X')) {
+                drawVector({ x: v2_start_x, y: v2_start_y, dx: v2_draw.dx, dy: 0, color: '#34d399' }, { lineWidth: 2, isComponent: true });
+            }
+            if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_V2_Y')) {
+                 drawVector({ x: v2_start_x + v2_draw.dx, y: v2_start_y, dx: 0, dy: v2_draw.dy, color: '#22d3ee' }, { lineWidth: 2, isComponent: true });
+            }
+            
+            if (currentStateIndex >= TUTORIAL_FLOW.indexOf('SHOW_VR_Y')) {
+                 const vr_draw = { x: originX, y: originY, dx: problem.vr.vx * scale, dy: -problem.vr.vy * scale, color: '#f472b6' };
+                 // Draw resultant components tip-to-tail
+                 drawVector({ x: originX, y: originY, dx: vr_draw.dx, dy: 0, color: '#34d399'}, { isDashed: true, isComponent: true, lineWidth: 2 });
+                 drawVector({ x: originX + vr_draw.dx, y: originY, dx: 0, dy: vr_draw.dy, color: '#22d3ee' }, { isDashed: true, isComponent: true, lineWidth: 2 });
+                 // Draw final resultant vector
+                 drawVector(vr_draw, { lineWidth: 5 });
+            }
+        }
+
+        function drawVector(vector, options = {}) {
+            ctx.strokeStyle = options.color || vector.color;
+            ctx.fillStyle = options.color || vector.color;
+            ctx.lineWidth = options.lineWidth || 3;
+            
+            if (options.isDashed) ctx.setLineDash([5, 5]);
+            else ctx.setLineDash([]);
+            
+            const headlen = options.isComponent ? 6 : 10;
+            const angle = Math.atan2(vector.dy, vector.dx);
+            
+            ctx.beginPath();
+            ctx.moveTo(vector.x, vector.y);
+            ctx.lineTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.stroke();
+
+            // Draw vector arrowhead
+            ctx.beginPath();
+            ctx.moveTo(vector.x + vector.dx, vector.y + vector.dy);
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle - Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(vector.x + vector.dx - headlen * Math.cos(angle + Math.PI / 6), vector.y + vector.dy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.setLineDash([]);
+        }
+
+        function startNewGame() {
+            errorCount = 0;
+            generateProblem();
+            setTutorialState('ASK_V1_X');
+        }
+
+        function generateProblem() {
+            const hook = PLOT_HOOKS[Math.floor(Math.random() * PLOT_HOOKS.length)];
+            const vessel = VESSELS[Math.floor(Math.random() * VESSELS.length)];
+            const unit = ['km', 'nautical miles'][Math.floor(Math.random()*2)];
+
+            const v1 = generateRandomVector();
+            const v2 = generateRandomVector();
+            
+            const vrx = v1.vx + v2.vx;
+            const vry = v1.vy + v2.vy;
+            const vrMag = Math.sqrt(vrx*vrx + vry*vry);
+
+            let vrAngle = Math.atan2(vry, vrx) * 180 / Math.PI;
+            if (vrAngle < 0) vrAngle += 360;
+
+            let vrQuadrant;
+            if (vrx >= 0 && vry >= 0) vrQuadrant = 1;
+            else if (vrx < 0 && vry >= 0) vrQuadrant = 2;
+            else if (vrx < 0 && vry < 0) vrQuadrant = 3;
+            else vrQuadrant = 4;
+
+            problem = {
+                story: `${hook.start} ${vessel} travels in two legs. ${hook.end}`,
+                unit: unit,
+                v1: v1,
+                v2: v2,
+                vr: {
+                    vx: vrx,
+                    vy: vry,
+                    magnitude: vrMag,
+                    angle: vrAngle,
+                    quadrant: vrQuadrant,
+                    userDirectionFormat: null
+                }
+            };
+            
+            storyTextEl.textContent = problem.story;
+            vector1InfoEl.innerHTML = `<h3 class="font-bold text-amber-400">Vector 1</h3><p>${v1.magnitude.toFixed(1)} ${unit} at ${v1.directionStr}</p>`;
+            vector2InfoEl.innerHTML = `<h3 class="font-bold text-purple-400">Vector 2</h3><p>${v2.magnitude.toFixed(1)} ${unit} at ${v2.directionStr}</p>`;
+        }
+
+        function generateRandomVector() {
+            const magnitude = Math.random() * 80 + 20; // 20-100 magnitude range
+            
+            let angleDeg;
+            const quadrant = Math.floor(Math.random() * 4);
+            const angleInQuadrant = Math.random() * 70 + 10;
+            angleDeg = quadrant * 90 + angleInQuadrant;
+            
+            const directionStr = `${angleDeg.toFixed(1)}° counter-clockwise from East`;
+            const angleRad = angleDeg * Math.PI / 180;
+
+            return {
+                magnitude, directionStr, angle: angleDeg,
+                vx: magnitude * Math.cos(angleRad),
+                vy: magnitude * Math.sin(angleRad)
+            };
+        }
+
+        function handleSubmit() {
+            let input, targetValue, isCorrect, feedback = '';
+
+            const checkValue = (inputId, target, componentType = '', vecObj = null) => {
+                input = parseFloat(document.getElementById(inputId).value);
+                if (isNaN(input)) {
+                    errorCount++;
+                    return { isCorrect: false, feedback: 'Please enter a valid numerical value.' };
+                }
+                
+                const correct = Math.abs(input - target) < Math.abs(target * VALUE_TOLERANCE) + 0.1;
+                let fb = '';
+                if (!correct) {
+                    errorCount++;
+                    stepAttemptCount++;
+
+                    // 1. Radians Mode Detection
+                    if (vecObj) {
+                        const angleDeg = vecObj.angle;
+                        const mag = vecObj.magnitude;
+                        // Standard calculator in radians mode calculates Math.cos/sin directly on degree angle
+                        const radVal = componentType === 'x' 
+                            ? mag * Math.cos(angleDeg) 
+                            : mag * Math.sin(angleDeg);
+                        
+                        if (Math.abs(input - radVal) < Math.abs(radVal * VALUE_TOLERANCE) + 0.5) {
+                            return { 
+                                isCorrect: false, 
+                                feedback: 'Calculator Warning: Your calculator appears to be in RADIANS mode! Switch your calculator setting to DEGREES (DEG) and recalculate.' 
+                            };
+                        }
+                    }
+
+                    // 2. 2nd Wrong Attempt Formula Hint
+                    if (stepAttemptCount >= 2 && vecObj) {
+                        const magStr = vecObj.magnitude.toFixed(1);
+                        const angStr = vecObj.angle.toFixed(1);
+                        if (componentType === 'x') {
+                            fb = `Formula Hint: For the x component, calculate Magnitude × cos(θ) [e.g., ${magStr} × cos(${angStr}°)].`;
+                        } else if (componentType === 'y') {
+                            fb = `Formula Hint: For the y component, calculate Magnitude × sin(θ) [e.g., ${magStr} × sin(${angStr}°)].`;
+                        }
+                    } else {
+                        // 1st Wrong Attempt Existing Hints
+                        if (Math.sign(input) !== Math.sign(target) && Math.abs(Math.abs(input) - Math.abs(target)) < Math.abs(target * VALUE_TOLERANCE) + 0.1) {
+                            fb = `Sign Error! Remind yourself: if you measure angles counter-clockwise from the positive x-axis (East), cos(θ) and sin(θ) will ALWAYS yield the correct component signs (+/-).`;
+                        } else {
+                            // Check for Sin / Cos swap error
+                            let swappedVal = 0;
+                            if (inputId.includes('v1')) swappedVal = inputId.includes('x') ? problem.v1.vy : problem.v1.vx;
+                            if (inputId.includes('v2')) swappedVal = inputId.includes('x') ? problem.v2.vy : problem.v2.vx;
+                            
+                            if (swappedVal !== 0 && Math.abs(input - swappedVal) < Math.abs(swappedVal * VALUE_TOLERANCE) + 0.1) {
+                                fb = `Trig Function Swap! Remember: x (East/West) uses cosine (cos), while y (North/South) uses sine (sin) from the positive x-axis.`;
+                            } else {
+                                fb = 'Incorrect component value. Double check your calculation (Magnitude × Trig Function).';
+                            }
+                        }
+                    }
+                }
+                return { isCorrect: correct, feedback: fb };
+            };
+
+            // Step validation logic
+            switch (tutorialState) {
+                case 'ASK_V1_X': {
+                    const result = checkValue('v1x-input', problem.v1.vx, 'x', problem.v1);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                case 'ASK_V1_Y': {
+                    const result = checkValue('v1y-input', problem.v1.vy, 'y', problem.v1);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                 case 'ASK_V2_X': {
+                    const result = checkValue('v2x-input', problem.v2.vx, 'x', problem.v2);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                case 'ASK_V2_Y': {
+                    const result = checkValue('v2y-input', problem.v2.vy, 'y', problem.v2);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                 case 'ASK_VR_X': {
+                    const result = checkValue('vrx-input', problem.vr.vx);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                case 'ASK_VR_Y': {
+                    const result = checkValue('vry-input', problem.vr.vy);
+                    if (result.isCorrect) advanceState(); else showFeedback(result.feedback);
+                    break;
+                }
+                case 'ASK_VR_MAG': {
+                    input = parseFloat(document.getElementById('vrmag-input').value);
+                    targetValue = problem.vr.magnitude;
+                    isCorrect = Math.abs(input - targetValue) < Math.abs(targetValue * VALUE_TOLERANCE) + 0.1;
+                    if(isCorrect) {
+                        advanceState();
+                    } else {
+                        errorCount++;
+                        if (Math.abs(input - (problem.vr.vx*problem.vr.vx + problem.vr.vy*problem.vr.vy)) < 5) {
+                            feedback = 'Square Root Error! You calculated Vrx² + Vry², but forgot to take the square root √(Vrx² + Vry²).';
+                        } else if (Math.abs(input - (problem.v1.magnitude + problem.v2.magnitude)) < 1) {
+                            feedback = 'Direct Addition Error! You cannot add vector magnitudes directly. You must add components first, then use Pythagorean theorem!';
+                        } else {
+                            feedback = 'Not quite. Use Pythagorean theorem: Magnitude = √(Vrx² + Vry²).';
+                        }
+                        showFeedback(feedback);
+                    }
+                    break;
+                }
+                case 'ASK_VR_DIR_FORMAT': {
+                    const selected = document.querySelector('input[name="direction_option"]:checked');
+                    if (selected) {
+                        problem.vr.userDirectionFormat = selected.value;
+                        advanceState();
+                    } else {
+                        errorCount++;
+                        showFeedback('Please select a direction format.');
+                    }
+                    break;
+                }
+                 case 'ASK_VR_DIR_VALUE': {
+                    input = parseFloat(document.getElementById('vrdir-input').value);
+                    const angle = problem.vr.angle;
+                    let correctAngle;
+                    
+                    switch(problem.vr.userDirectionFormat) {
+                        case 'North of East': correctAngle = angle; break;
+                        case 'East of North': correctAngle = 90 - angle; break;
+                        case 'North of West': correctAngle = 180 - angle; break;
+                        case 'West of North': correctAngle = angle - 90; break;
+                        case 'South of West': correctAngle = angle - 180; break;
+                        case 'West of South': correctAngle = 270 - angle; break;
+                        case 'South of East': correctAngle = 360 - angle; break;
+                        case 'East of South': correctAngle = angle - 270; break;
+                        case 'CCW from East': correctAngle = angle; break;
+                    }
+                    
+                    isCorrect = Math.abs(input - correctAngle) < 1.5; // 1.5 degree tolerance
+                    if (isCorrect) {
+                        advanceState();
+                    } else {
+                        errorCount++;
+                        // Diagnostic hints for direction errors
+                        if (Math.abs(input - (90 - correctAngle)) < 1.5) {
+                            feedback = 'Direction Swap Error! If you mistook "East of West" for "West of East", remember: "X of Y" means starting facing direction Y and turning towards direction X!';
+                        } else {
+                            feedback = 'Angle error! Remember: tan(θ) = |Vry / Vrx|. Calculate tan⁻¹(|Vry / Vrx|) and adjust for quadrant.';
+                        }
+                        showFeedback(feedback);
+                    }
+                    break;
+                }
+
+                default:
+                    advanceState();
+                    break;
+            }
+        }
+
+        function showCompletionModal() {
+            // Calculate final score
+            // 8 numerical steps; Base max score = 16.
+            // 0 errors -> 16/15
+            // 1-3 errors -> 15/15 (subtract 1 point total for 1-3 corrections)
+            // > 3 errors -> 16 - 1 - (errorCount - 3) = 18 - errorCount
+            let points = 16;
+            if (errorCount >= 1 && errorCount <= 3) {
+                points = 15;
+            } else if (errorCount > 3) {
+                points = Math.max(0, 18 - errorCount);
+            }
+
+            const scoreStr = `${points} / 15`;
+            const codeStr = generateVerificationCode(studentName);
+
+            scoreDisplayEl.textContent = scoreStr;
+            verificationCodeEl.textContent = `Verification Code: ${codeStr}`;
+
+            let titleText = '';
+            let messageText = '';
+            let titleClass = '';
+
+            // Handle Hide/Show Try Again Button
+            if (points >= 15) {
+                restartButton.classList.add('hidden');
+            } else {
+                restartButton.classList.remove('hidden');
+            }
+
+            if (points === 16) {
+                // 16/15 Score: Superlative Congratulation + 3 Confetti Bursts
+                titleText = "PERFECT VOYAGE!";
+                titleClass = "text-3xl font-extrabold mb-2 text-amber-400";
+                const randomMsg = SUPERLATIVE_MESSAGES[Math.floor(Math.random() * SUPERLATIVE_MESSAGES.length)];
+                messageText = randomMsg.replace(/{name}/g, studentName);
+                launchBallisticConfetti(3);
+            } else if (points === 15) {
+                // 15/15 Score: Normal Congratulation + 1 Confetti Burst
+                titleText = "OUTSTANDING NAVIGATOR!";
+                titleClass = "text-3xl font-bold mb-2 text-cyan-400";
+                const randomMsg = NORMAL_MESSAGES[Math.floor(Math.random() * NORMAL_MESSAGES.length)];
+                messageText = randomMsg.replace(/{name}/g, studentName);
+                launchBallisticConfetti(1);
+            } else if (points === 14) {
+                titleText = "Great Voyage!";
+                titleClass = "text-3xl font-bold mb-2 text-green-400";
+                messageText = `Impressive navigation, ${studentName}! You achieved a strong 14/15 score with only a couple minor course corrections along the way.`;
+            } else if (points === 13) {
+                titleText = "Good Job!";
+                titleClass = "text-3xl font-bold mb-2 text-blue-400";
+                messageText = `Well done, ${studentName}! You earned a 13/15 score and demonstrated a solid grasp of vector addition.`;
+            } else if (points === 12) {
+                titleText = "Voyage Completed!";
+                titleClass = "text-3xl font-bold mb-2 text-indigo-400";
+                messageText = `Nice work, ${studentName}! You passed with a 12/15 score. With a little more practice, you'll be charting perfect courses in no time!`;
+            } else {
+                titleText = "Voyage Complete - Keep Practicing!";
+                titleClass = "text-3xl font-bold mb-2 text-amber-500";
+                messageText = `You completed the voyage, ${studentName}, with a score of ${points}/15. Vector math takes practice—give it another try to hone your navigation skills!`;
+            }
+
+            modalTitleEl.textContent = titleText;
+            modalTitleEl.className = titleClass;
+            modalMessageEl.textContent = messageText;
+
+            completionModal.classList.remove('hidden');
+            setTimeout(() => completionModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        // Multi-burst Ballistic Confetti
+        function launchBallisticConfetti(burstCount = 1) {
+            const confettiContainer = document.getElementById('confetti-container');
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800'];
+
+            for (let b = 0; b < burstCount; b++) {
+                setTimeout(() => {
+                    for (let i = 0; i < 70; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.classList.add('confetti');
+                        confetti.style.left = `${15 + Math.random() * 70}%`;
+                        confetti.style.top = `${10 + Math.random() * 30}%`;
+                        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        confetti.style.animationDelay = `${Math.random() * 0.4}s`;
+                        confetti.style.width = `${Math.random() * 10 + 6}px`;
+                        confetti.style.height = confetti.style.width;
+                        confetti.style.opacity = Math.random() + 0.5;
+                        confettiContainer.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 3200);
+                    }
+                }, b * 600);
+            }
+        }
+
+        // Name modal listener
+        startVoyageBtn.addEventListener('click', () => {
+            const val = studentNameInput.value.trim();
+            studentName = val.length > 0 ? val : 'Navigator';
+            nameModal.classList.add('hidden');
+            startNewGame();
+        });
+
+        window.addEventListener('resize', setupCanvas);
+        submitButton.addEventListener('click', handleSubmit);
+        restartButton.addEventListener('click', () => {
+            closeCompletionModal();
+            startNewGame();
+        });
+        
+        downloadButton.addEventListener('click', () => {
+            summaryPreviewEl.innerHTML = generateHTMLReport();
+            summaryModal.classList.remove('hidden');
+            setTimeout(() => summaryModal.querySelector('.modal').classList.remove('scale-95', 'opacity-0'), 10);
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([summaryPreviewEl]);
+            }
+        });
+
+        downloadHtmlButton.addEventListener('click', () => {
+            downloadHTMLReportDoc();
+        });
+
+        closeSummaryButton.addEventListener('click', () => {
+            summaryModal.querySelector('.modal').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => summaryModal.classList.add('hidden'), 300);
+        });
+
+        copyButton.addEventListener('click', () => {
+            const textSummary = generateSolutionSummaryText();
+            const textarea = document.createElement('textarea');
+            textarea.value = textSummary;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            copyButton.textContent = 'Copied!';
+            setTimeout(() => copyButton.textContent = 'Copy Text', 2000);
+        });
+
+        // Initial setup
+        setupCanvas();
+    </script>
+</body>
+</html>
