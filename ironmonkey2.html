@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 3 Themed Physics Exam</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        /* Custom Styles for aesthetic appeal */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .exam-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .theme-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+            color: white;
+            padding: 2rem;
+            position: relative;
+        }
+        .svg-illustration {
+            width: 100%;
+            height: auto;
+            max-height: 200px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid #e2e8f0;
+        }
+        .question-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: #fafafa;
+        }
+        .sticky-timer {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #ef4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 50;
+            font-size: 0.875rem;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            margin-top: 0.5rem;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            margin-top: 0.5rem;
+            background-color: white;
+        }
+        .mc-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .mc-option input {
+            margin-right: 0.75rem;
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { border: 2px solid #e5e7eb; background: transparent; }
+        .btn-outline:hover { background: #f3f4f6; }
+        
+        /* Message Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ==========================================
+        // CONFIGURATION
+        // ==========================================
+        const TIME_LIMIT_MINUTES = 50; // Set to Infinity or 0 for no limit
+        const ENABLE_TEACHER_DEBUG = false; // Set to false to completely hide debug mode from students
+
+        // Equations formatted with JSX superscripts & subscripts
+        const KINEMATICS_EQUATIONS = [
+            { 
+                eq: <span>v = v<sub>0</sub> + at</span>, 
+                missing: <span>x - x<sub>0</sub></span>,
+                rawText: "v = v0 + at" 
+            },
+            { 
+                eq: <span>x - x<sub>0</sub> = v<sub>0</sub>t + &frac12;at<sup>2</sup></span>, 
+                missing: <span>v</span>,
+                rawText: "x - x0 = v0t + 1/2at^2" 
+            },
+            { 
+                eq: <span>v<sup>2</sup> = v<sub>0</sub><sup>2</sup> + 2a(x - x<sub>0</sub>)</span>, 
+                missing: <span>t</span>,
+                rawText: "v^2 = v0^2 + 2a(x - x0)" 
+            },
+            { 
+                eq: <span>x - x<sub>0</sub> = &frac12;(v<sub>0</sub> + v)t</span>, 
+                missing: <span>a</span>,
+                rawText: "x - x0 = 1/2(v0 + v)t" 
+            },
+            { 
+                eq: <span>x - x<sub>0</sub> = vt - &frac12;at<sup>2</sup></span>, 
+                missing: <span>v<sub>0</sub></span>,
+                rawText: "x - x0 = vt - 1/2at^2" 
+            }
+        ];
+
+        // 10 Unique Themes
+        const THEMES = [
+            {
+                name: "Secret Agent",
+                hero: "Agent X",
+                rolePrompt: "Agent Codename",
+                affirmation: "If you decide to accept this mission, you must affirm that the work done here is your own and you did not receive external intelligence.",
+                jumpAction: "leaps straight up using stealth compression-spring boots",
+                jumpPrep: "crouches and compresses the boot springs over a distance of",
+                villain: "Dr. Nefarious",
+                fallingItem: "the stolen microchip",
+                color: "#1e293b",
+                bgGradient: "linear-gradient(135deg, #0f172a 0%, #334155 100%)",
+                puzzle: {
+                    q: "Agent X has 5 keys, but only 1 opens the vault door. What is the maximum number of test attempts needed to guarantee finding the correct key?",
+                    ans: "4",
+                    placeholder: "Enter number of attempts..."
+                }
+            },
+            {
+                name: "Space Explorer",
+                hero: "Commander Nova",
+                rolePrompt: "Astronaut Designation",
+                affirmation: "By Starfleet regulations, you affirm that the calculations logged here are your own and no alien entities assisted you.",
+                jumpAction: "springs high into the air using cybernetic leg actuators",
+                jumpPrep: "bends their cyber-knees down over a distance of",
+                villain: "the Space Pirates",
+                fallingItem: "an energy crystal",
+                color: "#4c1d95",
+                bgGradient: "linear-gradient(135deg, #2e1065 0%, #5b21b6 100%)",
+                puzzle: {
+                    q: "Commander Nova has 9 alien energy crystals: 8 of equal weight and 1 heavier. Using a balance scale, what is the minimum number of weighings needed to guarantee finding the heavy crystal?",
+                    ans: "2",
+                    placeholder: "Enter minimum weighings..."
+                }
+            },
+            {
+                name: "Medieval Knight",
+                hero: "Sir Lancelot",
+                rolePrompt: "Knight's Title",
+                affirmation: "By the King's decree, thou dost affirm that this trial was conquered alone, without the aid of wizardry or fellow knights.",
+                jumpAction: "launches high into the air off a heavy spring-loaded catapult pad",
+                jumpPrep: "depresses the mechanical catapult pad down over a distance of",
+                villain: "the Dragon",
+                fallingItem: "the sacred scroll",
+                color: "#78350f",
+                bgGradient: "linear-gradient(135deg, #451a03 0%, #92400e 100%)",
+                puzzle: {
+                    q: "A dragon guards 3 chests (Gold, Silver, Bronze). One contains a key, one is empty, and one holds a trap. The Gold chest label says 'The key is here'. The Silver chest label says 'The key is not here'. The Bronze chest label says 'The trap is here'. If exactly one label is true and the key is in one chest, which chest contains the key?",
+                    ans: "Silver",
+                    placeholder: "Gold, Silver, or Bronze..."
+                }
+            },
+            {
+                name: "Pirate Adventure",
+                hero: "Captain Blackbeard",
+                rolePrompt: "Pirate Name",
+                affirmation: "On the Pirate's Code, ye swear that the plunder here is yer own work and ye parleyed with no other scallywags.",
+                jumpAction: "springs into the rigging off a flexible wooden springboard",
+                jumpPrep: "bends and depresses the springboard down over a distance of",
+                villain: "the Kraken",
+                fallingItem: "a gold doubloon",
+                color: "#064e3b",
+                bgGradient: "linear-gradient(135deg, #022c22 0%, #065f46 100%)",
+                puzzle: {
+                    q: "Captain Blackbeard shares a treasure of doubloons among 3 pirates. Pirate A gets half the total plus 1 doubloon. Pirate B gets half of what remains plus 1 doubloon. Pirate C gets the remaining 2 doubloons. How many total doubloons were in the treasure?",
+                    ans: "14",
+                    placeholder: "Enter total doubloons..."
+                }
+            },
+            {
+                name: "Cyberpunk Ninja",
+                hero: "Ghost-7",
+                rolePrompt: "Hacker Handle",
+                affirmation: "You verify this data packet is uncorrupted and generated solely by your own neural processors without network assistance.",
+                jumpAction: "launches upward onto the rooftop using pneumatic leg pistons",
+                jumpPrep: "compresses their cybernetic leg-struts down over a distance of",
+                villain: "Mega-Corp Security",
+                fallingItem: "a data drive",
+                color: "#0f766e",
+                bgGradient: "linear-gradient(135deg, #134e4a 0%, #0d9488 100%)",
+                puzzle: {
+                    q: "Ghost-7 needs to bypass a security grid. A virus doubles the corrupted nodes on a mainframe every hour. If the entire mainframe is fully corrupted in 12 hours, after how many hours was the mainframe exactly half corrupted?",
+                    ans: "11",
+                    placeholder: "Enter hours..."
+                }
+            },
+            {
+                name: "Wizard's Quest",
+                hero: "Merlin",
+                rolePrompt: "Magical Title",
+                affirmation: "On your grimoire, you swear these incantations are your own, untainted by familiar spirits or other mages.",
+                jumpAction: "springs upward off the enchanted ground using a kinetic spell",
+                jumpPrep: "crouches down and channels kinetic energy into the earth over a distance of",
+                villain: "the Dark Warlock",
+                fallingItem: "a glowing rune",
+                color: "#581c87",
+                bgGradient: "linear-gradient(135deg, #3b0764 0%, #7e22ce 100%)",
+                puzzle: {
+                    q: "Three wizards stand in line facing forward: Wizard 1 sees Wizards 2 & 3; Wizard 2 sees Wizard 3; Wizard 3 sees nobody. There are 3 white hats and 2 black hats. Wizard 1 says 'I don't know my hat color'. Wizard 2 then says 'I know my hat color!'. What color is Wizard 2's hat?",
+                    ans: "White",
+                    placeholder: "White or Black..."
+                }
+            },
+            {
+                name: "Superhero City",
+                hero: "Captain Apex",
+                rolePrompt: "Hero Alias",
+                affirmation: "As a sworn protector, you affirm your actions here were solitary, free from the interference of sidekicks.",
+                jumpAction: "leaps straight upward using super-muscular leg power",
+                jumpPrep: "coils and bends their knees down over a distance of",
+                villain: "the Syndicate",
+                fallingItem: "the mayor's briefcase",
+                color: "#b91c1c",
+                bgGradient: "linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)",
+                puzzle: {
+                    q: "Captain Apex flies to the villain's lair at 60 mph and returns along the same route at 30 mph. What is his average speed for the complete round trip in mph?",
+                    ans: "40",
+                    placeholder: "Enter speed in mph..."
+                }
+            },
+            {
+                name: "Alien Invader",
+                hero: "Zorgon",
+                rolePrompt: "Extraterrestrial ID",
+                affirmation: "By the High Council, you affirm this assimilation data was compiled solo, without hive-mind communication.",
+                jumpAction: "propels upward using a compact grav-compression propulsion pad",
+                jumpPrep: "compresses the anti-grav pad down over a distance of",
+                villain: "Earth's Defenders",
+                fallingItem: "a plasma battery",
+                color: "#15803d",
+                bgGradient: "linear-gradient(135deg, #14532d 0%, #16a34a 100%)",
+                puzzle: {
+                    q: "Zorgon has 3 blasters. Blaster A fires every 4 seconds, Blaster B every 6 seconds, and Blaster C every 10 seconds. If all three fire simultaneously at t = 0 seconds, after how many seconds will all three fire simultaneously again?",
+                    ans: "60",
+                    placeholder: "Enter time in seconds..."
+                }
+            },
+            {
+                name: "Time Traveler",
+                hero: "Chronos",
+                rolePrompt: "Temporal Designation",
+                affirmation: "You swear on the timeline that this event is isolated, and no future or past versions of yourself provided answers.",
+                jumpAction: "launches into the rift using a mechanical chrono-spring platform",
+                jumpPrep: "winds and depresses the chrono-spring platform down over a distance of",
+                villain: "the Time Cops",
+                fallingItem: "a paradox blueprint",
+                color: "#a21caf",
+                bgGradient: "linear-gradient(135deg, #701a75 0%, #c026d3 100%)",
+                puzzle: {
+                    q: "Chronos travels through time. Yesterday was two days after Monday. What day of the week is tomorrow?",
+                    ans: "Friday",
+                    placeholder: "Enter day of week..."
+                }
+            },
+            {
+                name: "Deep Sea Diver",
+                hero: "Captain Nemo",
+                rolePrompt: "Aquatic Callsign",
+                affirmation: "By the depths of the abyss, you affirm this exploration was charted alone without sonar links to other vessels.",
+                jumpAction: "springs upward through the water using pressurized suit leg-coils",
+                jumpPrep: "crouches and compresses the suit's heavy leg-coils over a distance of",
+                villain: "the Leviathan",
+                fallingItem: "an Atlantean relic",
+                color: "#0369a1",
+                bgGradient: "linear-gradient(135deg, #082f49 0%, #0284c7 100%)",
+                puzzle: {
+                    q: "Captain Nemo has 3 treasure chests (Red, Blue, Green). Exactly one contains gold. The Red chest says 'The gold is in Green'. The Blue chest says 'The gold is not here'. The Green chest says 'Red is lying'. If at most one statement is true, which chest contains the gold?",
+                    ans: "Blue",
+                    placeholder: "Red, Blue, or Green..."
+                }
+            }
+        ];
+
+        // Utility to generate deterministic random numbers
+        const pseudoRandom = (seed) => {
+            let x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        };
+
+        const randomRange = (seed, min, max) => min + pseudoRandom(seed) * (max - min);
+        const randomInt = (seed, min, max) => Math.floor(randomRange(seed, min, max + 1));
+
+        // Generate the 10 Exams
+        const generateExams = () => {
+            return THEMES.map((theme, index) => {
+                const seed = index + 42;
+                
+                // --- Math Variables for Questions ---
+                
+                // Q4a: Max Height H
+                const H = randomInt(seed, 15, 30);
+                const v0_4a = Math.sqrt(19.6 * H).toFixed(2);
+                
+                // Q4b: Bend distance d
+                const d = Number(randomRange(seed + 1, 0.2, 0.5).toFixed(2));
+                const a_4b = (Math.pow(v0_4a, 2) / (2 * d)).toFixed(2);
+                const gs_4b = (a_4b / 9.8).toFixed(1);
+
+                // Decoy generator for numerical MC
+                const generateDecoys = (correctAnswer, numDecoys, variance) => {
+                    let numVal = parseFloat(correctAnswer);
+                    let set = new Set();
+                    set.add(numVal.toFixed(2));
+                    let attempts = 0;
+                    while(set.size < numDecoys + 1 && attempts < 100) {
+                        let factor = randomRange(seed + attempts * 3, 1 - variance, 1 + variance);
+                        let decoy = (numVal * factor).toFixed(2);
+                        if (numVal === 0) {
+                            decoy = (randomRange(seed + attempts * 3, -10, 10)).toFixed(2);
+                        }
+                        if (decoy !== numVal.toFixed(2)) set.add(decoy);
+                        attempts++;
+                    }
+                    return Array.from(set).sort((a,b) => parseFloat(a) - parseFloat(b));
+                };
+
+                const numOptions4a = generateDecoys(v0_4a, 6, 0.5);
+                const numOptions4b = generateDecoys(a_4b, 6, 0.7);
+                const numOptions4b_gs = generateDecoys(gs_4b, 6, 0.5);
+
+                // Q5: Graph combinations
+                const q5_types = [
+                    pseudoRandom(seed+2) > 0.5 ? 'pos_v_pos_a' : 'pos_v_neg_a',
+                    pseudoRandom(seed+3) > 0.5 ? 'neg_v_neg_a' : 'neg_v_pos_a',
+                    pseudoRandom(seed+4) > 0.5 ? 'const_pos_v' : 'const_neg_v',
+                    'zero_v'
+                ];
+                // Shuffle them
+                for (let i = q5_types.length - 1; i > 0; i--) {
+                    const j = Math.floor(pseudoRandom(seed+i) * (i + 1));
+                    [q5_types[i], q5_types[j]] = [q5_types[j], q5_types[i]];
+                }
+
+                // Q6: x(t) = a*t - b*t^2
+                const b_6 = randomInt(seed+5, 5, 12);
+                const a_6 = randomInt(seed+6, b_6 * 5, b_6 * 9); 
+                const t_turn_6 = a_6 / (2 * b_6);
+                const v_0_6 = a_6;
+                const pos_turn_6 = a_6 * t_turn_6 - b_6 * t_turn_6 * t_turn_6;
+                const pos_5_6 = a_6 * 5 - b_6 * 25;
+                const dist_5_6 = pos_turn_6 + (pos_turn_6 - pos_5_6);
+
+                const numOptions6c_time = generateDecoys(t_turn_6.toFixed(2), 6, 0.5);
+                const numOptions6c_pos = generateDecoys(pos_turn_6.toFixed(2), 6, 0.5);
+                const numOptions6d = generateDecoys(pos_5_6.toFixed(2), 6, 0.5);
+                const numOptions6e = generateDecoys(dist_5_6.toFixed(2), 6, 0.5);
+
+                const unitOptionsA = ["m/s", "m/s^2", "m", "s", "m*s", "1/s"];
+                const unitOptionsB = ["m/s^2", "m/s", "m", "s", "m*s^2", "1/s^2"];
+
+                // Q7: Two objects meeting (ensuring altitude of catch is positive)
+                let v1_7, H_7, v2_7, a_quad, b_quad, c_quad, desc, t2_7, ans_t2_7, ans_pos_7, catch_alt;
+                let attempts = 0;
+                do {
+                    v1_7 = randomInt(seed+7+attempts, 15, 25);
+                    H_7 = randomInt(seed+8+attempts, 8, 15);
+                    v2_7 = randomInt(seed+9+attempts, -5, -1);
+                    
+                    // Intersection: -4.9t^2 + (v1 - v2)t - H = 0
+                    a_quad = 4.9;
+                    b_quad = -(v1_7 - v2_7);
+                    c_quad = H_7;
+                    desc = b_quad*b_quad - 4*a_quad*c_quad;
+                    if (desc >= 0) {
+                        t2_7 = (-b_quad + Math.sqrt(desc)) / (2*a_quad);
+                        ans_t2_7 = t2_7.toFixed(2);
+                        catch_alt = v1_7 * t2_7 - 4.9 * t2_7 * t2_7;
+                        ans_pos_7 = catch_alt.toFixed(2);
+                    } else {
+                        catch_alt = -1;
+                    }
+                    attempts++;
+                } while (catch_alt <= 0 && attempts < 100);
+
+                const numOptions7_time = generateDecoys(ans_t2_7, 6, 0.5);
+                const numOptions7_pos = generateDecoys(ans_pos_7, 6, 0.5);
+
+                return {
+                    id: index,
+                    theme,
+                    vars: {
+                        H, v0_4a, d, a_4b, gs_4b, numOptions4a, numOptions4b, numOptions4b_gs,
+                        q5_types,
+                        a_6, b_6, t_turn_6, pos_turn_6, pos_5_6, dist_5_6,
+                        numOptions6c_time, numOptions6c_pos, numOptions6d, numOptions6e,
+                        unitOptionsA, unitOptionsB,
+                        v1_7, H_7, v2_7, ans_t2_7, ans_pos_7,
+                        numOptions7_time, numOptions7_pos
+                    }
+                };
+            });
+        };
+
+        const EXAMS = generateExams();
+
+        // ==========================================
+        // REACT COMPONENTS
+        // ==========================================
+
+        const MessageModal = ({ isOpen, message, onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="text-xl font-bold mb-4 text-gray-800">Notice</h3>
+                        <p className="text-gray-600 mb-6">{message}</p>
+                        <button className="btn btn-primary" onClick={onClose}>Understood</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Graph Generation Utilities for Q5
+        const GraphQ5 = ({ types }) => {
+            let currentY = 100;
+            let currentX = 10;
+            const segmentWidth = 70;
+            let pathD = `M ${currentX},${currentY} `;
+
+            types.forEach((type) => {
+                const nextX = currentX + segmentWidth;
+                let nextY = currentY;
+
+                if (type === 'const_pos_v') {
+                    nextY = currentY - 40;
+                    pathD += `L ${nextX},${nextY} `;
+                } else if (type === 'const_neg_v') {
+                    nextY = currentY + 40;
+                    pathD += `L ${nextX},${nextY} `;
+                } else if (type === 'zero_v') {
+                    pathD += `L ${nextX},${nextY} `;
+                } else if (type === 'pos_v_pos_a') {
+                    nextY = currentY - 50;
+                    pathD += `Q ${currentX + segmentWidth*0.8},${currentY} ${nextX},${nextY} `;
+                } else if (type === 'pos_v_neg_a') {
+                    nextY = currentY - 50;
+                    pathD += `Q ${currentX + segmentWidth*0.2},${nextY} ${nextX},${nextY} `;
+                } else if (type === 'neg_v_pos_a') {
+                    nextY = currentY + 50;
+                    pathD += `Q ${currentX + segmentWidth*0.2},${nextY} ${nextX},${nextY} `;
+                } else if (type === 'neg_v_neg_a') {
+                    nextY = currentY + 50;
+                    pathD += `Q ${currentX + segmentWidth*0.8},${currentY} ${nextX},${nextY} `;
+                }
+
+                if (nextY < 20) nextY = 20;
+                if (nextY > 180) nextY = 180;
+
+                currentX = nextX;
+                currentY = nextY;
+            });
+
+            return (
+                <div className="flex flex-col items-center my-6">
+                    <svg width="350" height="220" className="bg-white border border-gray-300 rounded shadow-sm">
+                        {/* Grid / Axes */}
+                        <line x1="10" y1="10" x2="10" y2="200" stroke="#94a3b8" strokeWidth="2" />
+                        <line x1="10" y1="200" x2="330" y2="200" stroke="#94a3b8" strokeWidth="2" />
+                        <text x="15" y="20" fontSize="12" fill="#64748b">x(t)</text>
+                        <text x="310" y="215" fontSize="12" fill="#64748b">time</text>
+                        
+                        {/* Separators */}
+                        <line x1="80" y1="10" x2="80" y2="200" stroke="#cbd5e1" strokeDasharray="4" />
+                        <line x1="150" y1="10" x2="150" y2="200" stroke="#cbd5e1" strokeDasharray="4" />
+                        <line x1="220" y1="10" x2="220" y2="200" stroke="#cbd5e1" strokeDasharray="4" />
+                        
+                        {/* Region Labels */}
+                        <text x="40" y="30" fontSize="14" fontWeight="bold" fill="#334155">1</text>
+                        <text x="110" y="30" fontSize="14" fontWeight="bold" fill="#334155">2</text>
+                        <text x="180" y="30" fontSize="14" fontWeight="bold" fill="#334155">3</text>
+                        <text x="250" y="30" fontSize="14" fontWeight="bold" fill="#334155">4</text>
+
+                        {/* Function Path */}
+                        <path d={pathD} fill="none" stroke="#2563eb" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </div>
+            );
+        };
+
+        const VelocityGraphOption = ({ type, label }) => {
+            let pathD = "";
+            if (type === 'pos_v_pos_a') pathD = "M 10,40 L 90,10";
+            if (type === 'pos_v_neg_a') pathD = "M 10,10 L 90,40";
+            if (type === 'neg_v_pos_a') pathD = "M 10,90 L 90,60";
+            if (type === 'neg_v_neg_a') pathD = "M 10,60 L 90,90";
+            if (type === 'const_pos_v') pathD = "M 10,25 L 90,25";
+            if (type === 'const_neg_v') pathD = "M 10,75 L 90,75";
+            if (type === 'zero_v') pathD = "M 10,50 L 90,50";
+            if (type === 'decoy') pathD = "M 10,50 L 90,10";
+
+            return (
+                <div className="flex flex-col items-center bg-white p-2 border border-gray-200 rounded">
+                    <svg width="100" height="100">
+                        <line x1="10" y1="10" x2="10" y2="90" stroke="#94a3b8" strokeWidth="1" />
+                        <line x1="10" y1="50" x2="90" y2="50" stroke="#94a3b8" strokeWidth="1" />
+                        <text x="2" y="30" fontSize="8" fill="#64748b" transform="rotate(-90 2,30)">Velocity</text>
+                        <text x="40" y="98" fontSize="8" fill="#64748b">Time</text>
+                        <path d={pathD} fill="none" stroke="#dc2626" strokeWidth="3" />
+                    </svg>
+                    <span className="font-bold mt-1 text-lg">{label}</span>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [examState, setExamState] = React.useState('intro'); // intro, exam, results, debug
+            const [debugSelectedExam, setDebugSelectedExam] = React.useState('all');
+            const [activeExamIdx, setActiveExamIdx] = React.useState(0);
+            const [answers, setAnswers] = React.useState({});
+            const [timeLeft, setTimeLeft] = React.useState(TIME_LIMIT_MINUTES * 60);
+            const [modalConfig, setModalConfig] = React.useState({ isOpen: false, message: '' });
+            const [score, setScore] = React.useState({ total: 0, ec: 0 });
+
+            const exam = EXAMS[activeExamIdx];
+
+            React.useEffect(() => {
+                let timer;
+                if (examState === 'exam' && TIME_LIMIT_MINUTES > 0 && TIME_LIMIT_MINUTES !== Infinity) {
+                    timer = setInterval(() => {
+                        setTimeLeft((prev) => {
+                            if (prev <= 1) {
+                                clearInterval(timer);
+                                autoSubmit();
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                }
+                return () => clearInterval(timer);
+            }, [examState]);
+
+            const startExam = () => {
+                const randIdx = Math.floor(Math.random() * EXAMS.length);
+                setActiveExamIdx(randIdx);
+                setAnswers({});
+                setTimeLeft(TIME_LIMIT_MINUTES * 60);
+                setExamState('exam');
+            };
+
+            const handleAnswerChange = (qKey, value) => {
+                setAnswers(prev => ({ ...prev, [qKey]: value }));
+            };
+
+            const showModal = (msg) => setModalConfig({ isOpen: true, message: msg });
+
+            const formatTime = (seconds) => {
+                if (TIME_LIMIT_MINUTES === 0 || TIME_LIMIT_MINUTES === Infinity) return "No Limit";
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            const gradeExam = (userAnswers) => {
+                let pts = { q1:0, q2:0, q3:0, q4a:0, q4b:0, q5:0, q6:0, q7:0 };
+                let ecPts = 0;
+
+                const checkNum = (u, e) => {
+                    if (!u || isNaN(u)) return false;
+                    const userVal = parseFloat(u);
+                    const expectedVal = parseFloat(e);
+                    // 3% tolerance or 0.1 margin, whichever is greater
+                    const tol = Math.max(0.1, Math.abs(expectedVal * 0.03));
+                    return Math.abs(userVal - expectedVal) <= tol;
+                };
+
+                // Q1: 5pts
+                if (userAnswers.q1 === 'True') pts.q1 = 5;
+                
+                // Q2: 5pts
+                if (userAnswers.q2 === 'much larger than 9.8 m/s^2') pts.q2 = 5;
+                
+                // Q3: 5pts
+                if (userAnswers.q3 === '-9.8 m/s^2') pts.q3 = 5;
+
+                // Q4a: 15pts (eq=5, alg=5, num=5)
+                if (checkNum(userAnswers.q4a_num, exam.vars.v0_4a)) {
+                    pts.q4a = 15;
+                } else {
+                    if (userAnswers.q4a_eq === '3') pts.q4a += 5;
+                    if (userAnswers.q4a_alg && userAnswers.q4a_alg.trim() !== '') pts.q4a += 5;
+                }
+
+                // Q4b: 20pts
+                if (checkNum(userAnswers.q4b_num, exam.vars.a_4b)) {
+                    pts.q4b += 15;
+                } else {
+                    if (userAnswers.q4b_eq === '3') pts.q4b += 5;
+                    if (userAnswers.q4b_alg && userAnswers.q4b_alg.trim() !== '') pts.q4b += 5;
+                }
+                if (checkNum(userAnswers.q4b_gs, exam.vars.gs_4b)) pts.q4b += 5;
+
+                // Q5: 8pts (2pts each)
+                const q5AnswerMap = {
+                    'pos_v_pos_a': 'a', 'pos_v_neg_a': 'b',
+                    'neg_v_pos_a': 'c', 'neg_v_neg_a': 'd',
+                    'const_pos_v': 'e', 'const_neg_v': 'f',
+                    'zero_v': 'g'
+                };
+                exam.vars.q5_types.forEach((type, idx) => {
+                    const correctLetter = q5AnswerMap[type];
+                    if (userAnswers[`q5_${idx+1}`] === correctLetter) pts.q5 += 2;
+                });
+
+                // Q6: 30pts (5pts each x 6 tracking components)
+                let q6_num_count = 0;
+                if (checkNum(userAnswers.q6c_time, exam.vars.t_turn_6)) q6_num_count++;
+                if (checkNum(userAnswers.q6c_pos, exam.vars.pos_turn_6)) q6_num_count++;
+                if (checkNum(userAnswers.q6d, exam.vars.pos_5_6)) q6_num_count++;
+                if (checkNum(userAnswers.q6e, exam.vars.dist_5_6)) q6_num_count++;
+
+                if (q6_num_count === 4) {
+                    pts.q6 = 30;
+                } else {
+                    if (userAnswers.q6a_a === 'm/s' && userAnswers.q6a_b === 'm/s^2') pts.q6 += 5;
+                    if (userAnswers.q6b && userAnswers.q6b.trim() !== '') pts.q6 += 5;
+                    pts.q6 += q6_num_count * 5;
+                }
+
+                // Q7: 12pts
+                let timeCorrect = checkNum(userAnswers.q7_time || userAnswers.q7_num, exam.vars.ans_t2_7);
+                let posCorrect = checkNum(userAnswers.q7_pos, exam.vars.ans_pos_7);
+
+                if (timeCorrect && posCorrect) {
+                    pts.q7 = 12;
+                } else {
+                    if (userAnswers.q7_eq1 && userAnswers.q7_eq1.trim() !== '') pts.q7 += 2;
+                    if (userAnswers.q7_eq2 && userAnswers.q7_eq2.trim() !== '') pts.q7 += 2;
+                    if (timeCorrect) pts.q7 += 4;
+                    if (posCorrect) pts.q7 += 4;
+                }
+
+                // EC (Q8-14) 1pt each
+                if (userAnswers.q8 && userAnswers.q8.trim() !== '') ecPts += 1;
+                if (userAnswers.q9 && userAnswers.q9.trim() !== '') ecPts += 1;
+                if (userAnswers.q10 && userAnswers.q10.trim() !== '') ecPts += 1;
+                if (userAnswers.q11 === '2.41 s') ecPts += 1;
+                if (userAnswers.q12 === '2 + √6 s') ecPts += 1;
+                if (userAnswers.q13 === '15 m/s') ecPts += 1;
+                if (userAnswers.q14 && exam.theme.puzzle) {
+                    const userVal = userAnswers.q14.toString().trim().toLowerCase();
+                    const expectedVal = exam.theme.puzzle.ans.toString().trim().toLowerCase();
+                    if (userVal === expectedVal) ecPts += 1;
+                }
+
+                let total = pts.q1 + pts.q2 + pts.q3 + pts.q4a + pts.q4b + pts.q5 + pts.q6 + pts.q7;
+                return { total, ec: ecPts, breakdown: pts };
+            };
+
+            const autoSubmit = () => {
+                const s = gradeExam(answers);
+                setScore(s);
+                setExamState('results');
+            };
+
+            const handleSubmit = () => {
+                // Validation for required fields
+                const required = [
+                    'studentName', 'q1', 'q2', 'q3',
+                    'q4a_eq', 'q4a_alg', 'q4a_num',
+                    'q4b_eq', 'q4b_alg', 'q4b_num', 'q4b_gs',
+                    'q5_1', 'q5_2', 'q5_3', 'q5_4',
+                    'q6a_a', 'q6a_b', 'q6b', 'q6c_time', 'q6c_pos', 'q6d', 'q6e',
+                    'q7_eq1', 'q7_eq2', 'q7_time', 'q7_pos'
+                ];
+
+                for (let field of required) {
+                    if (!answers[field] || answers[field] === '') {
+                        showModal("Please complete all non-extra-credit questions before submitting.");
+                        return;
+                    }
+                }
+                autoSubmit();
+            };
+
+            const generateDownloadHTML = () => {
+                const s = gradeExam(answers);
+                const { breakdown: pts } = s;
+                
+                const getExpClass = (score, max) => {
+                    if (score === max) return "explanation correct-border";
+                    if (score > 0) return "explanation partial-border";
+                    return "explanation incorrect-border";
+                };
+
+                const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${exam.theme.name} Physics Exam Results - ${answers.studentName || 'Student'}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        h1, h2 { color: ${exam.theme.color}; }
+        .score-box { background: #f0fdf4; border: 2px solid #22c55e; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 30px;}
+        .q-box { border-bottom: 1px solid #ccc; padding-bottom: 15px; margin-bottom: 15px; }
+        .correct { color: #16a34a; font-weight: bold; }
+        .incorrect { color: #dc2626; font-weight: bold; }
+        .explanation { padding: 10px; margin-top: 10px; font-size: 0.9em; border-radius: 0 4px 4px 0; }
+        .correct-border { border-left: 4px solid #16a34a; background: #f0fdf4; }
+        .partial-border { border-left: 4px solid #f59e0b; background: #fffbeb; }
+        .incorrect-border { border-left: 4px solid #dc2626; background: #fef2f2; }
+    </style>
+</head>
+<body>
+    <h1>${exam.theme.name} Exam Results</h1>
+    <div class="score-box">
+        <h2>Student: ${answers.studentName || 'N/A'}</h2>
+        <h2>Score: ${s.total + s.ec} / 100 (${s.total + s.ec}%)</h2>
+        <p>Base Points: ${s.total} / 100 | Extra Credit: ${s.ec}</p>
+    </div>
+    
+    <h2>Exam Answers & Solutions</h2>
+
+    <div class="q-box">
+        <p><strong>Q2 (Pre-jump Acceleration):</strong> ${answers.q2}</p>
+        <p class="${pts.q2 === 5 ? 'correct' : 'incorrect'}">Score: ${pts.q2}/5</p>
+        <p>Correct: much larger than 9.8 m/s^2. To accelerate upwards from rest before leaving the ground, the upward launch force must exceed gravity, resulting in a net upward acceleration.</p>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q3 (Acceleration in air):</strong> ${answers.q3}</p>
+        <p class="${pts.q3 === 5 ? 'correct' : 'incorrect'}">Score: ${pts.q3}/5</p>
+        <p>Correct: -9.8 m/s^2. Once in the air, the only force acting is gravity (free fall).</p>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q4a (Max Height = ${exam.vars.H}m):</strong></p>
+        <p>Equation Picked: ${answers.q4a_eq}</p>
+        <p>Your Algebraic Solution: ${answers.q4a_alg}</p>
+        <p>Your Numeric Answer: ${answers.q4a_num} m/s</p>
+        <div class="${getExpClass(pts.q4a, 15)}">
+            <strong>Score: ${pts.q4a}/15</strong><br/>
+            <strong>Solution:</strong> In free fall, acceleration is a = -9.8 m/s^2 and velocity at maximum height is v = 0 m/s. <br/>
+            v^2 = v0^2 + 2a(x - x0) &rarr; 0 = v0^2 - 2(9.8)(${exam.vars.H}) &rarr; v0 = &radic;(19.6 * ${exam.vars.H}) = ${exam.vars.v0_4a} m/s.
+        </div>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q4b (Launch Acceleration over ${exam.vars.d}m):</strong></p>
+        <p>Equation Picked: ${answers.q4b_eq}</p>
+        <p>Your Algebraic Solution: ${answers.q4b_alg}</p>
+        <p>Your Numeric Answer: ${answers.q4b_num} m/s^2</p>
+        <p>Your g's: ${answers.q4b_gs}</p>
+        <div class="${getExpClass(pts.q4b, 20)}">
+            <strong>Score: ${pts.q4b}/20</strong><br/>
+            <strong>Solution:</strong> The hero starts from rest (v_initial = 0 m/s) and accelerates over distance d = ${exam.vars.d} m to reach takeoff velocity v_takeoff = ${exam.vars.v0_4a} m/s (found in Q4a). <br/>
+            v^2 = v0^2 + 2a&Delta;x &rarr; (${exam.vars.v0_4a})^2 = 0 + 2 * a * ${exam.vars.d}. <br/>
+            a = (${exam.vars.v0_4a}^2) / (2 * ${exam.vars.d}) = ${exam.vars.a_4b} m/s^2. <br/>
+            g's = ${exam.vars.a_4b} / 9.8 = ${exam.vars.gs_4b} g's.
+        </div>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q4b (Jump Acceleration over ${exam.vars.d}m):</strong></p>
+        <p>Equation Picked: ${answers.q4b_eq}</p>
+        <p>Your Algebraic Solution: ${answers.q4b_alg}</p>
+        <p>Your Numeric Answer: ${answers.q4b_num} m/s^2</p>
+        <p>Your g's: ${answers.q4b_gs}</p>
+        <div class="${getExpClass(pts.q4b, 20)}">
+            <strong>Score: ${pts.q4b}/20</strong><br/>
+            <strong>Solution:</strong> The jump phase starts from v0=0 and ends at final velocity ${exam.vars.v0_4a} m/s. <br/>
+            v^2 = v0^2 + 2a&Delta;x &rarr; (${exam.vars.v0_4a})^2 = 0 + 2 * a * ${exam.vars.d}. <br/>
+            a = (${exam.vars.v0_4a}^2) / (2 * ${exam.vars.d}) = ${exam.vars.a_4b} m/s^2. <br/>
+            g's = ${exam.vars.a_4b} / 9.8 = ${exam.vars.gs_4b}.
+        </div>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q5 (Graph Matching):</strong></p>
+        <p>Your picks: 1:${answers.q5_1}, 2:${answers.q5_2}, 3:${answers.q5_3}, 4:${answers.q5_4}</p>
+        <div class="${getExpClass(pts.q5, 8)}">
+            <strong>Score: ${pts.q5}/8</strong><br/>
+            <strong>Solution:</strong> Concave up = pos accel, concave down = neg accel, straight = zero accel.
+        </div>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q6 (x(t) = ${exam.vars.a_6}t - ${exam.vars.b_6}t^2):</strong></p>
+        <p>Units: a = ${answers.q6a_a}, b = ${answers.q6a_b}</p>
+        <p>Your velocity equation: ${answers.q6b}</p>
+        <p>Time when v=0: ${answers.q6c_time} s</p>
+        <p>Pos when v=0: ${answers.q6c_pos} m</p>
+        <p>Pos at t=5: ${answers.q6d} m</p>
+        <p>Distance first 5s: ${answers.q6e} m</p>
+        <div class="${getExpClass(pts.q6, 30)}">
+            <strong>Score: ${pts.q6}/30</strong><br/>
+            <strong>Solution:</strong> <br/>
+            v(t) = dx/dt = ${exam.vars.a_6} - ${exam.vars.b_6 * 2}t. <br/>
+            v=0 when t = ${exam.vars.a_6} / ${exam.vars.b_6 * 2} = ${exam.vars.t_turn_6.toFixed(2)} s. <br/>
+            Turnaround position = ${exam.vars.a_6}(${exam.vars.t_turn_6.toFixed(2)}) - ${exam.vars.b_6}(${exam.vars.t_turn_6.toFixed(2)})^2 = ${exam.vars.pos_turn_6.toFixed(2)} m. <br/>
+            Position at t=5 = ${exam.vars.a_6}(5) - ${exam.vars.b_6}(25) = ${exam.vars.pos_5_6.toFixed(2)} m. <br/>
+            Total distance = ${exam.vars.pos_turn_6.toFixed(2)} + (${exam.vars.pos_turn_6.toFixed(2)} - ${exam.vars.pos_5_6.toFixed(2)}) = ${exam.vars.dist_5_6.toFixed(2)} m.
+        </div>
+    </div>
+
+    <div class="q-box">
+        <p><strong>Q7 (Two Objects Meeting):</strong></p>
+        <p>Your Hero Equation: ${answers.q7_eq1 || 'N/A'}</p>
+        <p>Your Item Equation: ${answers.q7_eq2 || 'N/A'}</p>
+        <p>Time of Interception: ${answers.q7_time || answers.q7_num || 'N/A'} s</p>
+        <p>Position of Interception: ${answers.q7_pos || 'N/A'} m</p>
+        <div class="${getExpClass(pts.q7, 12)}">
+            <strong>Score: ${pts.q7}/12</strong><br/>
+            <strong>Solution:</strong><br/>
+            Hero: y1(t) = ${exam.vars.v1_7}t - 4.9t^2 <br/>
+            Stolen Item: y2(t) = ${exam.vars.H_7} + (${exam.vars.v2_7})t <br/>
+            Set y1 = y2 &rarr; 4.9t^2 - (${exam.vars.v1_7 - exam.vars.v2_7})t + ${exam.vars.H_7} = 0. <br/>
+            Solving the quadratic equation gives interception time: t = ${exam.vars.ans_t2_7} s. <br/>
+            Interception position/altitude: y = ${exam.vars.ans_pos_7} m.
+        </div>
+    </div>
+    
+</body>
+</html>`;
+                
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Physics_Exam_${answers.studentName || 'Result'}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+
+            if (examState === 'intro') {
+                return (
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="bg-white p-8 rounded-xl shadow-xl max-w-lg text-center">
+                            <h1 className="text-3xl font-bold mb-4 text-indigo-700">Ch 3 Interactive Physics Exam</h1>
+                            <p className="text-gray-600 mb-6">Welcome. You are about to start a themed assessment covering 1D Kinematics. Make sure you have your calculator and scratch paper ready.</p>
+                            <p className="font-bold text-gray-800 mb-6">Time Limit: {TIME_LIMIT_MINUTES === 0 || TIME_LIMIT_MINUTES === Infinity ? "None" : `${TIME_LIMIT_MINUTES} minutes`}</p>
+                            <button onClick={startExam} className="btn btn-primary w-full text-lg mb-4">Start Assessment</button>
+                            {ENABLE_TEACHER_DEBUG && (
+                                <button onClick={() => setExamState('debug')} className="text-sm text-gray-400 underline">Teacher Debug Mode</button>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (examState === 'results') {
+                return (
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="bg-white p-8 rounded-xl shadow-xl max-w-lg text-center">
+                            <h1 className="text-3xl font-bold mb-4 text-green-600">Exam Completed!</h1>
+                            <h2 className="text-xl font-bold mb-2 text-gray-800">{answers.studentName}</h2>
+                            <div className="text-5xl font-black text-indigo-600 mb-4">{score.total + score.ec}%</div>
+                            <p className="text-gray-600 mb-6">Base Points: {score.total} / 100 <br/> Extra Credit: +{score.ec}</p>
+                            
+                            <p className="text-sm text-gray-500 mb-6">Click the button below to download your exam report. Please submit this file to your instructor.</p>
+                            <button onClick={generateDownloadHTML} className="btn btn-primary w-full text-lg">Download Exam & Solutions</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (examState === 'debug') {
+                if (!ENABLE_TEACHER_DEBUG) {
+                    setExamState('intro');
+                    return null;
+                }
+                const filteredExams = debugSelectedExam === 'all' 
+                    ? EXAMS 
+                    : [EXAMS[parseInt(debugSelectedExam)]];
+
+                return (
+                    <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
+                        {/* Header & Controls */}
+                        <div className="bg-white p-6 rounded-xl shadow-md mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-800">Teacher Debug & Question Review Mode</h1>
+                                <p className="text-sm text-gray-500">Inspect full question text, generated numbers, formulas, and logic across all 10 exam variations.</p>
+                            </div>
+                            <button onClick={() => setExamState('intro')} className="btn btn-outline px-6">Back to Intro</button>
+                        </div>
+
+                        {/* Theme Filter Selector */}
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            <button 
+                                onClick={() => setDebugSelectedExam('all')} 
+                                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${debugSelectedExam === 'all' ? 'bg-indigo-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            >
+                                All Exams (10)
+                            </button>
+                            {EXAMS.map((ex, idx) => (
+                                <button 
+                                    key={idx} 
+                                    onClick={() => setDebugSelectedExam(idx.toString())} 
+                                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${debugSelectedExam === idx.toString() ? 'bg-indigo-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                                >
+                                    #{idx+1} {ex.theme.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Exam Cards */}
+                        {filteredExams.map((ex) => (
+                            <div key={ex.id} className="mb-10 bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                                {/* Exam Title Banner */}
+                                <div className="p-4 text-white flex justify-between items-center" style={{ background: ex.theme.bgGradient }}>
+                                    <div>
+                                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded mr-2">Exam Variant #{ex.id + 1}</span>
+                                        <h2 className="text-xl font-bold inline">{ex.theme.name} Theme</h2>
+                                    </div>
+                                    <button 
+                                        onClick={() => { setActiveExamIdx(ex.id); setAnswers({}); setTimeLeft(TIME_LIMIT_MINUTES * 60); setExamState('exam'); }}
+                                        className="bg-white text-gray-900 text-xs font-bold px-3 py-2 rounded hover:bg-gray-100 shadow"
+                                    >
+                                        Test Drive Student View &rarr;
+                                    </button>
+                                </div>
+
+                                <div className="p-4 space-y-4">
+                                    {/* Theme Settings */}
+                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <div><strong>Hero:</strong> {ex.theme.hero}</div>
+                                        <div><strong>Villain:</strong> {ex.theme.villain}</div>
+                                        <div><strong>Role Prompt:</strong> {ex.theme.rolePrompt}</div>
+                                        <div><strong>Falling Item:</strong> {ex.theme.fallingItem}</div>
+                                        <div className="col-span-2"><strong>Jump Action:</strong> {ex.theme.jumpAction}</div>
+                                        <div className="col-span-2"><strong>Jump Prep:</strong> {ex.theme.jumpPrep}</div>
+                                    </div>
+
+                                    {/* Question Breakdown */}
+                                    <div className="space-y-4">
+                                        {/* Q1 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q1 (Affirmation):</span>
+                                            <p className="text-sm italic text-gray-700">"{ex.theme.affirmation}"</p>
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-mono mt-1 inline-block">Answer: True</span>
+                                        </div>
+
+                                        {/* Q2 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q2 (Pre-jump Acceleration):</span>
+                                            <p className="text-sm text-gray-700">"In order to jump straight up to a maximum height of {ex.vars.H} meters, {ex.theme.hero} must first accelerate upward from rest before leaving the ground. While {ex.theme.hero} {ex.theme.jumpPrep} {ex.vars.d} meters to propel themselves, the acceleration of their center of mass is:"</p>
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-mono mt-1 inline-block">Answer: much larger than 9.8 m/s^2</span>
+                                        </div>
+
+                                        {/* Q3 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q3 (Free Fall Acceleration):</span>
+                                            <p className="text-sm text-gray-700">"If {ex.theme.hero} jumps straight up, while they are in the air, their acceleration is (assuming up is positive):"</p>
+                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-mono mt-1 inline-block">Answer: -9.8 m/s^2</span>
+                                        </div>
+
+                                        {/* Q4a */}
+                                        <div className="p-3 bg-blue-50/70 border border-blue-200 rounded">
+                                            <span className="font-bold text-sm text-blue-700">Q4a (Max Height Calculation):</span>
+                                            <p className="text-sm text-gray-700">"When {ex.theme.hero} {ex.theme.jumpAction}, they reach a maximum height of <strong>{ex.vars.H} m</strong> above the launch point. With what takeoff velocity must they leave the ground in order to reach this height?"</p>
+                                            <div className="mt-2 text-xs font-mono text-gray-800 bg-white p-2 rounded border border-blue-100">
+                                                <div><strong>Formula:</strong> v<sub>takeoff</sub> = &radic;(2 &middot; g &middot; H) = &radic;(19.6 &middot; {ex.vars.H})</div>
+                                                <div><strong>Calculated Correct Answer:</strong> <span className="text-green-700 font-bold">{ex.vars.v0_4a} m/s</span></div>
+                                                <div><strong>Generated MC Options:</strong> {ex.vars.numOptions4a.join(', ')}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Q4b */}
+                                        <div className="p-3 bg-blue-50/70 border border-blue-200 rounded">
+                                            <span className="font-bold text-sm text-blue-700">Q4b (Launch Acceleration & g's):</span>
+                                            <p className="text-sm text-gray-700">"In order to achieve this takeoff velocity (calculated in 4a), {ex.theme.hero} {ex.theme.jumpPrep} <strong>{ex.vars.d} m</strong> and straightens as they spring off the ground. What is their average acceleration during this launch phase over the {ex.vars.d} meters?"</p>
+                                            <div className="mt-2 text-xs font-mono text-gray-800 bg-white p-2 rounded border border-blue-100">
+                                                <div><strong>Formula:</strong> a = v<sub>takeoff</sub><sup>2</sup> / (2d) = ({ex.vars.v0_4a})<sup>2</sup> / (2 &middot; {ex.vars.d})</div>
+                                                <div><strong>Calculated Acceleration:</strong> <span className="text-green-700 font-bold">{ex.vars.a_4b} m/s^2</span> (MC Options: {ex.vars.numOptions4b.join(', ')})</div>
+                                                <div><strong>Calculated g's:</strong> <span className="text-green-700 font-bold">{ex.vars.gs_4b} g's</span> (a / 9.8) (MC Options: {ex.vars.numOptions4b_gs.join(', ')})</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Q5 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q5 (Graph Matching):</span>
+                                            <p className="text-sm text-gray-700">Position graph segments generated for this exam: <strong>{ex.vars.q5_types.join(' | ')}</strong></p>
+                                            <div className="text-xs font-mono mt-1 text-gray-600">
+                                                Correct answers for regions 1-4: {ex.vars.q5_types.map((t, idx) => `R${idx+1}: ${
+                                                    t === 'pos_v_pos_a' ? 'a' : t === 'pos_v_neg_a' ? 'b' : t === 'neg_v_pos_a' ? 'c' : t === 'neg_v_neg_a' ? 'd' : t === 'const_pos_v' ? 'e' : t === 'const_neg_v' ? 'f' : 'g'
+                                                }`).join(', ')}
+                                            </div>
+                                        </div>
+
+                                        {/* Q6 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q6 (Kinematic Polynomial x(t) = {ex.vars.a_6}t - {ex.vars.b_6}t^2):</span>
+                                            <div className="mt-1 text-xs font-mono text-gray-800 bg-white p-2 rounded border">
+                                                <div><strong>a) Units:</strong> a = m/s, b = m/s^2</div>
+                                                <div><strong>b) Velocity function:</strong> v(t) = {ex.vars.a_6} - {ex.vars.b_6 * 2}t</div>
+                                                <div><strong>c) Time v=0:</strong> <span className="text-green-700 font-bold">{ex.vars.t_turn_6.toFixed(2)} s</span> | <strong>Turnaround Position:</strong> <span className="text-green-700 font-bold">{ex.vars.pos_turn_6.toFixed(2)} m</span></div>
+                                                <div><strong>d) Position at t=5s:</strong> <span className="text-green-700 font-bold">{ex.vars.pos_5_6.toFixed(2)} m</span></div>
+                                                <div><strong>e) Total distance in 5s:</strong> <span className="text-green-700 font-bold">{ex.vars.dist_5_6.toFixed(2)} m</span></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Q7 */}
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                            <span className="font-bold text-sm text-indigo-600">Q7 (Two-Body Interception Problem):</span>
+                                            <p className="text-sm text-gray-700">"{ex.theme.hero} jumps straight up at <strong>{ex.vars.v1_7} m/s</strong>. At the same time, {ex.theme.fallingItem} is <strong>{ex.vars.H_7} m</strong> high and moving down at constant <strong>{ex.vars.v2_7} m/s</strong>."</p>
+                                            <div className="mt-2 text-xs font-mono text-gray-800 bg-white p-2 rounded border">
+                                                <div><strong>Hero Eq:</strong> y1(t) = {ex.vars.v1_7}t - 4.9t^2</div>
+                                                <div><strong>Item Eq:</strong> y2(t) = {ex.vars.H_7} + ({ex.vars.v2_7})t</div>
+                                                <div><strong>Interception Time:</strong> <span className="text-green-700 font-bold">{ex.vars.ans_t2_7} s</span> (Options: {ex.vars.numOptions7_time.join(', ')})</div>
+                                                <div><strong>Interception Height:</strong> <span className="text-green-700 font-bold">{ex.vars.ans_pos_7} m</span> (Options: {ex.vars.numOptions7_pos.join(', ')})</div>
+                                                <div className="text-gray-500 italic mt-1">Logic Check: Catch altitude ({ex.vars.ans_pos_7}m) is positive above ground (&gt; 0m).</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Q14 Logic Puzzle */}
+                                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                            <span className="font-bold text-sm text-yellow-800">Q14 Logic Puzzle:</span>
+                                            <p className="text-sm text-gray-700">{ex.theme.puzzle.q}</p>
+                                            <span className="text-xs bg-yellow-200 text-yellow-900 px-2 py-0.5 rounded font-mono mt-1 inline-block">Answer: {ex.theme.puzzle.ans}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="exam-container my-8">
+                    <MessageModal {...modalConfig} onClose={() => setModalConfig({...modalConfig, isOpen: false})} />
+                    
+                    <div className="sticky-timer">{formatTime(timeLeft)}</div>
+                    
+                    <div className="theme-header" style={{ background: exam.theme.bgGradient }}>
+                        <h1 className="text-3xl font-black mb-2">{exam.theme.name} Assessment</h1>
+                        <p className="opacity-90">Scenario: You are {exam.theme.hero}. Complete the physics calculations to defeat {exam.theme.villain}.</p>
+                    </div>
+
+                    <div className="p-6">
+                        
+                        {/* Equations Reference */}
+                        <div className="bg-gray-100 p-4 rounded-lg mb-6 text-sm">
+                            <h3 className="font-bold mb-2 text-gray-700">Equations Reference (Constant Acceleration)</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-600 font-mono text-base">
+                                <div className="font-bold hidden md:block">Equation</div>
+                                <div className="font-bold hidden md:block text-right pr-4">Missing Quantity</div>
+                                {KINEMATICS_EQUATIONS.map((item, i) => (
+                                    <React.Fragment key={i}>
+                                        <div className="py-1">{i + 1}) {item.eq}</div>
+                                        <div className="md:text-right pr-4 text-gray-500 italic py-1">missing: {item.missing}</div>
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Name Input */}
+                        <div className="question-card">
+                            <label className="block font-bold text-gray-800 mb-2">Enter your {exam.theme.rolePrompt}:</label>
+                            <input type="text" value={answers.studentName || ''} onChange={e => handleAnswerChange('studentName', e.target.value)} placeholder={`e.g. ${exam.theme.hero}`} />
+                        </div>
+
+                        {/* Question 1 */}
+                        <div className="question-card border-l-4 border-indigo-500">
+                            <h3 className="font-bold text-lg mb-2">Question 1 (5 pts)</h3>
+                            <p className="mb-4 italic text-gray-700">"{exam.theme.affirmation}"</p>
+                            <div className="flex gap-4">
+                                <label className="mc-option"><input type="radio" name="q1" value="True" onChange={e => handleAnswerChange('q1', e.target.value)} /> True</label>
+                                <label className="mc-option"><input type="radio" name="q1" value="False" onChange={e => handleAnswerChange('q1', e.target.value)} /> False</label>
+                            </div>
+                        </div>
+
+                        {/* Illustration */}
+                        <div className="w-full bg-slate-900 rounded-lg p-8 flex items-center justify-center mb-6 relative overflow-hidden shadow-inner h-48">
+                            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}></div>
+                            <svg className="relative z-10 w-32 h-32 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.45c.019-.104.039-.208.06-.311m-2.671 2.378a14.928 14.928 0 01-5.84-2.58m-.12 8.54a6 6 0 007.38-5.84v-4.8m-2.58 5.84a14.927 14.927 0 002.58-5.84m-2.7-2.7c.103-.021.207-.041.311-.06a15.09 15.09 0 012.448 2.45c-.019.104-.039.208-.06.311" />
+                            </svg>
+                        </div>
+
+                        {/* Question 2 */}
+                        <div className="question-card">
+                            <h3 className="font-bold text-lg mb-2">Question 2 (5 pts)</h3>
+                            <p className="mb-4 text-gray-700">In order to jump straight up to a maximum height of {exam.vars.H} meters, {exam.theme.hero} must first accelerate upward from rest before leaving the ground. While {exam.theme.hero} {exam.theme.jumpPrep} {exam.vars.d} meters to propel themselves, the acceleration of their center of mass (before leaving the ground) is:</p>
+                            <div className="flex flex-col gap-2">
+                                {['-9.8 m/s^2', '+9.8 m/s^2', 'much larger than 9.8 m/s^2', 'much smaller than 9.8 m/s^2'].map((opt, i) => (
+                                    <label key={i} className="mc-option">
+                                        <input type="radio" name="q2" value={opt} onChange={e => handleAnswerChange('q2', e.target.value)} /> {opt}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Question 3 */}
+                        <div className="question-card">
+                            <h3 className="font-bold text-lg mb-2">Question 3 (5 pts)</h3>
+                            <p className="mb-4 text-gray-700">If {exam.theme.hero} jumps straight up, while they are in the air, their acceleration is (assuming up is positive):</p>
+                            <div className="flex flex-col gap-2">
+                                {['-9.8 m/s^2', '+9.8 m/s^2', 'much larger than 9.8 m/s^2', 'much smaller than 9.8 m/s^2'].map((opt, i) => (
+                                    <label key={i} className="mc-option">
+                                        <input type="radio" name="q3" value={opt} onChange={e => handleAnswerChange('q3', e.target.value)} /> {opt}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Question 4a */}
+                        <div className="question-card bg-blue-50/50">
+                            <h3 className="font-bold text-lg mb-2 text-blue-800">Question 4 (30 pts)</h3>
+                            <p className="mb-4 font-semibold">a) When {exam.theme.hero} {exam.theme.jumpAction}, they reach a maximum height of {exam.vars.H} m above the launch point. With what takeoff velocity must they leave the ground in order to reach this height?</p>
+                            
+                            <label className="block mb-2 text-sm font-bold text-gray-700">Select the equation that solves this in one step (5 pts):</label>
+                            <select onChange={e => handleAnswerChange('q4a_eq', e.target.value)} value={answers.q4a_eq || ''}>
+                                <option value="">Select Equation...</option>
+                                {KINEMATICS_EQUATIONS.map((item, i) => (
+                                    <option key={i} value={i + 1}>{i + 1}) {item.rawText}</option>
+                                ))}
+                            </select>
+
+                            <label className="block mt-4 mb-2 text-sm font-bold text-gray-700">Solve algebraically for the velocity requested (5 pts):</label>
+                            <input type="text" placeholder="e.g. v0 = sqrt(-2a(x-x0))" value={answers.q4a_alg || ''} onChange={e => handleAnswerChange('q4a_alg', e.target.value)} />
+
+                            <label className="block mt-4 mb-2 text-sm font-bold text-gray-700">Select the numerical result in m/s (5 pts):</label>
+                            <select onChange={e => handleAnswerChange('q4a_num', e.target.value)} value={answers.q4a_num || ''}>
+                                <option value="">Select Number...</option>
+                                {exam.vars.numOptions4a.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Question 4b */}
+                        <div className="question-card bg-blue-50/50">
+                            <p className="mb-4 font-semibold">b) In order to achieve this takeoff velocity (calculated in 4a), {exam.theme.hero} {exam.theme.jumpPrep} {exam.vars.d} meters and straightens as they spring off the ground. What is their average acceleration during this launch phase over the distance of {exam.vars.d} meters?</p>
+                            
+                            <label className="block mb-2 text-sm font-bold text-gray-700">Select the equation that solves this in one step (5 pts):</label>
+                            <select onChange={e => handleAnswerChange('q4b_eq', e.target.value)} value={answers.q4b_eq || ''}>
+                                <option value="">Select Equation...</option>
+                                {KINEMATICS_EQUATIONS.map((item, i) => (
+                                    <option key={i} value={i + 1}>{i + 1}) {item.rawText}</option>
+                                ))}
+                            </select>
+
+                            <label className="block mt-4 mb-2 text-sm font-bold text-gray-700">Solve algebraically for acceleration (5 pts):</label>
+                            <input type="text" placeholder="e.g. a = v^2 / 2d" value={answers.q4b_alg || ''} onChange={e => handleAnswerChange('q4b_alg', e.target.value)} />
+
+                            <label className="block mt-4 mb-2 text-sm font-bold text-gray-700">Select the numerical result in m/s^2 (5 pts):</label>
+                            <select onChange={e => handleAnswerChange('q4b_num', e.target.value)} value={answers.q4b_num || ''}>
+                                <option value="">Select Number...</option>
+                                {exam.vars.numOptions4b.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                            </select>
+
+                            <label className="block mt-4 mb-2 text-sm font-bold text-gray-700">How many g's is this? (5 pts):</label>
+                            <select onChange={e => handleAnswerChange('q4b_gs', e.target.value)} value={answers.q4b_gs || ''}>
+                                <option value="">Select g's...</option>
+                                {exam.vars.numOptions4b_gs.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Question 5 */}
+                        <div className="question-card">
+                            <h3 className="font-bold text-lg mb-2">Question 5 (8 pts)</h3>
+                            <p className="mb-4 text-gray-700">During a skirmish with {exam.theme.villain}, {exam.theme.hero} moves according to the position vs time graph below.</p>
+                            
+                            <GraphQ5 types={exam.vars.q5_types} />
+
+                            <p className="mb-4 font-bold text-gray-700">Select the correct letter for the velocity vs time graph that matches each of the 4 regions.</p>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <VelocityGraphOption type="pos_v_pos_a" label="a" />
+                                <VelocityGraphOption type="pos_v_neg_a" label="b" />
+                                <VelocityGraphOption type="neg_v_pos_a" label="c" />
+                                <VelocityGraphOption type="neg_v_neg_a" label="d" />
+                                <VelocityGraphOption type="const_pos_v" label="e" />
+                                <VelocityGraphOption type="const_neg_v" label="f" />
+                                <VelocityGraphOption type="zero_v" label="g" />
+                                <VelocityGraphOption type="decoy" label="h" />
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-4">
+                                {[1,2,3,4].map(num => (
+                                    <div key={num}>
+                                        <label className="block text-sm font-bold mb-1">Region {num}</label>
+                                        <select onChange={e => handleAnswerChange(`q5_${num}`, e.target.value)} value={answers[`q5_${num}`] || ''}>
+                                            <option value="">--</option>
+                                            {['a','b','c','d','e','f','g','h'].map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Question 6 */}
+                        <div className="question-card">
+                            <h3 className="font-bold text-lg mb-2">Question 6 (30 pts)</h3>
+                            <p className="mb-4 text-gray-700">While battling {exam.theme.villain}, {exam.theme.hero}'s position is given by the equation: <strong>x(t) = a·t - b·t^2</strong>.</p>
+                            
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <p className="mb-2 font-semibold">a) If t is in seconds, what do the units of a and b have to be to output meters?</p>
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="text-sm">Units of a:</label>
+                                        <select onChange={e => handleAnswerChange('q6a_a', e.target.value)} value={answers.q6a_a || ''}>
+                                            <option value="">Select...</option>
+                                            {exam.vars.unitOptionsA.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="text-sm">Units of b:</label>
+                                        <select onChange={e => handleAnswerChange('q6a_b', e.target.value)} value={answers.q6a_b || ''}>
+                                            <option value="">Select...</option>
+                                            {exam.vars.unitOptionsB.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <p className="mb-2 font-semibold">b) Write the algebraic equation for velocity v(t) in terms of a, b, and t:</p>
+                                <input type="text" className="w-full" placeholder="v(t) = ..." value={answers.q6b || ''} onChange={e => handleAnswerChange('q6b', e.target.value)} />
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <p className="mb-2 font-semibold">c) If a = {exam.vars.a_6} and b = {exam.vars.b_6}, at what time is the velocity zero?</p>
+                                <select className="mb-4 w-full" onChange={e => handleAnswerChange('q6c_time', e.target.value)} value={answers.q6c_time || ''}>
+                                    <option value="">Select Time (s)...</option>
+                                    {exam.vars.numOptions6c_time.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                </select>
+
+                                <p className="mb-2 font-semibold">What is the position at this time?</p>
+                                <select className="w-full" onChange={e => handleAnswerChange('q6c_pos', e.target.value)} value={answers.q6c_pos || ''}>
+                                    <option value="">Select Position (m)...</option>
+                                    {exam.vars.numOptions6c_pos.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <p className="mb-2 font-semibold">d) What is the position at t = 5 seconds?</p>
+                                <select className="w-full" onChange={e => handleAnswerChange('q6d', e.target.value)} value={answers.q6d || ''}>
+                                    <option value="">Select Position (m)...</option>
+                                    {exam.vars.numOptions6d.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
+                                <p className="mb-2 font-semibold">e) What distance was travelled in the first 5 seconds?</p>
+                                <select className="w-full" onChange={e => handleAnswerChange('q6e', e.target.value)} value={answers.q6e || ''}>
+                                    <option value="">Select Distance (m)...</option>
+                                    {exam.vars.numOptions6e.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Question 7 */}
+                        <div className="question-card">
+                            <h3 className="font-bold text-lg mb-2">Question 7 (12 pts)</h3>
+                            <p className="mb-4 text-gray-700">{exam.theme.hero} jumps straight up off the ground with a velocity of {exam.vars.v1_7} m/s. At the same time, {exam.theme.fallingItem} is {exam.vars.H_7} meters off the ground above and is moving downwards with a constant velocity of {exam.vars.v2_7} m/s. {exam.theme.hero} misses the object on the way up, but catches it gently on the way down while it is still in the air.</p>
+                            
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <label className="block font-semibold mb-1 text-gray-800">1) Equation for {exam.theme.hero} position vs time y<sub>1</sub>(t):</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. y1 = v1*t - 1/2*g*t^2" 
+                                    value={answers.q7_eq1 || ''} 
+                                    onChange={e => handleAnswerChange('q7_eq1', e.target.value)} 
+                                />
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded p-4 mb-4 shadow-sm">
+                                <label className="block font-semibold mb-1 text-gray-800">2) Equation for {exam.theme.fallingItem} position vs time y<sub>2</sub>(t):</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="e.g. y2 = H + v2*t" 
+                                    value={answers.q7_eq2 || ''} 
+                                    onChange={e => handleAnswerChange('q7_eq2', e.target.value)} 
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
+                                    <label className="block font-semibold mb-1 text-gray-800">Time of interception (2nd meeting time):</label>
+                                    <select 
+                                        value={answers.q7_time || answers.q7_num || ''} 
+                                        onChange={e => handleAnswerChange('q7_time', e.target.value)} 
+                                    >
+                                        <option value="">Select Time (s)...</option>
+                                        {exam.vars.numOptions7_time.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                    </select>
+                                </div>
+                                <div className="bg-white border border-gray-200 rounded p-4 shadow-sm">
+                                    <label className="block font-semibold mb-1 text-gray-800">Position / Height of interception:</label>
+                                    <select 
+                                        value={answers.q7_pos || ''} 
+                                        onChange={e => handleAnswerChange('q7_pos', e.target.value)} 
+                                    >
+                                        <option value="">Select Position (m)...</option>
+                                        {exam.vars.numOptions7_pos.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Extra Credit Section */}
+                        <div className="p-4 border-2 border-yellow-400 bg-yellow-50 rounded-lg mb-6">
+                            <h3 className="font-bold text-lg mb-2 text-yellow-800">Mission Briefing Extras (Questions 8 - 14)</h3>
+                            <p className="text-sm text-yellow-700 mb-4">Each worth 1 bonus point. These are advanced scenarios for {exam.theme.hero}. Do not attempt unless the primary mission is complete.</p>
+
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">8) {exam.theme.hero} leaps from a 1.0m high platform with an initial velocity of 15 m/s straight up. How long are they in the air before landing on the ground below?</label>
+                                <input type="text" placeholder="e.g. 3.12 s" value={answers.q8 || ''} onChange={e => handleAnswerChange('q8', e.target.value)} />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">9) {exam.theme.villain} is fleeing at a constant 17 m/s. {exam.theme.hero} is running at 30 m/s and is currently 10 meters behind. What constant acceleration must {exam.theme.hero} apply to just barely avoid a collision?</label>
+                                <input type="text" placeholder="e.g. -5.2 m/s^2" value={answers.q9 || ''} onChange={e => handleAnswerChange('q9', e.target.value)} />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">10) {exam.theme.fallingItem} falls 15m and reaches a terminal velocity of -12.5 m/s. You step off the ledge from rest (a=-9.8 m/s^2) exactly when it reaches terminal velocity. How long does it take you to catch up to it?</label>
+                                <input type="text" placeholder="e.g. 2.55 s" value={answers.q10 || ''} onChange={e => handleAnswerChange('q10', e.target.value)} />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">11) {exam.theme.hero} jumps up and reaches half of their maximum height in exactly 1.0 second. How much additional time does it take them to reach the remaining half to the peak?</label>
+                                <select onChange={e => handleAnswerChange('q11', e.target.value)} value={answers.q11 || ''}>
+                                    <option value="">Select...</option>
+                                    <option value="0.41 s">0.41 s</option>
+                                    <option value="2.41 s">2.41 s</option>
+                                    <option value="0.71 s">0.71 s</option>
+                                    <option value="2.00 s">2.00 s</option>
+                                </select>
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">12) {exam.theme.hero} leaps straight up from a 10m high roof at 20 m/s. Assuming g = 10 m/s^2 for simpler math, how long does it take them to hit the ground?</label>
+                                <select onChange={e => handleAnswerChange('q12', e.target.value)} value={answers.q12 || ''}>
+                                    <option value="">Select...</option>
+                                    <option value="4.00 s">4.00 s</option>
+                                    <option value="5.00 s">5.00 s</option>
+                                    <option value="2 + √6 s">2 + √6 s</option>
+                                    <option value="2 - √6 s">2 - √6 s</option>
+                                </select>
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">13) {exam.theme.hero} throws a tracker device straight down from a 20m high roof. It hits the ground in exactly 1.0 second. Assuming g = 10 m/s^2, what was its initial downward velocity?</label>
+                                <select onChange={e => handleAnswerChange('q13', e.target.value)} value={answers.q13 || ''}>
+                                    <option value="">Select...</option>
+                                    <option value="10 m/s">10 m/s</option>
+                                    <option value="25 m/s">25 m/s</option>
+                                    <option value="5 m/s">5 m/s</option>
+                                    <option value="20 m/s">20 m/s</option>
+                                    <option value="15 m/s">15 m/s</option>
+                                </select>
+                            </div>
+                            <div className="mb-6">
+                                <label className="block font-bold text-sm mb-1">14) Logic Puzzle: {exam.theme.puzzle.q}</label>
+                                <input type="text" placeholder={exam.theme.puzzle.placeholder} value={answers.q14 || ''} onChange={e => handleAnswerChange('q14', e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="mt-8 mb-12 flex justify-center">
+                            <button onClick={handleSubmit} className="btn btn-success text-xl px-12 py-4">Submit Exam</button>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
