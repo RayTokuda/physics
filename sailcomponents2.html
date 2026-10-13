@@ -128,9 +128,9 @@
         
         const TOTAL_PROBLEMS = 5;
         const BASE_MAX_SCORE = TOTAL_PROBLEMS * 2;
-        const ANGLE_TOLERANCE_RAD = 0.12; 
-        const PLACEMENT_TOLERANCE = 25;
-        const VECTOR_MATCH_TOLERANCE = 15 * 1.05; 
+        const ANGLE_TOLERANCE_RAD = 0.25; // Increased tolerance for direction (approx 14 degrees)
+        const PLACEMENT_TOLERANCE = 35;   // Increased tolerance for starting point placement
+        const VECTOR_MATCH_TOLERANCE = 35; // Increased tolerance for length and component matching
         let closeModalTimeout = null;
 
         const CONGRATS_MESSAGES = ["Wow!", "Amazing!", "Incredible!", "Stunning!", "Unbelievable!", "Magnificent!", "Superb!", "Fantastic!", "Phenomenal!", "Outstanding!", "Extraordinary!", "Exceptional!", "Brilliant!", "Genius!", "Masterful!", "Perfect!", "Flawless!", "Pristine!", "Impeccable!", "Supreme!", "Sublime!", "Glorious!", "Majestic!", "Divine!", "Heavenly!", "Stellar!", "Cosmic!", "Galactic!", "Universal!", "Legendary!", "Mythical!", "Epic!", "Heroic!", "Victorious!", "Triumphant!", "Champion!", "Unbeatable!", "Invincible!", "Unstoppable!", "Dominant!", "Powerful!", "Forceful!", "Mighty!", "Formidable!", "Impressive!", "Awe-inspiring!", "Breathtaking!", "Mind-blowing!", "Jaw-dropping!", "Eye-popping!", "Sensational!", "Spectacular!", "Dazzling!", "Radiant!", "Luminous!", "Shining!", "Gleaming!", "Sparkling!", "Glittering!", "Vibrant!", "Dynamic!", "Energetic!", "Vigorous!", "Spirited!", "Lively!", "Vivacious!", "Electric!", "Magnetic!", "Captivating!", "Mesmerizing!", "Hypnotic!", "Enchanting!", "Magical!", "Miraculous!", "Wonderful!", "Marvelous!", "Fabulous!", "Terrific!", "Splendid!", "Excellent!", "First-class!", "Top-notch!", "World-class!", "Grade A!", "Ace!", "Superstar!", "Virtuoso!", "Prodigy!", "Savant!", "Einstein-level!", "Newton-esque!", "Galileo-like!"];
