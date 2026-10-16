@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include the canvas-confetti library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- REMOVED jsPDF library - no longer needed -->
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Lighter blue-gray background */
+        }
+        
+        /* Load the Inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        /* Style for the question cards */
+        .question-card {
+            background-color: white;
+            border-radius: 0.75rem; /* Slightly larger radius */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden; /* To contain the feedback box */
+        }
+
+        .question-card:not(.question-disabled) {
+             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+             transform: translateY(-2px);
+        }
+
+        /* Style for disabled question cards */
+        .question-disabled {
+            background-color: #f9fafb; /* Off-white */
+            opacity: 0.7;
+        }
+
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #e5e7eb;
+        }
+
+        /* Feedback boxes */
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem; /* Rounded bottom corners */
+            display: none; /* Hidden by default */
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .feedback.correct {
+            background-color: #f0fdf4; /* Light green */
+            color: #166534; /* Dark green text */
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: #fef2f2; /* Light red */
+            color: #991b1b; /* Dark red text */
+            display: block;
+        }
+        
+        /* Input field styling */
+        .input-correct {
+            background-color: #dcfce7; /* Light green background */
+            border-color: #22c55e; /* Green border */
+            color: #15803d; /* Dark green text */
+        }
+
+        /* Custom button styling */
+        .btn-primary {
+            background-color: #059669; /* Emerald 600 */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #047857; /* Emerald 700 */
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: #4f46e5; /* Indigo 600 */
+        }
+        .btn-secondary:hover {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+        
+        /* Modal Styles */
+        #name-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        /* Large Bright Score */
+        .huge-score {
+            font-size: 6rem;
+            line-height: 1;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
+            color: #fbbf24; /* Bright amber/gold */
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Name Modal -->
+    <div id="name-modal">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full text-center transform transition-all">
+            <h2 class="text-3xl font-bold mb-4 text-gray-800">Welcome to Physics!</h2>
+            <p class="text-gray-600 mb-6">Please enter your name to begin your mission.</p>
+            <input type="text" id="student-name-input" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 mb-4 text-center text-lg" placeholder="Your Name">
+            <button id="start-mission-btn" class="btn-primary w-full text-lg">Start Mission</button>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">Interactive Physics: Projectile Motion</h1>
+        
+        <!-- Reset Button -->
+        <div class="flex justify-center mb-6">
+            <button id="reset-button" class="btn-primary btn-secondary">
+                New Problem
+            </button>
+        </div>
+
+        <!-- Problem Card -->
+        <div class="question-card p-6 mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">The Problem</h2>
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Use the user's hosted image -->
+                <img src="https://docs.google.com/drawings/d/e/2PACX-1vTLtvkXQy_8whnwGRfYEOPguMvmiHdKghJBDtQBVF5eo0NgQvafSwnO_ks5yApZzUKLkJFoNUmGWMJS/pub?w=884&h=709" alt="Diagram of a car launching off a table" class="w-full md:w-1/2 rounded-lg shadow-md object-contain">
+                <div class="flex-1">
+                    <p class="text-lg text-gray-700 leading-relaxed">
+                        A toy car is launched from a table of height <strong id="table-height" class="text-indigo-600">...</strong> m.
+                        The car's launch velocity is <strong id="launch-velocity" class="text-indigo-600">...</strong> m/s
+                        at an angle of <strong id="launch-angle" class="text-indigo-600">...</strong> degrees above the horizontal.
+                    </p>
+                    <p class="text-md text-gray-600 mt-4">
+                        Your mission is to find the car's motion characteristics.
+                        Use <strong class="text-gray-800">g = 9.8 m/s²</strong> and provide all answers to
+                        <strong class="text-gray-800">3 significant digits</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Question 1 -->
+            <div id="q1" class="question-card p-6">
+                <label for="q1-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    1. What is the car's vertical displacement (y - y<sub>0</sub>)? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q1-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <button id="q1-button" class="btn-primary">Check</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div id="q2" class="question-card p-6 question-disabled">
+                <label for="q2-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    2. What is the initial vertical velocity (v<sub>0y</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q2-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+            
+            <!-- Question 3 -->
+            <div id="q3" class="question-card p-6 question-disabled">
+                <label for="q3-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    3. What is the total time the car is in the air? (in s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q3-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q3-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 4 -->
+            <div id="q4" class="question-card p-6 question-disabled">
+                <label for="q4-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    4. What is the initial horizontal velocity (v<sub>0x</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q4-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q4-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 5 -->
+            <div id="q5" class="question-card p-6 question-disabled">
+                <label for="q5-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    5. What is the total horizontal distance (x - x<sub>0</sub>) the car travels? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q5-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q5-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 6 -->
+            <div id="q6" class="question-card p-6 question-disabled">
+                <label for="q6-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    6. What is the time to reach the maximum altitude? (in s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q6-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q6-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q6-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 7 -->
+            <div id="q7" class="question-card p-6 question-disabled">
+                <label for="q7-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    7. What is the max height *above the launch point* (y<sub>peak</sub> - y<sub>0</sub>)? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q7-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q7-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q7-feedback" class="feedback"></div>
+            </div>
+            
+        </div>
+        
+        <!-- Score Card -->
+        <div id="score-card" class="bg-green-600 text-white shadow-2xl rounded-lg p-8 text-center mt-8" style="display: none;">
+            <h2 class="text-3xl font-bold mb-4" id="score-title">Challenge Complete!</h2>
+            <p id="score-message" class="text-xl font-medium text-green-50 mb-4">Incredible job!</p>
+            
+            <div class="huge-score font-extrabold mb-1" id="final-score">100%</div>
+            <!-- Alphanumeric verification code -->
+            <div id="verification-code" class="text-sm text-green-900 opacity-60 tracking-widest font-mono mb-6 font-bold"></div>
+            
+            <p class="text-green-100 text-lg" id="mistake-summary">Great work!</p>
+            
+            <div class="flex flex-col md:flex-row gap-4 mt-6">
+                <button id="try-again-button" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
+                    Try Again
+                </button>
+                <button id="download-button" class="flex-1 bg-white hover:bg-gray-100 text-green-700 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
+                    Download Solution (HTML)
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES ---
+        const g = 9.8;
+        const numQuestions = 7;
+        let answers = {};
+        let problemValues = {}; // To store h, v0, theta for the PDF
+        let mistakes = {};
+        let studentName = "";
+        
+        // This is the DOM object
+        const dom = {
+            nameModal: document.getElementById('name-modal'),
+            nameInput: document.getElementById('student-name-input'),
+            startBtn: document.getElementById('start-mission-btn'),
+            height: document.getElementById('table-height'),
+            velocity: document.getElementById('launch-velocity'),
+            angle: document.getElementById('launch-angle'),
+            resetButton: document.getElementById('reset-button'),
+            scoreCard: document.getElementById('score-card'),
+            scoreTitle: document.getElementById('score-title'),
+            finalScore: document.getElementById('final-score'),
+            verificationCode: document.getElementById('verification-code'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadButton: document.getElementById('download-button'),
+            tryAgainButton: document.getElementById('try-again-button'),
+            questions: []
+        };
+        
+        // Populate the dom.questions array
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Generates a random float between min (inclusive) and max (exclusive)
+         */
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        /**
+         * Formats a number to a specified number of significant figures.
+         */
+        function toSigFigs(num, sigFigs) {
+            if (num === 0) {
+                return 0;
+            }
+            // Handle cases where num might be extremely small or null
+            if (!num) {
+                return 0;
+            }
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        /**
+         * Checks if the user's answer is within 2% tolerance of the correct answer
+         */
+        function checkTolerance(userAns, correctAns) {
+            // Check for zero answer special case
+            if (Math.abs(correctAns) < 1e-9) {
+                return Math.abs(userAns) < 1e-9;
+            }
+            const tolerance = Math.abs(correctAns * 0.02); // 2% tolerance
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        /**
+         * Solves the quadratic formula: ax^2 + bx + c = 0
+         * Returns only the positive, real root.
+         */
+        function solveQuadratic(a, b, c) {
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) {
+                return null; // No real roots
+            }
+            const t1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            const t2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+            
+            // Return the positive time
+            if (t1 > 0 && t2 > 0) {
+                // For projectile motion, ax^2 is negative, so t1 will be the positive root
+                return t1;
+            } else if (t1 > 0) {
+                return t1;
+            } else if (t2 > 0) {
+                return t2;
+            } else {
+                return null; // No positive time root
+            }
+        }
+        
+        // --- CORE LOGIC ---
+
+        /**
+         * Generates a new problem, calculates answers, and resets the UI
+         */
+        function generateProblem() {
+            // 1. Generate random values
+            const h = random(0.8, 1.2);
+            const v0 = random(2.0, 3.5);
+            // Use whole numbers for degrees (10 to 35 inclusive)
+            const theta = Math.floor(random(10, 36));
+            const thetaRad = theta * (Math.PI / 180);
+
+            // Store problem values for PDF
+            problemValues = {
+                h: h,
+                v0: v0,
+                theta: theta
+            };
+
+            // 2. Calculate all correct answers
+            answers = {
+                q1: -h,
+                q2: v0 * Math.sin(thetaRad),
+                q3: (function() {
+                    const v0y = v0 * Math.sin(thetaRad);
+                    const dy = -h;
+                    // (y - y0) = v0y*t + 0.5*a*t^2  =>  0.5*(-g)*t^2 + v0y*t - dy = 0
+                    const a = 0.5 * (-g);
+                    const b = v0y;
+                    const c = -dy; // since dy = -h, -dy = h
+                    return solveQuadratic(a, b, c);
+                }()),
+                q4: v0 * Math.cos(thetaRad),
+                q5: (function() {
+                    const v0x = v0 * Math.cos(thetaRad);
+                    const v0y = v0 * Math.sin(thetaRad);
+                    const dy = -h;
+                    const a = 0.5 * (-g);
+                    const b = v0y;
+                    const c = -dy;
+                    const t = solveQuadratic(a, b, c);
+                    return v0x * t;
+                }()),
+                q6: (v0 * Math.sin(thetaRad)) / g, // v_y = v_0y + a*t => 0 = v_0y - g*t => t = v_0y / g
+                q7: (function() {
+                    const v0y = v0 * Math.sin(thetaRad);
+                    // v_y^2 = v_0y^2 + 2*a*dy => 0 = v_0y^2 + 2*(-g)*dy => 2*g*dy = v_0y^2
+                    // dy = v_0y^2 / (2*g)
+                    return (v0y * v0y) / (2 * g);
+                }())
+            };
+            
+            // Handle null/NaN answers in case of bad calculation
+            for (let key in answers) {
+                if (answers[key] === null || isNaN(answers[key])) {
+                    console.error("Failed to calculate a valid answer for:", key);
+                    // Regenerate problem if a calculation fails
+                    generateProblem();
+                    return;
+                }
+            }
+
+
+            // 3. Reset UI
+            dom.height.textContent = h.toFixed(2);
+            dom.velocity.textContent = v0.toFixed(2);
+            dom.angle.textContent = theta.toFixed(0);
+            
+            dom.scoreCard.style.display = 'none';
+            mistakes = {};
+
+            for (let i = 0; i < numQuestions; i++) {
+                const q = dom.questions[i];
+                q.card.classList.add('question-disabled');
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                
+                // Clear feedback box and hide it
+                const feedback = q.feedback;
+                feedback.innerHTML = '';
+                feedback.classList.remove('correct', 'incorrect');
+            }
+
+            // 4. Enable the first question
+            const q1 = dom.questions[0];
+            q1.card.classList.remove('question-disabled');
+            q1.input.disabled = false;
+            q1.button.disabled = false;
+            
+            // Only focus if the name is already entered
+            if (studentName !== "") {
+                q1.input.focus();
+            }
+        }
+
+        /**
+         * Checks the answer for a given question number
+         */
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            const correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Whoops!</strong> Please enter a number.';
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+                return;
+            }
+            
+            const isCorrect = checkTolerance(userAns, correctAns);
+
+            if (isCorrect) {
+                // --- CORRECT ANSWER ---
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> The answer is ${formattedAns}.`;
+                q.feedback.classList.add('correct');
+                q.feedback.classList.remove('incorrect');
+                
+                q.input.value = formattedAns; // Show the rounded correct answer
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                // Enable next question or show score
+                if (qNum < numQuestions) {
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                } else {
+                    // All questions done!
+                    showScore();
+                }
+            } else {
+                // --- INCORRECT ANSWER ---
+                if (!mistakes[qNum]) {
+                    mistakes[qNum] = 0;
+                }
+                mistakes[qNum]++;
+                
+                let hint = '';
+                const { h, v0, theta } = problemValues;
+                const thetaRad = theta * (Math.PI / 180);
+                
+                // This switch statement provides specific error detection and hints
+                switch (qNum) {
+                    case 1:
+                        if (checkTolerance(userAns, h)) {
+                            hint = `<strong>Mistake Detected!</strong> You entered a positive displacement. The car falls <em>down</em> from the table, so the vertical displacement must be negative (-${h.toFixed(2)} m).`;
+                        } else {
+                            hint = "<strong>Hint:</strong> Displacement (y - y<sub>0</sub>) is final position minus initial. The vertical displacement is simply the negative of the table's height.";
+                        }
+                        break;
+                    case 2:
+                        if (checkTolerance(userAns, v0 * Math.cos(thetaRad))) {
+                            hint = "<strong>Mistake Detected!</strong> You used cosine (cos) instead of sine (sin). For vertical velocity, you need the side opposite the angle. Use v<sub>0y</sub> = v<sub>0</sub> * sin(θ).";
+                        } else {
+                            hint = "<strong>Hint:</strong> Use trigonometry! v<sub>0y</sub> = v<sub>0</sub> * sin(θ)";
+                        }
+                        break;
+                    case 3:
+                        const fallFromRest = Math.sqrt((2 * h) / g);
+                        const timeToPeakOnly = (v0 * Math.sin(thetaRad)) / g;
+                        if (checkTolerance(userAns, fallFromRest)) {
+                             hint = "<strong>Mistake Detected!</strong> You assumed the car was launched horizontally. Don't forget it has an initial vertical velocity upwards in the equation!";
+                        } else if (checkTolerance(userAns, timeToPeakOnly)) {
+                             hint = "<strong>Mistake Detected!</strong> You only calculated the time to reach the highest point. You need the <em>total</em> time until it hits the ground.";
+                        } else {
+                            hint = "<strong>Hint:</strong> Use the quadratic equation: 0.5(-9.8)t² + v<sub>0y</sub>t - (y - y<sub>0</sub>) = 0";
+                        }
+                        break;
+                    case 4:
+                        if (checkTolerance(userAns, v0 * Math.sin(thetaRad))) {
+                            hint = "<strong>Mistake Detected!</strong> You used sine (sin) instead of cosine (cos). For horizontal velocity, you need the side adjacent to the angle. Use v<sub>0x</sub> = v<sub>0</sub> * cos(θ).";
+                        } else {
+                            hint = "<strong>Hint:</strong> Use trigonometry! v<sub>0x</sub> = v<sub>0</sub> * cos(θ)";
+                        }
+                        break;
+                    case 5:
+                        const v0x = v0 * Math.cos(thetaRad);
+                        const tPeak = (v0 * Math.sin(thetaRad)) / g;
+                        if (checkTolerance(userAns, v0x * tPeak)) {
+                             hint = "<strong>Mistake Detected!</strong> You multiplied by the time to reach the peak instead of the <em>total time</em> in the air from Question 3.";
+                        } else {
+                             hint = "<strong>Hint:</strong> Horizontal motion is constant velocity! Use (x - x<sub>0</sub>) = v<sub>0x</sub> * t.";
+                        }
+                        break;
+                    case 6:
+                        if (checkTolerance(userAns, v0 / g)) {
+                             hint = "<strong>Mistake Detected!</strong> You used the total launch velocity (v<sub>0</sub>) instead of just the vertical component (v<sub>0y</sub>).";
+                        } else {
+                             hint = "<strong>Hint:</strong> At the peak, vertical velocity (v<sub>y</sub>) is zero. Use 0 = v<sub>0y</sub> - 9.8*t.";
+                        }
+                        break;
+                    case 7:
+                        const totalVPeak = (v0 * v0) / (2 * g);
+                        if (checkTolerance(userAns, totalVPeak)) {
+                             hint = "<strong>Mistake Detected!</strong> You used the total initial velocity (v<sub>0</sub>) in your calculation instead of just the vertical velocity (v<sub>0y</sub>).";
+                        } else {
+                             hint = "<strong>Hint:</strong> Use (y<sub>peak</sub> - y<sub>0</sub>) = v<sub>0y</sub>² / (2 * 9.8).";
+                        }
+                        break;
+                    default:
+                        hint = "<strong>Not quite.</strong> Double-check your calculations and try again!";
+                }
+                
+                q.feedback.innerHTML = hint;
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+            }
+        }
+
+        /**
+         * Generates the 12-character verification code
+         */
+        function generateVerificationCode(name) {
+            const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const cleanName = name.replace(/[^a-zA-Z]/g, '') + 'XXX';
+            const letters = cleanName.substring(0, 3).toUpperCase().split('');
+            
+            let codeArr = new Array(12).fill('');
+            // Distributed in order but NOT consecutively
+            codeArr[1] = letters[0];
+            codeArr[4] = letters[1];
+            codeArr[8] = letters[2];
+            
+            for (let i = 0; i < 12; i++) {
+                if (codeArr[i] === '') {
+                    codeArr[i] = chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+            }
+            return codeArr.join('');
+        }
+
+        /**
+         * Calculates and displays the final score and confetti
+         */
+        function showScore() {
+            let totalMistakes = 0;
+            for (let key in mistakes) {
+                totalMistakes += mistakes[key];
+            }
+            
+            let percentage = 100;
+            let bursts = 0;
+            
+            if (totalMistakes === 0) {
+                percentage = 110; // Extra credit
+                bursts = 3;
+            } else if (totalMistakes <= 2) {
+                percentage = 100; // Perfect base score
+                bursts = 1;
+            } else {
+                percentage = Math.max(0, 100 - (totalMistakes * 5));
+                bursts = 0;
+            }
+
+            dom.finalScore.textContent = `${percentage}%`;
+            dom.verificationCode.textContent = generateVerificationCode(studentName);
+            
+            // Configure UI conditionally
+            if (percentage >= 100) {
+                dom.scoreTitle.textContent = `Mission Accomplished, ${studentName}!`;
+                dom.scoreCard.className = "bg-green-600 text-white shadow-2xl rounded-lg p-8 text-center mt-8";
+                dom.tryAgainButton.style.display = 'none'; // Hide try again
+                
+                // Pick a unique superlative message
+                const msgIndex = Math.floor(Math.random() * 100);
+                dom.scoreMessage.textContent = perfectMessages[msgIndex].replace(/\[Name\]/g, studentName);
+                
+                if (percentage > 100) {
+                     dom.mistakeSummary.innerHTML = "Flawless Execution! <strong>Extra Credit Awarded!</strong>";
+                } else {
+                     dom.mistakeSummary.innerHTML = `Excellent work! You only made ${totalMistakes} minor error(s).`;
+                }
+                
+                launchBallisticConfetti(bursts);
+                
+            } else if (percentage >= 80) {
+                dom.scoreTitle.textContent = `Good Job, ${studentName}!`;
+                dom.scoreCard.className = "bg-blue-600 text-white shadow-2xl rounded-lg p-8 text-center mt-8";
+                dom.scoreMessage.textContent = "You have a solid understanding of projectile motion.";
+                dom.mistakeSummary.textContent = `Final Score: ${percentage}%. Review your mistakes and keep practicing!`;
+                dom.tryAgainButton.style.display = 'block';
+            } else {
+                dom.scoreTitle.textContent = `Keep Trying, ${studentName}!`;
+                dom.scoreCard.className = "bg-orange-500 text-white shadow-2xl rounded-lg p-8 text-center mt-8";
+                dom.scoreMessage.textContent = "Projectile motion can be tricky. Don't give up!";
+                dom.mistakeSummary.textContent = `Final Score: ${percentage}%. Let's give it another shot!`;
+                dom.tryAgainButton.style.display = 'block';
+            }
+
+            dom.scoreCard.style.display = 'block';
+            
+            setTimeout(() => {
+                dom.scoreCard.scrollIntoView({ behavior: 'smooth' });
+            }, 150);
+        }
+        
+        /**
+         * Launches ballistic confetti bursts from a bottom-center cannon
+         */
+        function launchBallisticConfetti(bursts) {
+            if (bursts === 0) return;
+            
+            const count = 200;
+            const defaults = { origin: { y: 0.8 } };
+
+            function fire(particleRatio, opts) {
+                confetti(Object.assign({}, defaults, opts, {
+                    particleCount: Math.floor(count * particleRatio)
+                }));
+            }
+            
+            function triggerBurst() {
+                fire(0.25, { spread: 26, startVelocity: 55 });
+                fire(0.2, { spread: 60 });
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+                fire(0.1, { spread: 120, startVelocity: 45 });
+            }
+
+            // Launch initial burst
+            triggerBurst(); 
+            
+            // Launch extra bursts for extra credit
+            if (bursts > 1) {
+                setTimeout(triggerBurst, 800);
+                setTimeout(triggerBurst, 1600);
+            }
+        }
+        
+        /**
+         * Helper to safely replace variable names with HTML subscripts
+         */
+        function subHTML(text) {
+            return text
+                .replace(/v_0y/g, 'v<sub>0y</sub>')
+                .replace(/v_0x/g, 'v<sub>0x</sub>')
+                .replace(/y_0/g, 'y<sub>0</sub>')
+                .replace(/x_0/g, 'x<sub>0</sub>')
+                .replace(/v_0/g, 'v<sub>0</sub>')
+                .replace(/a_y/g, 'a<sub>y</sub>')
+                .replace(/v_y/g, 'v<sub>y</sub>')
+                .replace(/t_peak/g, 't<sub>peak</sub>')
+                .replace(/y_peak/g, 'y<sub>peak</sub>');
+        }
+
+        /**
+         * Triggers a browser download for a text-based file
+         */
+        function downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        /**
+         * New function to generate and download an HTML solution
+         */
+        function generateHTMLSolution() {
+            const sigFig = (n) => toSigFigs(n, 3);
+            const { h, v0, theta } = problemValues;
+            const { q1, q2, q3, q4, q5, q6, q7 } = answers;
+            
+            // Get the image URL from the img tag in the main document
+            const imageUrl = document.querySelector('.question-card img').src;
+
+            // Use template literal to build the HTML string
+            const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Solution</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 30px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1 {
+            color: #111;
+            text-align: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #0056b3; /* Dark blue */
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 5px;
+        }
+        p {
+            margin-bottom: 10px;
+        }
+        code {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        .problem-value {
+            font-weight: bold;
+            color: #0056b3;
+        }
+        .answer {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #00796b; /* Teal */
+        }
+    </style>
+</head>
+<body>
+    <h1>Projectile Motion Problem Solution</h1>
+    
+    <h2>The Problem</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; background-color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <img src="${imageUrl}" alt="Diagram of a car launching off a table" style="max-width: 50%; height: auto; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+        <div style="flex: 1; min-width: 300px;">
+            <p style="font-size: 1.1em; line-height: 1.7;">
+                A toy car is launched from a table of height <strong style="color: #0056b3;">${h.toFixed(2)}</strong> m.
+                The car's launch velocity is ${subHTML(`<strong style="color: #0056b3;">${v0.toFixed(2)}</strong> m/s`)}
+                at an angle of <strong style="color: #0056b3;">${theta.toFixed(0)}</strong> degrees above the horizontal.
+            </p>
+        </div>
+    </div>
+    
+    <h2>Given Values</h2>
+    <p>Table Height (h): <span class="problem-value">${h.toFixed(2)} m</span></p>
+    <p>${subHTML(`Launch Velocity (v_0): <span class="problem-value">${v0.toFixed(2)} m/s</span>`)}</p>
+    <p>Launch Angle (θ): <span class="problem-value">${theta.toFixed(0)} degrees</span></p>
+    <p>Gravitational Acceleration (g): <span class="problem-value">9.8 m/s²</span></p>
+
+    <h2>Calculated Solutions</h2>
+
+    <h3>1. Vertical Displacement (y - y<sub>0</sub>)</h3>
+    <p>The car lands on the floor, which is ${h.toFixed(2)} m *below* the launch point.</p>
+    <p>${subHTML(`Equation: (y - y_0) = y_final - y_initial = 0 - h`)}</p>
+    <p class="answer">${subHTML(`(y - y_0) = ${sigFig(q1)} m`)}</p>
+
+    <h3>2. Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>${subHTML(`Equation: v_0y = v_0 * sin(θ)`)}</p>
+    <p>${subHTML(`Solved: v_0y = ${v0.toFixed(2)} m/s * sin(${theta})`)}</p>
+    <p class="answer">${subHTML(`v_0y = ${sigFig(q2)} m/s`)}</p>
+
+    <h3>3. Total Time in Air (t)</h3>
+    <p>${subHTML(`Equation: (y - y_0) = v_0y * t + 0.5 * a_y * t²`)}</p>
+    <p>${subHTML(`Solved: 0.5 * (-g) * t² + v_0y * t - (y - y_0) = 0`)}</p>
+    <p>Using quadratic formula (ax² + bx + c = 0):</p>
+    <p>${subHTML(`<code>a = -4.9</code>, <code>b = ${sigFig(q2)}</code>, <code>c = ${sigFig(-q1)}</code>`)}</p>
+    <p class="answer">${subHTML(`t = ${sigFig(q3)} s`)}</p>
+
+    <h3>4. Initial Horizontal Velocity (v<sub>0x</sub>)</h3>
+    <p>${subHTML(`Equation: v_0x = v_0 * cos(θ)`)}</p>
+    <p>${subHTML(`Solved: v_0x = ${v0.toFixed(2)} m/s * cos(${theta})`)}</p>
+    <p class="answer">${subHTML(`v_0x = ${sigFig(q4)} m/s`)}</p>
+
+    <h3>5. Horizontal Distance (x - x<sub>0</sub>)</h3>
+    <p>${subHTML(`Equation: (x - x_0) = v_0x * t`)}</p>
+    <p>${subHTML(`Solved: (x - x_0) = ${sigFig(q4)} m/s * ${sigFig(q3)} s`)}</p>
+    <p class="answer">${subHTML(`(x - x_0) = ${sigFig(q5)} m`)}</p>
+
+    <h3>6. Time to Peak (t<sub>peak</sub>)</h3>
+    <p>${subHTML(`Equation: v_y = v_0y + a_y * t (at peak, v_y = 0)`)}</p>
+    <p>${subHTML(`Solved: t_peak = -v_0y / a_y = v_0y / g`)}</p>
+    <p>${subHTML(`t_peak = ${sigFig(q2)} m/s / 9.8 m/s²`)}</p>
+    <p class="answer">${subHTML(`t_peak = ${sigFig(q6)} s`)}</p>
+
+    <h3>7. Max Height above Launch (y<sub>peak</sub> - y<sub>0</sub>)</h3>
+    <p>${subHTML(`Equation: v_y² = v_0y² + 2 * a_y * (y - y_0)`)}</p>
+    <p>${subHTML(`Solved: (y_peak - y_0) = (v_y² - v_0y²) / (2 * a_y)`)}</p>
+    <p>${subHTML(`(y_peak - y_0) = (0 - (${sigFig(q2)})²) / (2 * -9.8)`)}</p>
+    <p class="answer">${subHTML(`(y_peak - y_0) = ${sigFig(q7)} m`)}</p>
+
+</body>
+</html>
+            `;
+
+            // Trigger the download with the new filename
+            downloadFile('hot wheels car launched up off a table.html', htmlContent);
+        }
+
+
+        // --- EVENT LISTENERS ---
+        dom.resetButton.addEventListener('click', generateProblem);
+        dom.downloadButton.addEventListener('click', generateHTMLSolution); 
+        dom.tryAgainButton.addEventListener('click', () => {
+             generateProblem();
+             window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // Modal Name Submit Logic
+        function startMission() {
+            const name = dom.nameInput.value.trim();
+            if (name) {
+                studentName = name;
+                dom.nameModal.style.display = 'none';
+                dom.questions[0].input.focus();
+            } else {
+                dom.nameInput.classList.add('ring-2', 'ring-red-500', 'border-red-500');
+                dom.nameInput.placeholder = "Please enter your name!";
+            }
+        }
+        
+        dom.startBtn.addEventListener('click', startMission);
+        
+        // Global enter key listener for modal and continue button
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (dom.nameModal.style.display !== 'none') {
+                    e.preventDefault();
+                    startMission();
+                } else if (dom.scoreCard.style.display === 'block' && dom.tryAgainButton.style.display !== 'none') {
+                    e.preventDefault();
+                    dom.tryAgainButton.click();
+                }
+            }
+        });
+        
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            
+            // Add 'Enter' key listener to submit question check
+            document.getElementById(`q${i}-input`).addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    document.getElementById(`q${i}-button`).click();
+                }
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        generateProblem();
+        
+        
+        // --- 100 UNIQUE SUPERLATIVE MESSAGES FOR PERFECT SCORES ---
+        const perfectMessages = [
+            "Absolutely stellar performance, [Name]! You are a physics prodigy!",
+            "Magnificent work, [Name]! Your kinematic skills are unmatched!",
+            "[Name], you have mastered the art of projectile motion! Flawless!",
+            "Incredible precision, [Name]! Sir Isaac Newton would be jealous!",
+            "A transcendent display of intellect, [Name]! Absolutely breathtaking!",
+            "[Name], your calculating power is beyond human! Spectacular!",
+            "Phenomenal job, [Name]! You just bent the laws of physics to your will!",
+            "Unprecedented accuracy, [Name]! A historically perfect run!",
+            "[Name], you are the undisputed champion of kinematics!",
+            "Mind-boggling brilliance, [Name]! Truly a masterclass in physics!",
+            "Astounding competence, [Name]! You hit every calculation perfectly!",
+            "[Name], you've achieved kinematic enlightenment! Beautifully done!",
+            "Unbelievable mastery, [Name]! You are a mathematical virtuoso!",
+            "Stunning perfection, [Name]! Your trajectory is flawless!",
+            "[Name], that was an awe-inspiring display of raw brainpower!",
+            "Spectacularly solved, [Name]! You leave no variable unturned!",
+            "[Name], your problem-solving is out of this stratosphere!",
+            "A divine demonstration of physics, [Name]! Perfection realized!",
+            "Miraculous accuracy, [Name]! Your intellect is terrifyingly sharp!",
+            "[Name], you are a monumental force of scientific nature!",
+            "Exquisite calculations, [Name]! A truly legendary performance!",
+            "Unrivaled intellect, [Name]! You crushed those equations!",
+            "[Name], that was a glorious symphony of perfect numbers!",
+            "Extraordinarily brilliant, [Name]! The universe makes sense in your hands!",
+            "[Name], your physics intuition is undeniably superhuman!",
+            "Impeccable logic, [Name]! You are a celestial calculator!",
+            "Radiant genius, [Name]! You've illuminated the entire problem!",
+            "[Name], an unequivocally flawless victory over gravity!",
+            "Majestic mathematics, [Name]! A triumph of the human mind!",
+            "[Name], you've orchestrated a masterpiece of projectile physics!",
+            "Breathtakingly precise, [Name]! You're a scientific titan!",
+            "[Name], your deductive reasoning is flawlessly immaculate!",
+            "A resplendent victory, [Name]! You conquered every variable!",
+            "[Name], you are an unparalleled titan of trajectory!",
+            "Infallible calculations, [Name]! Truly a paragon of physics!",
+            "[Name], that was a dazzling exhibition of sheer genius!",
+            "Supremely accurate, [Name]! You make gravity look easy!",
+            "[Name], your mind operates at a breathtaking frequency!",
+            "A sublime problem-solving masterclass, [Name]! Bravo!",
+            "[Name], you just executed the most spectacular calculation ever!",
+            "Peerless intellect, [Name]! You sit upon the throne of kinematics!",
+            "[Name], an unbelievably pristine set of answers! Wow!",
+            "Triumphant success, [Name]! You are a legendary scholar!",
+            "[Name], you have a frighteningly perfect grasp of motion!",
+            "Monumental achievement, [Name]! Truly elite performance!",
+            "[Name], your genius is unequivocally confirmed today!",
+            "A breathtakingly elegant solution, [Name]! Absolute perfection!",
+            "[Name], you are an all-knowing oracle of physics!",
+            "Fabulously calculated, [Name]! A flawless intellectual dance!",
+            "[Name], your mastery of the void is simply marvelous!",
+            "Unyielding precision, [Name]! A testament to your brilliance!",
+            "[Name], you've reached the absolute pinnacle of physics perfection!",
+            "Inconceivably accurate, [Name]! A prodigy in our midst!",
+            "[Name], an astonishingly beautiful sequence of correct answers!",
+            "Gloriously executed, [Name]! You are a true kinematic deity!",
+            "[Name], your analytical prowess is incredibly majestic!",
+            "A spectacular triumph of reason, [Name]! Exceptionally done!",
+            "[Name], you possess an absolutely formidable intellect!",
+            "Transcendent problem-solving, [Name]! A true tour de force!",
+            "[Name], your brain is a flawless physics engine!",
+            "Immaculately reasoned, [Name]! A flawlessly executed mission!",
+            "[Name], a profoundly perfect display of scientific literacy!",
+            "Superlative work, [Name]! You are the maestro of motion!",
+            "[Name], your calculations are breathtakingly pristine!",
+            "An awe-inspiring intellectual victory, [Name]! Outstanding!",
+            "[Name], you have definitively conquered the laws of physics!",
+            "Stupendously brilliant, [Name]! A profoundly flawless run!",
+            "[Name], you are a relentless force of mathematical perfection!",
+            "Elegantly demolished, [Name]! You made that look like magic!",
+            "[Name], an overwhelmingly beautiful display of competence!",
+            "Miraculously precise, [Name]! You are a kinematic legend!",
+            "[Name], a truly monumental feat of intellectual might!",
+            "Unimpeachably perfect, [Name]! You simply cannot be stopped!",
+            "[Name], your absolute mastery of gravity is staggering!",
+            "A dazzling triumph of logic, [Name]! Phenomenally solved!",
+            "[Name], you have utterly vanquished this physics problem!",
+            "Incredibly majestic work, [Name]! An elite intellectual display!",
+            "[Name], your command of kinematics is historically significant!",
+            "A superbly immaculate performance, [Name]! Brilliant!",
+            "[Name], you are a terrifyingly accurate human supercomputer!",
+            "Astoundingly flawless, [Name]! You radiate pure genius!",
+            "[Name], an impossibly perfect run! Hats off to you!",
+            "Tremendously executed, [Name]! The cosmos bows to your math!",
+            "[Name], you are the undisputed sovereign of projectile physics!",
+            "A flawlessly radiant demonstration of skill, [Name]! Epic!",
+            "[Name], your conceptual grasp is miraculously perfect!",
+            "Unbelievably superb, [Name]! You are a titan of logic!",
+            "[Name], an extravagantly perfect display of calculations!",
+            "Supremely magnificent, [Name]! You've achieved physics nirvana!",
+            "[Name], an impossibly pristine sequence of brilliant answers!",
+            "A spectacularly flawless intellectual conquest, [Name]! Bravo!",
+            "[Name], you are undeniably the absolute master of motion!",
+            "Monumentally perfect, [Name]! Your genius shines brilliantly!",
+            "[Name], a profoundly magical display of mathematical prowess!",
+            "Unstoppably brilliant, [Name]! You crushed this with elegance!",
+            "[Name], an absolutely transcendent kinematic performance!",
+            "A gloriously immaculate triumph, [Name]! Exceptionally brilliant!",
+            "[Name], you are a breathtakingly perfect physics savant!",
+            "Historically flawless, [Name]! A truly majestic accomplishment!",
+            "[Name], an unbelievably phenomenal demonstration of pure intellect!"
+        ];
+
+    </script>
+</body>
+</html>
