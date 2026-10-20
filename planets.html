@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Planet Fact Face-Off: Orbital Slingshot</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background-color: #030712;
+      color: white;
+      overflow: hidden;
+      touch-action: none; /* Prevent scroll on canvas drag */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #stars-container {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .star {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      animation: twinkle infinite alternate ease-in-out;
+    }
+    @keyframes twinkle {
+      0% { opacity: 0.1; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .planet-base {
+      box-shadow: inset -15px -15px 25px rgba(0,0,0,0.6), 0 0 20px rgba(255,255,255,0.2);
+      border-radius: 50%;
+    }
+    
+    /* Planet Gradients */
+    .mercury { background: radial-gradient(circle at 30% 30%, #d1d5db, #4b5563); }
+    .venus { background: radial-gradient(circle at 30% 30%, #fde047, #b45309); }
+    .earth { background: radial-gradient(circle at 30% 30%, #60a5fa, #1e3a8a); }
+    .mars { background: radial-gradient(circle at 30% 30%, #f87171, #7f1d1d); }
+    .jupiter {
+      background: repeating-linear-gradient(0deg, #9a3412, #9a3412 15%, #fdba74 15%, #fdba74 30%, #c2410c 30%, #c2410c 45%);
+    }
+    .saturn {
+      background: radial-gradient(circle at 30% 30%, #fef08a, #a16207);
+    }
+    .uranus { background: radial-gradient(circle at 30% 30%, #67e8f9, #083344); }
+    .neptune { background: radial-gradient(circle at 30% 30%, #2563eb, #172554); }
+
+    @keyframes explode {
+      0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(0) rotate(360deg); opacity: 0; }
+    }
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      animation: explode 1s ease-out forwards;
+      z-index: 50;
+    }
+
+    /* Winner Banner Animation */
+    @keyframes slideInBounce {
+      0% { transform: translateY(-150px) scale(0.5); opacity: 0; }
+      60% { transform: translateY(20px) scale(1.1); opacity: 1; }
+      80% { transform: translateY(-10px) scale(0.95); opacity: 1; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .winner-banner-anim {
+      animation: slideInBounce 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center h-screen w-screen relative">
+
+  <!-- Background Stars -->
+  <div id="stars-container"></div>
+
+  <!-- Start Screen -->
+  <div id="start-screen" class="absolute z-30 flex flex-col items-center bg-gray-900/90 p-8 md:p-10 rounded-3xl border-4 border-indigo-500 shadow-[0_0_50px_rgba(99,102,241,0.5)] max-w-3xl text-center backdrop-blur-md">
+    <div class="text-6xl mb-4 animate-bounce">🪐☄️🛰️</div>
+    <h1 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 mb-6 drop-shadow-lg">
+      Orbital Fact Face-Off!
+    </h1>
+    
+    <div class="bg-indigo-950/50 p-6 rounded-2xl border border-indigo-400/50 mb-8 text-left">
+      <h2 class="text-2xl font-bold text-yellow-300 mb-3 text-center">How to Play:</h2>
+      <ul class="text-gray-200 space-y-2 text-lg">
+        <li>🚀 <strong>1.</strong> Both players drag an arrow from their ship to launch it.</li>
+        <li>🪐 <strong>2.</strong> Use the planet's gravity to curve your path!</li>
+        <li>🎯 <strong>3.</strong> The player who intercepts (or gets closest to) the Space Station wins the right to answer the trivia question!</li>
+        <li>💡 <strong>4.</strong> If the winner gets the answer wrong, the other player can <strong>STEAL!</strong></li>
+      </ul>
+    </div>
+    
+    <button onclick="startGame()" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-black text-3xl py-4 px-12 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.6)] transform transition hover:scale-105 active:scale-95">
+      START LAUNCH SEQUENCE
+    </button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="game-screen" class="hidden flex-col w-full h-full p-2 md:p-4 z-10 absolute inset-0">
+    
+    <!-- Top Score Tracks -->
+    <div class="flex justify-between w-full gap-4 h-20 md:h-24 shrink-0">
+      <!-- Player 1 Score -->
+      <div class="flex-1 bg-red-950/60 rounded-2xl p-2 md:p-4 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] flex items-center">
+        <div class="text-red-300 font-black text-lg md:text-2xl w-20 md:w-32 leading-tight">P1 Score:<br><span id="p1-score" class="text-3xl md:text-4xl text-white">0</span></div>
+        <div class="flex-1 relative h-full ml-2 border-b-4 border-dashed border-red-500/50 flex items-center">
+           <div id="p1-rocket" class="absolute text-4xl md:text-5xl transition-all duration-1000 ease-out z-20" style="left: 0%;">🚀</div>
+        </div>
+      </div>
+      <!-- Player 2 Score -->
+      <div class="flex-1 bg-blue-950/60 rounded-2xl p-2 md:p-4 border-2 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center">
+        <div class="text-blue-300 font-black text-lg md:text-2xl w-20 md:w-32 leading-tight text-right order-2">P2 Score:<br><span id="p2-score" class="text-3xl md:text-4xl text-white">0</span></div>
+        <div class="flex-1 relative h-full mr-2 border-b-4 border-dashed border-blue-500/50 flex items-center order-1">
+           <div id="p2-rocket" class="absolute text-4xl md:text-5xl transition-all duration-1000 ease-out z-20" style="right: 0%; transform: scaleX(-1);">🚀</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Play Area (Canvas OR Trivia) -->
+    <div class="flex-1 relative w-full mt-4 bg-gray-900/50 rounded-3xl border-4 border-gray-700 overflow-hidden shadow-2xl backdrop-blur-sm flex flex-col items-center justify-center">
+      
+      <!-- Minigame Overlay -->
+      <div id="minigame-container" class="absolute inset-0 z-20 flex flex-col items-center justify-between">
+         <!-- Canvas for Orbit Simulation -->
+         <canvas id="orbit-canvas" class="absolute inset-0 z-0"></canvas>
+         
+         <!-- Top Banner Instructions -->
+         <div id="minigame-status" class="z-10 mt-6 bg-gray-800/80 px-6 py-3 rounded-full border-2 border-yellow-400 text-yellow-300 font-bold text-xl md:text-2xl shadow-lg backdrop-blur text-center pointer-events-none">
+           Drag to aim your ship! First to the station wins!
+         </div>
+
+         <!-- Launch Controls (Appears when both drawn) -->
+         <div class="z-10 mb-8 pointer-events-none w-full flex justify-center h-20">
+            <button id="launch-btn" onclick="launchShips()" class="hidden pointer-events-auto bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-black text-3xl py-4 px-12 rounded-full shadow-[0_0_30px_rgba(249,115,22,0.8)] transform transition hover:scale-110 active:scale-95 border-4 border-white">
+              LAUNCH!
+            </button>
+         </div>
+      </div>
+
+      <!-- Question Board (Hidden initially) -->
+      <div id="question-board" class="hidden z-30 w-[95%] md:w-3/4 max-w-4xl bg-gray-800/95 rounded-[2.5rem] border-8 border-gray-500 p-6 md:p-10 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-md transform transition-all">
+          
+          <div id="winner-banner" class="hidden absolute -top-8 bg-gradient-to-r from-yellow-400 to-yellow-600 px-8 py-2 rounded-full border-4 border-white shadow-xl text-gray-900 font-black text-2xl winner-banner-anim">
+             P1 Wins First Choice!
+          </div>
+
+          <!-- Planet Icon for Trivia -->
+          <div id="planet-graphic" class="w-20 h-20 md:w-32 md:h-32 mb-4 mx-auto planet-base transition-all duration-500 animate-bounce"></div>
+
+          <!-- Question Text -->
+          <h2 id="question-text" class="text-2xl md:text-3xl font-bold text-center text-white mb-6 min-h-[80px] flex items-center justify-center drop-shadow-md">
+            Loading...
+          </h2>
+
+          <!-- Status / Feedback Text -->
+          <div id="status-text" class="text-xl md:text-2xl font-black text-yellow-300 mb-6 h-8 text-center drop-shadow">
+            Get Ready!
+          </div>
+
+          <!-- Multiple Choice Answers -->
+          <div id="answers-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+             <!-- Buttons injected by JS -->
+          </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- End Screen -->
+  <div id="end-screen" class="hidden absolute z-40 inset-0 flex-col items-center justify-center bg-gray-900/95 p-12 backdrop-blur-xl text-center">
+    <div class="text-7xl mb-6 animate-pulse">🏆</div>
+    <h1 id="winner-text" class="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+      Game Over!
+    </h1>
+    <p id="final-score-text" class="text-3xl text-gray-300 mb-10 font-bold bg-gray-800/50 px-8 py-4 rounded-3xl border border-gray-600">
+      P1: 0 | P2: 0
+    </p>
+    <button onclick="resetGame()" class="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 font-black text-3xl py-4 px-12 rounded-full shadow-[0_0_30px_rgba(251,191,36,0.8)] transform transition hover:scale-105 active:scale-95">
+      PLAY AGAIN
+    </button>
+  </div>
+
+  <script>
+    // --- Data & Game State ---
+    const questions = [
+      { planet: "Mercury", color: "#d1d5db", text: "I am the closest planet to the Sun. I shrink as I cool down! Who am I?", options: ["Mercury", "Venus", "Mars"], answer: "Mercury" },
+      { planet: "Venus", color: "#fde047", text: "I am the hottest planet in the solar system, and I spin backwards! Who am I?", options: ["Mars", "Venus", "Jupiter"], answer: "Venus" },
+      { planet: "Earth", color: "#60a5fa", text: "I am the only planet known to have liquid water on my surface and support life! Who am I?", options: ["Earth", "Neptune", "Saturn"], answer: "Earth" },
+      { planet: "Mars", color: "#f87171", text: "I am known as the Red Planet and I have the tallest volcano in the solar system! Who am I?", options: ["Venus", "Mars", "Uranus"], answer: "Mars" },
+      { planet: "Jupiter", color: "#fdba74", text: "I am the largest planet and I have a giant storm called the Great Red Spot! Who am I?", options: ["Jupiter", "Saturn", "Neptune"], answer: "Jupiter" },
+      { planet: "Saturn", color: "#fef08a", text: "I am famous for my beautiful, bright rings made of ice and rock! Who am I?", options: ["Uranus", "Saturn", "Jupiter"], answer: "Saturn" },
+      { planet: "Uranus", color: "#67e8f9", text: "I am an ice giant that spins completely on my side! Who am I?", options: ["Uranus", "Neptune", "Venus"], answer: "Uranus" },
+      { planet: "Neptune", color: "#2563eb", text: "I am the farthest planet from the Sun and the windiest planet of all! Who am I?", options: ["Mars", "Jupiter", "Neptune"], answer: "Neptune" }
+    ];
+
+    let currentQIndex = 0;
+    let p1Score = 0;
+    let p2Score = 0;
+    let activePlayer = null; // 1 or 2 (who is answering trivia)
+    let lockedPlayer = null; // 1 or 2 (who got it wrong and is locked out)
+    let isTransitioning = false;
+
+    // --- Background Stars ---
+    function createStars() {
+      const container = document.getElementById('stars-container');
+      for (let i = 0; i < 150; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}vw`;
+        star.style.top = `${Math.random() * 100}vh`;
+        star.style.animationDuration = `${Math.random() * 3 + 1}s`;
+        star.style.animationDelay = `${Math.random() * 2}s`;
+        container.appendChild(star);
+      }
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // --- Orbital Mini-Game Engine ---
+    const canvas = document.getElementById('orbit-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let cw, ch;
+    let simState = 'INPUT'; // INPUT, SIMULATING, DONE
+    let animFrame;
+    
+    const G_CONST = 3800; // Gravity strength multiplier increased to make direct shots crash
+    const VEL_MULT = 0.08; // How much drag length translates to velocity
+    
+    let simPlanet = { x: 0, y: 0, radius: 70, color: '#fff' }; // Larger collision zone
+    let simTarget = { x: 0, y: 0, radius: 25 };
+    
+    let ship1 = { id: 1, color: '#ef4444', x: 0, y: 0, startX:0, startY:0, vx: 0, vy: 0, radius: 12, drawn: false, active: true, path: [], minDist: Infinity, status: 'ready', dragEnd: null };
+    let ship2 = { id: 2, color: '#3b82f6', x: 0, y: 0, startX:0, startY:0, vx: 0, vy: 0, radius: 12, drawn: false, active: true, path: [], minDist: Infinity, status: 'ready', dragEnd: null };
+
+    // Active pointers for drawing vectors
+    let pointers = {}; 
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      cw = canvas.width;
+      ch = canvas.height;
+      
+      // Keep planet in center
+      simPlanet.x = cw / 2;
+      simPlanet.y = ch / 2;
+      
+      // Target at top center
+      simTarget.x = cw / 2;
+      simTarget.y = 80;
+      
+      // Ships start positions if in INPUT state
+      if (simState === 'INPUT') {
+          setShipStartPositions();
+      }
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function setShipStartPositions() {
+      // P1 bottom left
+      ship1.x = ship1.startX = Math.max(50, cw / 2 - 200);
+      ship1.y = ship1.startY = ch - 100;
+      // P2 bottom right
+      ship2.x = ship2.startX = Math.min(cw - 50, cw / 2 + 200);
+      ship2.y = ship2.startY = ch - 100;
+    }
+
+    function startOrbitMinigame() {
+      simState = 'INPUT';
+      pointers = {}; // Clear any stale pointers from previous rounds
+
+      // Reveal container FIRST so getBoundingClientRect() returns valid dimensions for canvas
+      document.getElementById('minigame-container').classList.remove('hidden');
+      document.getElementById('question-board').classList.add('hidden');
+      document.getElementById('launch-btn').classList.add('hidden');
+      document.getElementById('minigame-status').innerText = "Gravity is STRONG! Curve your path!";
+      
+      resizeCanvas();
+      
+      const q = questions[currentQIndex];
+      simPlanet.color = q.color;
+      simPlanet.name = q.planet.toLowerCase();
+
+      // Reset Ships
+      [ship1, ship2].forEach(s => {
+         s.vx = 0; s.vy = 0;
+         s.drawn = false;
+         s.active = true;
+         s.path = [];
+         s.minDist = Infinity;
+         s.status = 'ready';
+         s.dragEnd = null;
+      });
+      
+      if(animFrame) cancelAnimationFrame(animFrame);
+      orbitLoop();
+    }
+
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX || e.touches[0].clientX) - rect.left,
+        y: (e.clientY || e.touches[0].clientY) - rect.top
+      };
+    }
+
+    function handlePointerDown(e) {
+      if (simState !== 'INPUT') return;
+      e.preventDefault();
+      
+      // Handle both touch and mouse
+      const eventList = e.changedTouches ? Array.from(e.changedTouches) : [e];
+      const rect = canvas.getBoundingClientRect();
+
+      eventList.forEach(ev => {
+          const px = (ev.clientX || e.clientX) - rect.left;
+          const py = (ev.clientY || e.clientY) - rect.top;
+          const id = ev.identifier !== undefined ? ev.identifier : 'mouse';
+          
+          // Check which ship is closer to initial click to assign ownership
+          let d1 = Math.hypot(px - ship1.startX, py - ship1.startY);
+          let d2 = Math.hypot(px - ship2.startX, py - ship2.startY);
+          
+          if (d1 < d2 && d1 < 150 && !ship1.drawn) {
+             pointers[id] = { ship: ship1, sx: ship1.startX, sy: ship1.startY, cx: px, cy: py };
+          } else if (d2 < d1 && d2 < 150 && !ship2.drawn) {
+             pointers[id] = { ship: ship2, sx: ship2.startX, sy: ship2.startY, cx: px, cy: py };
+          }
+      });
+    }
+
+    function handlePointerMove(e) {
+      if (simState !== 'INPUT') return;
+      e.preventDefault();
+      const eventList = e.changedTouches ? Array.from(e.changedTouches) : [e];
+      const rect = canvas.getBoundingClientRect();
+
+      eventList.forEach(ev => {
+          const id = ev.identifier !== undefined ? ev.identifier : 'mouse';
+          if (pointers[id]) {
+              let rawX = (ev.clientX || e.clientX) - rect.left;
+              let rawY = (ev.clientY || e.clientY) - rect.top;
+              
+              let s = pointers[id].ship;
+              let dx = rawX - s.startX;
+              let dy = rawY - s.startY;
+              let dist = Math.hypot(dx, dy);
+              const MAX_DRAG = 130; // Cap the maximum vector length so they can't overpower gravity
+              
+              if (dist > MAX_DRAG) {
+                  rawX = s.startX + (dx / dist) * MAX_DRAG;
+                  rawY = s.startY + (dy / dist) * MAX_DRAG;
+              }
+              
+              pointers[id].cx = rawX;
+              pointers[id].cy = rawY;
+              pointers[id].ship.dragEnd = { x: rawX, y: rawY };
+          }
+      });
+    }
+
+    function handlePointerUp(e) {
+      if (simState !== 'INPUT') return;
+      e.preventDefault();
+      const eventList = e.changedTouches ? Array.from(e.changedTouches) : [e];
+
+      eventList.forEach(ev => {
+          const id = ev.identifier !== undefined ? ev.identifier : 'mouse';
+          if (pointers[id]) {
+              let s = pointers[id].ship;
+              let dx = pointers[id].cx - s.startX;
+              let dy = pointers[id].cy - s.startY;
+              
+              // Only register if dragged far enough
+              if (Math.hypot(dx, dy) > 10) {
+                 s.vx = dx * VEL_MULT;
+                 s.vy = dy * VEL_MULT;
+                 s.drawn = true;
+              } else {
+                 s.dragEnd = null; // Reset if tap
+              }
+              delete pointers[id];
+          }
+      });
+
+      // Show launch button if both drawn
+      if (ship1.drawn && ship2.drawn) {
+          document.getElementById('launch-btn').classList.remove('hidden');
+          document.getElementById('minigame-status').innerText = "Vectors Set! Ready for Launch!";
+      }
+    }
+
+    canvas.addEventListener('mousedown', handlePointerDown);
+    canvas.addEventListener('mousemove', handlePointerMove);
+    canvas.addEventListener('mouseup', handlePointerUp);
+    canvas.addEventListener('mouseleave', handlePointerUp);
+    
+    canvas.addEventListener('touchstart', handlePointerDown, {passive: false});
+    canvas.addEventListener('touchmove', handlePointerMove, {passive: false});
+    canvas.addEventListener('touchend', handlePointerUp, {passive: false});
+    canvas.addEventListener('touchcancel', handlePointerUp, {passive: false});
+
+    function launchShips() {
+       simState = 'SIMULATING';
+       document.getElementById('launch-btn').classList.add('hidden');
+       document.getElementById('minigame-status').innerText = "Orbits Active!";
+    }
+
+    function orbitLoop() {
+       updatePhysics();
+       drawCanvas();
+       
+       if (simState === 'DONE') {
+          setTimeout(resolveMinigame, 1500); // Wait a moment before switching to trivia
+          return; // Stop loop
+       }
+       animFrame = requestAnimationFrame(orbitLoop);
+    }
+
+    function updatePhysics() {
+       if (simState !== 'SIMULATING') return;
+
+       let allDone = true;
+
+       [ship1, ship2].forEach(s => {
+           if (!s.active) return;
+           allDone = false;
+
+           // Gravity
+           let dx = simPlanet.x - s.x;
+           let dy = simPlanet.y - s.y;
+           let distSq = dx*dx + dy*dy;
+           let dist = Math.sqrt(distSq);
+
+           if (distSq > 100) { // Avoid singularity
+               let F = G_CONST / distSq;
+               s.vx += F * (dx / dist);
+               s.vy += F * (dy / dist);
+           }
+
+           s.x += s.vx;
+           s.y += s.vy;
+
+           // Record path for trail
+           if (s.path.length === 0 || Math.hypot(s.path[s.path.length-1].x - s.x, s.path[s.path.length-1].y - s.y) > 5) {
+               s.path.push({x: s.x, y: s.y});
+           }
+
+           // Check Min Distance to target
+           let tx = simTarget.x - s.x;
+           let ty = simTarget.y - s.y;
+           let tDist = Math.sqrt(tx*tx + ty*ty);
+           if (tDist < s.minDist) s.minDist = tDist;
+
+           // Collisions
+           if (dist < simPlanet.radius + s.radius) {
+               s.active = false;
+               s.status = 'crashed';
+           } else if (tDist < simTarget.radius + s.radius) {
+               s.active = false;
+               s.status = 'hit';
+               s.minDist = 0; // Perfect hit
+           } else if (s.x < -cw || s.x > cw*2 || s.y < -ch || s.y > ch*2 || s.path.length > 500) {
+               s.active = false;
+               s.status = 'lost';
+           }
+       });
+
+       if (allDone) {
+           simState = 'DONE';
+       }
+    }
+
+    function drawCanvas() {
+       ctx.clearRect(0, 0, cw, ch);
+
+       // Draw Planet with glowing effect based on current question
+       ctx.shadowBlur = 30;
+       ctx.shadowColor = simPlanet.color;
+       ctx.beginPath();
+       ctx.arc(simPlanet.x, simPlanet.y, simPlanet.radius, 0, Math.PI * 2);
+       let grd = ctx.createRadialGradient(simPlanet.x-10, simPlanet.y-10, 5, simPlanet.x, simPlanet.y, simPlanet.radius);
+       grd.addColorStop(0, '#ffffff');
+       grd.addColorStop(1, simPlanet.color);
+       ctx.fillStyle = grd;
+       ctx.fill();
+       ctx.shadowBlur = 0; // reset
+
+       // Draw Target (Space Station)
+       ctx.save();
+       ctx.translate(simTarget.x, simTarget.y);
+       // Simple station drawing
+       ctx.fillStyle = '#9ca3af';
+       ctx.fillRect(-20, -10, 40, 20); // body
+       ctx.fillStyle = '#3b82f6';
+       ctx.fillRect(-45, -5, 25, 10); // left panel
+       ctx.fillRect(20, -5, 25, 10); // right panel
+       ctx.beginPath();
+       ctx.arc(0, 0, simTarget.radius, 0, Math.PI * 2);
+       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+       ctx.lineWidth = 2;
+       ctx.stroke();
+       ctx.restore();
+
+       // Draw Ships
+       [ship1, ship2].forEach(s => {
+           // Draw Path / Drag Line
+           if (simState === 'INPUT' && s.dragEnd && !s.drawn) {
+               // Drawing active drag
+               ctx.beginPath();
+               ctx.moveTo(s.startX, s.startY);
+               ctx.lineTo(s.dragEnd.x, s.dragEnd.y);
+               ctx.strokeStyle = s.color;
+               ctx.lineWidth = 4;
+               ctx.setLineDash([5, 5]);
+               ctx.stroke();
+               ctx.setLineDash([]);
+               
+               // Arrowhead
+               let angle = Math.atan2(s.dragEnd.y - s.startY, s.dragEnd.x - s.startX);
+               ctx.beginPath();
+               ctx.moveTo(s.dragEnd.x, s.dragEnd.y);
+               ctx.lineTo(s.dragEnd.x - 15 * Math.cos(angle - Math.PI/6), s.dragEnd.y - 15 * Math.sin(angle - Math.PI/6));
+               ctx.lineTo(s.dragEnd.x - 15 * Math.cos(angle + Math.PI/6), s.dragEnd.y - 15 * Math.sin(angle + Math.PI/6));
+               ctx.fillStyle = s.color;
+               ctx.fill();
+
+           } else if (simState === 'INPUT' && s.drawn) {
+               // Vector set preview
+               ctx.beginPath();
+               ctx.moveTo(s.startX, s.startY);
+               ctx.lineTo(s.startX + (s.vx / VEL_MULT), s.startY + (s.vy / VEL_MULT));
+               ctx.strokeStyle = s.color;
+               ctx.lineWidth = 4;
+               ctx.stroke();
+           } else {
+               // Draw Trail
+               if (s.path.length > 1) {
+                   ctx.beginPath();
+                   ctx.moveTo(s.path[0].x, s.path[0].y);
+                   for(let i=1; i<s.path.length; i++) ctx.lineTo(s.path[i].x, s.path[i].y);
+                   ctx.strokeStyle = s.color + '88'; // Add transparency
+                   ctx.lineWidth = 3;
+                   ctx.stroke();
+               }
+           }
+
+           // Draw Ship Body
+           if (s.status !== 'crashed') {
+               ctx.save();
+               ctx.translate(s.x, s.y);
+               // Rotate ship to face velocity vector if moving
+               if (simState === 'SIMULATING') {
+                   ctx.rotate(Math.atan2(s.vy, s.vx));
+               } else if (simState === 'INPUT' && s.dragEnd && !s.drawn) {
+                   ctx.rotate(Math.atan2(s.dragEnd.y - s.startY, s.dragEnd.x - s.startX));
+               } else if (s.drawn) {
+                   ctx.rotate(Math.atan2(s.vy, s.vx));
+               }
+               
+               // Ship shape (triangle)
+               ctx.beginPath();
+               ctx.moveTo(12, 0);
+               ctx.lineTo(-10, 8);
+               ctx.lineTo(-10, -8);
+               ctx.closePath();
+               ctx.fillStyle = s.color;
+               ctx.fill();
+               
+               // Engine glow if active
+               if (simState === 'SIMULATING' && s.active) {
+                   ctx.beginPath();
+                   ctx.arc(-12, 0, 4 + Math.random()*4, 0, Math.PI*2);
+                   ctx.fillStyle = '#fb923c';
+                   ctx.fill();
+               }
+               ctx.restore();
+           }
+
+           // Status labels
+           if (simState === 'DONE') {
+               ctx.fillStyle = 'white';
+               ctx.font = 'bold 16px Quicksand';
+               ctx.textAlign = 'center';
+               let msg = s.status === 'hit' ? 'HIT!' : s.status === 'crashed' ? 'CRASHED!' : s.minDist.toFixed(0) + 'px';
+               ctx.fillText(msg, s.startX, s.startY + 30);
+           }
+       });
+    }
+
+    function resolveMinigame() {
+       let winner = null;
+       
+       // Compare min distances. Lowest wins.
+       if (ship1.minDist < ship2.minDist) {
+           winner = 1;
+       } else if (ship2.minDist < ship1.minDist) {
+           winner = 2;
+       } else {
+           // Exact tie? Give to P1 randomly or whoever was closer to target start. Default P1 for simplicity
+           winner = 1; 
+       }
+
+       document.getElementById('minigame-container').classList.add('hidden');
+       showTriviaBoard(winner);
+    }
+
+    function showTriviaBoard(winnerPlayerNum) {
+      activePlayer = winnerPlayerNum;
+      lockedPlayer = null;
+      isTransitioning = false;
+
+      const q = questions[currentQIndex];
+      const board = document.getElementById('question-board');
+      const banner = document.getElementById('winner-banner');
+      
+      board.classList.remove('hidden');
+      
+      // Update Graphic
+      const pg = document.getElementById('planet-graphic');
+      pg.className = `w-20 h-20 md:w-32 md:h-32 mb-4 mx-auto planet-base transition-all duration-500 animate-bounce ${q.planet.toLowerCase()}`;
+
+      // Text
+      document.getElementById('question-text').innerText = q.text;
+      
+      // Theme Board & Banner for Winner
+      if (winnerPlayerNum === 1) {
+          board.className = "z-30 w-[95%] md:w-3/4 max-w-4xl bg-gray-800/95 rounded-[2.5rem] border-8 border-red-500 p-6 md:p-10 flex flex-col items-center shadow-[0_0_60px_rgba(239,68,68,0.6)] backdrop-blur-md transform transition-all relative";
+          banner.innerText = "Player 1 Won Orbit! Choose Answer!";
+          banner.className = "absolute -top-8 bg-red-600 px-8 py-2 rounded-full border-4 border-white shadow-xl text-white font-black text-xl md:text-2xl winner-banner-anim";
+      } else {
+          board.className = "z-30 w-[95%] md:w-3/4 max-w-4xl bg-gray-800/95 rounded-[2.5rem] border-8 border-blue-500 p-6 md:p-10 flex flex-col items-center shadow-[0_0_60px_rgba(59,130,246,0.6)] backdrop-blur-md transform transition-all relative";
+          banner.innerText = "Player 2 Won Orbit! Choose Answer!";
+          banner.className = "absolute -top-8 bg-blue-600 px-8 py-2 rounded-full border-4 border-white shadow-xl text-white font-black text-xl md:text-2xl winner-banner-anim";
+      }
+      banner.classList.remove('hidden');
+
+      document.getElementById('status-text').innerText = `Player ${winnerPlayerNum}, it's your turn!`;
+      document.getElementById('status-text').className = `text-xl md:text-2xl font-black mb-6 h-8 text-center drop-shadow animate-pulse ${winnerPlayerNum === 1 ? 'text-red-400' : 'text-blue-400'}`;
+
+      // Options
+      const ac = document.getElementById('answers-container');
+      ac.innerHTML = '';
+      const shuffled = shuffleArray([...q.options]);
+      
+      shuffled.forEach(opt => {
+        const btn = document.createElement('button');
+        // Theme buttons for active player
+        const colorClass = winnerPlayerNum === 1 ? 'bg-red-600 hover:bg-red-500 border-red-800' : 'bg-blue-600 hover:bg-blue-500 border-blue-800';
+        btn.className = `answer-btn ${colorClass} text-white font-bold py-4 px-6 rounded-2xl border-b-[6px] active:border-b-0 active:translate-y-[6px] transition-all text-xl md:text-2xl shadow-lg`;
+        btn.innerText = opt;
+        btn.onclick = () => handleAnswer(opt);
+        ac.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(selectedOpt) {
+      if (isTransitioning) return;
+      const q = questions[currentQIndex];
+      const status = document.getElementById('status-text');
+      const board = document.getElementById('question-board');
+      const banner = document.getElementById('winner-banner');
+
+      if (selectedOpt === q.answer) {
+        // CORRECT ANSWER
+        isTransitioning = true;
+        status.innerText = "Correct! 🌟";
+        status.className = "text-3xl md:text-4xl font-black text-green-400 mb-6 h-8 text-center animate-bounce drop-shadow-[0_0_10px_rgba(74,222,128,0.8)]";
+        board.classList.replace('border-red-500', 'border-green-500');
+        board.classList.replace('border-blue-500', 'border-green-500');
+        banner.classList.add('hidden');
+
+        createConfetti();
+
+        // Update Score UI
+        if (activePlayer === 1) {
+          p1Score++;
+          document.getElementById('p1-score').innerText = p1Score;
+          document.getElementById('p1-rocket').style.left = `calc(${(p1Score / questions.length) * 100}% - 40px)`;
+        } else {
+          p2Score++;
+          document.getElementById('p2-score').innerText = p2Score;
+          document.getElementById('p2-rocket').style.right = `calc(${(p2Score / questions.length) * 100}% - 40px)`;
+        }
+
+        setTimeout(() => {
+          currentQIndex++;
+          if (currentQIndex >= questions.length) {
+              endGame();
+          } else {
+              startOrbitMinigame(); // Next round starts with orbit
+          }
+        }, 3000);
+
+      } else {
+        // WRONG ANSWER - STEAL MECHANIC
+        if (lockedPlayer === null) {
+          // First try failed
+          lockedPlayer = activePlayer;
+          activePlayer = null; // Prepare to switch
+          isTransitioning = true;
+          
+          status.innerText = "Incorrect Orbit Calculations! 💥";
+          status.className = "text-2xl font-black text-gray-400 mb-6 h-8 text-center";
+          banner.classList.add('hidden');
+
+          let otherPlayer = lockedPlayer === 1 ? 2 : 1;
+          
+          setTimeout(() => {
+            isTransitioning = false;
+            // Rekindle trivia for the stealer
+            activePlayer = otherPlayer;
+            
+            // Swap board colors
+            if (activePlayer === 1) {
+               board.classList.replace('border-blue-500', 'border-red-500');
+               board.style.boxShadow = "0 0 60px rgba(239,68,68,0.6)";
+            } else {
+               board.classList.replace('border-red-500', 'border-blue-500');
+               board.style.boxShadow = "0 0 60px rgba(59,130,246,0.6)";
+            }
+            
+            banner.innerText = `Player ${activePlayer} STEALS!`;
+            banner.className = `absolute -top-8 ${activePlayer === 1 ? 'bg-red-600' : 'bg-blue-600'} px-8 py-2 rounded-full border-4 border-white shadow-xl text-white font-black text-xl md:text-2xl winner-banner-anim`;
+            banner.classList.remove('hidden');
+            
+            status.innerText = `Player ${activePlayer}, steal the points!`;
+            status.className = `text-xl md:text-2xl font-black mb-6 h-8 text-center drop-shadow animate-pulse ${activePlayer === 1 ? 'text-red-400' : 'text-blue-400'}`;
+
+            // Update button colors
+            const answerBtns = document.querySelectorAll('.answer-btn');
+            const colorClass = activePlayer === 1 ? 'bg-red-600 hover:bg-red-500 border-red-800' : 'bg-blue-600 hover:bg-blue-500 border-blue-800';
+            answerBtns.forEach(b => {
+               b.className = `answer-btn ${colorClass} text-white font-bold py-4 px-6 rounded-2xl border-b-[6px] active:border-b-0 active:translate-y-[6px] transition-all text-xl md:text-2xl shadow-lg`;
+            });
+
+          }, 2000);
+
+        } else {
+          // Second try failed
+          isTransitioning = true;
+          status.innerText = "Both Missed! The answer was " + q.answer;
+          status.className = "text-xl md:text-2xl font-black text-yellow-500 mb-6 h-8 text-center";
+          banner.classList.add('hidden');
+          
+          setTimeout(() => {
+            currentQIndex++;
+            if (currentQIndex >= questions.length) {
+                endGame();
+            } else {
+                startOrbitMinigame();
+            }
+          }, 3500);
+        }
+      }
+    }
+
+    function createConfetti() {
+      const container = document.getElementById('game-screen');
+      const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ffffff'];
+      
+      for(let i = 0; i < 60; i++) {
+        const p = document.createElement('div');
+        p.innerText = Math.random() > 0.7 ? '✨' : (Math.random() > 0.5 ? '⭐' : '');
+        if (p.innerText === '') {
+          p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          p.style.width = (Math.random() * 10 + 5) + 'px';
+          p.style.height = p.style.width;
+          p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        }
+
+        p.className = 'particle text-2xl md:text-4xl';
+        p.style.left = '50%';
+        p.style.top = '50%';
+        
+        const tx = (Math.random() - 0.5) * 1000 + 'px';
+        const ty = (Math.random() - 0.5) * 1000 + 'px';
+        p.style.setProperty('--tx', tx);
+        p.style.setProperty('--ty', ty);
+        
+        container.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+      }
+    }
+
+    function startGame() {
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('end-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      document.getElementById('game-screen').classList.add('flex');
+      
+      // Shuffle questions for variety
+      shuffleArray(questions);
+      
+      startOrbitMinigame();
+    }
+
+    function endGame() {
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('flex');
+      document.getElementById('end-screen').classList.remove('hidden');
+      document.getElementById('end-screen').classList.add('flex');
+
+      const winnerText = document.getElementById('winner-text');
+      const scoreText = document.getElementById('final-score-text');
+
+      scoreText.innerText = `Player 1: ${p1Score} | Player 2: ${p2Score}`;
+
+      if (p1Score > p2Score) {
+        winnerText.innerText = "Player 1 Wins! 🔴";
+        winnerText.className = "text-5xl md:text-7xl font-black text-red-500 mb-6 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]";
+      } else if (p2Score > p1Score) {
+        winnerText.innerText = "Player 2 Wins! 🔵";
+        winnerText.className = "text-5xl md:text-7xl font-black text-blue-500 mb-6 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]";
+      } else {
+        winnerText.innerText = "It's a Tie! 🤝";
+        winnerText.className = "text-5xl md:text-7xl font-black text-yellow-400 mb-6 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]";
+      }
+    }
+
+    function resetGame() {
+      currentQIndex = 0;
+      p1Score = 0;
+      p2Score = 0;
+      document.getElementById('p1-score').innerText = '0';
+      document.getElementById('p2-score').innerText = '0';
+      document.getElementById('p1-rocket').style.left = '0%';
+      document.getElementById('p2-rocket').style.right = '0%';
+      startGame();
+    }
+
+    // Initialize environment
+    window.onload = () => {
+      createStars();
+    };
+  </script>
+</body>
+</html>
