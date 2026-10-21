@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hot Wheels Projectile Motion Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Add MathJax for rendering LaTeX formulas -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .question-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .question-card:not(.question-disabled):hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .question-disabled {
+            background-color: #f1f5f9;
+            opacity: 0.75;
+        }
+
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #cbd5e1;
+        }
+
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+            display: none;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .feedback.correct {
+            background-color: #f0fdf4;
+            color: #166534;
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: #fef2f2;
+            color: #991b1b;
+            display: block;
+        }
+
+        .input-correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+            color: #15803d;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: #475569;
+            box-shadow: 0 4px 6px rgba(71, 85, 105, 0.2);
+        }
+        .btn-secondary:hover {
+            background-color: #334155;
+        }
+
+        #name-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+        }
+
+        .huge-score {
+            font-size: 5.5rem;
+            line-height: 1;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+            color: #fbbf24;
+        }
+
+        .main-canvas {
+            background: linear-gradient(to bottom, #87ceeb 0%, #e0f2fe 75%, #bae6fd 100%);
+            border-radius: 0.75rem;
+        }
+
+        .diagram-canvas {
+            background: #ffffff;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Name Modal -->
+    <div id="name-modal">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-100 transform transition-all">
+            <div class="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold">
+                🏎️
+            </div>
+            <h2 class="text-3xl font-extrabold mb-2 text-slate-800">Hot Wheels Physics</h2>
+            <p class="text-slate-600 mb-6 text-sm">Calculate launch velocity and predict the landing distance of a horizontally launched car in a two-part stunt!</p>
+            <input type="text" id="student-name-input" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-4 text-center text-lg outline-none" placeholder="Enter Your Name">
+            <button id="start-mission-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold w-full text-lg py-3 rounded-lg shadow-lg transition">Begin Physics Challenge</button>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-2">Hot Wheels: Horizontal Launch</h1>
+            <p class="text-slate-600 font-medium">Kinematics & Two-Dimensional Projectile Motion</p>
+        </header>
+
+        <!-- Control Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="font-bold text-slate-700">Assignment Value:</span>
+                <span class="bg-orange-100 text-orange-800 font-bold px-3 py-1 rounded-full text-sm">5 Questions (5 Points Total)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="reset-button" class="btn-secondary text-sm py-2 px-4 text-white font-semibold rounded-lg transition">
+                    🔄 New Problem Variant
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Canvas and Info -->
+        <div class="question-card p-6 mb-6">
+            <div id="canvas-wrapper" class="w-full relative mb-6">
+                <canvas id="main-canvas" class="main-canvas w-full h-72 shadow-inner border border-slate-200 rounded-lg"></canvas>
+                <div class="absolute bottom-3 left-3 flex gap-2">
+                    <button id="replay-anim-btn" class="hidden bg-orange-600 hover:bg-orange-700 text-white font-bold py-1 px-3 rounded shadow text-xs items-center gap-1">
+                        ▶️ Replay Animation
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-4">
+                <!-- Phase 1 Info -->
+                <div id="phase1-info" class="bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all duration-300">
+                    <h3 class="font-bold text-lg mb-2 text-slate-800 flex items-center gap-2"><span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-sm">Phase 1</span> Box to Table</h3>
+                    <p class="text-sm mb-3 text-slate-600">A Hot Wheels car is shot <strong>horizontally</strong> off a launcher box onto the table surface.</p>
+                    <div class="flex justify-between border-b border-slate-200 pb-1 text-sm mb-1"><span class="font-semibold text-slate-700">Box Height ($h_{box}$):</span><span id="box-height" class="text-blue-600 font-bold"></span></div>
+                    <div class="flex justify-between border-b border-slate-200 pb-1 text-sm"><span class="font-semibold text-slate-700">Table Landing Dist ($x - x_0$):</span><span id="table-dist" class="text-blue-600 font-bold"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions List -->
+        <div class="space-y-6">
+            
+            <!-- Question 1 -->
+            <div id="q1" class="question-card p-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 1 • 1 Point</span>
+                </div>
+                <label for="q1-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    1. Given that the car is shot horizontally off the box, what is $v_{0y}$, the initial vertical velocity? (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q1-input" class="flex-1 p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <button id="q1-button" class="btn-primary">Submit</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div id="q2" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 2 • 1 Point</span>
+                </div>
+                <label for="q2-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    2. Calculate the time the car spends in the air during Phase 1 (Box to Table). (in s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q2-input" class="flex-1 p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 3 -->
+            <div id="q3" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 3 • 1 Point</span>
+                </div>
+                <label for="q3-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    3. Calculate $v_{0x}$, the initial horizontal launch velocity of the car. (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q3-input" class="flex-1 p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
+                    <button id="q3-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Phase 2 Info -->
+            <div id="phase2-info" class="bg-orange-50 p-4 rounded-xl border border-orange-200 opacity-30 grayscale transition-all duration-500 mb-6">
+                <h3 class="font-bold text-lg mb-2 text-orange-900 flex items-center gap-2"><span class="bg-orange-200 text-orange-800 px-2 py-0.5 rounded text-sm">Phase 2</span> Box to Floor</h3>
+                <p class="text-sm mb-3 text-orange-800">The same box is moved to the edge of the table. The car is launched with the exact same horizontal initial velocity ($v_{0x}$) and vertical initial velocity ($v_{0y}$) as before.</p>
+                <div class="flex justify-between border-b border-orange-200 pb-1 text-sm"><span class="font-semibold text-orange-900">Launcher to Floor Dist ($y_{total}$):</span><span id="table-height" class="text-orange-700 font-bold"></span></div>
+            </div>
+
+            <!-- Question 4 -->
+            <div id="q4" class="question-card p-6 question-disabled border-orange-200">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">Question 4 • 1 Point</span>
+                    <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">Phase 2 Unlocked</span>
+                </div>
+                <label for="q4-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    4. For Phase 2 (Box to Floor), calculate the new total time the car spends in the air. (in s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q4-input" class="flex-1 p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" disabled>
+                    <button id="q4-button" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg" disabled>Submit</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 5 -->
+            <div id="q5" class="question-card p-6 question-disabled border-orange-200">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-orange-600 uppercase tracking-wider">Question 5 • 1 Point (Final)</span>
+                </div>
+                <label for="q5-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    5. Predict the new landing distance ($x - x_0$) the car will travel horizontally before hitting the floor. (in m)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q5-input" class="flex-1 p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500" disabled>
+                    <button id="q5-button" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg" disabled>Submit</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+        </div>
+
+        <!-- Final Score Card -->
+        <div id="score-card" class="bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-2xl rounded-2xl p-8 text-center mt-10 border border-orange-400" style="display: none;">
+            <div class="text-sm font-bold uppercase tracking-wider text-orange-200 mb-1">Hot Wheels: Horizontal Launch</div>
+            <h2 class="text-3xl font-extrabold mb-2" id="score-title">Challenge Completed!</h2>
+            <p id="score-message" class="text-xl font-medium text-orange-100 mb-4">Physics predictions successful!</p>
+            
+            <div class="huge-score font-black mb-2 text-yellow-300" id="final-score">5 / 5</div>
+            <div id="verification-code" class="text-xs text-orange-200/50 mb-4 font-mono tracking-widest"></div>
+            <div class="text-lg font-bold text-yellow-100 mb-4" id="score-percentage"></div>
+            
+            <p class="text-orange-100 text-base max-w-lg mx-auto mb-6" id="mistake-summary">Great job!</p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                <button id="try-again-button" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    New Scenario
+                </button>
+                <button id="download-button" class="flex-1 bg-white hover:bg-slate-100 text-red-800 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    Download Solution
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const g = 9.80;
+        const numQuestions = 5;
+        let answers = {};
+        let params = {};
+        let mistakes = {};
+        let studentName = "";
+        
+        let animFrameId = null;
+        let animProgress = 0;
+        let isAnimating = false;
+        let currentPhase = 1;
+
+        const dom = {
+            nameModal: document.getElementById('name-modal'),
+            nameInput: document.getElementById('student-name-input'),
+            startBtn: document.getElementById('start-mission-btn'),
+            boxHeight: document.getElementById('box-height'),
+            tableDist: document.getElementById('table-dist'),
+            tableHeight: document.getElementById('table-height'),
+            resetBtn: document.getElementById('reset-button'),
+            canvas: document.getElementById('main-canvas'),
+            replayBtn: document.getElementById('replay-anim-btn'),
+            phase1Info: document.getElementById('phase1-info'),
+            phase2Info: document.getElementById('phase2-info'),
+            scoreCard: document.getElementById('score-card'),
+            scoreTitle: document.getElementById('score-title'),
+            finalScore: document.getElementById('final-score'),
+            scorePercentage: document.getElementById('score-percentage'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadBtn: document.getElementById('download-button'),
+            tryAgainBtn: document.getElementById('try-again-button'),
+            questions: []
+        };
+
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+
+        function toSigFigs(num, sigFigs = 3) {
+            if (num === 0 || isNaN(num) || !isFinite(num)) return 0;
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        function checkTolerance(userAns, correctAns) {
+            if (Math.abs(correctAns) < 1e-6) return Math.abs(userAns) < 1e-4;
+            const tolerance = Math.abs(correctAns * 0.025);
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        function drawScene(time) {
+            const ctx = dom.canvas.getContext('2d');
+            const w = dom.canvas.width = dom.canvas.clientWidth;
+            const h = dom.canvas.height = dom.canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            const v0x = answers.q3 || 0;
+            const padX = 50;
+            const padY = 40;
+
+            // Compute unified scaling based on maximum values (Phase 2 scenario)
+            const totalH = params.h_total;
+            const totalX = answers.q5 || params.d_table * 2;
+            
+            const scaleY = (h - padY * 2) / (totalH * 1.1);
+            const scaleX = (w - padX * 2) / (totalX * 1.1);
+            
+            const groundY = h - padY;
+            const launchY = groundY - (totalH * scaleY);
+            const tableY = launchY + (params.h_box * scaleY);
+            const launchX = padX + 60; // Room for table edge
+            
+            const boxWidth = 50; // Wider than tall
+            const boxHeight = params.h_box * scaleY;
+
+            // Draw Floor (Always visible in both phases for consistent framing)
+            ctx.fillStyle = '#94a3b8'; // slate-400
+            ctx.fillRect(0, groundY, w, h - groundY);
+
+            if (currentPhase === 1) {
+                // Phase 1: Box to Table (Table extends across screen)
+                ctx.fillStyle = '#b45309'; // wood table top
+                ctx.fillRect(0, tableY, w, 15);
+                ctx.fillStyle = '#78350f'; // wood legs
+                ctx.fillRect(30, tableY, 15, groundY - tableY);
+                ctx.fillRect(w - 60, tableY, 15, groundY - tableY);
+
+                // Draw Box
+                ctx.fillStyle = '#ea580c'; // orange-600
+                ctx.fillRect(launchX - boxWidth, launchY, boxWidth, boxHeight);
+
+                // Path Trajectory
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                const maxT = answers.q2 || Math.sqrt(2 * params.h_box / g);
+                for (let i = 0; i <= 40; i++) {
+                    let t = (i / 40) * maxT;
+                    let px = launchX + v0x * t * scaleX;
+                    let py = launchY + 0.5 * g * t * t * scaleY;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw Car
+                const curT = Math.min(time, maxT);
+                const curX = launchX + v0x * curT * scaleX;
+                const curY = launchY + 0.5 * g * curT * curT * scaleY;
+                drawCar(ctx, curX, curY, curT === 0 ? 0 : Math.atan2(g * curT, v0x));
+
+            } else {
+                // Phase 2: Box to Floor (Table ends at box edge)
+                const tableEdgeX = launchX;
+
+                // Draw Table
+                ctx.fillStyle = '#b45309'; // wood table top
+                ctx.fillRect(0, tableY, tableEdgeX, 15);
+                ctx.fillStyle = '#78350f'; // wood legs
+                ctx.fillRect(10, tableY, 15, groundY - tableY);
+                ctx.fillRect(tableEdgeX - 15, tableY, 15, groundY - tableY);
+
+                // Draw Box on Table
+                ctx.fillStyle = '#ea580c';
+                ctx.fillRect(launchX - boxWidth, launchY, boxWidth, boxHeight);
+
+                // Path Trajectory
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                const maxT = answers.q4;
+                for (let i = 0; i <= 50; i++) {
+                    let t = (i / 50) * maxT;
+                    let px = launchX + v0x * t * scaleX;
+                    let py = launchY + 0.5 * g * t * t * scaleY;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw Car
+                const curT = Math.min(time, maxT);
+                const curX = launchX + v0x * curT * scaleX;
+                const curY = launchY + 0.5 * g * curT * curT * scaleY;
+                drawCar(ctx, curX, curY, curT === 0 ? 0 : Math.atan2(g * curT, v0x));
+            }
+        }
+
+        function drawCar(ctx, x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            
+            // Drop shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(-12, -2, 24, 10);
+
+            // Wheels
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath(); ctx.arc(-7, 5, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7, 5, 4, 0, Math.PI*2); ctx.fill();
+            
+            // Car Body
+            ctx.fillStyle = '#ef4444'; // Red Hot Wheels body
+            ctx.beginPath();
+            ctx.roundRect(-12, -6, 24, 10, 4);
+            ctx.fill();
+
+            // Window
+            ctx.fillStyle = '#bae6fd';
+            ctx.fillRect(-2, -6, 10, 4);
+
+            ctx.restore();
+        }
+
+        function playAnimation(phase, callback) {
+            currentPhase = phase;
+            animProgress = 0;
+            isAnimating = true;
+            dom.replayBtn.classList.add('hidden');
+            
+            const maxTime = phase === 1 ? answers.q2 : answers.q4;
+            const speed = maxTime / 120; // Ensure animation takes ~2 seconds to be highly visible
+            
+            function loop() {
+                if (!isAnimating) return;
+                animProgress += speed; // Smooth step scaled to total time
+                
+                if (animProgress >= maxTime) {
+                    animProgress = maxTime;
+                    drawScene(animProgress);
+                    isAnimating = false;
+                    dom.replayBtn.classList.remove('hidden');
+                    if (callback) setTimeout(callback, 500);
+                    return;
+                }
+                drawScene(animProgress);
+                animFrameId = requestAnimationFrame(loop);
+            }
+            
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            loop();
+        }
+
+        function generateProblem() {
+            // Generate Random Parameters
+            params.h_box = parseFloat((0.15 + Math.random() * 0.15).toFixed(2));
+            params.d_table = parseFloat((0.5 + Math.random() * 1.0).toFixed(2));
+            // Ensure total distance from launcher to floor is significantly larger than box
+            params.h_total = parseFloat((0.8 + Math.random() * 0.5).toFixed(2));
+            
+            // Calculate Exact Physics Answers
+            answers.q1 = 0; // Shot horizontally -> voy = 0
+            
+            answers.q2 = Math.sqrt((2 * params.h_box) / g); // t1
+            answers.q3 = params.d_table / answers.q2; // vox
+            
+            answers.q4 = Math.sqrt((2 * params.h_total) / g); // t2 (total time)
+            answers.q5 = answers.q3 * answers.q4; // x2 (new landing distance)
+
+            // Update UI Texts
+            dom.boxHeight.textContent = params.h_box.toFixed(2) + ' m';
+            dom.tableDist.textContent = params.d_table.toFixed(2) + ' m';
+            dom.tableHeight.textContent = params.h_total.toFixed(2) + ' m';
+
+            // Reset States
+            mistakes = {};
+            currentPhase = 1;
+            dom.scoreCard.style.display = 'none';
+            dom.phase2Info.classList.add('opacity-30', 'grayscale');
+            dom.phase2Info.classList.remove('shadow-md');
+            dom.replayBtn.classList.add('hidden');
+
+            dom.questions.forEach((q, idx) => {
+                if (idx > 0) {
+                    q.card.classList.add('question-disabled');
+                    q.input.disabled = true;
+                    q.button.disabled = true;
+                }
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                q.feedback.innerHTML = '';
+                q.feedback.className = 'feedback';
+            });
+
+            dom.questions[0].card.classList.remove('question-disabled');
+            dom.questions[0].input.disabled = false;
+            dom.questions[0].button.disabled = false;
+            
+            if (studentName !== "") dom.questions[0].input.focus();
+
+            // Initial render
+            drawScene(0);
+        }
+
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            const correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Invalid Entry!</strong> Please input a number.';
+                q.feedback.className = 'feedback incorrect';
+                return;
+            }
+
+            const isCorrect = checkTolerance(userAns, correctAns);
+
+            if (isCorrect) {
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> Well done. (${formattedAns})`;
+                q.feedback.className = 'feedback correct';
+
+                q.input.value = formattedAns;
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                // Logic specific to progression
+                if (qNum === 3) {
+                    // Trigger Phase 1 Animation, then unlock Phase 2
+                    playAnimation(1, () => {
+                        dom.phase2Info.classList.remove('opacity-30', 'grayscale');
+                        dom.phase2Info.classList.add('shadow-md');
+                        const nextQ = dom.questions[3];
+                        nextQ.card.classList.remove('question-disabled');
+                        nextQ.input.disabled = false;
+                        nextQ.button.disabled = false;
+                        nextQ.input.focus();
+                    });
+                } else if (qNum === 5) {
+                    // Trigger Phase 2 Animation, then show score
+                    playAnimation(2, showScore);
+                } else {
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                }
+            } else {
+                if (!mistakes[qNum]) mistakes[qNum] = 0;
+                mistakes[qNum]++;
+
+                let hint = '';
+                switch (qNum) {
+                    case 1:
+                        hint = "<strong>Hint:</strong> The car is shot <em>horizontally</em>. This means it has no initial upward or downward motion. What numerical value represents 'no motion'?";
+                        break;
+                    case 2:
+                        hint = `<strong>Hint:</strong> Find the time it takes to fall to the table using vertical motion: $y = \\frac{1}{2}gt^2$ with vertical distance $y = ${params.h_box}$ m.`;
+                        break;
+                    case 3:
+                        hint = `<strong>Hint:</strong> Now find velocity using horizontal motion: $v_{0x} = \\frac{x}{t}$ with horizontal distance $x = ${params.d_table}$ m and the time you just calculated.`;
+                        break;
+                    case 4:
+                        hint = `<strong>Hint:</strong> The car now falls the FULL distance from the launcher to the floor! The total height is given as ${params.h_total} m. Use $y_{total} = \\frac{1}{2}gt^2$ to find the new time in the air.`;
+                        break;
+                    case 5:
+                        hint = `<strong>Hint:</strong> The horizontal launch velocity ($v_{0x}$) remains constant. Multiply the launch velocity you found in Question 3 by the new total time you found in Question 4.`;
+                        break;
+                }
+
+                q.feedback.innerHTML = hint;
+                q.feedback.className = 'feedback incorrect';
+            }
+
+            if (window.MathJax) {
+                MathJax.typesetPromise([q.feedback]).catch((err) => console.log(err.message));
+            }
+        }
+
+        function showScore() {
+            let totalErrors = 0;
+            for (let k in mistakes) totalErrors += mistakes[k];
+
+            let scorePoints = 5;
+            
+            if (totalErrors === 0) {
+                scorePoints = 6;
+                setTimeout(() => confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } }), 200);
+                setTimeout(() => confetti({ particleCount: 100, spread: 60, origin: { x: 0.1, y: 0.6 } }), 800);
+                setTimeout(() => confetti({ particleCount: 100, spread: 60, origin: { x: 0.9, y: 0.6 } }), 800);
+            } else if (totalErrors <= 2) {
+                scorePoints = 5;
+            } else {
+                scorePoints = Math.max(0, 5 - (totalErrors - 2));
+            }
+
+            dom.finalScore.textContent = `${scorePoints} / 5`;
+            
+            // Generate verification code
+            let cleanName = (studentName || "STU").replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            if (cleanName.length < 3) cleanName += "ABC".substring(0, 3 - cleanName.length);
+            let nameChars = cleanName.substring(0, 3).split('');
+            let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let vCode = [];
+            for (let i = 0; i < 12; i++) vCode.push(chars.charAt(Math.floor(Math.random() * chars.length)));
+            
+            // Distribute the 3 letters
+            let indices = [];
+            while (indices.length < 3) {
+                let r = Math.floor(Math.random() * 12);
+                if (!indices.includes(r)) indices.push(r);
+            }
+            indices.sort((a,b)=>a-b);
+            indices.forEach((idx, i) => { vCode[idx] = nameChars[i]; });
+            
+            document.getElementById('verification-code').textContent = vCode.join('');
+            
+            if (scorePoints === 6) {
+                dom.scoreTitle.textContent = `Perfect Run, ${studentName}!`;
+                dom.scoreMessage.textContent = "Flawless physics calculations!";
+                dom.mistakeSummary.textContent = `You predicted the exact landing spot on the first try.`;
+            } else {
+                dom.scoreTitle.textContent = `Simulation Complete, ${studentName}`;
+                let extraMessage = scorePoints < 4 ? " We invite you to try again to improve your score!" : "";
+                dom.scoreMessage.textContent = "Good effort on your kinematics." + extraMessage;
+                dom.mistakeSummary.textContent = `Total minor retries: ${totalErrors}. Keep practicing!`;
+            }
+
+            dom.scoreCard.style.display = 'block';
+            setTimeout(() => dom.scoreCard.scrollIntoView({ behavior: 'smooth' }), 300);
+        }
+
+        function generateHTMLSolution() {
+            
+            const solutionHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hot Wheels Solution - ${studentName}</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 30px auto; padding: 20px; color: #1e293b; }
+        h1 { color: #ea580c; border-bottom: 2px solid #ea580c; padding-bottom: 8px; }
+        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .ans { font-weight: bold; color: #15803d; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <h1>Hot Wheels Projectile Solution</h1>
+    <p><strong>Student:</strong> ${studentName}</p>
+    
+    <div class="box">
+        <h3>Given Problem Parameters:</h3>
+        <ul>
+            <li>Box Height: ${params.h_box.toFixed(2)} m</li>
+            <li>Table Landing Distance: ${params.d_table.toFixed(2)} m</li>
+            <li>Distance from Launcher to Floor: ${params.h_total.toFixed(2)} m</li>
+        </ul>
+    </div>
+
+    <h2>Phase 1 Solutions</h2>
+
+    <h3>1. Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>Because the car is launched perfectly horizontally, it has no initial vertical component of velocity.</p>
+    <p class="ans">v<sub>0y</sub> = 0.00 m/s</p>
+
+    <h3>2. Phase 1 Time in Air (t<sub>1</sub>)</h3>
+    <p>Find the time it takes to fall to the table surface:<br>
+    y = &frac12;gt&sup2; &rarr; t<sub>1</sub> = &radic;(2 &times; ${params.h_box} / 9.80)</p>
+    <p class="ans">t<sub>1</sub> = ${toSigFigs(answers.q2)} s</p>
+
+    <h3>3. Launch Velocity (v<sub>0x</sub>)</h3>
+    <p>Find the horizontal velocity using distance and time:<br>
+    x - x<sub>0</sub> = v<sub>0x</sub>t &rarr; v<sub>0x</sub> = (x - x<sub>0</sub>) / t = ${params.d_table} / ${toSigFigs(answers.q2)}</p>
+    <p class="ans">v<sub>0x</sub> = ${toSigFigs(answers.q3)} m/s</p>
+
+    <h2>Phase 2 Solutions</h2>
+
+    <h3>4. Total Time in Air (t<sub>2</sub>)</h3>
+    <p>The total height dropped is the distance from launcher to floor = ${params.h_total.toFixed(2)} m.</p>
+    <p>Using vertical motion: y - y<sub>0</sub> = &frac12;a<sub>y</sub>t&sup2; where a<sub>y</sub> = -9.80 m/s&sup2;.</p>
+    <p>Rearranging for time (taking downward displacement as negative): t<sub>2</sub> = &radic;(2(y - y<sub>0</sub>) / a<sub>y</sub>) = &radic;(2 &times; -${params.h_total.toFixed(2)} / -9.80)</p>
+    <p class="ans">t<sub>2</sub> = ${toSigFigs(answers.q4)} s</p>
+
+    <h3>5. New Landing Distance</h3>
+    <p>The horizontal launch velocity v<sub>0x</sub> remains constant.<br>
+    Distance = v<sub>0x</sub> &times; t<sub>2</sub> = ${toSigFigs(answers.q3)} &times; ${toSigFigs(answers.q4)}</p>
+    <p class="ans">Landing Distance = ${toSigFigs(answers.q5)} m</p>
+</body>
+</html>`;
+
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(solutionHTML));
+            element.setAttribute('download', `hot_wheels_solution_${studentName || 'student'}.html`);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        dom.startBtn.addEventListener('click', () => {
+            const name = dom.nameInput.value.trim();
+            if (name) {
+                studentName = name;
+                dom.nameModal.style.display = 'none';
+                dom.questions[0].input.focus();
+            } else {
+                dom.nameInput.classList.add('border-red-500');
+            }
+        });
+
+        dom.resetBtn.addEventListener('click', generateProblem);
+        dom.tryAgainBtn.addEventListener('click', () => {
+            generateProblem();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        dom.downloadBtn.addEventListener('click', generateHTMLSolution);
+        
+        dom.replayBtn.addEventListener('click', () => {
+            playAnimation(currentPhase);
+        });
+
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            document.getElementById(`q${i}-input`).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer(i);
+            });
+        }
+
+        // Boot
+        generateProblem();
+    </script>
+</body>
+</html>
