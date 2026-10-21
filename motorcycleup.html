@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motorcycle Stunt Projectile Motion Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Add MathJax for rendering LaTeX formulas -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .question-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .question-card:not(.question-disabled):hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .question-disabled {
+            background-color: #f1f5f9;
+            opacity: 0.75;
+        }
+
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #cbd5e1;
+        }
+
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+            display: none;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .feedback.correct {
+            background-color: #f0fdf4;
+            color: #166534;
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: #fef2f2;
+            color: #991b1b;
+            display: block;
+        }
+
+        .input-correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+            color: #15803d;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: #475569;
+            box-shadow: 0 4px 6px rgba(71, 85, 105, 0.2);
+        }
+        .btn-secondary:hover {
+            background-color: #334155;
+        }
+
+        #name-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+        }
+
+        .huge-score {
+            font-size: 5.5rem;
+            line-height: 1;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+            color: #fbbf24;
+        }
+
+        .main-canvas {
+            background: linear-gradient(to bottom, #87ceeb 0%, #e0f2fe 75%, #bae6fd 100%);
+            border-radius: 0.75rem;
+        }
+
+        .diagram-canvas {
+            background: #ffffff;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Name Modal -->
+    <div id="name-modal">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-100 transform transition-all">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                🏍️
+            </div>
+            <h2 class="text-3xl font-extrabold mb-2 text-slate-800">Motorcycle Stunt Physics</h2>
+            <p class="text-slate-600 mb-6 text-sm">Calculate trajectory, landing speed, and angles to jump onto an elevated landing ramp!</p>
+            <input type="text" id="student-name-input" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 text-center text-lg outline-none" placeholder="Enter Your Name">
+            <button id="start-mission-btn" class="btn-primary w-full text-lg py-3">Begin Stunt Challenge</button>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-2">Movie Stunt: Elevated Ramp Jump</h1>
+            <p class="text-slate-600 font-medium">Group Problem 2 • Kinematics & Two-Dimensional Projectile Motion (Uphill Jump)</p>
+        </header>
+
+        <!-- Control Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="font-bold text-slate-700">Assignment Value:</span>
+                <span class="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full text-sm">10 Questions (Up to 12 / 10 Max Score with Bonuses)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="toggle-view-btn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-sm transition">
+                    🖼️ Show Diagram Image
+                </button>
+                <button id="reset-button" class="btn-primary btn-secondary text-sm py-2 px-4">
+                    🔄 New Problem Variant
+                </button>
+            </div>
+        </div>
+
+        <!-- Problem Description and Canvas/Diagram View -->
+        <div class="question-card p-6 mb-6">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <span>The Stunt Setup</span>
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                
+                <!-- Visualizer Area (Canvas or Fallback Image) -->
+                <div class="lg:col-span-7 flex flex-col items-center">
+                    <div id="canvas-container" class="w-full relative">
+                        <canvas id="stunt-canvas" class="main-canvas w-full h-72 shadow-inner border border-slate-200"></canvas>
+                        <div class="absolute bottom-3 left-3 flex gap-2">
+                            <button id="launch-anim-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-3 rounded shadow text-xs flex items-center gap-1">
+                                ▶️ Launch Jump
+                            </button>
+                            <button id="slowmo-anim-btn" class="bg-slate-700 hover:bg-slate-800 text-white font-semibold py-1 px-3 rounded shadow text-xs">
+                                🐢 Slow-Mo: OFF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Diagram Fallback Image -->
+                    <div id="diagram-container" class="w-full hidden text-center">
+                        <img id="diagram-img" src="https://docs.google.com/drawings/d/e/2PACX-1vQYI67iztHs3I0gwn6diduMAnFMDXa3vKzZcXqnleH2rCrwvDggTpLJ2draUHpWCPZDJtqp3rx6mjNh/pub?w=893&h=296" alt="Diagram of motorcycle stunt jump" class="max-w-full h-auto rounded-lg shadow-md border border-slate-200 mx-auto" onerror="this.onerror=null; this.src='https://placehold.co/893x296/0284c7/ffffff?text=Motorcycle+Stunt+Diagram+Failed+To+Load';">
+                        <p class="text-xs text-slate-500 mt-2">Diagram from assignment sheet</p>
+                    </div>
+                </div>
+
+                <!-- Variable Parameters -->
+                <div class="lg:col-span-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <p class="text-base text-slate-800 leading-relaxed mb-4">
+                        In a movie stunt, a motorcyclist is to jump from a launch ramp onto an <strong>elevated landing ramp</strong> located on a higher roof platform.
+                    </p>
+                    
+                    <div class="space-y-3 font-medium text-slate-700 mb-4 bg-white p-4 rounded-lg border border-slate-200 text-sm">
+                        <div class="flex justify-between border-b pb-1">
+                            <span>Landing Ramp Elevation Above Launch ($y - y_0$):</span>
+                            <span class="font-bold text-blue-600">+<span id="table-height">3.0</span> m</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-1">
+                            <span>Launch Angle ($\theta$):</span>
+                            <span class="font-bold text-blue-600"><span id="launch-angle">60.0</span>°</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-1">
+                            <span>Initial Velocity ($v_0$):</span>
+                            <span class="font-bold text-blue-600"><span id="launch-velocity">16.0</span> m/s</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Acceleration due to gravity ($g$):</span>
+                            <span class="font-bold text-slate-800">9.80 m/s²</span>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 italic bg-amber-50 p-2.5 rounded border border-amber-200 text-amber-800">
+                        📌 <strong>Instructions:</strong> Solve the questions in sequential order. Input all answers rounded to <strong>3 significant figures</strong>. Be mindful of positive and negative directions!
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions List -->
+        <div class="space-y-6">
+            
+            <!-- Question 1 -->
+            <div id="q1" class="question-card p-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 1 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part A</span>
+                </div>
+                <label for="q1-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    a) What is $v_{0y}$, the initial vertical component of the velocity? (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q1-input" placeholder="e.g. 13.8" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <button id="q1-button" class="btn-primary">Submit</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div id="q2" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 2 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part B</span>
+                </div>
+                <label for="q2-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    b) How long will the motorcyclist be in the air before landing on the elevated roof ramp? (in s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q2-input" placeholder="e.g. 2.58" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 3 -->
+            <div id="q3" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 3 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part C</span>
+                </div>
+                <label for="q3-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    c) What is $v_{0x}$, the initial horizontal component of the velocity? (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q3-input" placeholder="e.g. 8.00" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q3-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 4 -->
+            <div id="q4" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 4 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part D</span>
+                </div>
+                <label for="q4-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    d) How far does the motorcyclist travel horizontally ($x - x_0$) before landing on the roof? (in m)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q4-input" placeholder="e.g. 17.2" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q4-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 5 -->
+            <div id="q5" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 5 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part E</span>
+                </div>
+                <label for="q5-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    e) What is $v_x$, the final horizontal component of velocity upon landing? (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q5-input" placeholder="e.g. 8.00" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q5-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 6 -->
+            <div id="q6" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 6 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part F</span>
+                </div>
+                <label for="q6-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    f) What is $v_y$, the final vertical component of velocity upon landing? (in m/s)
+                </label>
+                <p class="text-xs text-slate-500 mb-2">Note: downward velocity must be expressed as a negative number!</p>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q6-input" placeholder="e.g. -11.4" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q6-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q6-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 7 -->
+            <div id="q7" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 7 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part G</span>
+                </div>
+                <label for="q7-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    g) What angle should the landing ramp be oriented at relative to the horizontal roof? (in degrees, enter as a positive angle)
+                </label>
+                
+                <!-- Angle Diagram specifically for Q7 -->
+                <div id="q7-diagram-container" class="mb-4 mt-2 hidden flex-col items-center">
+                    <p class="text-sm font-semibold text-slate-600 mb-2">Velocity Vector Components at Landing:</p>
+                    <canvas id="angle-canvas" width="300" height="180" class="diagram-canvas border border-slate-200 shadow-sm"></canvas>
+                </div>
+
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q7-input" placeholder="e.g. 55.0" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q7-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q7-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 8 -->
+            <div id="q8" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 8 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part H</span>
+                </div>
+                <label for="q8-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    h) What is the total landing speed ($v_{\text{landing}}$) of the motorcycle when it strikes the ramp? (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q8-input" placeholder="e.g. 14.1" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q8-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q8-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 9 -->
+            <div id="q9" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Question 9 • 1 Point</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">Part I</span>
+                </div>
+                <label for="q9-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    i) What is the time at which maximum altitude occurs? (in s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q9-input" placeholder="e.g. 1.41" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q9-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q9-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 10 -->
+            <div id="q10" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Question 10 • 1 Point (Final)</span>
+                    <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 font-semibold rounded">Maximum Altitude</span>
+                </div>
+                <label for="q10-input" class="block text-lg font-bold text-slate-800 mb-2">
+                    j) How high above the <strong>launch ramp</strong> is the maximum height achieved by the motorcycle? (in m)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q10-input" placeholder="e.g. 9.71" class="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" disabled>
+                    <button id="q10-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q10-feedback" class="feedback"></div>
+            </div>
+
+        </div>
+
+        <!-- Final Score Card -->
+        <div id="score-card" class="bg-gradient-to-br from-emerald-600 to-teal-800 text-white shadow-2xl rounded-2xl p-8 text-center mt-10 border border-emerald-500" style="display: none;">
+            <h2 class="text-3xl font-extrabold mb-2" id="score-title">Stunt Successfully Completed!</h2>
+            <p id="score-message" class="text-xl font-medium text-emerald-100 mb-4">Flawless physics calculations!</p>
+            
+            <div class="huge-score font-black mb-2" id="final-score">12 / 10</div>
+            <div class="text-lg font-bold text-yellow-300 mb-4" id="score-percentage">(120% Total Score - Extra Credit Awarded!)</div>
+            
+            <!-- Verification code -->
+            <div class="bg-black/20 backdrop-blur inline-block px-4 py-2 rounded-lg mb-6 border border-white/10">
+                <span class="text-xs text-emerald-200 block uppercase tracking-widest">Verification Hash</span>
+                <span id="verification-code" class="text-lg tracking-widest font-mono font-bold text-white"></span>
+            </div>
+            
+            <p class="text-emerald-100 text-base max-w-lg mx-auto mb-6" id="mistake-summary">Great job!</p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                <button id="try-again-button" class="flex-1 bg-amber-400 hover:bg-amber-500 text-amber-950 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    Try Another Problem Variation
+                </button>
+                <button id="download-button" class="flex-1 bg-white hover:bg-slate-100 text-teal-800 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    Download HTML Solution Sheet
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GLOBAL CONSTANTS & STATE VARIABLES ---
+        const g = 9.80;
+        const numQuestions = 10;
+        let answers = {};
+        let problemValues = {};
+        let mistakes = {};
+        let studentName = "";
+        let isSlowMo = false;
+        let animationFrameId = null;
+        let animProgress = 0;
+        let isAnimating = false;
+
+        // DOM Element Registry
+        const dom = {
+            nameModal: document.getElementById('name-modal'),
+            nameInput: document.getElementById('student-name-input'),
+            startBtn: document.getElementById('start-mission-btn'),
+            height: document.getElementById('table-height'),
+            velocity: document.getElementById('launch-velocity'),
+            angle: document.getElementById('launch-angle'),
+            resetButton: document.getElementById('reset-button'),
+            toggleViewBtn: document.getElementById('toggle-view-btn'),
+            canvasContainer: document.getElementById('canvas-container'),
+            diagramContainer: document.getElementById('diagram-container'),
+            canvas: document.getElementById('stunt-canvas'),
+            launchAnimBtn: document.getElementById('launch-anim-btn'),
+            slowMoAnimBtn: document.getElementById('slowmo-anim-btn'),
+            scoreCard: document.getElementById('score-card'),
+            scoreTitle: document.getElementById('score-title'),
+            finalScore: document.getElementById('final-score'),
+            scorePercentage: document.getElementById('score-percentage'),
+            verificationCode: document.getElementById('verification-code'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadButton: document.getElementById('download-button'),
+            tryAgainButton: document.getElementById('try-again-button'),
+            q7DiagramContainer: document.getElementById('q7-diagram-container'),
+            angleCanvas: document.getElementById('angle-canvas'),
+            questions: []
+        };
+
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+
+        // --- MATH & UTILITY FUNCTIONS ---
+
+        /**
+         * 50 Pre-generated clean problem variation parameter sets with elevated landing roof
+         */
+        const PRESET_VARIATIONS = Array.from({ length: 50 }, (_, idx) => {
+            // Heights where landing is higher than launch point (+1.5m to +5.0m)
+            const h = parseFloat((1.5 + (idx % 8) * 0.5).toFixed(1)); 
+            // Launch velocity guaranteed high enough to reach height drop safely
+            const v0 = parseFloat((14.0 + ((idx * 3) % 10) * 0.5).toFixed(1));
+            const theta = Math.floor(50 + (idx * 5) % 18);
+            return { h, v0, theta };
+        });
+
+        /**
+         * Rounds to given significant figures
+         */
+        function toSigFigs(num, sigFigs = 3) {
+            if (num === 0 || isNaN(num) || !isFinite(num)) return 0;
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        /**
+         * Tolerance checker (2.5% allowance)
+         */
+        function checkTolerance(userAns, correctAns) {
+            if (Math.abs(correctAns) < 1e-6) {
+                return Math.abs(userAns) < 1e-4;
+            }
+            const tolerance = Math.abs(correctAns * 0.025);
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        /**
+         * Solves quadratic ax^2 + bx + c = 0 for positive real time root
+         */
+        function solveQuadratic(a, b, c) {
+            const disc = b * b - 4 * a * c;
+            if (disc < 0) return null;
+            const t1 = (-b + Math.sqrt(disc)) / (2 * a);
+            const t2 = (-b - Math.sqrt(disc)) / (2 * a);
+            // Return largest positive root (landing on trajectory descent/ascent)
+            return Math.max(t1, t2);
+        }
+
+        /**
+         * Interactive Canvas Drawing & Simulation Engine
+         */
+        function drawCanvasScene(progressTime = 0) {
+            const ctx = dom.canvas.getContext('2d');
+            const w = dom.canvas.width = dom.canvas.clientWidth;
+            const h = dom.canvas.height = dom.canvas.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const { h: hVal, v0, theta } = problemValues;
+            const thetaRad = theta * (Math.PI / 180);
+            const totalT = answers.q2 || 1.5;
+            const totalX = answers.q4 || 20;
+
+            const peakY = (answers.q1 * answers.q1) / (2 * g);
+
+            // Padding and scaling
+            const padX = 60;
+            const padY = 40;
+            const scaleX = (w - padX * 2) / (totalX * 1.25);
+            const scaleY = (h - padY * 2) / (peakY + 3);
+
+            const launchX = padX;
+            // Place launch platform lower so elevated platform fits comfortably
+            const launchY = h - padY - (hVal * scaleY * 0.3);
+
+            // Draw Ground / Building Structures
+            // Lower building / Launch Platform
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(0, launchY, launchX, h - launchY);
+            
+            // Ramp on lower building
+            ctx.beginPath();
+            ctx.moveTo(launchX - 30, launchY);
+            ctx.lineTo(launchX, launchY);
+            ctx.lineTo(launchX - 30, launchY + 15);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fill();
+
+            // Landing Roof Building (Elevated hVal above launch platform)
+            const landingX = launchX + (totalX * scaleX);
+            const landingY = launchY - (hVal * scaleY);
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(landingX, landingY, w - landingX, h - landingY);
+
+            // Landing Ramp on higher roof
+            ctx.beginPath();
+            ctx.moveTo(landingX, landingY);
+            ctx.lineTo(landingX + 35, landingY);
+            ctx.lineTo(landingX, landingY + 12);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fill();
+
+            // Render Trajectory Parabola
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(234, 179, 8, 0.8)';
+            ctx.lineWidth = 2;
+
+            const steps = 60;
+            for (let i = 0; i <= steps; i++) {
+                const tStep = (i / steps) * totalT;
+                const px = launchX + (v0 * Math.cos(thetaRad) * tStep * scaleX);
+                const py = launchY - ((v0 * Math.sin(thetaRad) * tStep - 0.5 * g * tStep * tStep) * scaleY);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Motorcycle at current progress time
+            const curT = Math.min(progressTime, totalT);
+            const curX = launchX + (v0 * Math.cos(thetaRad) * curT * scaleX);
+            const curY = launchY - ((v0 * Math.sin(thetaRad) * curT - 0.5 * g * curT * curT) * scaleY);
+
+            // Motorcycle Sprite / Icon Representation
+            ctx.save();
+            ctx.translate(curX, curY);
+
+            // Calculate instantaneous angle for motorcycle orientation
+            const curVy = v0 * Math.sin(thetaRad) - g * curT;
+            const curVx = v0 * Math.cos(thetaRad);
+            const currentAngle = Math.atan2(-curVy, curVx);
+            ctx.rotate(currentAngle);
+
+            // Draw Motorcycle Wheels
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(-10, 4, 5, 0, Math.PI * 2);
+            ctx.arc(10, 4, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(-8, -4, 16, 6);
+
+            // Rider
+            ctx.fillStyle = '#2563eb';
+            ctx.beginPath();
+            ctx.arc(-2, -8, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Label Height Gain
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(landingX + 15, launchY);
+            ctx.lineTo(landingX + 15, landingY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#047857';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillText(`y - y₀ = +${hVal}m`, landingX + 22, landingY + (launchY - landingY)/2);
+        }
+
+        /**
+         * Draws the specific vector components diagram for the landing angle question (Q7)
+         */
+        function drawAngleDiagram() {
+            const ctx = dom.angleCanvas.getContext('2d');
+            const w = dom.angleCanvas.width;
+            const h = dom.angleCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const startX = 60;
+            const startY = 40;
+            const vxLen = 120;
+            const vyLen = 80;
+
+            // Arrow drawing helper
+            function drawArrow(fromX, fromY, toX, toY, color) {
+                const headlen = 10;
+                const dx = toX - fromX;
+                const dy = toY - fromY;
+                const angle = Math.atan2(dy, dx);
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(toX, toY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(toX, toY);
+                ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(toX, toY);
+                ctx.fill();
+            }
+
+            // Draw vx component
+            drawArrow(startX, startY, startX + vxLen, startY, '#3b82f6'); // blue
+            ctx.fillStyle = '#1e3a8a';
+            ctx.font = 'bold 14px Inter';
+            ctx.fillText('v_x', startX + vxLen / 2 - 10, startY - 10);
+
+            // Draw vy component (downward)
+            drawArrow(startX + vxLen, startY, startX + vxLen, startY + vyLen, '#3b82f6');
+            ctx.fillText('v_y', startX + vxLen + 10, startY + vyLen / 2 + 5);
+
+            // Draw Resultant Vector
+            drawArrow(startX, startY, startX + vxLen, startY + vyLen, '#10b981'); // emerald
+            
+            // Draw arc and angle label
+            const theta = Math.atan2(vyLen, vxLen);
+            ctx.beginPath();
+            ctx.arc(startX, startY, 40, 0, theta);
+            ctx.strokeStyle = '#ef4444'; // red
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 16px Inter';
+            ctx.fillText('θ = ?', startX + 50, startY + 25);
+        }
+
+        /**
+         * Animation Loop Controller
+         */
+        function animateStunt() {
+            if (!isAnimating) return;
+
+            const totalT = answers.q2 || 1.5;
+            const increment = isSlowMo ? 0.008 : 0.025;
+            animProgress += increment;
+
+            if (animProgress >= totalT) {
+                animProgress = totalT;
+                drawCanvasScene(animProgress);
+                isAnimating = false;
+                dom.launchAnimBtn.innerHTML = '▶️ Replay Jump';
+                return;
+            }
+
+            drawCanvasScene(animProgress);
+            animationFrameId = requestAnimationFrame(animateStunt);
+        }
+
+        /**
+         * Generates a new stunt problem variation & recalculates answers
+         */
+        function generateProblem() {
+            // Select a variation from preset bank
+            const randomIndex = Math.floor(Math.random() * PRESET_VARIATIONS.length);
+            const { h, v0, theta } = PRESET_VARIATIONS[randomIndex];
+
+            const thetaRad = theta * (Math.PI / 180);
+
+            problemValues = { h, v0, theta };
+
+            // Exact mathematical derivation
+            const v0y = v0 * Math.sin(thetaRad); // q1
+            const v0x = v0 * Math.cos(thetaRad); // q3
+
+            // Vertical displacement is positive since landing roof is higher
+            const dy = +h;
+
+            // 0.5 * (-g) * t^2 + v0y * t - dy = 0  => -4.9 t^2 + v0y t - h = 0
+            const tTotal = solveQuadratic(-0.5 * g, v0y, -dy); // q2
+            const dx = v0x * tTotal; // q4
+
+            const vxFinal = v0x; // Constant horizontal velocity // q5
+            const vyFinal = v0y - (g * tTotal); // Vertical velocity at landing // q6
+
+            // Angle of landing ramp: tan(angle) = |vy| / vx
+            const landingAngleRad = Math.atan2(Math.abs(vyFinal), vxFinal);
+            const landingAngleDeg = landingAngleRad * (180 / Math.PI); // q7
+
+            // Landing speed magnitude v = sqrt(vx^2 + vy^2)
+            const vLanding = Math.sqrt(vxFinal * vxFinal + vyFinal * vyFinal); // q8
+
+            const tPeak = v0y / g; // q9
+            const hMax = (v0y * v0y) / (2 * g); // q10
+
+            answers = {
+                q1: v0y,
+                q2: tTotal,
+                q3: v0x,
+                q4: dx,
+                q5: vxFinal,
+                q6: vyFinal,
+                q7: landingAngleDeg,
+                q8: vLanding,
+                q9: tPeak,
+                q10: hMax
+            };
+
+            // Update DOM text elements
+            dom.height.textContent = h.toFixed(1);
+            dom.velocity.textContent = v0.toFixed(1);
+            dom.angle.textContent = theta.toFixed(1);
+
+            // Reset UI States
+            dom.scoreCard.style.display = 'none';
+            dom.q7DiagramContainer.classList.add('hidden');
+            mistakes = {};
+
+            dom.questions.forEach((q) => {
+                q.card.classList.add('question-disabled');
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                q.feedback.innerHTML = '';
+                q.feedback.className = 'feedback';
+            });
+
+            // Unlock Question 1
+            const q1 = dom.questions[0];
+            q1.card.classList.remove('question-disabled');
+            q1.input.disabled = false;
+            q1.button.disabled = false;
+
+            if (studentName !== "") q1.input.focus();
+
+            // Reset animation
+            animProgress = 0;
+            isAnimating = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            dom.launchAnimBtn.innerHTML = '▶️ Launch Jump';
+            drawCanvasScene(0);
+        }
+
+        /**
+         * Checks student submission and yields smart hints and radian detection
+         */
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            const correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Invalid Entry!</strong> Please input a valid numerical value.';
+                q.feedback.className = 'feedback incorrect';
+                return;
+            }
+
+            const isCorrect = checkTolerance(userAns, correctAns);
+
+            if (isCorrect) {
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> Well done. (${formattedAns})`;
+                q.feedback.className = 'feedback correct';
+
+                q.input.value = formattedAns;
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                // If Question 6 is solved, reveal the diagram for Question 7
+                if (qNum === 6) {
+                    dom.q7DiagramContainer.classList.remove('hidden');
+                    drawAngleDiagram();
+                }
+
+                // Enable next step or show completion score
+                if (qNum < numQuestions) {
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                } else {
+                    showScore();
+                }
+            } else {
+                if (!mistakes[qNum]) mistakes[qNum] = 0;
+                mistakes[qNum]++;
+
+                let hint = '';
+                const { h, v0, theta } = problemValues;
+                const thetaRad = theta * (Math.PI / 180);
+                
+                // Common error calculations for radian detection
+                const v0y_rad_error = v0 * Math.sin(theta); // User inputted degree directly to sin()
+                const v0x_rad_error = v0 * Math.cos(theta); // User inputted degree directly to cos()
+                const angle_rad_error = Math.atan2(Math.abs(answers.q6), answers.q5); // user left it in radians
+
+                // Specific Error Diagnostic Logic
+                switch (qNum) {
+                    case 1:
+                        if (checkTolerance(userAns, v0y_rad_error)) {
+                            hint = "<strong>🚨 Calculator Error!</strong> Your calculator is in <strong>Radians</strong> mode. Please switch to Degrees to calculate $\\sin(" + theta + "^\\circ)$.";
+                        } else {
+                            hint = `<strong>Diagnostic Hint:</strong> Initial vertical velocity is calculated using $v_{0y} = v_0 \\sin(\\theta)$. Here, $v_0 = ${v0}$ and $\\theta = ${theta}^\\circ$.`;
+                        }
+                        break;
+
+                    case 2:
+                        hint = `<strong>Diagnostic Hint:</strong> Since the landing ramp is <strong>elevated</strong>, use positive vertical displacement $y - y_0 = +${h}$m. Solve the quadratic equation $-4.9t^2 + ${toSigFigs(answers.q1)}t - ${h} = 0$.`;
+                        break;
+
+                    case 3:
+                        if (checkTolerance(userAns, v0x_rad_error)) {
+                            hint = "<strong>🚨 Calculator Error!</strong> Your calculator is in <strong>Radians</strong> mode. Please switch to Degrees to calculate $\\cos(" + theta + "^\\circ)$.";
+                        } else {
+                            hint = `<strong>Diagnostic Hint:</strong> Initial horizontal velocity is calculated using $v_{0x} = v_0 \\cos(\\theta)$. Here, $v_0 = ${v0}$ and $\\theta = ${theta}^\\circ$.`;
+                        }
+                        break;
+
+                    case 4:
+                        const wrongDx = v0 * answers.q2;
+                        if (checkTolerance(userAns, wrongDx)) {
+                            hint = "<strong>Diagnostic Hint:</strong> You used total velocity $v_0$! Remember horizontal distance uses $v_{0x}$.";
+                        } else {
+                            hint = `<strong>Diagnostic Hint:</strong> Horizontal displacement is constant: $x - x_0 = v_{0x} \\times t = ${toSigFigs(answers.q3)} \\times ${toSigFigs(answers.q2)}$.`;
+                        }
+                        break;
+
+                    case 5:
+                        hint = `<strong>Diagnostic Hint:</strong> Horizontal acceleration $a_x = 0$, so $v_x$ remains exactly the same as $v_{0x}$!`;
+                        break;
+
+                    case 6:
+                        hint = `<strong>Diagnostic Hint:</strong> Use $v_y = v_{0y} - gt = ${toSigFigs(answers.q1)} - (9.80)(${toSigFigs(answers.q2)})$. Make sure to include the negative sign if the motorcycle is traveling downwards upon landing.`;
+                        break;
+
+                    case 7:
+                        if (checkTolerance(userAns, angle_rad_error)) {
+                            hint = "<strong>🚨 Format Error!</strong> You provided the angle in <strong>Radians</strong>. Please multiply by $(180/\\pi)$ to convert to degrees.";
+                        } else {
+                            hint = "<strong>Diagnostic Hint:</strong> Look at the diagram. Use the inverse tangent: $\\theta = \\tan^{-1}\\left(\\frac{|v_y|}{v_x}\\right)$. Remember to use the absolute value for the ratio to get a positive angle.";
+                        }
+                        break;
+
+                    case 8:
+                        if (checkTolerance(userAns, v0)) {
+                            hint = "<strong>Diagnostic Hint:</strong> Landing speed is lower than launch speed because the landing platform is higher than the launch point!";
+                        } else {
+                            hint = `<strong>Diagnostic Hint:</strong> Total landing speed is the magnitude of the velocity vector: $v_{\\text{landing}} = \\sqrt{v_x^2 + v_y^2}$.`;
+                        }
+                        break;
+
+                    case 9:
+                        hint = `<strong>Diagnostic Hint:</strong> Maximum altitude occurs when the vertical velocity $v_y$ becomes zero. Set $0 = v_{0y} - gt$ and solve for $t$.`;
+                        break;
+
+                    case 10:
+                        hint = `<strong>Diagnostic Hint:</strong> Plug the peak time (${toSigFigs(answers.q9)} s) into the vertical position equation: $y = v_{0y}t - \\frac{1}{2}gt^2$.`;
+                        break;
+                }
+
+                q.feedback.innerHTML = hint;
+                q.feedback.className = 'feedback incorrect';
+            }
+
+            // Tell MathJax to re-render equations in the newly injected feedback text
+            if (window.MathJax) {
+                MathJax.typesetPromise([q.feedback]).catch((err) => console.log(err.message));
+            }
+        }
+
+        /**
+         * Calculates final score with exact requested rubric rules
+         */
+        function showScore() {
+            let totalErrors = 0;
+            for (let k in mistakes) totalErrors += mistakes[k];
+
+            let scorePoints = 10;
+            let confettiBursts = 0;
+
+            if (totalErrors === 0) {
+                scorePoints = 12;
+                confettiBursts = 3;
+            } else if (totalErrors === 1 || totalErrors === 2) {
+                scorePoints = 11;
+                confettiBursts = 2;
+            } else if (totalErrors === 3 || totalErrors === 4) {
+                scorePoints = 10;
+                confettiBursts = 0;
+            } else {
+                scorePoints = Math.max(0, 10 - (totalErrors - 4));
+                confettiBursts = 0;
+            }
+
+            const percentage = Math.round((scorePoints / 10) * 100);
+
+            dom.finalScore.textContent = `${scorePoints} / 10`;
+            dom.scorePercentage.textContent = scorePoints > 10 ? `(${percentage}% Final Grade - Extra Credit Awarded!)` : `(${percentage}% Final Grade)`;
+
+            const cleanName = studentName.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            const nameLetters = (cleanName.substring(0, 3) + 'XXX').substring(0, 3);
+            const randNums = Math.floor(100000 + Math.random() * 900000).toString();
+            // Distribute letters among numbers so it's not obvious: Num-Num-Letter-Dash-Num-Letter-Num-Dash-Letter-Num-Num
+            const hash = `${randNums[0]}${randNums[1]}${nameLetters[0]}-${randNums[2]}${nameLetters[1]}${randNums[3]}-${nameLetters[2]}${randNums[4]}${randNums[5]}`;
+            dom.verificationCode.textContent = hash;
+
+            if (scorePoints >= 10) {
+                dom.scoreTitle.textContent = `Elevated Jump Mastered, ${studentName}!`;
+                dom.scoreMessage.textContent = scorePoints > 10 ? "🌟 Extraordinary Performance! You earned bonus points!" : "Great job completing all parts correctly!";
+                dom.mistakeSummary.textContent = `Total minor retries: ${totalErrors}. Your trajectory calculation was spot-on.`;
+                
+                // Stagger confetti bursts based on rubric
+                if (confettiBursts > 0) {
+                    let delay = 0;
+                    for (let i = 0; i < confettiBursts; i++) {
+                        setTimeout(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.7 } }), delay);
+                        delay += 750;
+                    }
+                }
+            } else {
+                dom.scoreTitle.textContent = `Stunt Complete, ${studentName}`;
+                dom.scoreMessage.textContent = "Keep practicing kinematic components and vectors!";
+                dom.mistakeSummary.textContent = `Total retries: ${totalErrors}. Final Score: ${scorePoints} / 10. Generate a new variant to try again!`;
+            }
+
+            dom.scoreCard.style.display = 'block';
+            setTimeout(() => dom.scoreCard.scrollIntoView({ behavior: 'smooth' }), 200);
+        }
+
+        /**
+         * Generates and downloads full HTML solution sheet
+         */
+        function generateHTMLSolution() {
+            const { h, v0, theta } = problemValues;
+
+            const solutionHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Motorcycle Stunt Solution - ${studentName}</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 30px auto; padding: 20px; color: #1e293b; }
+        h1 { color: #0f172a; border-bottom: 2px solid #2563eb; padding-bottom: 8px; }
+        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .ans { font-weight: bold; color: #15803d; font-size: 1.1em; }
+        code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Motorcycle Stunt Solution Sheet (Elevated Jump)</h1>
+    <p><strong>Student:</strong> ${studentName}</p>
+    
+    <div class="box">
+        <h3>Given Problem Parameters:</h3>
+        <ul>
+            <li>Landing Height Elevation Gain (y - y<sub>0</sub>): +${h.toFixed(1)} m</li>
+            <li>Launch velocity (v<sub>0</sub>): ${v0.toFixed(1)} m/s</li>
+            <li>Launch angle (&theta;): ${theta.toFixed(1)}&deg;</li>
+            <li>Gravity (g): 9.80 m/s&sup2;</li>
+        </ul>
+    </div>
+
+    <h2>Step-by-Step Solutions</h2>
+
+    <h3>a) Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>v<sub>0y</sub> = v<sub>0</sub> sin(&theta;) = ${v0.toFixed(1)} sin(${theta}&deg;)</p>
+    <p class="ans">v<sub>0y</sub> = ${toSigFigs(answers.q1)} m/s</p>
+
+    <h3>b) Time in the air (t)</h3>
+    <p>Using y - y<sub>0</sub> = v<sub>0y</sub>t - &frac12;gt&sup2;</p>
+    <p><code>-4.9 t&sup2; + ${toSigFigs(answers.q1)} t - ${h.toFixed(1)} = 0</code></p>
+    <p class="ans">Time t = ${toSigFigs(answers.q2)} s</p>
+
+    <h3>c) Initial Horizontal Velocity (v<sub>0x</sub>)</h3>
+    <p>v<sub>0x</sub> = v<sub>0</sub> cos(&theta;) = ${v0.toFixed(1)} cos(${theta}&deg;)</p>
+    <p class="ans">v<sub>0x</sub> = ${toSigFigs(answers.q3)} m/s</p>
+
+    <h3>d) Horizontal Distance (x - x<sub>0</sub>)</h3>
+    <p>Horizontal motion is constant speed: x - x<sub>0</sub> = v<sub>0x</sub> &times; t</p>
+    <p class="ans">Distance = ${toSigFigs(answers.q3)} &times; ${toSigFigs(answers.q2)} = ${toSigFigs(answers.q4)} m</p>
+
+    <h3>e) Final Horizontal Velocity (v<sub>x</sub>)</h3>
+    <p>Horizontal acceleration is zero (a<sub>x</sub> = 0).</p>
+    <p class="ans">v<sub>x</sub> = v<sub>0x</sub> = ${toSigFigs(answers.q5)} m/s</p>
+
+    <h3>f) Final Vertical Velocity (v<sub>y</sub>)</h3>
+    <p>v<sub>y</sub> = v<sub>0y</sub> - gt = ${toSigFigs(answers.q1)} - (9.80)(${toSigFigs(answers.q2)})</p>
+    <p class="ans">v<sub>y</sub> = ${toSigFigs(answers.q6)} m/s</p>
+
+    <h3>g) Landing Ramp Angle (&theta;<sub>landing</sub>)</h3>
+    <p>&theta; = tan<sup>-1</sup>(|v<sub>y</sub>| / v<sub>x</sub>)</p>
+    <p class="ans">Angle = ${toSigFigs(answers.q7)}&deg; relative to horizontal roof</p>
+
+    <h3>h) Total Landing Speed (v<sub>landing</sub>)</h3>
+    <p>v<sub>landing</sub> = &radic;(v<sub>x</sub>&sup2; + v<sub>y</sub>&sup2;)</p>
+    <p class="ans">Landing Speed = ${toSigFigs(answers.q8)} m/s</p>
+
+    <h3>i) Time to Maximum Altitude (t<sub>peak</sub>)</h3>
+    <p>v<sub>y</sub> = 0 &rarr; t = v<sub>0y</sub> / g = ${toSigFigs(answers.q1)} / 9.80</p>
+    <p class="ans">t<sub>peak</sub> = ${toSigFigs(answers.q9)} s</p>
+
+    <h3>j) Maximum Altitude (H)</h3>
+    <p>H = v<sub>0y</sub>&sup2; / 2g = (${toSigFigs(answers.q1)})&sup2; / (2 &times; 9.80)</p>
+    <p class="ans">Max Altitude = ${toSigFigs(answers.q10)} m</p>
+
+</body>
+</html>`;
+
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(solutionHTML));
+            element.setAttribute('download', `motorcycle_stunt_solution_${studentName || 'student'}.html`);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        // --- EVENT LISTENERS ---
+        dom.startBtn.addEventListener('click', () => {
+            const name = dom.nameInput.value.trim();
+            if (name) {
+                studentName = name;
+                dom.nameModal.style.display = 'none';
+                dom.questions[0].input.focus();
+            } else {
+                dom.nameInput.classList.add('border-red-500');
+            }
+        });
+
+        dom.resetButton.addEventListener('click', generateProblem);
+        dom.tryAgainButton.addEventListener('click', () => {
+            generateProblem();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        dom.downloadButton.addEventListener('click', generateHTMLSolution);
+
+        dom.toggleViewBtn.addEventListener('click', () => {
+            if (dom.canvasContainer.classList.contains('hidden')) {
+                dom.canvasContainer.classList.remove('hidden');
+                dom.diagramContainer.classList.add('hidden');
+                dom.toggleViewBtn.innerHTML = '🖼️ Show Diagram Image';
+            } else {
+                dom.canvasContainer.classList.add('hidden');
+                dom.diagramContainer.classList.remove('hidden');
+                dom.toggleViewBtn.innerHTML = '🎮 Show Interactive Canvas';
+            }
+        });
+
+        dom.launchAnimBtn.addEventListener('click', () => {
+            animProgress = 0;
+            isAnimating = true;
+            dom.launchAnimBtn.innerHTML = '🔄 Restarting...';
+            animateStunt();
+        });
+
+        dom.slowMoAnimBtn.addEventListener('click', () => {
+            isSlowMo = !isSlowMo;
+            dom.slowMoAnimBtn.innerHTML = isSlowMo ? '🐢 Slow-Mo: ON' : '🐢 Slow-Mo: OFF';
+            dom.slowMoAnimBtn.className = isSlowMo ? 
+                'bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 px-3 rounded shadow text-xs' : 
+                'bg-slate-700 hover:bg-slate-800 text-white font-semibold py-1 px-3 rounded shadow text-xs';
+        });
+
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            document.getElementById(`q${i}-input`).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer(i);
+            });
+        }
+
+        // Initial setup
+        generateProblem();
+    </script>
+</body>
+</html>
