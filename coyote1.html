@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wile E. Coyote Projectile Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fffbeb; /* amber-50 */
+        }
+
+        .question-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #fcd34d; /* amber-300 */
+        }
+
+        .question-card:not(.question-disabled):hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .question-disabled {
+            background-color: #fef3c7; /* amber-100 */
+            opacity: 0.75;
+            border-color: #fde68a; /* amber-200 */
+        }
+
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #d1d5db;
+        }
+
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+            display: none;
+            border-top: 1px solid #fcd34d;
+        }
+
+        .feedback.correct {
+            background-color: #f0fdf4;
+            color: #166534;
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: #fef2f2;
+            color: #991b1b;
+            display: block;
+        }
+
+        .input-correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+            color: #15803d;
+        }
+
+        .btn-primary {
+            background-color: #b91c1c; /* red-700 */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(185, 28, 28, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: #991b1b; /* red-800 */
+            box-shadow: 0 6px 12px rgba(185, 28, 28, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: #92400e; /* amber-800 */
+            box-shadow: 0 4px 6px rgba(146, 64, 14, 0.2);
+        }
+        .btn-secondary:hover {
+            background-color: #78350f; /* amber-900 */
+        }
+
+        #name-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(69, 26, 3, 0.75); /* amber-950 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+        }
+
+        .huge-score {
+            font-size: 5.5rem;
+            line-height: 1;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+            color: #fde047; /* yellow-300 */
+        }
+
+        .main-canvas {
+            background: linear-gradient(to bottom, #7dd3fc 0%, #bae6fd 60%, #e0f2fe 100%);
+            border-radius: 0.75rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Name Modal -->
+    <div id="name-modal">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-amber-100 transform transition-all">
+            <div class="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl font-bold">
+                🧨
+            </div>
+            <h2 class="text-3xl font-extrabold mb-2 text-amber-900">Wile E. Coyote Lab</h2>
+            <p class="text-amber-700 mb-6 text-sm">Calculate the kinematics of a steel ball rolling down a ramp and launching off a cliff to catch the Roadrunner!</p>
+            <input type="text" id="student-name-input" class="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-4 text-center text-lg outline-none" placeholder="Enter Your Name">
+            <button id="start-mission-btn" class="bg-red-700 hover:bg-red-800 text-white font-bold w-full text-lg py-3 rounded-lg shadow-lg transition">Begin Lab Challenge</button>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-black text-amber-900 tracking-tight mb-2">Wile E. Coyote: Ramp & Launch</h1>
+            <p class="text-amber-700 font-medium">1D Acceleration & 2D Projectile Motion</p>
+        </header>
+
+        <!-- Control Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-amber-200 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="font-bold text-amber-900">Assignment Value:</span>
+                <span class="bg-red-100 text-red-800 font-bold px-3 py-1 rounded-full text-sm">5 Questions (5 Points Total)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="reset-button" class="btn-secondary text-sm py-2 px-4 text-white font-semibold rounded-lg transition">
+                    🔄 New Parameters
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Canvas and Info -->
+        <div class="question-card p-6 mb-6 border-2 border-red-200">
+            <div id="canvas-wrapper" class="w-full relative mb-6">
+                <canvas id="main-canvas" class="main-canvas w-full h-80 shadow-inner border border-amber-200 rounded-lg"></canvas>
+                <div class="absolute bottom-3 left-3 flex gap-2">
+                    <button id="replay-phase1-btn" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-1 px-3 rounded shadow text-xs flex items-center gap-1 transition">
+                        ▶️ Ramp Animation
+                    </button>
+                    <button id="replay-phase2-btn" class="hidden bg-orange-700 hover:bg-orange-800 text-white font-bold py-1 px-3 rounded shadow text-xs flex items-center gap-1 transition">
+                        ▶️ Cliff Animation
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Phase 1 Info -->
+                <div id="phase1-info" class="bg-amber-50 p-4 rounded-xl border border-amber-200 transition-all duration-300">
+                    <h3 class="font-bold text-lg mb-2 text-amber-900 flex items-center gap-2"><span class="bg-amber-200 text-amber-800 px-2 py-0.5 rounded text-sm">Phase 1</span> Ramp Roll</h3>
+                    <p class="text-sm mb-3 text-amber-700">A steel ball starts from rest ($v_0 = 0$) and rolls down an angled ramp.</p>
+                    <div class="flex justify-between border-b border-amber-200 pb-1 text-sm mb-1"><span class="font-semibold text-amber-900">Ramp Distance ($x-x_0$):</span><span id="ramp-dist" class="text-red-700 font-bold"></span></div>
+                    <div class="flex justify-between border-b border-amber-200 pb-1 text-sm"><span class="font-semibold text-amber-900">Measured Roll Time ($t$):</span><span id="roll-time" class="text-red-700 font-bold"></span></div>
+                </div>
+
+                <!-- Initial Phase 2 Info (Revealed later) -->
+                <div id="phase2-info-preview" class="bg-slate-50 p-4 rounded-xl border border-slate-200 opacity-50 transition-all duration-300">
+                    <h3 class="font-bold text-lg mb-2 text-slate-700 flex items-center gap-2">Cliff Launch Preview</h3>
+                    <div class="flex justify-between border-b border-slate-200 pb-1 text-sm mb-1"><span class="font-semibold text-slate-600">Ramp Angle ($\theta$):</span><span id="ramp-angle" class="text-slate-800 font-bold"></span></div>
+                    <div class="flex justify-between border-b border-slate-200 pb-1 text-sm"><span class="font-semibold text-slate-600">Initial Height ($y_0$):</span><span id="cliff-height" class="text-slate-800 font-bold"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions List -->
+        <div class="space-y-6">
+            
+            <!-- Question 1 -->
+            <div id="q1" class="question-card p-6 border-red-300 border-l-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-red-700 uppercase tracking-wider">Question 1 • 1 Point</span>
+                </div>
+                <label for="q1-input" class="block text-lg font-bold text-amber-950 mb-2">
+                    1. Find the final speed ($v$) of the ball at the bottom of the ramp using a constant acceleration equation. (in m/s)
+                </label>
+
+                <!-- Kinematic Equations Reference Box -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 my-3 text-xs md:text-sm">
+                    <p class="font-bold text-amber-900 mb-2 border-b border-amber-200 pb-1">Kinematic Equations Reference:</p>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-amber-950">
+                        <div class="font-bold border-b border-amber-200 pb-1">Equation</div>
+                        <div class="font-bold border-b border-amber-200 pb-1">Missing Quantity</div>
+                        
+                        <div>$v = v_0 + at$</div>
+                        <div class="text-amber-700">$x - x_0$</div>
+
+                        <div>$x - x_0 = v_0 t + \frac{1}{2}at^2$</div>
+                        <div class="text-amber-700">$v$</div>
+
+                        <div>$v^2 = v_0^2 + 2a(x - x_0)$</div>
+                        <div class="text-amber-700">$t$</div>
+
+                        <div>$x - x_0 = \frac{1}{2}(v_0 + v)t$</div>
+                        <div class="text-amber-700">$a$</div>
+
+                        <div>$x - x_0 = vt - \frac{1}{2}at^2$</div>
+                        <div class="text-amber-700">$v_0$</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q1-input" class="flex-1 p-2.5 border border-amber-300 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600">
+                    <button id="q1-button" class="btn-primary">Submit</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 2 -->
+            <div id="q2" class="question-card p-6 question-disabled">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-red-700 uppercase tracking-wider">Question 2 • 1 Point</span>
+                </div>
+                <label for="q2-input" class="block text-lg font-bold text-amber-950 mb-2">
+                    2. Calculate the initial vertical velocity ($v_{0y}$) as it leaves the ramp. (Ramp angle $\theta = $ <span id="q2-ramp-angle" class="text-red-700"></span>°)<br><span class="text-sm text-red-600 font-normal">(Enter a negative value since it is directed downwards, in m/s)</span>
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q2-input" class="flex-1 p-2.5 border border-amber-300 rounded-lg outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Submit</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Phase 2 Header -->
+            <div id="phase2-header" class="bg-orange-100 p-4 rounded-xl border border-orange-300 opacity-40 grayscale transition-all duration-500 mb-6">
+                <h3 class="font-bold text-lg mb-2 text-orange-900 flex items-center gap-2"><span class="bg-orange-300 text-orange-900 px-2 py-0.5 rounded text-sm">Phase 2</span> Cliff Projectile</h3>
+                <p class="text-sm mb-0 text-orange-800">The ball has left the ramp and is in free fall. It accelerates downwards at $a_y = -9.8 \text{ m/s}^2$.</p>
+            </div>
+
+            <!-- Question 3 -->
+            <div id="q3" class="question-card p-6 question-disabled border-orange-300">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-orange-700 uppercase tracking-wider">Question 3 • 1 Point</span>
+                    <span class="text-xs bg-orange-200 text-orange-900 px-2 py-1 rounded">Phase 2 Unlocked</span>
+                </div>
+                <label for="q3-input" class="block text-lg font-bold text-amber-950 mb-2">
+                    3. Solve for time ($t$) in the air. This is how long it takes to fall to the ground (from height $y_0 = $<span id="q3-cliff-height" class="text-orange-700"></span> m). (in s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q3-input" class="flex-1 p-2.5 border border-amber-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600" disabled>
+                    <button id="q3-button" class="bg-orange-700 hover:bg-orange-800 text-white font-bold py-2 px-4 rounded-lg" disabled>Submit</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 4 -->
+            <div id="q4" class="question-card p-6 question-disabled border-orange-300">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-orange-700 uppercase tracking-wider">Question 4 • 1 Point</span>
+                </div>
+                <label for="q4-input" class="block text-lg font-bold text-amber-950 mb-2">
+                    4. Calculate the initial horizontal velocity ($v_{0x}$) as it leaves the ramp. (Ramp angle $\theta = $ <span id="q4-ramp-angle" class="text-orange-700"></span>°). (in m/s)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q4-input" class="flex-1 p-2.5 border border-amber-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600" disabled>
+                    <button id="q4-button" class="bg-orange-700 hover:bg-orange-800 text-white font-bold py-2 px-4 rounded-lg" disabled>Submit</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 5 -->
+            <div id="q5" class="question-card p-6 question-disabled border-orange-300">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-orange-700 uppercase tracking-wider">Question 5 • 1 Point (Final)</span>
+                </div>
+                <label for="q5-input" class="block text-lg font-bold text-amber-950 mb-2">
+                    5. Predict the horizontal landing distance ($x - x_0$) from the edge of the cliff. (in m)
+                </label>
+                <div class="flex gap-3 max-w-md">
+                    <input type="number" step="any" id="q5-input" class="flex-1 p-2.5 border border-amber-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-600 focus:border-orange-600" disabled>
+                    <button id="q5-button" class="bg-orange-700 hover:bg-orange-800 text-white font-bold py-2 px-4 rounded-lg" disabled>Submit</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+        </div>
+
+        <!-- Final Score Card -->
+        <div id="score-card" class="bg-gradient-to-br from-red-700 to-orange-600 text-white shadow-2xl rounded-2xl p-8 text-center mt-10 border border-orange-400" style="display: none;">
+            <div class="text-sm font-bold uppercase tracking-wider text-orange-200 mb-1">Lab Completed</div>
+            <h2 class="text-3xl font-extrabold mb-2" id="score-title">Experiment Successful!</h2>
+            <p id="score-message" class="text-xl font-medium text-orange-100 mb-4">Physics predictions verified!</p>
+            
+            <div class="text-xs uppercase font-semibold text-orange-200/80 tracking-widest mt-2">Wile E. Coyote: Ramp & Launch</div>
+            <div class="huge-score font-black mb-2 text-yellow-300" id="final-score">5 / 5</div>
+            <div id="verification-code" class="text-xs text-orange-200/50 mb-4 font-mono tracking-widest"></div>
+            
+            <p class="text-orange-100 text-base max-w-lg mx-auto mb-6" id="mistake-summary">Great job!</p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                <button id="try-again-button" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    New Experiment
+                </button>
+                <button id="download-button" class="flex-1 bg-white hover:bg-amber-100 text-red-900 font-extrabold py-3 px-6 rounded-xl transition duration-200 shadow-lg">
+                    Download Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const g = 9.80;
+        const numQuestions = 5;
+        let answers = {};
+        let params = {};
+        let mistakes = {};
+        let studentName = "";
+        
+        let animFrameId = null;
+        let animProgress = 0;
+        let isAnimating = false;
+        let currentPhase = 1;
+
+        const dom = {
+            nameModal: document.getElementById('name-modal'),
+            nameInput: document.getElementById('student-name-input'),
+            startBtn: document.getElementById('start-mission-btn'),
+            rampDist: document.getElementById('ramp-dist'),
+            rollTime: document.getElementById('roll-time'),
+            rampAngle: document.getElementById('ramp-angle'),
+            cliffHeight: document.getElementById('cliff-height'),
+            resetBtn: document.getElementById('reset-button'),
+            canvas: document.getElementById('main-canvas'),
+            replayPhase1Btn: document.getElementById('replay-phase1-btn'),
+            replayPhase2Btn: document.getElementById('replay-phase2-btn'),
+            q2RampAngle: document.getElementById('q2-ramp-angle'),
+            q3CliffHeight: document.getElementById('q3-cliff-height'),
+            q4RampAngle: document.getElementById('q4-ramp-angle'),
+            phase2Header: document.getElementById('phase2-header'),
+            phase2Preview: document.getElementById('phase2-info-preview'),
+            scoreCard: document.getElementById('score-card'),
+            scoreTitle: document.getElementById('score-title'),
+            finalScore: document.getElementById('final-score'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadBtn: document.getElementById('download-button'),
+            tryAgainBtn: document.getElementById('try-again-button'),
+            questions: []
+        };
+
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+
+        function toSigFigs(num, sigFigs = 3) {
+            if (num === 0 || isNaN(num) || !isFinite(num)) return 0;
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        function checkTolerance(userAns, correctAns) {
+            if (Math.abs(correctAns) < 1e-6) return Math.abs(userAns) < 1e-4;
+            const tolerance = Math.abs(correctAns * 0.025);
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        function drawScene(time) {
+            const ctx = dom.canvas.getContext('2d');
+            const w = dom.canvas.width = dom.canvas.clientWidth;
+            const h = dom.canvas.height = dom.canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            const pad = 40;
+            
+            // Physics logic values
+            const d = params.d_ramp;
+            const theta = params.theta * Math.PI / 180;
+            const cliffH = params.h_cliff;
+            
+            // Derive physics boundaries
+            const maxPhysX = answers.q5 * 1.2; // landing + padding
+            const maxPhysY = d * Math.sin(theta); // top of ramp relative to cliff edge
+            const minPhysY = -cliffH; // bottom of cliff relative to cliff edge
+            
+            // Ramp top X relative to cliff edge (which is 0)
+            const minPhysX = -d * Math.cos(theta);
+            
+            const physWidth = maxPhysX - minPhysX;
+            const physHeight = maxPhysY - minPhysY;
+            
+            // Determine Scale
+            const scaleX = (w - pad * 2) / physWidth;
+            const scaleY = (h - pad * 2) / physHeight;
+            const scale = Math.min(scaleX, scaleY);
+            
+            // Setup origin (cliff edge) in screen coordinates
+            const originScreenX = pad + (-minPhysX * scale);
+            const originScreenY = pad + (maxPhysY * scale);
+
+            function toScreen(px, py) {
+                return {
+                    x: originScreenX + px * scale,
+                    y: originScreenY - py * scale
+                };
+            }
+
+            // Draw Background Elements (Cliff / Ground)
+            ctx.fillStyle = '#b45309'; // amber-700 cliff
+            const ground = toScreen(0, -cliffH);
+            
+            // Ground
+            ctx.fillRect(0, ground.y, w, h - ground.y);
+            ctx.fillStyle = '#92400e'; // darker edge
+            ctx.fillRect(0, ground.y, w, 8);
+            
+            // Cliff Wall
+            const edge = toScreen(0, 0);
+            ctx.fillStyle = '#d97706'; // amber-600
+            ctx.fillRect(0, edge.y, edge.x, ground.y - edge.y);
+            
+            // Ramp
+            const rampTop = toScreen(-d * Math.cos(theta), d * Math.sin(theta));
+            ctx.beginPath();
+            ctx.moveTo(rampTop.x, rampTop.y);
+            ctx.lineTo(edge.x, edge.y);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#475569'; // slate-600
+            ctx.stroke();
+
+            // Draw Ball Function
+            function drawBall(px, py) {
+                const pos = toScreen(px, py);
+                const ballRadius = 8;
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(pos.x, pos.y + ballRadius, ballRadius, ballRadius/2, 0, 0, Math.PI*2);
+                ctx.fill();
+
+                // Ball
+                const grad = ctx.createRadialGradient(pos.x - 2, pos.y - 2, 1, pos.x, pos.y, ballRadius);
+                grad.addColorStop(0, '#f8fafc');
+                grad.addColorStop(1, '#64748b');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, ballRadius, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            if (currentPhase === 1) {
+                // Trajectory Phase 1
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.moveTo(rampTop.x, rampTop.y);
+                ctx.lineTo(edge.x, edge.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Calculate current position
+                const tMax = params.t_roll;
+                const t = Math.min(time, tMax);
+                
+                // s(t) = 0.5 * a * t^2
+                // Since v = a*tMax  =>  a = v/tMax
+                const a = answers.q1 / tMax;
+                const s = 0.5 * a * t * t;
+                
+                const curPx = -d * Math.cos(theta) + s * Math.cos(theta);
+                const curPy = d * Math.sin(theta) - s * Math.sin(theta);
+                
+                drawBall(curPx, curPy);
+
+            } else {
+                // Trajectory Phase 2
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                const tMax = answers.q3;
+                for(let i=0; i<=40; i++) {
+                    let t = (i/40) * tMax;
+                    let px = answers.q4 * t;
+                    let py = answers.q2 * t - 0.5 * g * t * t;
+                    let sPos = toScreen(px, py);
+                    if(i===0) ctx.moveTo(sPos.x, sPos.y); else ctx.lineTo(sPos.x, sPos.y);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Calculate current position
+                const t = Math.min(time, tMax);
+                const curPx = answers.q4 * t;
+                const curPy = answers.q2 * t - 0.5 * g * t * t;
+                
+                drawBall(curPx, curPy);
+            }
+        }
+
+        function playAnimation(phase, callback) {
+            currentPhase = phase;
+            animProgress = 0;
+            isAnimating = true;
+            dom.replayPhase1Btn.disabled = true;
+            dom.replayPhase2Btn.disabled = true;
+            dom.replayPhase1Btn.classList.add('opacity-50', 'cursor-not-allowed');
+            dom.replayPhase2Btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            const maxTime = phase === 1 ? params.t_roll : answers.q3;
+            const speed = maxTime / 90; // Frame scaling
+            
+            function loop() {
+                if (!isAnimating) return;
+                animProgress += speed; 
+                
+                if (animProgress >= maxTime) {
+                    animProgress = maxTime;
+                    drawScene(animProgress);
+                    isAnimating = false;
+                    dom.replayPhase1Btn.disabled = false;
+                    dom.replayPhase2Btn.disabled = false;
+                    dom.replayPhase1Btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    dom.replayPhase2Btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    if (callback) setTimeout(callback, 500);
+                    return;
+                }
+                drawScene(animProgress);
+                animFrameId = requestAnimationFrame(loop);
+            }
+            
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            loop();
+        }
+
+        function generateProblem() {
+            // Generate Random Parameters for variations
+            params.d_ramp = parseFloat((1.0 + Math.random() * 1.5).toFixed(2));
+            params.theta = Math.floor(18 + Math.random() * 11); // 18 to 28 degrees
+            params.h_cliff = parseFloat((0.8 + Math.random() * 1.2).toFixed(2));
+            
+            // To ensure roll time is realistic based on physical ball on ramp:
+            // a_ideal approx = (5/7) * g * sin(theta)
+            const thetaRad = params.theta * Math.PI / 180;
+            const idealAccel = (5/7) * g * Math.sin(thetaRad);
+            const idealTime = Math.sqrt(2 * params.d_ramp / idealAccel);
+            
+            // We'll round it to simulate a student measurement
+            params.t_roll = parseFloat(idealTime.toFixed(2));
+
+            // Calculate Exact Physics Answers
+            
+            // Q1: v = 2 * d / t
+            answers.q1 = (2 * params.d_ramp) / params.t_roll;
+            
+            // Q2: voy = -v * sin(theta) -> note it is negative
+            answers.q2 = -answers.q1 * Math.sin(thetaRad);
+            
+            // Q3: t in air. y = voy*t - 4.9*t^2 => -h = voy*t - 4.9*t^2 => 4.9t^2 - voy*t - h = 0
+            // Quadratic: a = 4.9, b = -voy, c = -h
+            const a_quad = 4.9;
+            const b_quad = -answers.q2;
+            const c_quad = -params.h_cliff;
+            // Since c is negative, determinant is positive. We want the positive root.
+            answers.q3 = (-b_quad + Math.sqrt(b_quad*b_quad - 4*a_quad*c_quad)) / (2*a_quad);
+            
+            // Q4: vox = v * cos(theta)
+            answers.q4 = answers.q1 * Math.cos(thetaRad);
+            
+            // Q5: x distance
+            answers.q5 = answers.q4 * answers.q3;
+
+            // Update UI Texts
+            dom.rampDist.textContent = params.d_ramp.toFixed(2) + ' m';
+            dom.rollTime.textContent = params.t_roll.toFixed(2) + ' s';
+            dom.rampAngle.textContent = params.theta + '°';
+            dom.cliffHeight.textContent = params.h_cliff.toFixed(2) + ' m';
+            
+            dom.q2RampAngle.textContent = params.theta;
+            dom.q3CliffHeight.textContent = params.h_cliff.toFixed(2);
+            dom.q4RampAngle.textContent = params.theta;
+
+            // Reset States
+            mistakes = {};
+            currentPhase = 1;
+            dom.scoreCard.style.display = 'none';
+            dom.phase2Header.classList.add('opacity-40', 'grayscale');
+            dom.phase2Preview.classList.remove('bg-slate-50', 'border-slate-200', 'bg-orange-50', 'border-orange-300', 'opacity-100');
+            dom.phase2Preview.classList.add('bg-slate-50', 'border-slate-200', 'opacity-50');
+            dom.phase2Preview.querySelector('h3').classList.add('text-slate-700');
+            dom.phase2Preview.querySelector('h3').classList.remove('text-orange-900');
+            
+            dom.replayPhase2Btn.classList.add('hidden');
+
+            dom.questions.forEach((q, idx) => {
+                if (idx > 0) {
+                    q.card.classList.add('question-disabled');
+                    q.input.disabled = true;
+                    q.button.disabled = true;
+                }
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                q.feedback.innerHTML = '';
+                q.feedback.className = 'feedback';
+            });
+
+            dom.questions[0].card.classList.remove('question-disabled');
+            dom.questions[0].input.disabled = false;
+            dom.questions[0].button.disabled = false;
+            
+            if (studentName !== "") dom.questions[0].input.focus();
+
+            drawScene(0);
+        }
+
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            const correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Invalid Entry!</strong> Please input a number.';
+                q.feedback.className = 'feedback incorrect';
+                return;
+            }
+
+            const isCorrect = checkTolerance(userAns, correctAns);
+
+            if (isCorrect) {
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> Well done. (${formattedAns})`;
+                q.feedback.className = 'feedback correct';
+
+                q.input.value = formattedAns;
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                if (qNum === 2) {
+                    playAnimation(1, () => {
+                        dom.phase2Header.classList.remove('opacity-40', 'grayscale');
+                        
+                        // Highlight preview block
+                        dom.phase2Preview.classList.remove('bg-slate-50', 'opacity-50');
+                        dom.phase2Preview.classList.add('bg-orange-50', 'border-orange-300', 'opacity-100');
+                        dom.phase2Preview.querySelector('h3').classList.add('text-orange-900');
+                        dom.phase2Preview.querySelector('h3').classList.remove('text-slate-700');
+                        
+                        dom.replayPhase2Btn.classList.remove('hidden');
+
+                        const nextQ = dom.questions[2]; // Move to q3
+                        nextQ.card.classList.remove('question-disabled');
+                        nextQ.input.disabled = false;
+                        nextQ.button.disabled = false;
+                        nextQ.input.focus();
+                    });
+                } else if (qNum === 5) {
+                    playAnimation(2, showScore);
+                } else {
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                }
+            } else {
+                if (!mistakes[qNum]) mistakes[qNum] = 0;
+                mistakes[qNum]++;
+
+                // Detect Radians Mode for Q2 and Q4
+                let isRadianError = false;
+                if (qNum === 2) {
+                    // Check if calculated with sin(theta in radians)
+                    const radAns = -answers.q1 * Math.sin(params.theta);
+                    if (checkTolerance(userAns, radAns)) {
+                        isRadianError = true;
+                    }
+                } else if (qNum === 4) {
+                    // Check if calculated with cos(theta in radians)
+                    const radAns = answers.q1 * Math.cos(params.theta);
+                    if (checkTolerance(userAns, radAns)) {
+                        isRadianError = true;
+                    }
+                }
+
+                if (isRadianError) {
+                    q.feedback.innerHTML = `<strong>Calculator Error!</strong> Your calculator appears to be in <strong>Radians mode</strong> instead of <strong>Degrees mode</strong>. Switch your calculator to <strong>DEG</strong> and try again!`;
+                    q.feedback.className = 'feedback incorrect';
+                    if (window.MathJax) {
+                        MathJax.typesetPromise([q.feedback]).catch((err) => console.log(err.message));
+                    }
+                    return;
+                }
+
+                let hint = '';
+                switch (qNum) {
+                    case 1:
+                        hint = `<strong>Hint:</strong> Use the constant acceleration equation: $\\Delta x = \\frac{1}{2}(v_0 + v)t$. You know $v_0 = 0$, $\\Delta x = ${params.d_ramp}$ m, and $t = ${params.t_roll}$ s. Solve for $v$.`;
+                        break;
+                    case 2:
+                        hint = `<strong>Hint:</strong> The ramp points DOWN at $\\theta = ${params.theta}^\\circ$. Use $v_{0y} = v \\sin(-\\theta)$. Ensure your answer is negative because the ball is launched downwards!`;
+                        break;
+                    case 3:
+                        hint = `<strong>Hint:</strong> Use $y = y_0 + v_{0y}t + \\frac{1}{2}a_y t^2$ and set final height $y = 0$. The initial height is $y_0 = ${params.h_cliff}$ m, and $a_y = -9.8 \\text{ m/s}^2$. Set up the quadratic equation: $0 = ${params.h_cliff} + v_{0y}t - 4.9t^2$ and use the quadratic formula (or Desmos!) to solve for time.`;
+                        break;
+                    case 4:
+                        hint = `<strong>Hint:</strong> The horizontal component is found using $v_{0x} = v \\cos(-\\theta)$. This is a positive value.`;
+                        break;
+                    case 5:
+                        hint = `<strong>Hint:</strong> Multiply the horizontal velocity you found in Q4 by the time in the air you found in Q3. $\\Delta x = v_{0x} \\times t_{air}$.`;
+                        break;
+                }
+
+                q.feedback.innerHTML = hint;
+                q.feedback.className = 'feedback incorrect';
+            }
+
+            if (window.MathJax) {
+                MathJax.typesetPromise([q.feedback]).catch((err) => console.log(err.message));
+            }
+        }
+
+        function showScore() {
+            let totalErrors = 0;
+            for (let k in mistakes) totalErrors += mistakes[k];
+
+            let scorePoints = 5;
+            
+            if (totalErrors === 0) {
+                scorePoints = 6;
+                setTimeout(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } }), 100);
+                setTimeout(() => confetti({ particleCount: 150, spread: 80, origin: { x: 0.2, y: 0.6 } }), 600);
+            } else if (totalErrors <= 2) {
+                scorePoints = 5;
+            } else {
+                scorePoints = Math.max(0, 5 - (totalErrors - 2));
+            }
+
+            dom.finalScore.textContent = `${scorePoints} / 5`;
+            
+            let cleanName = (studentName || "STU").replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            if (cleanName.length < 3) cleanName += "XYZ".substring(0, 3 - cleanName.length);
+            let nameChars = cleanName.substring(0, 3).split('');
+            let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let vCode = [];
+            for (let i = 0; i < 12; i++) vCode.push(chars.charAt(Math.floor(Math.random() * chars.length)));
+            
+            let indices = [1, 5, 9];
+            indices.forEach((idx, i) => { vCode[idx] = nameChars[i]; });
+            
+            document.getElementById('verification-code').textContent = vCode.join('');
+            
+            if (scorePoints === 6) {
+                dom.scoreTitle.textContent = `Perfect Lab, ${studentName}!`;
+                dom.scoreMessage.textContent = "Acme Corp would be proud.";
+                dom.mistakeSummary.textContent = `You predicted the exact landing spot perfectly.`;
+            } else {
+                dom.scoreTitle.textContent = `Lab Complete, ${studentName}`;
+                dom.scoreMessage.textContent = "Good effort on your kinematics.";
+                dom.mistakeSummary.textContent = `Total minor retries: ${totalErrors}. Keep practicing!`;
+            }
+
+            dom.scoreCard.style.display = 'block';
+            setTimeout(() => dom.scoreCard.scrollIntoView({ behavior: 'smooth' }), 300);
+        }
+
+        function generateHTMLSolution() {
+            const solutionHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wile E. Coyote Lab Solution - ${studentName}</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 30px auto; padding: 20px; color: #1e293b; }
+        h1 { color: #b91c1c; border-bottom: 2px solid #b91c1c; padding-bottom: 8px; }
+        .box { background: #fffbeb; border: 1px solid #fcd34d; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .ans { font-weight: bold; color: #15803d; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <h1>Wile E. Coyote Lab Solution</h1>
+    <p><strong>Student:</strong> ${studentName}</p>
+    
+    <div class="box">
+        <h3>Given Problem Parameters:</h3>
+        <ul>
+            <li>Ramp Distance: ${params.d_ramp.toFixed(2)} m</li>
+            <li>Roll Time: ${params.t_roll.toFixed(2)} s</li>
+            <li>Ramp Angle: ${params.theta}&deg;</li>
+            <li>Initial Height (y<sub>0</sub>): ${params.h_cliff.toFixed(2)} m</li>
+        </ul>
+    </div>
+
+    <h2>Phase 1 Solutions</h2>
+
+    <h3>1. Speed at Bottom of Ramp (v)</h3>
+    <p>Using the kinematic equation: x - x<sub>0</sub> = &frac12;(v<sub>0</sub> + v)t<br>
+    Since v<sub>0</sub> = 0, we rearrange to find v: v = 2(x - x<sub>0</sub>) / t<br>
+    v = 2(${params.d_ramp}) / ${params.t_roll}</p>
+    <p class="ans">v = ${toSigFigs(answers.q1)} m/s</p>
+
+    <h3>2. Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>The ramp is angled downwards, so the angle is negative.<br>
+    v<sub>0y</sub> = v &times; sin(&theta;) = ${toSigFigs(answers.q1)} &times; sin(-${params.theta}&deg;)</p>
+    <p class="ans">v<sub>0y</sub> = ${toSigFigs(answers.q2)} m/s</p>
+    
+    <h2>Phase 2 Solutions</h2>
+
+    <h3>3. Total Time in Air (t)</h3>
+    <p>Using the vertical motion equation: y = y<sub>0</sub> + v<sub>0y</sub>t + &frac12;a<sub>y</sub>t&sup2;<br>
+    Setting final height y = 0:<br>
+    0 = ${params.h_cliff.toFixed(2)} + (${toSigFigs(answers.q2)})t - 4.9t&sup2;<br>
+    Using the quadratic formula to solve for the positive root:</p>
+    <p class="ans">t = ${toSigFigs(answers.q3)} s</p>
+    
+    <p><strong>Alternative Solution (Desmos):</strong> You can type the equation <code>y = ${params.h_cliff.toFixed(2)} + (${toSigFigs(answers.q2)})x - 4.9x^2</code> into <a href="https://www.desmos.com/calculator" target="_blank" style="color: #b91c1c;">Desmos</a> and find the x-intercept (where the graph hits y=0) to find the time in the air.</p>
+
+    <h3>4. Initial Horizontal Velocity (v<sub>0x</sub>)</h3>
+    <p>v<sub>0x</sub> = v &times; cos(&theta;) = ${toSigFigs(answers.q1)} &times; cos(-${params.theta}&deg;)</p>
+    <p class="ans">v<sub>0x</sub> = ${toSigFigs(answers.q4)} m/s</p>
+
+    <h3>5. Horizontal Landing Distance</h3>
+    <p>Distance = v<sub>0x</sub> &times; t = ${toSigFigs(answers.q4)} &times; ${toSigFigs(answers.q3)}</p>
+    <p class="ans">Landing Distance = ${toSigFigs(answers.q5)} m</p>
+</body>
+</html>`;
+
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(solutionHTML));
+            element.setAttribute('download', `wile_e_coyote_solution_${studentName || 'student'}.html`);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        dom.startBtn.addEventListener('click', () => {
+            const name = dom.nameInput.value.trim();
+            if (name) {
+                studentName = name;
+                dom.nameModal.style.display = 'none';
+                dom.questions[0].input.focus();
+            } else {
+                dom.nameInput.classList.add('border-red-500');
+            }
+        });
+
+        dom.resetBtn.addEventListener('click', generateProblem);
+        dom.tryAgainBtn.addEventListener('click', () => {
+            generateProblem();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        dom.downloadBtn.addEventListener('click', generateHTMLSolution);
+        
+        dom.replayPhase1Btn.addEventListener('click', () => {
+            playAnimation(1);
+        });
+        
+        dom.replayPhase2Btn.addEventListener('click', () => {
+            playAnimation(2);
+        });
+
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            document.getElementById(`q${i}-input`).addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer(i);
+            });
+        }
+
+        // Initialize first problem set
+        generateProblem();
+    </script>
+</body>
+</html>
