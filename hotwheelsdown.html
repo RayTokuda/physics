@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include the canvas-confetti library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Lighter blue-gray background */
+        }
+        
+        /* Load the Inter font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        /* Style for the question cards */
+        .question-card {
+            background-color: white;
+            border-radius: 0.75rem; /* Slightly larger radius */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden; /* To contain the feedback box */
+        }
+
+        .question-card:not(.question-disabled) {
+             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+             transform: translateY(-2px);
+        }
+
+        /* Style for disabled question cards */
+        .question-disabled {
+            background-color: #f9fafb; /* Off-white */
+            opacity: 0.7;
+        }
+
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #e5e7eb;
+        }
+
+        /* Feedback boxes */
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem; /* Rounded bottom corners */
+            display: none; /* Hidden by default */
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .feedback.correct {
+            background-color: #f0fdf4; /* Light green */
+            color: #166534; /* Dark green text */
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: #fef2f2; /* Light red */
+            color: #991b1b; /* Dark red text */
+            display: block;
+        }
+        
+        /* Input field styling */
+        .input-correct {
+            background-color: #dcfce7; /* Light green background */
+            border-color: #22c55e; /* Green border */
+            color: #15803d; /* Dark green text */
+        }
+
+        /* Custom button styling */
+        .btn-primary {
+            background-color: #059669; /* Emerald 600 */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #047857; /* Emerald 700 */
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: #4f46e5; /* Indigo 600 */
+        }
+        .btn-secondary:hover {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">Interactive Physics: Projectile Motion</h1>
+        
+        <!-- Reset Button -->
+        <div class="flex justify-center mb-6">
+            <button id="reset-button" class="btn-primary btn-secondary">
+                New Problem
+            </button>
+        </div>
+
+        <!-- Problem Card -->
+        <div class="question-card p-6 mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">The Problem</h2>
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- New image for downward launch -->
+                <img src="https://docs.google.com/drawings/d/e/2PACX-1vRbp9SVDTRJiWV6zLsbg0AwLDLLHQ3RJUZYFvP9FKoe7MJPYDvoxgFG0HVN4VmKY8j_C4jNnRm3DFXI/pub?w=960&h=720" alt="Diagram of a car launching down off a table" class="w-full md:w-1/2 rounded-lg shadow-md object-contain bg-white">
+                <div class="flex-1">
+                    <p class="text-lg text-gray-700 leading-relaxed">
+                        A toy car starts from rest and rolls 
+                        <strong id="ramp-distance" class="text-indigo-600">...</strong> m down a ramp in 
+                        <strong id="ramp-time" class="text-indigo-600">...</strong> s. The ramp is angled at 
+                        <strong id="launch-angle" class="text-indigo-600">...</strong> degrees <strong>below</strong> the horizontal, 
+                        launching off the end of a table of height <strong id="table-height" class="text-indigo-600">...</strong> m.
+                    </p>
+                    <p class="text-md text-gray-600 mt-4">
+                        Your mission is to find the car's motion characteristics.
+                        Use <strong class="text-gray-800">g = 9.8 m/s²</strong> and provide all answers to
+                        <strong class="text-gray-800">3 significant digits</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- NEW Question 1 -->
+            <div id="q1" class="question-card p-6">
+                <label for="q1-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    1. What is the car's launch velocity (v<sub>0</sub>) at the bottom of the ramp? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q1-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <button id="q1-button" class="btn-primary">Check</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 2 (Was Q1) -->
+            <div id="q2" class="question-card p-6 question-disabled">
+                <label for="q2-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    2. What is the car's vertical displacement (y - y<sub>0</sub>) as it flies through the air? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q2-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+            
+            <!-- Question 3 (Was Q2) -->
+            <div id="q3" class="question-card p-6 question-disabled">
+                <label for="q3-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    3. What is the initial vertical velocity (v<sub>0y</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q3-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q3-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 4 (Was Q3) -->
+            <div id="q4" class="question-card p-6 question-disabled">
+                <label for="q4-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    4. What is the total time the car is in the air? (in s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q4-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q4-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 5 (Was Q4) -->
+            <div id="q5" class="question-card p-6 question-disabled">
+                <label for="q5-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    5. What is the initial horizontal velocity (v<sub>0x</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q5-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q5-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+            <!-- Question 6 (Was Q5) -->
+            <div id="q6" class="question-card p-6 question-disabled">
+                <label for="q6-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    6. What is the total horizontal distance (x - x<sub>0</sub>) the car travels? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q6-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q6-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q6-feedback" class="feedback"></div>
+            </div>
+            
+        </div>
+        
+        <!-- Score Card -->
+        <div id="score-card" class="bg-green-600 text-white shadow-2xl rounded-lg p-8 text-center mt-8" style="display: none;">
+            <h2 class="text-3xl font-bold mb-4">Challenge Complete!</h2>
+            <p id="score-message" class="text-lg text-green-100 mb-4">Incredible job!</p>
+            <div class="text-5xl font-extrabold text-white mb-2" id="final-score">10/10</div>
+            <p class="text-green-200" id="mistake-summary">Great work!</p>
+            <button id="download-button" class="w-full mt-4 bg-white hover:bg-gray-100 text-green-700 font-bold py-2 px-4 rounded-lg transition duration-200">
+                Download Solution (HTML)
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES ---
+        const g = 9.8;
+        const numQuestions = 6;
+        let answers = {};
+        let problemValues = {}; // To store h, v0, theta, d, a_ramp, t_ramp
+        let mistakes = {};
+        
+        // This is the DOM object
+        const dom = {
+            height: document.getElementById('table-height'),
+            rampDistance: document.getElementById('ramp-distance'), 
+            rampTime: document.getElementById('ramp-time'), // Added
+            angle: document.getElementById('launch-angle'),
+            resetButton: document.getElementById('reset-button'),
+            scoreCard: document.getElementById('score-card'),
+            finalScore: document.getElementById('final-score'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadButton: document.getElementById('download-button'),
+            questions: []
+        };
+        
+        // Populate the dom.questions array
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Generates a random float between min (inclusive) and max (exclusive)
+         */
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        /**
+         * Formats a number to a specified number of significant figures.
+         */
+        function toSigFigs(num, sigFigs) {
+            if (num === 0) {
+                return 0;
+            }
+            if (!num) {
+                return 0;
+            }
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        /**
+         * Checks if the user's answer is within 2% tolerance of the correct answer
+         */
+        function checkTolerance(userAns, correctAns) {
+            if (Math.abs(correctAns) < 1e-9) {
+                return Math.abs(userAns) < 1e-9;
+            }
+            // Use a slightly larger tolerance for Q1 because the 3 paths might have tiny floating point differences
+            const tolerance = Math.abs(correctAns * 0.03); // 3% tolerance
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        /**
+         * Solves the quadratic formula: ax^2 + bx + c = 0
+         * Returns the positive, real root (if one exists)
+         */
+        function solveQuadratic(a, b, c) {
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) {
+                return null; // No real roots
+            }
+            const t1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            const t2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+            
+            if (t1 > 0) return t1;
+            if (t2 > 0) return t2;
+            
+            return null; // No positive time root
+        }
+        
+        // --- CORE LOGIC ---
+
+        /**
+         * Generates a new problem, calculates answers, and resets the UI
+         */
+        function generateProblem() {
+            // 1. Generate random values
+            const h = random(0.8, 1.2); // table height
+            const theta = Math.floor(random(-35, -9)); // ramp angle
+            const thetaRad = theta * (Math.PI / 180);
+            
+            // 2. Calculate consistent ramp physics
+            const a_ramp = g * Math.sin(Math.abs(thetaRad)); // acceleration on ramp
+            let d = random(1.0, 1.5); // ramp distance
+            d = Math.round(d * 10) / 10; // Round to 0.1 m
+            
+            const v0 = Math.sqrt(2 * a_ramp * d); // launch velocity (v_final on ramp)
+            const t_ramp = v0 / a_ramp; // time on ramp (v_f = v_i + at)
+
+            // Store problem values for solution
+            problemValues = { h, v0, theta, d, a_ramp, t_ramp };
+
+            // 3. Calculate all correct answers
+            const v0y = v0 * Math.sin(thetaRad); // negative
+            const v0x = v0 * Math.cos(thetaRad); // positive
+            const dy = -h;
+
+            const a_quad = 0.5 * (-g);
+            const b_quad = v0y;
+            const c_quad = -dy; // h
+            const t = solveQuadratic(a_quad, b_quad, c_quad);
+            
+            answers = {
+                q1: v0,  // New Q1: launch velocity
+                q2: -h,  // Old Q1: displacement
+                q3: v0y, // Old Q2: v0y
+                q4: t,   // Old Q3: time
+                q5: v0x, // Old Q4: v0x
+                q6: v0x * t // Old Q5: distance
+            };
+            
+            // Handle null/NaN answers
+            for (let key in answers) {
+                if (answers[key] === null || isNaN(answers[key])) {
+                    console.error("Failed to calculate a valid answer for:", key);
+                    generateProblem();
+                    return;
+                }
+            }
+
+            // 4. Reset UI
+            dom.height.textContent = h.toFixed(2);
+            dom.rampDistance.textContent = d.toFixed(1);
+            dom.rampTime.textContent = t_ramp.toFixed(2); // Show time
+            dom.angle.textContent = Math.abs(theta).toFixed(0);
+            
+            dom.scoreCard.style.display = 'none';
+            mistakes = {};
+
+            for (let i = 0; i < numQuestions; i++) {
+                const q = dom.questions[i];
+                q.card.classList.add('question-disabled');
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                
+                const feedback = q.feedback;
+                feedback.innerHTML = '';
+                feedback.classList.remove('correct', 'incorrect');
+            }
+
+            // 5. Enable the first question
+            const q1 = dom.questions[0];
+            q1.card.classList.remove('question-disabled');
+            q1.input.disabled = false;
+            q1.button.disabled = false;
+            q1.input.focus();
+        }
+
+        /**
+         * Checks the answer for a given question number
+         */
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            const correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Whoops!</strong> Please enter a number.';
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+                return;
+            }
+            
+            const isCorrect = checkTolerance(userAns, correctAns);
+
+            if (isCorrect) {
+                // --- CORRECT ANSWER ---
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> The answer is ${formattedAns}.`;
+                q.feedback.classList.add('correct');
+                q.feedback.classList.remove('incorrect');
+                
+                q.input.value = formattedAns;
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                // Enable next question or show score
+                if (qNum < numQuestions) { // numQuestions is now 6
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                } else {
+                    // All questions done!
+                    showScore();
+                }
+            } else {
+                // --- INCORRECT ANSWER ---
+                if (!mistakes[qNum]) {
+                    mistakes[qNum] = 0;
+                }
+                mistakes[qNum]++;
+                
+                let hint = '';
+                switch (qNum) {
+                    case 1:
+                        // Use the user's requested equation for the hint
+                        hint = "<strong>Hint:</strong> Use the kinematic equation <code>(x - x<sub>0</sub>) = 0.5 * (v<sub>i</sub> + v<sub>f</sub>) * t</code>. You are given the distance <code>(x - x<sub>0</sub>)</code> and the time <code>t</code>. Since the car starts from rest, <code>v<sub>i</sub> = 0</code>. Solve for <code>v<sub>f</sub></code> (the launch velocity)!";
+                        break;
+                    case 2:
+                        if (userAns > 0) {
+                            hint = "<strong>Hint:</strong> Displacement (y - y<sub>0</sub>) is final position minus initial. The car lands *below* the table. Is the displacement positive or negative?";
+                        } else {
+                            hint = "<strong>Hint:</strong> The vertical displacement (y - y<sub>0</sub>) is simply the negative of the table's height.";
+                        }
+                        break;
+                    case 3:
+                         if (userAns > 0) {
+                            hint = "<strong>Hint:</strong> The launch angle is *below* the horizontal. Does that make the initial *vertical* velocity positive or negative?";
+                        } else {
+                            hint = "<strong>Hint:</strong> Use trigonometry! (v<sub>0y</sub> = v<sub>0</sub> * sin(θ)). You found v<sub>0</sub> in Q1. Since the angle is negative, sin(θ) will be negative.";
+                        }
+                        break;
+                    case 4:
+                        hint = "<strong>Hint:</strong> Use the kinematic equation: (y - y<sub>0</sub>) = v<sub>0y</sub>t + 0.5a<sub>y</sub>t². This is a quadratic equation! (a = -4.9, b = v<sub>0y</sub>, c = -(y - y<sub>0</sub>))";
+                        break;
+                    case 5:
+                        hint = "<strong>Hint:</strong> Use trigonometry! (v<sub>0x</sub> = v<sub>0</sub> * cos(θ)). You found v<sub>0</sub> in Q1. cos(θ) is positive for angles between -90 and +90 degrees.";
+                        break;
+                    case 6:
+                        hint = "<strong>Hint:</strong> Horizontal motion is constant velocity! Use (x - x<sub>0</sub>) = v<sub>0x</sub> * t. You already found v<sub>0x</sub> and the total time t.";
+                        break;
+                    default:
+                        hint = "<strong>Not quite.</strong> Double-check your calculations and try again!"
+                }
+                
+                q.feedback.innerHTML = hint;
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+            }
+        }
+
+        /**
+         * Calculates and displays the final score and confetti
+         */
+        function showScore() {
+            const numMistakes = Object.keys(mistakes).length;
+            let score = 10; // New base score
+            let summary = "";
+
+            if (numMistakes === 0) {
+                score = 13; // +3
+                summary = "You got 0 incorrect! Perfect score! +3 bonus points!";
+            } else if (numMistakes === 1) {
+                score = 12; // +2
+                summary = "You only missed 1! Amazing job! +2 bonus points!";
+            } else if (numMistakes === 2) {
+                score = 11; // +1
+                summary = "You only missed 2! Excellent work! +1 bonus point!";
+            } else {
+                score = 10; // Base
+                summary = `You completed the challenge! Great perseverance!`;
+            }
+
+            dom.finalScore.textContent = `${score}/10`; // Updated score
+            dom.mistakeSummary.textContent = summary;
+            
+            dom.scoreMessage.textContent = congratulations[Math.floor(Math.random() * congratulations.length)];
+            dom.scoreCard.style.display = 'block';
+            launchConfetti();
+        }
+        
+        /**
+         * Launches confetti from multiple origins
+         */
+        function launchConfetti() {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+        
+        /**
+         * Helper to safely replace variable names with HTML subscripts
+         */
+        function subHTML(text) {
+            return text
+                .replace(/v_0y/g, 'v<sub>0y</sub>')
+                .replace(/v_0x/g, 'v<sub>0x</sub>')
+                .replace(/y_0/g, 'y<sub>0</sub>')
+                .replace(/x_0/g, 'x<sub>0</sub>')
+                .replace(/v_0/g, 'v<sub>0</sub>')
+                .replace(/a_y/g, 'a<sub>y</sub>')
+                .replace(/v_y/g, 'v<sub>y</sub>')
+                .replace(/v_f/g, 'v<sub>f</sub>')
+                .replace(/v_i/g, 'v<sub>i</sub>')
+                .replace(/a_ramp/g, 'a<sub>ramp</sub>')
+                .replace(/y_final/g, 'y<sub>final</sub>')
+                .replace(/y_initial/g, 'y<sub>initial</sub>')
+                .replace(/h_ramp/g, 'h<sub>ramp</sub>');
+        }
+
+        /**
+         * Triggers a browser download for a text-based file
+         */
+        function downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        /**
+         * New function to generate and download an HTML solution
+         */
+        function generateHTMLSolution() {
+            const sigFig = (n) => toSigFigs(n, 3);
+            const { h, v0, theta, d, a_ramp, t_ramp } = problemValues;
+            const { q1, q2, q3, q4, q5, q6 } = answers;
+            
+            const imageUrl = document.querySelector('.question-card img').src;
+
+            const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Solution</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; background-color: #f9f9f9; color: #333; max-width: 800px; margin: 20px auto; padding: 30px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { color: #111; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px; }
+        h3 { color: #333; margin-top: 20px; margin-bottom: 5px; }
+        p { margin-bottom: 10px; }
+        code { font-family: "Courier New", Courier, monospace; background-color: #eee; padding: 2px 5px; border-radius: 4px; }
+        .problem-value { font-weight: bold; color: #0056b3; }
+        .answer { font-weight: bold; font-size: 1.1em; color: #00796b; }
+        .method { border-left: 3px solid #00796b; padding-left: 15px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h1>Projectile Motion Problem Solution</h1>
+    
+    <h2>The Problem</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; background-color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <img src="${imageUrl}" alt="Diagram of a car launching off a table" style="max-width: 50%; height: auto; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+        <div style="flex: 1; min-width: 300px;">
+            <p style="font-size: 1.1em; line-height: 1.7;">
+                A toy car starts from rest and rolls <strong style="color: #0056b3;">${d.toFixed(1)}</strong> m down a ramp in 
+                <strong style="color: #0056b3;">${t_ramp.toFixed(2)}</strong> s. The ramp is angled at 
+                <strong style="color: #0056b3;">${Math.abs(theta).toFixed(0)}</strong> degrees <strong>below</strong> the horizontal, 
+                launching off the end of a table of height <strong style="color: #0056b3;">${h.toFixed(2)}</strong> m.
+            </p>
+        </div>
+    </div>
+    
+    <h2>Given Values</h2>
+    <p>Table Height (h): <span class="problem-value">${h.toFixed(2)} m</span></p>
+    <p>Ramp Distance (d): <span class="problem-value">${d.toFixed(1)} m</span></p>
+    <p>Ramp Time (t<sub>ramp</sub>): <span class="problem-value">${t_ramp.toFixed(2)} s</span></p>
+    <p>Ramp Angle (θ): <span class="problem-value">${Math.abs(theta).toFixed(0)} degrees below horizontal</span></p>
+    <p>Gravitational Acceleration (g): <span class="problem-value">9.8 m/s²</span></p>
+
+    <h2>Calculated Solutions</h2>
+
+    <h3>1. Launch Velocity (v<sub>0</sub>)</h3>
+    <p>There are multiple ways to find the launch velocity (v<sub>0</sub>), which is the final velocity (v<sub>f</sub>) on the ramp since v<sub>i</sub> = 0.</p>
+    
+    <div class="method">
+        <p>${subHTML(`<b>Method 1: Using Distance and Time (Most Direct)</b>`)}</p>
+        <p>${subHTML(`Equation: d = 0.5 * (v_i + v_f) * t_ramp`)}</p>
+        <p>${subHTML(`Solved: v_f = (2 * d) / t_ramp (since v_i = 0)`)}</p>
+        <p>${subHTML(`Solved (Velocity): v_0 = (2 * ${d.toFixed(1)}) / ${t_ramp.toFixed(2)}`)}</p>
+        <p class="answer">${subHTML(`v_0 = ${sigFig(q1)} m/s`)}</p>
+    </div>
+
+    <div class="method">
+        <p>${subHTML(`<b>Method 2: Using Acceleration and Time</b>`)}</p>
+        <p>${subHTML(`Equation (Ramp Accel): a_ramp = g * sin(abs(θ))`)}</p>
+        <p>${subHTML(`Solved (Ramp Accel): a_ramp = 9.8 * sin(${Math.abs(theta)}) = ${sigFig(a_ramp)} m/s²`)}</p>
+        <p>${subHTML(`Equation (Velocity): v_f = v_i + a_ramp * t_ramp`)}</p>
+        <p>${subHTML(`Solved (Velocity): v_0 = 0 + ${sigFig(a_ramp)} * ${t_ramp.toFixed(2)}`)}</p>
+        <p class="answer">${subHTML(`v_0 = ${sigFig(q1)} m/s`)}</p>
+    </div>
+
+    <div class="method">
+        <p>${subHTML(`<b>Method 3: Using Acceleration and Distance</b>`)}</p>
+        <p>${subHTML(`Equation (Ramp Accel): a_ramp = g * sin(abs(θ))`)}</p>
+        <p>${subHTML(`Solved (Ramp Accel): a_ramp = 9.8 * sin(${Math.abs(theta)}) = ${sigFig(a_ramp)} m/s²`)}</p>
+        <p>${subHTML(`Equation (Velocity): v_f² = v_i² + 2 * a_ramp * d`)}</p>
+        <p>${subHTML(`Solved (Velocity): v_0² = 0 + 2 * ${sigFig(a_ramp)} * ${d.toFixed(1)}`)}</p>
+        <p class="answer">${subHTML(`v_0 = ${sigFig(q1)} m/s`)}</p>
+    </div>
+
+    <h3>2. Vertical Displacement (y - y<sub>0</sub>)</h3>
+    <p>The car lands on the floor, which is ${h.toFixed(2)} m *below* the launch point.</p>
+    <p>${subHTML(`Equation: (y - y_0) = y_final - y_initial = 0 - h`)}</p>
+    <p class="answer">${subHTML(`(y - y_0) = ${sigFig(q2)} m`)}</p>
+
+    <h3>3. Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>${subHTML(`Equation: v_0y = v_0 * sin(θ)`)}</p>
+    <p>${subHTML(`Solved: v_0y = ${sigFig(q1)} m/s * sin(${theta})`)}</p>
+    <p class="answer">${subHTML(`v_0y = ${sigFig(q3)} m/s`)}</p>
+
+    <h3>4. Total Time in Air (t)</h3>
+    <p>${subHTML(`Equation: (y - y_0) = v_0y * t + 0.5 * a_y * t²`)}</p>
+    <p>${subHTML(`Solved: 0.5 * (-g) * t² + v_0y * t - (y - y_0) = 0`)}</p>
+    <p>Using quadratic formula (ax² + bx + c = 0):</p>
+    <p>${subHTML(`<code>a = -4.9</code>, <code>b = ${sigFig(q3)}</code>, <code>c = ${sigFig(-q2)}</code>`)}</p>
+    <p class="answer">${subHTML(`t = ${sigFig(q4)} s`)}</p>
+
+    <h3>5. Initial Horizontal Velocity (v<sub>0x</sub>)</h3>
+    <p>${subHTML(`Equation: v_0x = v_0 * cos(θ)`)}</p>
+    <p>${subHTML(`Solved: v_0x = ${sigFig(q1)} m/s * cos(${theta})`)}</p>
+    <p class="answer">${subHTML(`v_0x = ${sigFig(q5)} m/s`)}</p>
+
+    <h3>6. Horizontal Distance (x - x<sub>0</sub>)</h3>
+    <p>${subHTML(`Equation: (x - x_0) = v_0x * t`)}</p>
+    <p>${subHTML(`Solved: (x - x_0) = ${sigFig(q5)} m/s * ${sigFig(q4)} s`)}</p>
+    <p class="answer">${subHTML(`(x - x_0) = ${sigFig(q6)} m`)}</p>
+
+</body>
+</html>
+            `;
+
+            downloadFile('car launched down off a table.html', htmlContent);
+        }
+
+
+        // --- EVENT LISTENERS ---
+        dom.resetButton.addEventListener('click', generateProblem);
+        dom.downloadButton.addEventListener('click', generateHTMLSolution); 
+        
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            
+            document.getElementById(`q${i}-input`).addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    document.getElementById(`q${i}-button`).click();
+                }
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        generateProblem();
+        
+        
+        // --- CONGRATULATIONS MESSAGES (200) ---
+        const congratulations = [
+            "Absolutely stellar!", "Physics wizard!", "You've mastered motion!", "Incredible job!", "Perfect calculation!",
+            "Sir Isaac Newton would be proud!", "Galileo bows to you!", "That's how it's done!", "Flawless victory!", "Top-tier problem solving!",
+            "Are you a human calculator?", "Exceptional!", "Magnificent!", "Outstanding!", "Brilliant work!",
+            "You aced it!", "Velocity, time, distance... you own them!", "King/Queen of Kinematics!", "Unstoppable!", "Physics genius!",
+            "A perfect trajectory!", "You hit the bullseye!", "Gravity is your plaything!", "Superb!", "Fantastic!",
+            "Wow! Just wow!", "Nailed it!", "That's physics poetry!", "You're on fire!", "Mind-blowing skills!",
+            "A+ work!", "Textbook perfect!", "Incredible precision!", "You didn't just solve it, you conquered it!", "Simply amazing!",
+            "What a launch!", "You're in a class of your own!", "Unbelievable!", "Stunning performance!", "Physics is your superpower!",
+            "Pure brilliance!", "You see the matrix (of physics)!", "Absolutely phenomenal!", "A true scholar!", "This is the way!",
+            "Spectacular!", "You're a force of nature!", "Out of this world!", "That's some next-level thinking!", "Bravo!",
+            "Excellent!", "Wonderful!", "Marvelous!", "Splendid!", "Glorious!",
+            "Perfection!", "Astounding!", "First-rate!", "Tip-top!", "Champion!",
+            "Winner!", "Legendary!", "Epic!", "Physics pro!", "Masterful!",
+            "You've got the magic touch!", "Smooth operator!", "Five-star performance!", "Gold medal!", "Touchdown!",
+            "Goal!", "Slam dunk!", "Home run!", "Hat trick!", "Grand slam!",
+            "You're a rockstar!", "Physics superstar!", "Dynamite!", "Way to go!", "You're unstoppable!",
+            "This is what success looks like!", "So impressive!", "Top marks!", "Highest honors!", "Distinction!",
+            "You make it look easy!", "Peak performance!", "Nothing stops you!", "On a roll!", "You're flying high!",
+            "Incredible intellect!", "Sheer genius!", "A mind for math!", "A physics virtuoso!", "Absolutely smashing!",
+            "Tremendous!", "Wicked smart!", "Right on the money!", "Spot on!", "Exactly right!",
+            "Couldn't have done it better!", "You're a legend!", "Insanely good!", "Crazy good!", "Off the charts!",
+            "Maximum altitude achieved!", "You've got the formula!", "That's the spirit!", "Fantastic effort!", "Super-duper!",
+            "Outstandingly brilliant!", "A true inspiration!", "Mind = Blown!", "You're a puzzle master!", "Unbeatable!",
+            "Flawless execution!", "Mastery unlocked!", "Achievement get!", "You're the GOAT!", "Simply the best!",
+            "Better than all the rest!", "Physics royalty!", "The Einstein of our time!", "A perfect 10!", "Smoking!",
+            "Holy cow!", "Jeez Louise!", "Great Scott!", "By Jove!", "Eureka!",
+            "You've found it!", "The solution is yours!", "What a display!", "Top of the class!", "Head of the class!",
+            "Valedictorian of physics!", "Summa cum laude!", "Magna cum laude!", "Cum laude!", "With honors!",
+            "You're a genius!", "Certified smarty-pants!", "Big brain time!", "Mega mind!", "Professor!",
+            "Doctor of Physics!", "PhD in Awesome!", "Nobel Prize worthy!", "Fields Medal incoming!", "Bravo Zulu!",
+            "Mission accomplished!", "Target acquired!", "Hit the mark!", "Bullseye!", "Direct hit!",
+            "On target!", "Right on!", "You got it!", "That's it!", "Bingo!",
+            "Correctomundo!", "Yes!", "Yessir!", "Yes ma'am!", "Absolutely!",
+            "Precisely!", "Indeed!", "Affirmative!", "Roger that!", "10-4!",
+            "Copy that!", "Solid copy!", "That's a bingo!", "We have a winner!", "And the crowd goes wild!",
+            "Amazing!", "Awesome!", "Incredible!", "Unreal!", "Sick!",
+            "Dope!", "Sweet!", "Killer!", "Righteous!", "Radical!",
+            "Totally tubular!", "Bodacious!", "Gnarly!", "Far out!", "Groovy!"
+        ];
+
+    </script>
+</body>
+</html>
+
+Displaying Hot wheels car launched down off a table with ramp time.html.
