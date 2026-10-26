@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+        }
+        canvas {
+            background-color: #f0f4f8;
+            border-radius: 0.5rem;
+            cursor: default;
+            /* REMOVED: touch-action: none; This was preventing all scrolling. */
+        }
+        .control-panel button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        #questionModal {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #questionModal.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+        #modalContent { /* Added ID for dragging */
+            position: relative;
+            transition: transform 0.1s ease-out; /* Smooth drag */
+        }
+        #feedbackMessage {
+            transition: opacity 0.3s ease-out;
+            animation: fade-in-out 2.5s ease-out;
+        }
+        @keyframes fade-in-out {
+            0% { opacity: 0; transform: translateY(10px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        /* NEW: Remove backdrop for end screen */
+        #questionModal.no-backdrop { 
+            background-color: transparent; 
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-800 text-white flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+
+    <div class="w-full max-w-6xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl font-bold text-cyan-400">Physics Lab: Projectile Motion</h1>
+            <div class="text-2xl font-semibold">
+                <!-- CHANGED: Bonus display removed -->
+                <span>Score: <span id="scoreDisplay">0</span> / 15</span>
+            </div>
+        </header>
+
+        <!-- Simulation and Controls -->
+        <div class="flex flex-col lg:flex-row gap-4">
+            <!-- Simulation Canvas -->
+            <div class="flex-grow bg-gray-900 p-4 rounded-lg shadow-2xl">
+                <canvas id="simCanvas" width="800" height="600">Your browser does not support the canvas.</canvas>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="flex-shrink-0 w-full lg:w-64 bg-gray-900 p-6 rounded-lg shadow-2xl flex flex-col gap-4">
+                <h2 class="text-xl font-semibold border-b border-gray-700 pb-2">Controls</h2>
+                
+                <div class="text-center bg-gray-700 p-3 rounded-lg">
+                    <span class="text-lg font-medium">Time:</span>
+                    <span id="timerDisplay" class="text-2xl font-bold text-yellow-400 ml-2">0.000</span> s
+                </div>
+
+                <button id="playButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400">
+                    Start
+                </button>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="frameBackButton" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-3 rounded-lg transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400" disabled>
+                        &lt; Back
+                    </button>
+                    <button id="frameFwdButton" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-3 rounded-lg transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400" disabled>
+                        Fwd &gt;
+                    </button>
+                </div>
+                <p class="text-xs text-gray-400 text-center">Frame controls are active when the simulation is paused.</p>
+
+                <button id="hideBallButton" class="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-bold py-2 px-3 rounded-lg transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-400" style="display: none;">
+                    Hide Ball
+                </button>
+
+                <!-- Measurement Task -->
+                <div id="measurementTask" class="hidden mt-2 pt-2 border-t border-gray-700 flex flex-col gap-2">
+                    <p id="measurementInstruction" class="text-sm text-cyan-300"></p>
+                    <input id="measurementInput" type="number" step="0.01" class="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Enter value...">
+                    <button id="submitMeasurementButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-lg">
+                        Submit
+                    </button>
+                </div>
+
+                <!-- Debug Mode Removed -->
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- Question Modal (for calculations) -->
+    <div id="questionModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div id="modalContent" class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-lg border border-gray-700" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">Calculation Time!</h2>
+            <p id="questionText" class="text-lg mb-6"></p>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input id="answerInput" type="number" step="0.01" class="flex-grow px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-lg" placeholder="Enter your answer...">
+                <button id="submitAnswerButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-all shadow-lg hover:shadow-xl">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Message -->
+    <div id="feedbackMessageContainer" class="fixed top-24 left-1/2 -translate-x-1/2 z-50" style="pointer-events: none;">
+        <!-- Feedback messages will be injected here -->
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confettiContainer" class="fixed top-0 left-0 w-full h-full" style="pointer-events: none; z-index: 100;">
+        <!-- Confetti particles will be injected here -->
+    </div>
+
+
+    <script>
+        // --- PRELOADED SUPERLATIVE MESSAGES ---
+        const perfectScoreMessages = [
+            "Absolutely stellar!", "Physics wizard!", "Einstein would be proud!", "Flawless victory!", "Perfect prediction!", 
+            "You're a genius!", "Unbelievable!", "Quantum-level precision!", "Master of mechanics!", "Nobel-worthy!",
+            // Add 190+ more unique messages here for a perfect score
+            "Incredible!", "Sublime!", "Magnificent!", "Transcendent!", "Perfection!", "Outstanding!", "Unparalleled!", "Breathtaking!", "A true virtuoso!", "Mind-bogglingly accurate!"
+        ];
+
+        const goodScoreMessages = [
+            "Great job!", "Excellent work!", "You figured it out!", "Fantastic!", "Well done!",
+            "You've got this!", "Awesome!", "Nice calculations!", "Physics pro!", "Solid work!",
+            // Add 190+ more unique messages here for a good (but not perfect) score
+            "Good!", "Nice!", "Correct!", "Way to go!", "Keep it up!", "Superb!", "Very good!", "Nailed it!", "That's it!", "You're a star!"
+        ];
+
+
+        // --- APPLICATION STATE ---
+        const STATES = {
+            START: 'START', // Now means "awaiting ramp measurement"
+            INSTRUCT_MEASURE_TIME: 'INSTRUCT_MEASURE_TIME',
+            RAMP_ANIMATING: 'RAMP_ANIMATING',
+            PAUSED: 'PAUSED', // New state for when user pauses
+            RAMP_END: 'RAMP_END', // New state for when animation finishes
+            ASK_SPEED: 'ASK_SPEED',
+            INSTRUCT_MEASURE_ANGLE: 'INSTRUCT_MEASURE_ANGLE',
+            ASK_ANGLE: 'ASK_ANGLE',
+            ASK_VOY: 'ASK_VOY',
+            INSTRUCT_MEASURE_TABLE_HEIGHT: 'INSTRUCT_MEASURE_TABLE_HEIGHT', // New state
+            ASK_TABLE_HEIGHT: 'ASK_TABLE_HEIGHT',
+            ASK_TIME_AIR: 'ASK_TIME_AIR',
+            ASK_VOX: 'ASK_VOX',
+            ASK_LANDING_X: 'ASK_LANDING_X',
+            FINAL_ANIMATION: 'FINAL_ANIMATION',
+            END_SCREEN: 'END_SCREEN'
+        };
+        let gameState = STATES.START;
+        let score = 0;
+        let bonus = 5;
+        let corrections = 0;
+        
+        // --- DOM ELEMENTS ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const playButton = document.getElementById('playButton');
+        const frameFwdButton = document.getElementById('frameFwdButton');
+        const frameBackButton = document.getElementById('frameBackButton');
+        const hideBallButton = document.getElementById('hideBallButton');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const bonusDisplay = document.getElementById('bonusDisplay'); // Kept for logic, but hidden in HTML
+        
+        // Measurement UI
+        const measurementTask = document.getElementById('measurementTask');
+        const measurementInstruction = document.getElementById('measurementInstruction');
+        const measurementInput = document.getElementById('measurementInput');
+        const submitMeasurementButton = document.getElementById('submitMeasurementButton');
+
+        // Question Modal
+        const questionModal = document.getElementById('questionModal');
+        const modalContent = document.getElementById('modalContent'); // For dragging
+        const questionText = document.getElementById('questionText');
+        const answerInput = document.getElementById('answerInput');
+        const submitAnswerButton = document.getElementById('submitAnswerButton');
+
+        // Feedback & FX
+        const feedbackContainer = document.getElementById('feedbackMessageContainer');
+        const confettiContainer = document.getElementById('confettiContainer');
+        
+        // Debug
+        // const debugToggle = document.getElementById('debugToggle'); // Removed
+        // const answerKey = document.getElementById('answerKey'); // Removed
+
+        // --- SIMULATION & PHYSICS CONSTANTS ---
+        const g = 9.81; // m/s^2
+        let scale = 180; // pixels per meter (zoomed out from start)
+        let origin = { x: 50, y: 150 }; // (0,0) of the physics world in canvas coords
+        const ballRadius = 8; // pixels
+        const frameStep = 0.016; // s (approx 60fps)
+
+        // --- RANDOMIZED PARAMETERS ---
+        let rampLength, rampAngleDeg, rampAngleRad, tableHeight;
+        let acceleration, v_final_ramp, time_on_ramp;
+        let v_ox, v_oy_initial_physics; // v_oy_initial_physics is positive-down for calculation
+        let time_in_air, landing_distance_x, total_sim_time, total_sim_time_to_pause;
+        let predicted_landing_distance_x = null; // ADDED: For percent error
+
+        // --- SIMULATION STATE VARS ---
+        let simTime = 0;
+        let ball = { x: 0, y: 0, vx: 0, vy: 0 }; // x,y are *physics* coordinates
+        let isPlaying = false;
+        let isBallHidden = false; // New state for hide ball button
+        let animationFrameId = null;
+        let trajectoryPoints = [];
+        
+        // --- INTERACTIVE TOOL STATE ---
+        let ruler = { x: 300, y: 500, width: 400, height: 40, rotation: 0, isDragging: false, isRotating: false };
+        let protractor = { x: 400, y: 500, radius: 100, isDragging: false, isRotating: false, rotation: 0 };
+        let targetX = { x: null, y: null }; // User's predicted landing spot
+        let activeTool = null; // 'ruler', 'protractor', null
+        let dragStart = { x: 0, y: 0 };
+        
+        // --- QUESTION STATE ---
+        let currentCorrectAnswer = 0;
+        let currentNextState = null;
+        let currentTolerance = 0.1;
+        let currentQuestionPoints = 0;
+        let currentQuestionAttempts = 0; // ADDED: For guess penalty
+        
+        // --- MODAL DRAG STATE ---
+        let modalDragState = { isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+
+
+        // --- INITIALIZATION ---
+        
+        function randomizeParameters() {
+            // 1. Randomize parameters
+            rampLength = parseFloat((Math.random() * (1.5 - 0.9) + 0.9).toFixed(2));
+            rampAngleDeg = Math.floor(Math.random() * (28 - 18 + 1) + 18); // Whole number
+            rampAngleRad = rampAngleDeg * (Math.PI / 180);
+            tableHeight = parseFloat((Math.random() * (1.5 - 0.8) + 0.8).toFixed(2));
+        }
+
+        function calculateAnswers() {
+            // 2. Calculate all correct answers
+            // Assuming solid sphere: a = (5/7) * g * sin(theta)
+            acceleration = (5 / 7) * g * Math.sin(rampAngleRad);
+            // v_f^2 = v_o^2 + 2*a*d  => v_f = sqrt(2*a*d)
+            v_final_ramp = Math.sqrt(2 * acceleration * rampLength);
+            // v_f = v_o + a*t => t = v_f / a
+            time_on_ramp = v_final_ramp / acceleration;
+            
+            // Projectile motion starts here
+            v_ox = v_final_ramp * Math.cos(rampAngleRad);
+            v_oy_initial_physics = v_final_ramp * Math.sin(rampAngleRad); // Positive-down for physics calcs
+            
+            // y(t) = y_o + v_oy*t + 0.5*g*t^2
+            // Let y=0 be table top, positive-down. y(t) = tableHeight
+            // tableHeight = (v_oy_initial_physics) * t + 0.5 * g * t^2
+            // 0.5*g*t^2 + (v_oy_initial_physics)*t - tableHeight = 0
+            // Use quadratic formula: t = [-b +/- sqrt(b^2 - 4ac)] / 2a
+            let a = 0.5 * g;
+            let b = v_oy_initial_physics;
+            let c_total = -tableHeight;
+            time_in_air = (-b + Math.sqrt(b*b - 4*a*c_total)) / (2*a);
+            total_sim_time = time_on_ramp + time_in_air;
+            
+            // Calculate time to fall 1/4 of the way
+            let c_quarter = -(tableHeight / 4);
+            let time_to_quarter_fall = (-b + Math.sqrt(b*b - 4*a*c_quarter)) / (2*a);
+            total_sim_time_to_pause = time_on_ramp + time_to_quarter_fall;
+
+            // x(t) = v_ox * t
+            landing_distance_x = v_ox * time_in_air;
+
+            // 3. Log answers for debugging
+            console.log(`--- ANSWERS ---
+Ramp Length: ${rampLength} m
+Ramp Angle: ${rampAngleDeg} deg
+Table Height: ${tableHeight} m
+---
+Acceleration: ${acceleration.toFixed(3)} m/s^2
+Time on Ramp: ${time_on_ramp.toFixed(3)} s
+V_final (Speed): ${v_final_ramp.toFixed(3)} m/s
+Launch Angle: ${rampAngleDeg.toFixed(3)} deg
+V_ox: ${v_ox.toFixed(3)} m/s
+V_oy (initial, physics +down): ${v_oy_initial_physics.toFixed(3)} m/s
+V_oy (initial, student +up): ${-v_oy_initial_physics.toFixed(3)} m/s
+Time in Air: ${time_in_air.toFixed(3)} s
+Total Sim Time: ${total_sim_time.toFixed(3)} s
+Time to 1/4 Fall: ${time_to_quarter_fall.toFixed(3)} s
+Total Sim Time to Pause: ${total_sim_time_to_pause.toFixed(3)} s
+Y-Yo: ${-tableHeight.toFixed(3)} m
+Landing X (relative to ramp end): ${landing_distance_x.toFixed(3)} m
+            `);
+
+            // 4. Populate Debug Answer Key (Removed)
+        }
+
+        function resetSim() {
+            console.log("Resetting simulation...");
+            // Stop any running animation
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            isPlaying = false;
+            simTime = 0;
+            score = 0;
+            bonus = 5;
+            corrections = 0;
+            trajectoryPoints = [];
+            targetX.x = null;
+            predicted_landing_distance_x = null; // ADDED: Reset prediction
+            isBallHidden = false;
+
+            // 4. Reset UI and State
+            setGameState(STATES.START);
+            updateScore();
+            updateBallPosition(0); // Set ball to 0
+            
+            // Reset debug (Removed)
+
+            draw();
+            
+            // Clear any lingering feedback/confetti
+            feedbackContainer.innerHTML = "";
+            // confettiContainer.innerHTML = ""; // Not needed for canvas-confetti
+        }
+
+        function setupNewProblem() {
+            console.log("Setting up new problem...");
+            randomizeParameters();
+            calculateAnswers();
+            resetSim();
+        }
+
+        function initializeSim() {
+            setupNewProblem();
+
+            // --- ADD MODAL DRAG LISTENERS ---
+            modalContent.style.cursor = 'move';
+            
+            modalContent.addEventListener('mousedown', (e) => {
+                // Only allow dragging on the end screen
+                if (gameState !== STATES.END_SCREEN) return;
+                modalDragState.isDragging = true;
+                modalDragState.startX = e.clientX - modalDragState.currentX;
+                modalDragState.startY = e.clientY - modalDragState.currentY;
+                modalContent.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!modalDragState.isDragging) return;
+                modalDragState.currentX = e.clientX - modalDragState.startX;
+                modalDragState.currentY = e.clientY - modalDragState.startY;
+                modalContent.style.transform = `translate(${modalDragState.currentX}px, ${modalDragState.currentY}px)`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (modalDragState.isDragging) {
+                    modalDragState.isDragging = false;
+                    modalContent.style.userSelect = 'auto';
+                }
+            });
+        }
+
+        // --- UNIFIED BALL POSITION (MOVED HERE TO FIX REFERENCE ERROR) ---
+        function getRampEndCanvasPos() {
+             // Get canvas coords for ramp end *centerline*
+            const rampEndX_center = origin.x + (rampLength * Math.cos(rampAngleRad)) * scale;
+            const rampEndY_center = origin.y + (rampLength * Math.sin(rampAngleRad)) * scale;
+            return { x: rampEndX_center, y: rampEndY_center };
+        }
+        
+        function updateBallPosition(time) {
+            simTime = time; // Set global simTime
+            timerDisplay.innerText = simTime.toFixed(3);
+
+            const tolerance = 0.0001; // For floating point
+            if (simTime <= time_on_ramp + tolerance) {
+                // On ramp
+                let dist = 0.5 * acceleration * simTime * simTime;
+                if (dist > rampLength) dist = rampLength;
+                ball.x = dist; // physics x is distance on ramp
+                ball.y = 0;    // physics y is 0 on ramp
+            } else {
+                // In air
+                ball.x = rampLength; // On-ramp distance is maxed
+                let t_air = simTime - time_on_ramp;
+                
+                // physics y is now vertical distance from table
+                ball.y = v_oy_initial_physics * t_air + 0.5 * g * t_air * t_air;
+            }
+        }
+        
+        function getBallCanvasPos(time) {
+            let canvasX, canvasY;
+            // Perpendicular offset for ball radius
+            const offsetX = (ballRadius * Math.sin(rampAngleRad));
+            const offsetY = -(ballRadius * Math.cos(rampAngleRad));
+
+            const tolerance = 0.0001;
+            if (time <= time_on_ramp + tolerance) {
+                // On the ramp
+                let dist = 0.5 * acceleration * time * time;
+                if (dist > rampLength) dist = rampLength;
+                
+                let centerX = origin.x + (dist * Math.cos(rampAngleRad)) * scale;
+                let centerY = origin.y + (dist * Math.sin(rampAngleRad)) * scale;
+                
+                canvasX = centerX + offsetX;
+                canvasY = centerY + offsetY;
+            } else {
+                // In the air
+                let t_air = time - time_on_ramp;
+                let air_x_dist = v_ox * t_air;
+                let air_y_dist = v_oy_initial_physics * t_air + 0.5 * g * t_air * t_air;
+                
+                const rampEndCanvas = getRampEndCanvasPos();
+                
+                // Launch point is offset from ramp end
+                let launchX = rampEndCanvas.x + offsetX;
+                let launchY = rampEndCanvas.y + offsetY;
+                
+                canvasX = launchX + air_x_dist * scale; 
+                canvasY = launchY + air_y_dist * scale;
+            }
+            return { x: canvasX, y: canvasY };
+        }
+
+
+        // --- GAME LOOP & STATE MACHINE ---
+
+        function setGameState(newState) {
+            console.log(`Changing state: ${gameState} -> ${newState}`);
+            gameState = newState;
+
+            // Default UI state
+            playButton.disabled = true;
+            playButton.innerText = "Start";
+            frameFwdButton.disabled = true;
+            frameBackButton.disabled = true;
+            measurementTask.classList.add('hidden');
+            measurementInput.style.display = 'block'; // Ensure input is visible by default
+            submitMeasurementButton.innerText = 'Submit'; // Default text
+            hideBallButton.style.display = 'none'; // Hide by default
+            activeTool = null;
+            questionModal.classList.add('hidden');
+            canvas.style.cursor = 'default';
+            canvas.removeEventListener('click', placeTarget);
+
+            // State-specific logic
+            switch (newState) {
+                case STATES.START:
+                    playButton.disabled = true;
+                    origin = { x: 50, y: 150 };
+                    scale = 180; // Zoom out from start
+                    updateBallPosition(0);
+                    activeTool = 'ruler'; // Show ruler from start
+                    currentQuestionAttempts = 0; // ADDED
+                    
+                    // Show measurement task
+                    measurementTask.classList.remove('hidden');
+                    measurementInstruction.innerText = "Use the ruler to measure the ramp's slanted length (in meters). You'll need to rotate it.";
+                    measurementInput.value = "";
+                    submitMeasurementButton.innerText = "Submit Ramp Length";
+                    submitMeasurementButton.onclick = handleSubmitRampLength;
+                    
+                    // Show Hide Ball button
+                    hideBallButton.style.display = 'block';
+                    hideBallButton.innerText = isBallHidden ? 'Show Ball' : 'Hide Ball';
+                    break;
+                
+                case STATES.INSTRUCT_MEASURE_TIME:
+                    playButton.disabled = false; // Enable play
+                    frameFwdButton.disabled = true;
+                    frameBackButton.disabled = true;
+                    activeTool = 'ruler';
+                    currentQuestionAttempts = 0; // ADDED
+                    
+                    measurementTask.classList.remove('hidden');
+                    measurementInstruction.innerText = "Press Start. The sim will pause. Use frame controls to find the exact roll time (in seconds).";
+                    measurementInput.value = "";
+                    submitMeasurementButton.innerText = "Submit Roll Time";
+                    submitMeasurementButton.onclick = handleSubmitRollTime;
+                    break;
+
+                case STATES.RAMP_ANIMATING:
+                    playButton.disabled = false;
+                    playButton.innerText = "Pause";
+                    frameFwdButton.disabled = false; // Enable frame controls
+                    frameBackButton.disabled = false; // Enable frame controls
+                    measurementTask.classList.add('hidden'); // Hide task while animating
+                    activeTool = 'ruler'; // Keep ruler active
+                    isPlaying = true;
+                    isBallHidden = false; // Make sure ball is visible
+                    gameLoop();
+                    break;
+                
+                case STATES.PAUSED: // User-initiated pause
+                    playButton.disabled = false;
+                    playButton.innerText = "Resume";
+                    frameFwdButton.disabled = false;
+                    frameBackButton.disabled = false;
+                    activeTool = 'ruler';
+                    break;
+
+                case STATES.RAMP_END: // Animation auto-paused
+                    playButton.disabled = true;
+                    playButton.innerText = "Paused";
+                    frameFwdButton.disabled = false;
+                    frameBackButton.disabled = false;
+                    activeTool = 'ruler'; 
+                    currentQuestionAttempts = 0; // ADDED (Reset for time measurement)
+                    
+                    // Show measurement task for time
+                    measurementTask.classList.remove('hidden');
+                    measurementInstruction.innerText = "Use frame controls to find the exact roll time (in seconds). Submit below.";
+                    measurementInput.value = "";
+                    submitMeasurementButton.innerText = "Submit Roll Time";
+                    submitMeasurementButton.onclick = handleSubmitRollTime;
+                    break;
+
+                case STATES.ASK_SPEED:
+                    activeTool = 'ruler';
+                    measurementTask.classList.add('hidden');
+                    askQuestion(
+                        `Use your measured ramp length (${rampLength} m) and roll time (${time_on_ramp.toFixed(3)} s), plus the formula: x - x₀ = 0.5(v₀ + v)t, to calculate the ball's final speed (v). (v₀ = 0).`,
+                        v_final_ramp,
+                        STATES.INSTRUCT_MEASURE_ANGLE, // Go to measure angle next
+                        0.1, // 10 cm/s tolerance
+                        2 // Points
+                    );
+                    break;
+                
+                case STATES.INSTRUCT_MEASURE_ANGLE:
+                    activeTool = 'protractor';
+                    currentQuestionAttempts = 0; // ADDED
+                    
+                    measurementTask.classList.remove('hidden');
+                    measurementInstruction.innerText = "Use the protractor to measure the ramp's launch angle (in degrees) below the horizontal.";
+                    measurementInput.value = "";
+                    submitMeasurementButton.innerText = "Submit Angle";
+                    submitMeasurementButton.onclick = handleSubmitRampAngle;
+                    break;
+
+                case STATES.ASK_ANGLE: // This state is now skipped, but kept for logic
+                    activeTool = 'protractor';
+                    measurementTask.classList.add('hidden');
+                    askQuestion(
+                        `Enter the launch angle (θ) you just measured in degrees.`,
+                        rampAngleDeg, // User should enter a positive value
+                        STATES.ASK_VOY,
+                        1.0, // 1 degree tolerance
+                        2 // Points
+                    );
+                    break;
+
+                case STATES.ASK_VOY:
+                    activeTool = null;
+                    askQuestion(
+                        `Given the launch speed of ${v_final_ramp.toFixed(2)} m/s and the angle of ${rampAngleDeg.toFixed(1)}° below horizontal, calculate the initial vertical component of the velocity (v<sub>oy</sub>). Use a standard coordinate system (up is positive). (Hint: An angle below horizontal is negative in the formula v<sub>oy</sub> = v * sin(θ)).`,
+                        -v_oy_initial_physics, // v_oy = -v * sin(theta)
+                        STATES.INSTRUCT_MEASURE_TABLE_HEIGHT, // Go to measure table height
+                        0.1,
+                        2 // Points
+                    );
+                    break;
+                
+                case STATES.INSTRUCT_MEASURE_TABLE_HEIGHT:
+                    activeTool = 'ruler';
+                    currentQuestionAttempts = 0; // ADDED
+                    measurementTask.classList.remove('hidden');
+                    measurementInstruction.innerText = "Use the ruler to measure the table height (in meters).";
+                    measurementInput.value = "";
+                    submitMeasurementButton.innerText = "Submit Table Height";
+                    submitMeasurementButton.onclick = handleSubmitTableHeight;
+                    
+                    // Show Hide Ball button
+                    hideBallButton.style.display = 'block';
+                    hideBallButton.innerText = isBallHidden ? 'Show Ball' : 'Hide Ball';
+                    break;
+
+                case STATES.ASK_TABLE_HEIGHT:
+                    activeTool = 'ruler';
+                    measurementTask.classList.add('hidden');
+                    askQuestion(
+                        `You measured the table height as ${tableHeight.toFixed(2)} m. What is the vertical displacement (y - y₀) of the ball as it falls from the table to the floor? (Hint: it should be negative).`,
+                        -tableHeight,
+                        STATES.ASK_TIME_AIR,
+                        0.05, // 5cm tolerance
+                        2 // Points
+                    );
+                    break;
+
+                case STATES.ASK_TIME_AIR:
+                    activeTool = null;
+                    
+                    // Get the values the student should have
+                    const student_voy = -v_oy_initial_physics;
+                    const student_y_minus_yo = -tableHeight;
+
+                    askQuestion(
+                        `How long (in seconds) will the ball be in the air? Use the vertical motion equation:
+                        <br><b>(y - y₀) = v<sub>oy</sub>t + 0.5a<sub>y</sub>t²</b>
+                        <br><br>
+                        Use your calculated values:
+                        <br> (y - y₀) = <b>${student_y_minus_yo.toFixed(2)} m</b>
+                        <br> v<sub>oy</sub> = <b>${student_voy.toFixed(3)} m/s</b>
+                        <br> a<sub>y</sub> = <b>-${g} m/s²</b>`,
+                        time_in_air,
+                        STATES.ASK_VOX,
+                        0.02, // 20ms tolerance
+                        2 // Points
+                    );
+                    break;
+
+                case STATES.ASK_VOX:
+                    activeTool = null;
+                    // CHANGED: Added formula to modal
+                    askQuestion(
+                        `Calculate the horizontal component of the velocity (v<sub>ox</sub>). This value is constant throughout the flight.
+                        <br><br><b>v<sub>ox</sub> = v * cos(θ)</b><br><br>
+                        Use the launch speed (${v_final_ramp.toFixed(2)} m/s) and angle (${rampAngleDeg.toFixed(1)}°) from your previous correct answers.`,
+                        v_ox,
+                        STATES.ASK_LANDING_X,
+                        0.1,
+                        2 // Points
+                    );
+                    break;
+
+                case STATES.ASK_LANDING_X:
+                    activeTool = 'ruler'; // CHANGED: Show ruler
+                    currentQuestionPoints = 1; // CHANGED: Points set to 1
+                    currentQuestionAttempts = 0; // ADDED
+
+                    // Show measurement task for placing 'X'
+                    measurementTask.classList.remove('hidden');
+                    // CHANGED: Added formula
+                    measurementInstruction.innerHTML = `Predict the horizontal distance (x - x₀) the ball will travel.
+                    <br><br>
+                    Use the formula:
+                    <br><b>(x - x₀) = v<sub>ox</sub>t<sub>air</sub></b>
+                    <br><br>
+                    And your values:
+                    <br><b>v<sub>ox</sub> = ${v_ox.toFixed(3)} m/s</b>
+                    <br><b>t<sub>air</sub> = ${time_in_air.toFixed(3)} s</b>
+                    <br><br>
+                    <b>Click on the "floor" to place your 'X'.</b>`;
+                    measurementInput.style.display = 'none'; // Hide input
+                    submitMeasurementButton.innerText = 'Lock In Prediction';
+                    submitMeasurementButton.onclick = handleSubmitPrediction;
+                    
+                    canvas.style.cursor = 'crosshair';
+                    canvas.addEventListener('click', placeTarget);
+                    break;
+
+                case STATES.FINAL_ANIMATION:
+                    activeTool = 'ruler'; // Keep ruler active
+                    simTime = 0;
+                    trajectoryPoints = [getBallCanvasPos(0)]; // Start trajectory from beginning
+                    isPlaying = true;
+                    isBallHidden = false; // Make sure ball is visible
+                    gameLoop();
+                    break;
+
+                case STATES.END_SCREEN:
+                    activeTool = 'ruler'; // Keep ruler active
+                    isPlaying = false;
+                    showEndScreen();
+                    break;
+            }
+            draw();
+        }
+
+        function gameLoop() {
+            if (!isPlaying) {
+                animationFrameId = null;
+                return;
+            }
+
+            let newState = gameState;
+            let newTime = simTime + frameStep;
+
+            if (gameState === STATES.RAMP_ANIMATING) {
+                if (newTime >= total_sim_time) {
+                    // Hit the floor (safety check)
+                    newTime = total_sim_time;
+                    isPlaying = false;
+                    newState = STATES.RAMP_END;
+                } else if (newTime >= total_sim_time_to_pause) {
+                    // Hit 1/4 fall distance
+                    newTime = total_sim_time_to_pause;
+                    isPlaying = false;
+                    newState = STATES.RAMP_END;
+                }
+                
+                updateBallPosition(newTime);
+                if (simTime > time_on_ramp) {
+                     trajectoryPoints.push(getBallCanvasPos(simTime));
+                }
+
+            } else if (gameState === STATES.FINAL_ANIMATION) {
+                 if (newTime >= total_sim_time) {
+                    newTime = total_sim_time;
+                    isPlaying = false;
+                    newState = STATES.END_SCREEN;
+                }
+                
+                updateBallPosition(newTime);
+                trajectoryPoints.push(getBallCanvasPos(simTime));
+            }
+
+            draw();
+
+            if (newState !== gameState) {
+                setGameState(newState);
+            } else {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // --- CORRECTED frameAdvance function ---
+        function frameAdvance(direction) {
+            // Only allow frame advance if paused
+            if (isPlaying) return;
+            // Allow if animating (but paused) or at the end (which is also paused)
+            if (gameState !== STATES.PAUSED && gameState !== STATES.RAMP_END && gameState !== STATES.RAMP_ANIMATING) return;
+            
+            let newTime = simTime + direction * frameStep;
+            
+            // Stop from rewinding past 0
+            if (newTime < 0) newTime = 0;
+            
+            // Stop from advancing past floor hit
+            if (newTime > total_sim_time) newTime = total_sim_time;
+
+            updateBallPosition(newTime); 
+            
+            // Redraw trajectory (simple method)
+            if (simTime > time_on_ramp) {
+                trajectoryPoints = [];
+                let t = time_on_ramp;
+                while (t < simTime) {
+                    trajectoryPoints.push(getBallCanvasPos(t));
+                    t += frameStep;
+                }
+                trajectoryPoints.push(getBallCanvasPos(simTime)); // Add final point
+            } else {
+                trajectoryPoints = [getBallCanvasPos(0)];
+            }
+
+            draw();
+        }
+
+        // --- EVENT HANDLERS ---
+        playButton.addEventListener('click', () => {
+            if (gameState === STATES.INSTRUCT_MEASURE_TIME) {
+                setGameState(STATES.RAMP_ANIMATING);
+            } else if (gameState === STATES.RAMP_ANIMATING) {
+                // User is pausing
+                isPlaying = false;
+                setGameState(STATES.PAUSED);
+            } else if (gameState === STATES.PAUSED) {
+                // User is resuming
+                setGameState(STATES.RAMP_ANIMATING);
+            }
+        });
+        
+        frameFwdButton.addEventListener('click', () => frameAdvance(1)); // Pass 1 for forward
+        frameBackButton.addEventListener('click', () => frameAdvance(-1)); // Pass -1 for back
+        
+        hideBallButton.addEventListener('click', () => {
+            isBallHidden = !isBallHidden;
+            hideBallButton.innerText = isBallHidden ? 'Show Ball' : 'Hide Ball';
+            if (!isPlaying) draw();
+        });
+
+        // Measurement Handlers
+        function handleSubmitRampLength() {
+            const userAnswer = parseFloat(measurementInput.value);
+            if (isNaN(userAnswer)) {
+                showFeedback("Please enter a valid number.", "red");
+                return;
+            }
+
+            if (Math.abs(userAnswer - rampLength) <= 0.02) { // 2cm tolerance
+                showFeedback(`Correct! Ramp length is ${rampLength} m.`, "green");
+                score += 1; // CHANGED
+                updateScore(); // ADDED
+                setGameState(STATES.INSTRUCT_MEASURE_TIME);
+            } else {
+                showFeedback("Not quite. Try measuring the slanted length again.", "red");
+                currentQuestionAttempts++; // ADDED
+                corrections++; // ADDED
+                if (currentQuestionAttempts === 1) { if (bonus > 0) bonus--; } // MODIFIED
+                if (currentQuestionAttempts > 5) { if (bonus > 0) bonus--; } // ADDED
+                updateScore();
+            }
+        }
+        
+        function handleSubmitRollTime() {
+            const userAnswer = parseFloat(measurementInput.value);
+            if (isNaN(userAnswer)) {
+                showFeedback("Please enter a valid number.", "red");
+                return;
+            }
+            
+            // 1 frame tolerance
+            if (Math.abs(userAnswer - time_on_ramp) <= frameStep + 0.001) { 
+                showFeedback(`Correct! Roll time is ${time_on_ramp.toFixed(3)} s.`, "green");
+                score += 1; // CHANGED
+                updateScore(); // ADDED
+                setGameState(STATES.ASK_SPEED); // Go to first calculation question
+            } else {
+                showFeedback("Not quite. Use the frame controls to find the exact time the ball leaves the ramp.", "red");
+                currentQuestionAttempts++; // ADDED
+                corrections++; // ADDED
+                if (currentQuestionAttempts === 1) { if (bonus > 0) bonus--; } // MODIFIED
+                if (currentQuestionAttempts > 5) { if (bonus > 0) bonus--; } // ADDED
+                updateScore();
+            }
+        }
+
+        // --- CORRECTED handleSubmitRampAngle function ---
+        function handleSubmitRampAngle() {
+            const userAnswer = parseFloat(measurementInput.value);
+            if (isNaN(userAnswer)) {
+                showFeedback("Please enter a valid number.", "red");
+                return;
+            }
+            
+            // Check if user answer is within 1 degree of the positive OR negative angle
+            if (Math.abs(userAnswer - rampAngleDeg) <= 1.0 || Math.abs(userAnswer - (-rampAngleDeg)) <= 1.0) {
+                showFeedback(`Correct! The angle is ${rampAngleDeg.toFixed(1)}°.`, "green");
+                score += 1; // CHANGED
+                updateScore(); 
+                setGameState(STATES.ASK_VOY); 
+            } else {
+                showFeedback("Not quite. Try measuring the angle again.", "red");
+                currentQuestionAttempts++; // ADDED
+                corrections++; // ADDED
+                if (currentQuestionAttempts === 1) { if (bonus > 0) bonus--; } // MODIFIED
+                if (currentQuestionAttempts > 5) { if (bonus > 0) bonus--; } // ADDED
+                updateScore();
+            }
+        }
+
+        function handleSubmitTableHeight() {
+            const userAnswer = parseFloat(measurementInput.value);
+            if (isNaN(userAnswer)) {
+                showFeedback("Please enter a valid number.", "red");
+                return;
+            }
+            
+            if (Math.abs(userAnswer - tableHeight) <= 0.05) { // 5cm tolerance
+                showFeedback(`Correct! Table height is ${tableHeight.toFixed(2)} m.`, "green");
+                score += 1; // CHANGED
+                updateScore(); // ADDED
+                setGameState(STATES.ASK_TABLE_HEIGHT);
+            } else {
+                showFeedback("Not quite. Try measuring the table height again.", "red");
+                currentQuestionAttempts++; // ADDED
+                corrections++; // ADDED
+                if (currentQuestionAttempts === 1) { if (bonus > 0) bonus--; } // MODIFIED
+                if (currentQuestionAttempts > 5) { if (bonus > 0) bonus--; } // ADDED
+                updateScore();
+            }
+        }
+
+        // --- NEW: Handler for 'X' prediction submission ---
+        function handleSubmitPrediction() {
+            if (targetX.x === null) {
+                showFeedback("Please click on the canvas to place your 'X'!", "red");
+            } else {
+                // Check if the 'X' placement is correct
+                const rampEndWithOffset = getBallCanvasPos(time_on_ramp); // Get offset launch point
+                const actualLandingX_canvas = rampEndWithOffset.x + landing_distance_x * scale;
+                const tolerancePx = 0.05 * scale; // 5cm tolerance in pixels
+                
+                // ADDED: Store prediction for percent error
+                predicted_landing_distance_x = (targetX.x - rampEndWithOffset.x) / scale;
+                
+                if (Math.abs(targetX.x - actualLandingX_canvas) <= tolerancePx) {
+                    // Correct!
+                    score += currentQuestionPoints; // This is 1 point
+                    showFeedback("Prediction locked in! Correct!", "green");
+                } else {
+                    // Incorrect
+                    if (bonus > 0) bonus--;
+                    corrections++;
+                    showFeedback("Prediction locked in. Let's see...", "red");
+                    // Still add points, as the *check* is part of the task
+                    score += currentQuestionPoints; // This is 1 point
+                }
+                updateScore();
+                
+                // Clean up measurement UI
+                measurementTask.classList.add('hidden');
+                measurementInput.style.display = 'block'; // Restore for next time
+                submitMeasurementButton.innerText = 'Submit';
+                
+                setGameState(STATES.FINAL_ANIMATION);
+            }
+        }
+
+
+        // Calculation Question Handler
+        submitAnswerButton.addEventListener('click', handleSubmitAnswer);
+        answerInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') handleSubmitAnswer();
+        });
+
+        // debugToggle.addEventListener('change', () => { // Removed
+        //     if (debugToggle.checked) {
+        //         answerKey.classList.remove('hidden');
+        //     } else {
+        //         answerKey.classList.add('hidden');
+        //     }
+        // });
+
+        
+        // --- TOOL INTERACTION HANDLERS (REFACTORED FOR TOUCH) ---
+        
+        function handleToolGrab(mouse) {
+            if (activeTool === 'ruler') {
+                const trMouse = getTransformedMouse(mouse, ruler);
+                const rulerWidthPx = 1.5 * scale;
+                
+                // Check rotation handle
+                const handle = { x: rulerWidthPx + 15, y: 0 };
+                if (dist(trMouse, handle) < 10) {
+                    ruler.isRotating = true;
+                    dragStart = { x: mouse.x, y: mouse.y };
+                    return true;
+                }
+                // Check drag body
+                if (trMouse.x > -20 && trMouse.x < rulerWidthPx + 40 && trMouse.y > -15 && trMouse.y < 15) {
+                    ruler.isDragging = true;
+                    dragStart = { x: mouse.x - ruler.x, y: mouse.y - ruler.y };
+                    return true;
+                }
+            } else if (activeTool === 'protractor') {
+                const trMouse = getTransformedMouse(mouse, protractor);
+                const r = protractor.radius * scale / 100;
+                
+                // Check rotation handle
+                const handle = { x: r + 15, y: 0 };
+                if (dist(trMouse, handle) < 10) {
+                    protractor.isRotating = true;
+                    dragStart = { x: mouse.x, y: mouse.y };
+                    return true;
+                }
+                // Check drag body
+                if (dist(trMouse, {x:0, y:0}) < r) {
+                    protractor.isDragging = true;
+                    dragStart = { x: mouse.x - protractor.x, y: mouse.y - protractor.y };
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function handleToolMove(mouse) {
+            let toolMoved = false;
+            if (ruler.isDragging) {
+                ruler.x = mouse.x - dragStart.x;
+                ruler.y = mouse.y - dragStart.y;
+                toolMoved = true;
+            } else if (ruler.isRotating) {
+                ruler.rotation = Math.atan2(mouse.y - ruler.y, mouse.x - ruler.x);
+                toolMoved = true;
+            } else if (protractor.isDragging) {
+                protractor.x = mouse.x - dragStart.x;
+                protractor.y = mouse.y - dragStart.y;
+                toolMoved = true;
+            } else if (protractor.isRotating) {
+                protractor.rotation = Math.atan2(mouse.y - protractor.y, mouse.x - protractor.x);
+                toolMoved = true;
+            }
+
+            if (toolMoved && !isPlaying) {
+                draw();
+            }
+            return toolMoved;
+        }
+
+        function handleToolRelease() {
+            ruler.isDragging = false;
+            ruler.isRotating = false;
+            protractor.isDragging = false;
+            protractor.isRotating = false;
+        }
+
+        // --- INTERACTIVE TOOL MOUSE/TOUCH EVENTS ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            handleToolGrab(mouse);
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const rect = canvas.getBoundingClientRect();
+                const mouse = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                if (handleToolGrab(mouse)) {
+                    e.preventDefault(); // Prevent scroll if we grabbed a tool
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            handleToolMove(mouse);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+                const rect = canvas.getBoundingClientRect();
+                const mouse = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                if (handleToolMove(mouse)) {
+                    e.preventDefault(); // This is the critical part
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', handleToolRelease);
+        canvas.addEventListener('touchend', handleToolRelease);
+        canvas.addEventListener('touchcancel', handleToolRelease); // Added for safety
+
+
+        function getTransformedMouse(mouse, tool) {
+            let dx = mouse.x - tool.x;
+            let dy = mouse.y - tool.y;
+            let angle = -tool.rotation;
+            return {
+                x: dx * Math.cos(angle) - dy * Math.sin(angle),
+                y: dx * Math.sin(angle) + dy * Math.cos(angle)
+            };
+        }
+        
+        function dist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        // --- QUESTION & FEEDBACK LOGIC ---
+        
+        function placeTarget(e) {
+            if (gameState !== STATES.ASK_LANDING_X) return;
+            const rect = canvas.getBoundingClientRect();
+            
+            // Handle both touch and mouse click
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Find the floor Y coordinate
+            const rampEndWithOffset = getBallCanvasPos(time_on_ramp);
+            const floorY = rampEndWithOffset.y + tableHeight * scale;
+            
+            targetX.x = clientX - rect.left;
+            targetX.y = floorY; // Snap to floor
+            draw();
+        }
+
+        // --- CORRECTED askQuestion function ---
+        function askQuestion(text, answer, nextState, tolerance, points) {
+            questionText.innerHTML = text; // Changed from innerText
+            currentCorrectAnswer = answer;
+            currentNextState = nextState;
+            currentTolerance = tolerance;
+            currentQuestionPoints = points;
+            currentQuestionAttempts = 0; // ADDED: Reset guess penalty
+            answerInput.value = "";
+            questionModal.classList.remove('hidden');
+            setTimeout(() => answerInput.focus(), 300);
+        }
+
+        // --- CORRECTED draw function ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Get ramp end coordinates
+            const rampEndCanvas = getRampEndCanvasPos();
+
+            // Draw Ramp
+            ctx.save();
+            
+            // Draw the support structure (filled triangle) first
+            ctx.beginPath();
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(rampEndCanvas.x, rampEndCanvas.y);
+            ctx.lineTo(origin.x, rampEndCanvas.y); 
+            ctx.closePath();
+            ctx.fillStyle = "rgba(100, 100, 100, 0.5)";
+            ctx.fill();
+
+            // Draw the precise ramp *surface* line over the fill
+            ctx.beginPath();
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(rampEndCanvas.x, rampEndCanvas.y);
+            ctx.strokeStyle = "#999";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.restore();
+
+            // Draw Table & Floor (only when needed)
+            if (gameState_requires_table()) {
+                const tableTopY = rampEndCanvas.y; // Table top is end of ramp
+                const tableBottomY = tableTopY + tableHeight * scale;
+                const tableDrawWidth = 300; 
+                
+                // Table top
+                ctx.fillStyle = "#6b4a3a";
+                ctx.fillRect(rampEndCanvas.x - tableDrawWidth, tableTopY, tableDrawWidth, 20); 
+                
+                // Table leg
+                ctx.fillRect(rampEndCanvas.x - 20, tableTopY + 20, 20, tableHeight * scale);
+                
+                // Floor
+                ctx.fillStyle = "#555";
+                ctx.fillRect(0, tableBottomY, canvas.width, canvas.height - tableBottomY);
+            }
+
+            // Draw Trajectory
+            if (trajectoryPoints.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(trajectoryPoints[0].x, trajectoryPoints[0].y);
+                for (let i = 1; i < trajectoryPoints.length; i++) {
+                    ctx.lineTo(trajectoryPoints[i].x, trajectoryPoints[i].y);
+                }
+                ctx.strokeStyle = "rgba(230, 57, 70, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw Ball
+            if (!isBallHidden) {
+                const ballPos = getBallCanvasPos(simTime);
+                ctx.beginPath();
+                ctx.arc(ballPos.x, ballPos.y, ballRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = "#e63946";
+                ctx.fill();
+            }
+
+            // Draw Tools
+            if (activeTool === 'ruler') drawRuler();
+            if (activeTool === 'protractor') drawProtractor();
+
+            // Draw Cues
+            if (gameState === STATES.INSTRUCT_MEASURE_ANGLE || gameState === STATES.ASK_ANGLE || gameState === STATES.ASK_VOY) {
+                // Draw cues offset from ramp end, just like ball
+                const offsetX = (ballRadius * Math.sin(rampAngleRad));
+                const offsetY = -(ballRadius * Math.cos(rampAngleRad));
+                drawAngleCues(rampEndCanvas.x + offsetX, rampEndCanvas.y + offsetY);
+            }
+
+            // Draw Target 'X'
+            if (targetX.x !== null) {
+                drawTarget(targetX.x, targetX.y, "#3498db", "Your 'X'");
+            }
+            // Draw Actual Landing Spot (at end)
+            if (gameState === STATES.END_SCREEN) {
+                const rampEndWithOffset = getBallCanvasPos(time_on_ramp);
+                const actualX = rampEndWithOffset.x + landing_distance_x * scale;
+                const actualY = rampEndWithOffset.y + tableHeight * scale;
+                drawTarget(actualX, actualY, "#2ecc71", "Actual");
+            }
+        }
+        
+        function gameState_requires_table() {
+             switch(gameState) {
+                case STATES.INSTRUCT_MEASURE_TABLE_HEIGHT:
+                case STATES.ASK_TABLE_HEIGHT:
+                case STATES.ASK_TIME_AIR:
+                case STATES.ASK_VOX:
+                case STATES.ASK_LANDING_X:
+                case STATES.FINAL_ANIMATION:
+                case STATES.END_SCREEN:
+                    return true;
+                // DO NOT show it for RAMP_ANIMATING, PAUSED, or RAMP_END
+                default:
+                    return false;
+            }
+        }
+
+        function drawRuler() {
+            ctx.save();
+            ctx.translate(ruler.x, ruler.y);
+            ctx.rotate(ruler.rotation);
+            
+            // Ruler body
+            const rulerWidthPx = 1.5 * scale; // Max length 1.5m
+            ctx.fillStyle = "#f3d19c";
+            ctx.fillRect(-20, -15, rulerWidthPx + 40, 30);
+            ctx.strokeStyle = "#333";
+            ctx.strokeRect(-20, -15, rulerWidthPx + 40, 30);
+            
+            // Markings
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 150; i++) { // 150 cm
+                let x = (i / 100) * scale;
+                let h = (i % 10 === 0) ? 12 : ((i % 5 === 0) ? 8 : 5);
+                ctx.beginPath();
+                ctx.moveTo(x, -15);
+                ctx.lineTo(x, -15 + h);
+                ctx.stroke();
+                
+                if (i % 10 === 0) {
+                    ctx.fillStyle = "#000";
+                    ctx.font = "10px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(i, x, 2);
+                }
+            }
+            
+            // Rotation handle
+            ctx.fillStyle = "rgba(0,0,255,0.5)";
+            ctx.beginPath();
+            ctx.arc(rulerWidthPx + 15, 0, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawProtractor() {
+            const r = protractor.radius * scale / 100; // Scale radius
+            ctx.save();
+            ctx.translate(protractor.x, protractor.y);
+            ctx.rotate(protractor.rotation);
+            
+            // Half-circle
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI); // Flipped to draw bottom half
+            ctx.closePath();
+            ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.7)";
+            ctx.stroke();
+            
+            // Base line
+            ctx.beginPath();
+            ctx.moveTo(-r, 0);
+            ctx.lineTo(r, 0);
+            ctx.stroke();
+            
+            // Center cross
+            ctx.beginPath();
+            ctx.moveTo(0, -5); ctx.lineTo(0, 5);
+            ctx.moveTo(-5, 0); ctx.lineTo(5, 0);
+            ctx.stroke();
+
+            // Markings
+            ctx.font = "8px Arial";
+            ctx.fillStyle = "#000";
+            ctx.textAlign = "center";
+            for (let i = 0; i <= 180; i += 10) {
+                let angleRad = i * Math.PI / 180;
+                let x1 = Math.cos(angleRad) * r;
+                let y1 = Math.sin(angleRad) * r; // Flipped y
+                let x2 = Math.cos(angleRad) * (r - (i % 30 === 0 ? 10 : 5));
+                let y2 = Math.sin(angleRad) * (r - (i % 30 === 0 ? 10 : 5)); // Flipped y
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+                
+                if (i > 0 && i < 180) {
+                    let tx = Math.cos(angleRad) * (r + 8);
+                    let ty = Math.sin(angleRad) * (r + 8); // Flipped y
+                    ctx.fillText(i, tx, ty + 3);
+                }
+            }
+            
+            // Rotation handle
+            ctx.fillStyle = "rgba(0,0,255,0.5)";
+            ctx.beginPath();
+            ctx.arc(r + 15, 0, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawAngleCues(launchX, launchY) {
+            // Dotted horizontal line
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(launchX, launchY);
+            ctx.lineTo(launchX + 100, launchY);
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = "gray";
+            ctx.stroke();
+            ctx.restore();
+
+            // Velocity vector
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(launchX, launchY);
+            let vx = 250 * Math.cos(rampAngleRad); // Changed from 150
+            let vy = 250 * Math.sin(rampAngleRad); // Changed from 150
+            ctx.lineTo(launchX + vx, launchY + vy); // Y is positive-down on canvas
+            ctx.strokeStyle = "#e63946";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Angle arc
+            ctx.beginPath();
+            ctx.arc(launchX, launchY, 30, 0, rampAngleRad);
+            ctx.strokeStyle = "blue";
+            ctx.stroke();
+            ctx.fillStyle = "blue";
+            ctx.font = "14px Arial";
+            ctx.fillText("θ", launchX + 35, launchY + 15);
+            ctx.restore();
+        }
+
+        function drawTarget(x, y, color, label) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x - 10, y - 10);
+            ctx.lineTo(x + 10, y + 10);
+            ctx.moveTo(x + 10, y - 10);
+            ctx.lineTo(x - 10, y + 10);
+            ctx.stroke();
+            
+            ctx.fillStyle = color;
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(label, x, y + 25);
+            ctx.restore();
+        }
+
+
+        function handleSubmitAnswer() {
+            const userAnswer = parseFloat(answerInput.value);
+            if (isNaN(userAnswer)) {
+                showFeedback("Please enter a valid number.", "red");
+                return;
+            }
+
+            let isCorrect = false;
+
+            if (currentNextState === STATES.ASK_VOY) { // This means we are on the ASK_ANGLE question
+                // Special check for angle: accept positive or negative
+                isCorrect = Math.abs(userAnswer - currentCorrectAnswer) <= currentTolerance || 
+                            Math.abs(userAnswer - (-currentCorrectAnswer)) <= currentTolerance;
+            } else {
+                // Standard check
+                isCorrect = Math.abs(userAnswer - currentCorrectAnswer) <= currentTolerance;
+            }
+
+            if (isCorrect) {
+                // Correct!
+                showFeedback("Correct!", "green");
+                questionModal.classList.add('hidden');
+                score += currentQuestionPoints; // Add points for correct answer
+                setGameState(currentNextState);
+                updateScore(); // ADDED
+            } else {
+                // Incorrect
+                currentQuestionAttempts++; // ADDED
+                corrections++;
+                let hint = (userAnswer < currentCorrectAnswer) ? "A little low." : "A little high.";
+                showFeedback(`Not quite. ${hint} Try again.`, "red");
+                if (currentQuestionAttempts === 1) { if (bonus > 0) bonus--; } // MODIFIED
+                if (currentQuestionAttempts > 5) { if (bonus > 0) bonus--; } // ADDED
+                updateScore(); // ADDED
+            }
+            // updateScore(); // REMOVED from here
+        }
+
+        function showFeedback(message, color) {
+            const feedbackEl = document.createElement('div');
+            feedbackEl.id = 'feedbackMessage';
+            feedbackEl.className = `p-4 rounded-lg shadow-xl font-bold text-lg`;
+            if (color === 'green') {
+                feedbackEl.className += ' bg-green-600 text-white';
+            } else {
+                feedbackEl.className += ' bg-red-600 text-white';
+            }
+            feedbackEl.innerText = message;
+            
+            feedbackContainer.innerHTML = ""; // Clear old messages
+            feedbackContainer.appendChild(feedbackEl);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (feedbackEl) {
+                    feedbackEl.remove();
+                }
+            }, 2500);
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = score;
+            // bonusDisplay.innerText = bonus; // This is now hidden
+        }
+
+        // --- DOWNLOAD REPORT FUNCTION ---
+        function generateReport() {
+            const reportHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rolling Ball Physics Lab - Solution</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; background-color: #f9f9f9; color: #333; }
+        h1 { color: #005a9c; }
+        h2 { color: #333; border-bottom: 2px solid #005a9c; padding-bottom: 5px; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin-bottom: 12px; background-color: #fff; padding: 10px 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        code { background-color: #eee; padding: 3px 6px; border-radius: 4px; font-family: "Courier New", Courier, monospace; font-size: 1.1em; }
+        .formula { font-style: italic; color: #555; margin-top: 5px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Physics Lab Report</h1>
+    <h2>Problem Statement (Given Parameters)</h2>
+    <ul>
+        <li>Ramp Length (x - x₀): <code>${rampLength.toFixed(2)} m</code></li>
+        <li>Ramp Angle (θ): <code>${rampAngleDeg.toFixed(1)}°</code></li>
+        <li>Table Height (h): <code>${tableHeight.toFixed(2)} m</code></li>
+    </ul>
+    <h2>Solution (Calculated Values)</h2>
+    <ul>
+        <li>
+            Time on Ramp: <code>${time_on_ramp.toFixed(3)} s</code>
+            <div class="formula">a = (5/7) * g * sin(θ)</div>
+            <div class="formula">t = sqrt(2 * (x - x₀) / a)</div>
+        </li>
+        <li>
+            Speed at bottom of ramp (v): <code>${v_final_ramp.toFixed(3)} m/s</code>
+            <div class="formula">From kinematics: (x - x₀) = 0.5 * (v₀ + v) * t</div>
+            <div class="formula">Since v₀ = 0, v = 2 * (x - x₀) / t</div>
+        </li>
+        <li>
+            Initial Horizontal Velocity (v<sub>ox</sub>): <code>${v_ox.toFixed(3)} m/s</code>
+            <div class="formula">v<sub>ox</sub> = v * cos(θ)</div>
+        </li>
+        <li>
+            Initial Vertical Velocity (v<sub>oy</sub>, +up): <code>${(-v_oy_initial_physics).toFixed(3)} m/s</code>
+            <div class="formula">v<sub>oy</sub> = v * sin(-θ)  (using negative angle for 'below horizontal')</div>
+        </li>
+        <li>
+            Vertical Displacement (y - y₀): <code>${(-tableHeight).toFixed(2)} m</code>
+            <div class="formula">Δy = -h</div>
+        </li>
+        <li>
+            Time in Air (t<sub>air</sub>): <code>${time_in_air.toFixed(3)} s</code>
+            <div class="formula">Use quadratic formula on: Δy = v<sub>oy</sub>t + 0.5(-g)t²</div>
+        </li>
+        <li>
+            Horizontal Landing Distance (x - x₀): <code>${landing_distance_x.toFixed(3)} m</code>
+            <div class="formula">Δx = v<sub>ox</sub> * t<sub>air</sub></div>
+        </li>
+    </ul>
+</body>
+</html>
+            `;
+            
+            const blob = new Blob([reportHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rolling_ball_physics_lab.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- END SCREEN ---
+        function showEndScreen() {
+            // ADDED: Calculate Percent Error
+            let percentError = 0;
+            if (predicted_landing_distance_x !== null && landing_distance_x !== 0) {
+                percentError = (Math.abs(predicted_landing_distance_x - landing_distance_x) / landing_distance_x) * 100;
+            } else if (predicted_landing_distance_x === null) {
+                percentError = 100; // If no prediction, 100% error
+            }
+
+            // CHANGED: Added score penalty for error
+            let penalty = 0;
+            if (percentError > 10) {
+                let errorAboveThreshold = percentError - 10;
+                penalty = Math.floor(errorAboveThreshold / 5); // 1 point per 5% over 10%
+            }
+            score = score - penalty;
+            if (score < 0) score = 0; // Prevent negative score
+
+            // Final score calculation
+            const finalScore = score + bonus;
+            scoreDisplay.innerText = finalScore; // Show final score
+            
+            let messageList;
+            if (finalScore > 15) { // Check if score is greater than 15
+                // Perfect score
+                messageList = perfectScoreMessages;
+                launchConfetti();
+            } else {
+                // Good score
+                messageList = goodScoreMessages;
+            }
+            
+            const endMessage = messageList[Math.floor(Math.random() * messageList.length)];
+            
+            // Show final message modal
+            // CHANGED: Added Percent Error
+            questionText.innerHTML = `Simulation complete!<br><br>
+                <span class="text-3xl">Final Score: <b>${finalScore} / 15</b></span><br>
+                <span class="text-xl">Prediction Error: <b>${percentError.toFixed(1)}%</b></span><br><br>
+                ${endMessage}`;
+            answerInput.style.display = 'none';
+            submitAnswerButton.style.display = 'none';
+            
+            // Reset modal position
+            modalDragState.currentX = 0;
+            modalDragState.currentY = 0;
+            modalContent.style.transform = 'translate(0, 0)';
+
+            questionModal.classList.remove('hidden');
+            questionModal.classList.add('no-backdrop'); // ADDED: Remove backdrop
+            
+            // Add "Play Again" button
+            let playAgainButton = document.getElementById('modalReplayBtn');
+            if (!playAgainButton) {
+                 playAgainButton = document.createElement('button');
+                 playAgainButton.id = 'modalReplayBtn';
+                 playAgainButton.className = 'w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all shadow-lg mt-6';
+                 playAgainButton.innerText = 'Play Again';
+                 questionModal.firstElementChild.appendChild(playAgainButton);
+            }
+            
+            // Add "Download Report" button
+            let downloadButton = document.getElementById('modalDownloadBtn');
+            if (!downloadButton) {
+                downloadButton = document.createElement('button');
+                downloadButton.id = 'modalDownloadBtn';
+                downloadButton.className = 'w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all shadow-lg mt-4';
+                downloadButton.innerText = 'Download Report';
+                downloadButton.onclick = generateReport;
+                questionModal.firstElementChild.appendChild(downloadButton);
+            }
+
+            // Update Play Again click handler to remove both buttons
+            playAgainButton.onclick = () => {
+                 questionModal.classList.add('hidden');
+                 questionModal.classList.remove('no-backdrop'); // ADDED: Restore backdrop
+                 // Restore modal
+                 answerInput.style.display = 'block';
+                 submitAnswerButton.style.display = 'block';
+                 playAgainButton.remove();
+                 downloadButton.remove(); // Also remove download button
+                 setupNewProblem(); // Use setupNewProblem to start a new random problem
+             };
+        }
+
+        /**
+         * Launches confetti from multiple origins
+         */
+        function launchConfetti() {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            // Set zIndex to be on top of the modal
+            // CHANGED: zIndex to 40 (to be behind modal at z-50)
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 40 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                // CHANGED: Reduced particle count
+                const particleCount = 30 * (timeLeft / duration); 
+                // launch a few confetti from the left edge
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                // and launch a few from the right edge
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        // --- STARTUP ---
+        initializeSim();
+
+    </script>
+</body>
+</html>
