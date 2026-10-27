@@ -125,7 +125,7 @@
                     <!-- Task Header -->
                     <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                         <span class="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 border border-amber-800/50 px-2.5 py-1 rounded-md">
-                            Step <span id="stepNumber">1</span> of 10
+                            Step <span id="stepNumber">1</span> of 9
                         </span>
                         <span class="text-xs text-slate-400">Physics Lab Module</span>
                     </div>
@@ -248,13 +248,12 @@
             PART1_MEASURE_RANGE: 1,
             PART1_MEASURE_ANGLE: 2,
             PART1_CALC_VO: 3,
-            PART1_RUN_SIM: 4,
-            PART2_MEASURE_YO: 5,
-            PART2_CALC_VOY: 6,
-            PART2_CALC_TIME: 7,
-            PART2_CALC_VOX: 8,
-            PART2_PLACE_TARGET: 9,
-            PART2_RUN_SIM: 10
+            PART2_MEASURE_YO: 4,
+            PART2_CALC_VOY: 5,
+            PART2_CALC_TIME: 6,
+            PART2_CALC_VOX: 7,
+            PART2_PLACE_TARGET: 8,
+            PART2_RUN_SIM: 9
         };
 
         // --- APP STATE ---
@@ -369,6 +368,22 @@
         };
 
         function initLabValues() {
+            // Reset recorded user measurements and data log display
+            userRecords = {
+                p1_range: null,
+                p1_angle: null,
+                p1_v0: null,
+                p2_yo: null,
+                p2_voy: null,
+                p2_time: null,
+                p2_vox: null,
+                p2_targetX: null
+            };
+
+            if (dataLogList) {
+                dataLogList.innerHTML = '<p class="text-slate-500 italic text-center py-2">No verified measurements yet.</p>';
+            }
+
             // Randomize physics parameters
             params.v0 = parseFloat((Math.random() * (4.8 - 3.2) + 3.2).toFixed(2)); // 3.2 to 4.8 m/s
             params.angleDeg = Math.floor(Math.random() * (48 - 28 + 1)) + 28; // 28 to 48 degrees
@@ -429,7 +444,7 @@
                     stageBadge.innerText = "Part 1: Level-Ground Launch";
                     stepNumber.innerText = "1";
                     stepTitle.innerText = "Measure Level Launch Distance (x - x₀)";
-                    instructionBox.innerHTML = "The Hot Wheels car is launched on level ground. Use the onscreen <b>Measuring Tape</b> to measure the horizontal range <i>x - x</i><sub>0</sub> (in meters) from launch tip to where the wheels touch down.";
+                    instructionBox.innerHTML = "The Hot Wheels car is launched on level ground. Click <b>🚀 Test Launch</b> on the toolbar to see where the car lands, then use the <b>Measuring Tape</b> to measure horizontal range <i>x - x</i><sub>0</sub> (in meters) from launch tip to touchdown point.";
                     inputLabel.innerText = "Enter Range (x - x₀)";
                     inputUnit.innerText = "m";
                     toolRuler.visible = true;
@@ -466,20 +481,9 @@
                     toolProtractor.visible = false;
                     break;
 
-                case STAGES.PART1_RUN_SIM:
-                    stageBadge.innerText = "Part 1: Level-Ground Launch";
-                    stepNumber.innerText = "4";
-                    stepTitle.innerText = "Verify Launch Trajectory";
-                    instructionBox.innerHTML = `Great job! Calculated launch speed is <b>${userRecords.p1_v0} m/s</b>. Click below to launch the Hot Wheels car on level ground!`;
-                    inputLabel.innerText = "Ready to Launch";
-                    stepInput.style.display = "none";
-                    inputUnit.innerText = "";
-                    submitStepBtn.innerHTML = `<span>🚀 Launch Hot Wheels Car</span>`;
-                    break;
-
                 case STAGES.PART2_MEASURE_YO:
                     stageBadge.innerText = "Part 2: Table Launch";
-                    stepNumber.innerText = "5";
+                    stepNumber.innerText = "4";
                     stepTitle.innerText = "Measure Table Height (y₀)";
                     instructionBox.innerHTML = "The same launcher is now placed on top of a table. Use the <b>Measuring Tape</b> to measure vertical height <i>y</i><sub>0</sub> (in meters) from the floor to the car launch point.";
                     inputLabel.innerText = "Table Height (y₀)";
@@ -494,7 +498,7 @@
 
                 case STAGES.PART2_CALC_VOY:
                     stageBadge.innerText = "Part 2: Table Launch";
-                    stepNumber.innerText = "6";
+                    stepNumber.innerText = "5";
                     stepTitle.innerText = "Calculate Initial Vertical Speed (v₀y)";
                     instructionBox.innerHTML = `Calculate initial vertical velocity component <i>v</i><sub>0y</sub> using launch speed <b>${userRecords.p1_v0} m/s</b> and angle <b>${userRecords.p1_angle}°</b>.<br><br>
                     <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs">
@@ -507,7 +511,7 @@
 
                 case STAGES.PART2_CALC_TIME:
                     stageBadge.innerText = "Part 2: Table Launch";
-                    stepNumber.innerText = "7";
+                    stepNumber.innerText = "6";
                     stepTitle.innerText = "Calculate Flight Time in Air (t)";
                     instructionBox.innerHTML = `Calculate flight time in air <i>t</i><sub>air</sub> using vertical motion:
                     <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs my-2">
@@ -520,7 +524,7 @@
 
                 case STAGES.PART2_CALC_VOX:
                     stageBadge.innerText = "Part 2: Table Launch";
-                    stepNumber.innerText = "8";
+                    stepNumber.innerText = "7";
                     stepTitle.innerText = "Calculate Horizontal Speed (v₀x)";
                     instructionBox.innerHTML = `Calculate constant horizontal velocity component <i>v</i><sub>0x</sub>.<br><br>
                     <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs">
@@ -532,7 +536,7 @@
 
                 case STAGES.PART2_PLACE_TARGET:
                     stageBadge.innerText = "Part 2: Target Prediction";
-                    stepNumber.innerText = "9";
+                    stepNumber.innerText = "8";
                     stepTitle.innerText = "Place Landing Target 'X' on Floor";
                     instructionBox.innerHTML = `First calculate <i>x - x</i><sub>0</sub> = <i>v</i><sub>0x</sub> &middot; <i>t</i><sub>air</sub>.<br>Then <b>click on the floor line</b> on the canvas to place your target 'X'! Use the <b>📏 Full Floor Ruler</b> button to extend a 5m measuring tape.`;
                     inputLabel.innerText = "Target Position Selected";
@@ -543,7 +547,7 @@
 
                 case STAGES.PART2_RUN_SIM:
                     stageBadge.innerText = "Part 2: Target Prediction";
-                    stepNumber.innerText = "10";
+                    stepNumber.innerText = "9";
                     stepTitle.innerText = "Simulating Launch";
                     instructionBox.innerHTML = "Car is in flight! Watching trajectory impact...";
                     submitStepBtn.style.display = "none";
@@ -605,8 +609,10 @@
                         userRecords.p1_v0 = userVal;
                         awardPoints(2);
                         logData("Calculated v₀", `${userVal} m/s`);
-                        currentStage = STAGES.PART1_RUN_SIM;
-                        updateStepUI();
+                        runLaunchAnimation(STAGES.PART1_CALC_VO, () => {
+                            currentStage = STAGES.PART2_MEASURE_YO;
+                            updateStepUI();
+                        });
                     } else {
                         deductMistake();
                         if (v0_radians !== null && Math.abs(userVal - v0_radians) < 0.3) {
@@ -617,13 +623,6 @@
                             showHint(`Equation to use: v₀ = √[ (R · g) / sin(2θ) ]  →  v₀ = √[ (${userRecords.p1_range} · 9.8) / sin(2 · ${userRecords.p1_angle}°) ]`);
                         }
                     }
-                    break;
-
-                case STAGES.PART1_RUN_SIM:
-                    runLaunchAnimation(STAGES.PART1_RUN_SIM, () => {
-                        currentStage = STAGES.PART2_MEASURE_YO;
-                        updateStepUI();
-                    });
                     break;
 
                 case STAGES.PART2_MEASURE_YO:
@@ -1305,7 +1304,7 @@
 
             testLaunchBtn.addEventListener('click', function() {
                 if (!isAnimating) {
-                    const stageType = currentStage >= STAGES.PART2_MEASURE_YO ? STAGES.PART2_RUN_SIM : STAGES.PART1_RUN_SIM;
+                    const stageType = currentStage >= STAGES.PART2_MEASURE_YO ? STAGES.PART2_RUN_SIM : STAGES.PART1_CALC_VO;
                     runLaunchAnimation(stageType, null);
                 }
             });
