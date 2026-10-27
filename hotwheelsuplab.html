@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hot Wheels Projectile Motion Physics Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overscroll-behavior: none;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #1e293b 0%, #0f172a 100%);
+            border-radius: 0.75rem;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+            touch-action: none;
+        }
+        /* Custom scrollbar for data log */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        .math-var {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6">
+
+    <!-- TOP HEADER -->
+    <header class="max-w-7xl mx-auto w-full flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-amber-500 to-red-600 p-2.5 rounded-xl shadow-lg shadow-red-950/50">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-amber-400 via-orange-300 to-red-400 bg-clip-text text-transparent">
+                    Hot Wheels Projectile Motion Lab
+                </h1>
+                <p class="text-xs text-slate-400">Physics Simulation & Target Prediction</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                <span class="text-xs uppercase tracking-wider text-slate-400 block font-semibold">Student Name</span>
+                <span id="studentNameDisplay" class="text-sm font-semibold text-cyan-300">Guest Student</span>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-xl text-center shadow-inner">
+                <span class="text-xs uppercase tracking-wider text-slate-400 block font-semibold">Current Score</span>
+                <span class="text-2xl font-black text-amber-400" id="scoreDisplay">0</span>
+                <span class="text-xs text-slate-400 font-medium">/ 15 pts</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN LAB CONTENT -->
+    <main class="max-w-7xl mx-auto w-full my-4 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- LEFT COLUMN: CANVAS & TOOLBAR (8 Cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-3">
+            
+            <!-- Canvas Window -->
+            <div class="relative bg-slate-900 border border-slate-800 rounded-2xl p-2 shadow-2xl overflow-hidden">
+                <canvas id="simCanvas" width="800" height="520" class="w-full h-auto block cursor-crosshair"></canvas>
+
+                <!-- Stage Badge Overlay -->
+                <div class="absolute top-4 left-4 bg-slate-900/90 border border-slate-700/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-400 shadow-md flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <span id="stageBadge">Part 1: Level-Ground Launch</span>
+                </div>
+            </div>
+
+            <!-- Canvas Tool Control Bar -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="testLaunchBtn" class="bg-red-950 hover:bg-red-900 text-red-200 border border-red-800/80 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5" title="Run a test launch simulation at any time">
+                        🚀 Test Launch
+                    </button>
+                    <button id="toggleRulerBtn" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-200 border border-cyan-800/80 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                        📏 Measuring Tape
+                    </button>
+                    <button id="resetRulerBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1" title="Reposition ruler horizontally">
+                        🔄 Reposition Ruler
+                    </button>
+                    <button id="fullRulerBtn" class="bg-amber-950 hover:bg-amber-900 text-amber-200 border border-amber-800/80 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5" title="Extend 5m ruler along floor line">
+                        📏 Full Floor Ruler
+                    </button>
+                    <button id="toggleProtractorBtn" class="bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-800/80 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                        📐 Protractor
+                    </button>
+                    <button id="toggleCarBtn" class="bg-emerald-950 hover:bg-emerald-900 text-emerald-200 border border-emerald-800/80 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                        🚗 Hide Car
+                    </button>
+                </div>
+                <div class="text-xs text-slate-400 italic">
+                    Drag handles to move/rotate on canvas
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: STEP INSTRUCTIONS & INPUTS (4 Cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Step Task Card -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between flex-grow">
+                <div>
+                    <!-- Task Header -->
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 border border-amber-800/50 px-2.5 py-1 rounded-md">
+                            Step <span id="stepNumber">1</span> of 10
+                        </span>
+                        <span class="text-xs text-slate-400">Physics Lab Module</span>
+                    </div>
+
+                    <!-- Instruction Box -->
+                    <h2 id="stepTitle" class="text-lg font-bold text-slate-100 mb-2">Measure Horizontal Range</h2>
+                    <div id="instructionBox" class="text-sm text-slate-300 space-y-3 leading-relaxed">
+                        <!-- Dynamic Instructions Injected Here -->
+                    </div>
+                </div>
+
+                <!-- Input & Action Area -->
+                <div class="mt-6 pt-4 border-t border-slate-800 space-y-3">
+                    <label id="inputLabel" for="stepInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        Enter Measurement
+                    </label>
+                    
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="stepInput" step="any" placeholder="0.00" class="flex-grow bg-slate-950 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-lg font-semibold text-slate-100 outline-none transition placeholder-slate-600">
+                        <span id="inputUnit" class="text-sm font-bold text-slate-400 px-2">m</span>
+                    </div>
+
+                    <!-- Hint / Error Message Area -->
+                    <div id="hintBox" class="hidden p-3 rounded-xl bg-red-950/80 border border-red-800/60 text-xs text-red-200 leading-snug">
+                        <!-- Smart hints injected here -->
+                    </div>
+
+                    <button id="submitStepBtn" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm transition shadow-lg shadow-orange-950/40 flex items-center justify-center gap-2">
+                        <span>Check & Submit Answer</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirmed Data Log Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg text-xs space-y-2">
+                <h3 class="font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-1.5 flex justify-between">
+                    <span>Confirmed Lab Data Log</span>
+                    <span class="text-amber-400">Live</span>
+                </h3>
+                <div id="dataLogList" class="space-y-1.5 text-slate-300 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                    <p class="text-slate-500 italic text-center py-2">No verified measurements yet.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="max-w-7xl mx-auto w-full text-center text-xs text-slate-500 py-2 border-t border-slate-800/60">
+        Hot Wheels Projectile Physics Lab &bull; Kinematics & Two-Dimensional Trajectory Analysis
+    </footer>
+
+    <!-- MODAL 1: STUDENT NAME ENTRY -->
+    <div id="nameModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl text-center space-y-5">
+            <div class="w-16 h-16 bg-gradient-to-tr from-amber-500 to-red-600 rounded-2xl mx-auto flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-red-950/60">
+                🏎️
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-slate-100">Welcome to Physics Lab</h2>
+                <p class="text-xs text-slate-400 mt-1">Please enter your student name to begin calculations.</p>
+            </div>
+            
+            <div class="text-left space-y-1">
+                <label for="studentNameInput" class="text-xs font-semibold uppercase tracking-wider text-slate-400">Student Name</label>
+                <input type="text" id="studentNameInput" placeholder="e.g. Alex Morgan" class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-3 text-slate-100 outline-none">
+            </div>
+
+            <button id="startLabBtn" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-bold py-3.5 px-4 rounded-xl text-sm transition shadow-lg shadow-orange-950/40">
+                Start Projectile Lab
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: FINAL SCORE & VERIFICATION REPORT -->
+    <div id="scoreModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl text-center space-y-6">
+            <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 via-orange-500 to-red-600 rounded-full mx-auto flex items-center justify-center text-4xl shadow-xl shadow-orange-950/50">
+                🏆
+            </div>
+
+            <div>
+                <h2 id="congratulationsHeader" class="text-2xl font-black text-amber-400">Congratulations!</h2>
+                <p class="text-sm text-slate-300 mt-1" id="scoreSubtext">You completed the Hot Wheels Projectile Lab!</p>
+            </div>
+
+            <!-- Score Box -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 shadow-inner">
+                <span class="text-xs uppercase tracking-wider text-slate-400 font-bold block">Final Lab Score</span>
+                <div class="text-5xl font-black text-amber-400 my-1" id="finalScoreNumber">15 <span class="text-2xl text-slate-500 font-normal">/ 15</span></div>
+                <p id="percentErrorDisplay" class="text-xs font-semibold text-emerald-400 my-1">Target Prediction Error: 0.0%</p>
+                <p id="verificationCode" class="text-xs font-mono text-slate-400 tracking-widest select-all my-1.5">HW-XXX-XXX-XXX</p>
+                <div class="text-xs font-semibold text-emerald-400 mt-2" id="extraCreditBadge">+0 Extra Credit Bonus Applied</div>
+            </div>
+
+            <div class="space-y-3">
+                <button id="downloadReportBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm transition shadow-lg shadow-cyan-950/40 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span>Download Formatted Lab Report (HTML)</span>
+                </button>
+                
+                <button id="restartLabBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-700">
+                    Restart Simulation with New Values
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONSTANTS & LAB CONFIG ---
+        const g = 9.8; // m/s^2 as requested by user
+        const SCALE = 140; // pixels per meter
+        const LAUNCH_ORIGIN_X = 120; // Canvas X coord for launch tip
+        
+        // --- STAGES DEFINITION ---
+        const STAGES = {
+            PART1_MEASURE_RANGE: 1,
+            PART1_MEASURE_ANGLE: 2,
+            PART1_CALC_VO: 3,
+            PART1_RUN_SIM: 4,
+            PART2_MEASURE_YO: 5,
+            PART2_CALC_VOY: 6,
+            PART2_CALC_TIME: 7,
+            PART2_CALC_VOX: 8,
+            PART2_PLACE_TARGET: 9,
+            PART2_RUN_SIM: 10
+        };
+
+        // --- APP STATE ---
+        let studentName = "Student";
+        let currentStage = STAGES.PART1_MEASURE_RANGE;
+        let score = 0;
+        let extraCredit = 0;
+        let attemptsThisStep = 0;
+
+        // Track launch status to persist parabola path onscreen
+        let hasLaunchedPart1 = false;
+        let hasLaunchedPart2 = false;
+
+        // --- RANDOMIZED PARAMETERS ---
+        let params = {
+            v0: 0,           // Initial velocity (m/s)
+            angleDeg: 0,     // Launch angle (degrees)
+            angleRad: 0,     // Launch angle (radians)
+            p1_range: 0,     // Level launch range (m)
+            p2_tableHeight: 0,// Table height yo (m)
+            p2_voy: 0,       // Vertical initial velocity (m/s)
+            p2_timeInAir: 0, // Flight time (s)
+            p2_vox: 0,       // Horizontal velocity (m/s)
+            p2_range: 0      // Predicted landing distance (m)
+        };
+
+        // --- RECORDED USER VALUES ---
+        let userRecords = {
+            p1_range: null,
+            p1_angle: null,
+            p1_v0: null,
+            p2_yo: null,
+            p2_voy: null,
+            p2_time: null,
+            p2_vox: null,
+            p2_targetX: null
+        };
+
+        // --- TOOL STATES ---
+        let toolRuler = {
+            x: 120,
+            y: 425,
+            lengthMeters: 3.2,
+            angle: 0, // radians
+            visible: true,
+            isDragging: false,
+            isRotating: false,
+            dragOffset: { x: 0, y: 0 }
+        };
+
+        let toolProtractor = {
+            x: 120,
+            y: 425,
+            radiusPx: 110,
+            angle: 0, // radians
+            visible: true,
+            isDragging: false,
+            isRotating: false,
+            dragOffset: { x: 0, y: 0 }
+        };
+
+        let hideCar = false;
+        let animProgress = 0; // 0 to 1 for launch animations
+        let isAnimating = false;
+        let activeAnimStage = null;
+        let targetX_canvas = null; // Canvas X coordinate of target 'X' on floor
+
+        // --- DOM REFERENCES ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const nameModal = document.getElementById('nameModal');
+        const studentNameInput = document.getElementById('studentNameInput');
+        const startLabBtn = document.getElementById('startLabBtn');
+        const studentNameDisplay = document.getElementById('studentNameDisplay');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+
+        const stageBadge = document.getElementById('stageBadge');
+        const stepNumber = document.getElementById('stepNumber');
+        const stepTitle = document.getElementById('stepTitle');
+        const instructionBox = document.getElementById('instructionBox');
+        const inputLabel = document.getElementById('inputLabel');
+        const stepInput = document.getElementById('stepInput');
+        const inputUnit = document.getElementById('inputUnit');
+        const submitStepBtn = document.getElementById('submitStepBtn');
+        const hintBox = document.getElementById('hintBox');
+        const dataLogList = document.getElementById('dataLogList');
+
+        const testLaunchBtn = document.getElementById('testLaunchBtn');
+        const toggleRulerBtn = document.getElementById('toggleRulerBtn');
+        const resetRulerBtn = document.getElementById('resetRulerBtn');
+        const fullRulerBtn = document.getElementById('fullRulerBtn');
+        const toggleProtractorBtn = document.getElementById('toggleProtractorBtn');
+        const toggleCarBtn = document.getElementById('toggleCarBtn');
+
+        const scoreModal = document.getElementById('scoreModal');
+        const congratulationsHeader = document.getElementById('congratulationsHeader');
+        const scoreSubtext = document.getElementById('scoreSubtext');
+        const finalScoreNumber = document.getElementById('finalScoreNumber');
+        const percentErrorDisplay = document.getElementById('percentErrorDisplay');
+        const extraCreditBadge = document.getElementById('extraCreditBadge');
+        const verificationCode = document.getElementById('verificationCode');
+        const downloadReportBtn = document.getElementById('downloadReportBtn');
+        const restartLabBtn = document.getElementById('restartLabBtn');
+
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            initLabValues();
+            setupEventListeners();
+            drawCanvas();
+        };
+
+        function initLabValues() {
+            // Randomize physics parameters
+            params.v0 = parseFloat((Math.random() * (4.8 - 3.2) + 3.2).toFixed(2)); // 3.2 to 4.8 m/s
+            params.angleDeg = Math.floor(Math.random() * (48 - 28 + 1)) + 28; // 28 to 48 degrees
+            params.angleRad = params.angleDeg * (Math.PI / 180);
+
+            // Part 1 Range equation: R = (v0^2 * sin(2*theta)) / g
+            params.p1_range = parseFloat(((Math.pow(params.v0, 2) * Math.sin(2 * params.angleRad)) / g).toFixed(3));
+
+            // Part 2 Parameters (launcher on table)
+            params.p2_tableHeight = parseFloat((Math.random() * (1.25 - 0.75) + 0.75).toFixed(2)); // 0.75 to 1.25m
+            params.p2_voy = parseFloat((params.v0 * Math.sin(params.angleRad)).toFixed(3));
+            
+            // Quadratic formula for flight time: 0.5*g*t^2 - voy*t - yo = 0
+            const a = 0.5 * g;
+            const b = -params.p2_voy;
+            const c = -params.p2_tableHeight;
+            params.p2_timeInAir = parseFloat(((-b + Math.sqrt(b*b - 4*a*c)) / (2*a)).toFixed(3));
+            
+            params.p2_vox = parseFloat((params.v0 * Math.cos(params.angleRad)).toFixed(3));
+            params.p2_range = parseFloat((params.p2_vox * params.p2_timeInAir).toFixed(3));
+
+            // Reset tools positioning and launch states
+            toolRuler.x = 120;
+            toolRuler.y = 425;
+            toolRuler.angle = 0;
+            toolRuler.lengthMeters = 3.2;
+
+            toolProtractor.x = 120;
+            toolProtractor.y = 425;
+            toolProtractor.angle = 0;
+
+            hasLaunchedPart1 = false;
+            hasLaunchedPart2 = false;
+
+            console.log("Lab Solutions generated:", params);
+        }
+
+        // --- STEP UI UPDATE MANAGER ---
+        function updateStepUI() {
+            attemptsThisStep = 0;
+            hintBox.classList.add('hidden');
+            stepInput.value = "";
+            stepInput.style.display = "block";
+            submitStepBtn.style.display = "flex";
+
+            // Hide Test Launch button in Part 2 to prevent previewing answer before target lock-in
+            if (currentStage >= STAGES.PART2_MEASURE_YO) {
+                testLaunchBtn.style.display = "none";
+            } else {
+                testLaunchBtn.style.display = "inline-flex";
+            }
+            
+            submitStepBtn.innerHTML = `<span>Check & Submit Answer</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>`;
+
+            switch(currentStage) {
+                case STAGES.PART1_MEASURE_RANGE:
+                    stageBadge.innerText = "Part 1: Level-Ground Launch";
+                    stepNumber.innerText = "1";
+                    stepTitle.innerText = "Measure Level Launch Distance (x - x₀)";
+                    instructionBox.innerHTML = "The Hot Wheels car is launched on level ground. Use the onscreen <b>Measuring Tape</b> to measure the horizontal range <i>x - x</i><sub>0</sub> (in meters) from launch tip to where the wheels touch down.";
+                    inputLabel.innerText = "Enter Range (x - x₀)";
+                    inputUnit.innerText = "m";
+                    toolRuler.visible = true;
+                    toolRuler.lengthMeters = 3.2;
+                    toolRuler.angle = 0;
+                    toolRuler.x = 120;
+                    toolRuler.y = 425;
+                    toolProtractor.visible = false;
+                    break;
+
+                case STAGES.PART1_MEASURE_ANGLE:
+                    stageBadge.innerText = "Part 1: Level-Ground Launch";
+                    stepNumber.innerText = "2";
+                    stepTitle.innerText = "Measure Launch Angle (θ)";
+                    instructionBox.innerHTML = "Position the <b>Protractor</b> on the launch tip at the baseline dotted line to measure the ramp launch angle <i>&theta;</i> in degrees above horizontal.";
+                    inputLabel.innerText = "Enter Launch Angle (θ)";
+                    inputUnit.innerText = "°";
+                    toolRuler.visible = false;
+                    toolProtractor.visible = true;
+                    break;
+
+                case STAGES.PART1_CALC_VO:
+                    stageBadge.innerText = "Part 1: Level-Ground Launch";
+                    stepNumber.innerText = "3";
+                    stepTitle.innerText = "Calculate Initial Launch Speed (v₀)";
+                    instructionBox.innerHTML = `Using your confirmed range (<b>${userRecords.p1_range} m</b>) and launch angle (<b>${userRecords.p1_angle}°</b>), calculate initial speed <i>v</i><sub>0</sub>.<br><br>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs">
+                        Range Formula: R = (v₀² &middot; sin(2&theta;)) / g
+                    </div>
+                    <i>Note: g = 9.8 m/s²</i>`;
+                    inputLabel.innerText = "Calculated Launch Speed (v₀)";
+                    inputUnit.innerText = "m/s";
+                    toolRuler.visible = false;
+                    toolProtractor.visible = false;
+                    break;
+
+                case STAGES.PART1_RUN_SIM:
+                    stageBadge.innerText = "Part 1: Level-Ground Launch";
+                    stepNumber.innerText = "4";
+                    stepTitle.innerText = "Verify Launch Trajectory";
+                    instructionBox.innerHTML = `Great job! Calculated launch speed is <b>${userRecords.p1_v0} m/s</b>. Click below to launch the Hot Wheels car on level ground!`;
+                    inputLabel.innerText = "Ready to Launch";
+                    stepInput.style.display = "none";
+                    inputUnit.innerText = "";
+                    submitStepBtn.innerHTML = `<span>🚀 Launch Hot Wheels Car</span>`;
+                    break;
+
+                case STAGES.PART2_MEASURE_YO:
+                    stageBadge.innerText = "Part 2: Table Launch";
+                    stepNumber.innerText = "5";
+                    stepTitle.innerText = "Measure Table Height (y₀)";
+                    instructionBox.innerHTML = "The same launcher is now placed on top of a table. Use the <b>Measuring Tape</b> to measure vertical height <i>y</i><sub>0</sub> (in meters) from the floor to the car launch point.";
+                    inputLabel.innerText = "Table Height (y₀)";
+                    inputUnit.innerText = "m";
+                    toolRuler.visible = true;
+                    toolRuler.lengthMeters = 1.6; 
+                    toolRuler.angle = -Math.PI / 2; // vertical pointing up
+                    toolRuler.x = 120;
+                    toolRuler.y = 425;
+                    toolProtractor.visible = false;
+                    break;
+
+                case STAGES.PART2_CALC_VOY:
+                    stageBadge.innerText = "Part 2: Table Launch";
+                    stepNumber.innerText = "6";
+                    stepTitle.innerText = "Calculate Initial Vertical Speed (v₀y)";
+                    instructionBox.innerHTML = `Calculate initial vertical velocity component <i>v</i><sub>0y</sub> using launch speed <b>${userRecords.p1_v0} m/s</b> and angle <b>${userRecords.p1_angle}°</b>.<br><br>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs">
+                        v₀y = v₀ &middot; sin(&theta;)
+                    </div>`;
+                    inputLabel.innerText = "Calculated v₀y";
+                    inputUnit.innerText = "m/s";
+                    toolRuler.visible = false;
+                    break;
+
+                case STAGES.PART2_CALC_TIME:
+                    stageBadge.innerText = "Part 2: Table Launch";
+                    stepNumber.innerText = "7";
+                    stepTitle.innerText = "Calculate Flight Time in Air (t)";
+                    instructionBox.innerHTML = `Calculate flight time in air <i>t</i><sub>air</sub> using vertical motion:
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs my-2">
+                        y = y₀ + v₀y&middot;t + &frac12;a_y&middot;t²  &nbsp;&nbsp; (y=0 floor, a_y=-9.8)
+                    </div>
+                    <i>Preferred Method: Type <code>0 = ${userRecords.p2_yo} + ${userRecords.p2_voy}t - 4.9t²</code> into Desmos to find the positive root!</i>`;
+                    inputLabel.innerText = "Calculated Time in Air (t)";
+                    inputUnit.innerText = "s";
+                    break;
+
+                case STAGES.PART2_CALC_VOX:
+                    stageBadge.innerText = "Part 2: Table Launch";
+                    stepNumber.innerText = "8";
+                    stepTitle.innerText = "Calculate Horizontal Speed (v₀x)";
+                    instructionBox.innerHTML = `Calculate constant horizontal velocity component <i>v</i><sub>0x</sub>.<br><br>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-amber-300 font-mono text-xs">
+                        v₀x = v₀ &middot; cos(&theta;)
+                    </div>`;
+                    inputLabel.innerText = "Calculated v₀x";
+                    inputUnit.innerText = "m/s";
+                    break;
+
+                case STAGES.PART2_PLACE_TARGET:
+                    stageBadge.innerText = "Part 2: Target Prediction";
+                    stepNumber.innerText = "9";
+                    stepTitle.innerText = "Place Landing Target 'X' on Floor";
+                    instructionBox.innerHTML = `First calculate <i>x - x</i><sub>0</sub> = <i>v</i><sub>0x</sub> &middot; <i>t</i><sub>air</sub>.<br>Then <b>click on the floor line</b> on the canvas to place your target 'X'! Use the <b>📏 Full Floor Ruler</b> button to extend a 5m measuring tape.`;
+                    inputLabel.innerText = "Target Position Selected";
+                    stepInput.style.display = "none";
+                    inputUnit.innerText = "";
+                    submitStepBtn.innerHTML = `<span>🔒 Lock In Prediction & Launch!</span>`;
+                    break;
+
+                case STAGES.PART2_RUN_SIM:
+                    stageBadge.innerText = "Part 2: Target Prediction";
+                    stepNumber.innerText = "10";
+                    stepTitle.innerText = "Simulating Launch";
+                    instructionBox.innerHTML = "Car is in flight! Watching trajectory impact...";
+                    submitStepBtn.style.display = "none";
+                    break;
+            }
+            drawCanvas();
+        }
+
+
+        // --- ANSWER CHECKING & SMART HINTS ENGINE ---
+        function checkStepAnswer() {
+            hintBox.classList.add('hidden');
+            const userVal = parseFloat(stepInput.value);
+
+            switch(currentStage) {
+                case STAGES.PART1_MEASURE_RANGE:
+                    if (isNaN(userVal)) return showHint("Please enter a valid numeric measurement in meters.");
+                    if (Math.abs(userVal - params.p1_range) <= 0.04) {
+                        userRecords.p1_range = userVal;
+                        awardPoints(2);
+                        logData("Part 1 Range (x - x₀)", `${userVal} m`);
+                        currentStage = STAGES.PART1_MEASURE_ANGLE;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        if (Math.abs(userVal - params.p1_range * 100) < 5) {
+                            showHint("💡 Smart Hint: It looks like you entered centimeters instead of meters! Divide by 100.");
+                        } else {
+                            showHint("Measurement equation/method: Measure horizontal range x - x₀ (in meters) along the floor from x₀ = 0 to touchdown.");
+                        }
+                    }
+                    break;
+
+                case STAGES.PART1_MEASURE_ANGLE:
+                    if (isNaN(userVal)) return showHint("Please enter a valid angle in degrees.");
+                    if (Math.abs(userVal - params.angleDeg) <= 1.5) {
+                        userRecords.p1_angle = userVal;
+                        awardPoints(2);
+                        logData("Part 1 Angle (θ)", `${userVal}°`);
+                        currentStage = STAGES.PART1_CALC_VO;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        showHint("Measurement equation/method: Align protractor crosshair at launch origin tip and measure angle θ in degrees above horizontal.");
+                    }
+                    break;
+
+                case STAGES.PART1_CALC_VO:
+                    if (isNaN(userVal)) return showHint("Please enter a valid number for speed.");
+                    
+                    const calcV0 = Math.sqrt((userRecords.p1_range * g) / Math.sin(2 * userRecords.p1_angle * Math.PI / 180));
+                    
+                    // Calculation result if calculator was set to RADIANS mode
+                    const sinValRad = Math.sin(2 * userRecords.p1_angle);
+                    const v0_radians = sinValRad > 0 ? Math.sqrt((userRecords.p1_range * g) / sinValRad) : null;
+                    const v0_squared = (userRecords.p1_range * g) / Math.sin(2 * userRecords.p1_angle * Math.PI / 180);
+
+                    if (Math.abs(userVal - calcV0) <= 0.12 || Math.abs(userVal - params.v0) <= 0.12) {
+                        userRecords.p1_v0 = userVal;
+                        awardPoints(2);
+                        logData("Calculated v₀", `${userVal} m/s`);
+                        currentStage = STAGES.PART1_RUN_SIM;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        if (v0_radians !== null && Math.abs(userVal - v0_radians) < 0.3) {
+                            showHint("💡 Smart Hint: Your calculator appears to be in RADIANS mode! Switch your calculator mode to DEGREES.");
+                        } else if (Math.abs(userVal - v0_squared) < 0.5) {
+                            showHint("💡 Smart Hint: You calculated v₀²! Don't forget to take the square root (√) at the end.");
+                        } else {
+                            showHint(`Equation to use: v₀ = √[ (R · g) / sin(2θ) ]  →  v₀ = √[ (${userRecords.p1_range} · 9.8) / sin(2 · ${userRecords.p1_angle}°) ]`);
+                        }
+                    }
+                    break;
+
+                case STAGES.PART1_RUN_SIM:
+                    runLaunchAnimation(STAGES.PART1_RUN_SIM, () => {
+                        currentStage = STAGES.PART2_MEASURE_YO;
+                        updateStepUI();
+                    });
+                    break;
+
+                case STAGES.PART2_MEASURE_YO:
+                    if (isNaN(userVal)) return showHint("Please enter a valid table height.");
+                    if (Math.abs(userVal - params.p2_tableHeight) <= 0.04) {
+                        userRecords.p2_yo = userVal;
+                        awardPoints(2);
+                        logData("Table Height (y₀)", `${userVal} m`);
+                        currentStage = STAGES.PART2_CALC_VOY;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        if (Math.abs(userVal - params.p2_tableHeight * 100) < 5) {
+                            showHint("💡 Smart Hint: You entered centimeters! Convert to meters (e.g. 95 cm = 0.95 m).");
+                        } else {
+                            showHint("Measurement equation/method: Measure table height y₀ in meters vertically from floor (y = 0) up to the launch tip.");
+                        }
+                    }
+                    break;
+
+                case STAGES.PART2_CALC_VOY:
+                    if (isNaN(userVal)) return showHint("Please enter a valid number.");
+                    
+                    const calcVoy = userRecords.p1_v0 * Math.sin(userRecords.p1_angle * Math.PI / 180);
+                    const voy_rad = userRecords.p1_v0 * Math.sin(userRecords.p1_angle);
+                    const voy_cos = userRecords.p1_v0 * Math.cos(userRecords.p1_angle * Math.PI / 180);
+                    
+                    if (Math.abs(userVal - calcVoy) <= 0.1 || Math.abs(userVal - params.p2_voy) <= 0.1) {
+                        userRecords.p2_voy = userVal;
+                        awardPoints(2);
+                        logData("Vertical Speed (v₀y)", `${userVal} m/s`);
+                        currentStage = STAGES.PART2_CALC_TIME;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        if (Math.abs(userVal - voy_rad) < 0.2 || Math.abs(userVal - Math.abs(voy_rad)) < 0.2) {
+                            showHint("💡 Smart Hint: Your calculator appears to be in RADIANS mode! Switch calculator mode to DEGREES.");
+                        } else if (Math.abs(userVal - voy_cos) < 0.2) {
+                            showHint("💡 Smart Hint: You used cosine instead of sine! Use v₀y = v₀ · sin(θ).");
+                        } else {
+                            showHint(`Equation to use: v₀y = v₀ · sin(θ)  →  v₀y = ${userRecords.p1_v0} · sin(${userRecords.p1_angle}°)`);
+                        }
+                    }
+                    break;
+
+                case STAGES.PART2_CALC_TIME:
+                    if (isNaN(userVal)) return showHint("Please enter time in seconds.");
+                    
+                    const quadA = 4.9;
+                    const quadB = -userRecords.p2_voy;
+                    const quadC = -userRecords.p2_yo;
+                    const calcTime = (-quadB + Math.sqrt(quadB*quadB - 4*quadA*quadC)) / (2*quadA);
+
+                    if (Math.abs(userVal - calcTime) <= 0.05 || Math.abs(userVal - params.p2_timeInAir) <= 0.05) {
+                        userRecords.p2_time = userVal;
+                        awardPoints(2);
+                        logData("Time in Air (t)", `${userVal} s`);
+                        currentStage = STAGES.PART2_CALC_VOX;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        showHint(`Equation to use: 0 = y₀ + v₀y·t - ½g·t²  →  0 = ${userRecords.p2_yo} + ${userRecords.p2_voy}t - 4.9t² (Solve for positive t)`);
+                    }
+                    break;
+
+                case STAGES.PART2_CALC_VOX:
+                    if (isNaN(userVal)) return showHint("Please enter horizontal speed.");
+                    
+                    const calcVox = userRecords.p1_v0 * Math.cos(userRecords.p1_angle * Math.PI / 180);
+                    const vox_rad = userRecords.p1_v0 * Math.cos(userRecords.p1_angle);
+                    const vox_sin = userRecords.p1_v0 * Math.sin(userRecords.p1_angle * Math.PI / 180);
+                    
+                    if (Math.abs(userVal - calcVox) <= 0.1 || Math.abs(userVal - params.p2_vox) <= 0.1) {
+                        userRecords.p2_vox = userVal;
+                        awardPoints(2);
+                        logData("Horizontal Speed (v₀x)", `${userVal} m/s`);
+                        currentStage = STAGES.PART2_PLACE_TARGET;
+                        updateStepUI();
+                    } else {
+                        deductMistake();
+                        if (Math.abs(userVal - vox_rad) < 0.2 || Math.abs(userVal - Math.abs(vox_rad)) < 0.2) {
+                            showHint("💡 Smart Hint: Your calculator appears to be in RADIANS mode! Switch calculator mode to DEGREES.");
+                        } else if (Math.abs(userVal - vox_sin) < 0.2) {
+                            showHint("💡 Smart Hint: You used sine instead of cosine! Use v₀x = v₀ · cos(θ).");
+                        } else {
+                            showHint(`Equation to use: v₀x = v₀ · cos(θ)  →  v₀x = ${userRecords.p1_v0} · cos(${userRecords.p1_angle}°)`);
+                        }
+                    }
+                    break;
+
+                case STAGES.PART2_PLACE_TARGET:
+                    if (targetX_canvas === null) {
+                        return showHint("Please click anywhere along the floor line on the canvas to place your target 'X'!");
+                    }
+                    
+                    const predictedDistMeters = parseFloat(((targetX_canvas - LAUNCH_ORIGIN_X) / SCALE).toFixed(3));
+                    userRecords.p2_targetX = predictedDistMeters;
+                    
+                    const percentErr = (Math.abs(predictedDistMeters - params.p2_range) / params.p2_range) * 100;
+                    
+                    if (percentErr <= 10.0) {
+                        extraCredit = 2; // +2 bonus points for <= 10% error
+                        awardPoints(1);
+                        logData("Target Prediction", `${predictedDistMeters} m (⭐ Bonus)`);
+                    } else {
+                        extraCredit = 0;
+                        awardPoints(1);
+                        logData("Target Prediction", `${predictedDistMeters} m`);
+                    }
+
+                    currentStage = STAGES.PART2_RUN_SIM;
+                    updateStepUI();
+                    
+                    runLaunchAnimation(STAGES.PART2_RUN_SIM, () => {
+                        showFinalScoreModal(percentErr);
+                    });
+                    break;
+            }
+        }
+
+        function awardPoints(pts) {
+            score += pts;
+            scoreDisplay.innerText = score;
+        }
+
+        function deductMistake() {
+            attemptsThisStep++;
+        }
+
+        function showHint(msg) {
+            hintBox.innerHTML = msg;
+            hintBox.classList.remove('hidden');
+        }
+
+        function logData(label, val) {
+            if (dataLogList.querySelector('p')) {
+                dataLogList.innerHTML = '';
+            }
+            const row = document.createElement('div');
+            row.className = "flex justify-between items-center bg-slate-950 px-2.5 py-1 rounded border border-slate-800";
+            row.innerHTML = `<span class="text-slate-400 font-medium">${label}:</span> <span class="font-mono text-amber-300 font-bold">${val}</span>`;
+            dataLogList.appendChild(row);
+            dataLogList.scrollTop = dataLogList.scrollHeight;
+        }
+
+
+        // --- ANIMATION CONTROLLER ---
+        function runLaunchAnimation(stageType, onComplete) {
+            isAnimating = true;
+            activeAnimStage = stageType;
+            animProgress = 0;
+            const startTime = performance.now();
+            const duration = 2200; // ms
+
+            function animate(now) {
+                animProgress = (now - startTime) / duration;
+                if (animProgress > 1) animProgress = 1;
+
+                drawCanvas();
+
+                if (animProgress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isAnimating = false;
+                    if (activeAnimStage >= STAGES.PART2_MEASURE_YO) {
+                        hasLaunchedPart2 = true;
+                    } else {
+                        hasLaunchedPart1 = true;
+                    }
+                    activeAnimStage = null;
+                    drawCanvas();
+                    if (onComplete) onComplete();
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+
+        // --- CANVAS RENDER ENGINE ---
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const floorY = 425;
+            const tableY = currentStage >= STAGES.PART2_MEASURE_YO ? floorY - (params.p2_tableHeight * SCALE) : floorY;
+
+            // 1. Draw Background Grid / Reference Lines
+            ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 35) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 35) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // 2. Draw Floor
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(0, floorY, canvas.width, canvas.height - floorY);
+            ctx.strokeStyle = "#64748b";
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(canvas.width, floorY); ctx.stroke();
+
+            // Floor Texture Hash
+            ctx.strokeStyle = "#475569";
+            ctx.lineWidth = 1;
+            for (let x = 10; x < canvas.width; x += 25) {
+                ctx.beginPath(); ctx.moveTo(x, floorY); ctx.lineTo(x - 10, floorY + 15); ctx.stroke();
+            }
+
+            // 3. Draw Table (in Part 2)
+            if (currentStage >= STAGES.PART2_MEASURE_YO) {
+                const tableX = LAUNCH_ORIGIN_X - 70;
+                const tableW = 80;
+                
+                // Table Top
+                ctx.fillStyle = "#78350f";
+                ctx.fillRect(tableX, tableY, tableW, 14);
+                // Table Leg
+                ctx.fillStyle = "#451a03";
+                ctx.fillRect(tableX + 25, tableY + 14, 18, floorY - tableY - 14);
+                ctx.strokeStyle = "#92400e";
+                ctx.strokeRect(tableX, tableY, tableW, 14);
+            }
+
+            // 4. Draw Hot Wheels Launcher Ramp
+            const launchY = currentStage >= STAGES.PART2_MEASURE_YO ? tableY : floorY;
+            const rampLen = 65;
+            const rampStartX = LAUNCH_ORIGIN_X - Math.cos(params.angleRad) * rampLen;
+            const rampStartY = launchY - Math.sin(params.angleRad) * rampLen;
+
+            // Launch Guide Lines (Dotted)
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = "#f59e0b"; // horizontal dotted line
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(LAUNCH_ORIGIN_X, launchY); ctx.lineTo(LAUNCH_ORIGIN_X + 120, launchY); ctx.stroke();
+            
+            ctx.strokeStyle = "#ec4899"; // angle dotted line
+            ctx.beginPath(); ctx.moveTo(LAUNCH_ORIGIN_X, launchY); ctx.lineTo(LAUNCH_ORIGIN_X + Math.cos(params.angleRad)*120, launchY - Math.sin(params.angleRad)*120); ctx.stroke();
+            ctx.restore();
+
+            // Ramp Body
+            ctx.strokeStyle = "#dc2626";
+            ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(rampStartX, rampStartY); ctx.lineTo(LAUNCH_ORIGIN_X, launchY); ctx.stroke();
+            
+            // Launcher Base Block
+            ctx.fillStyle = "#991b1b";
+            ctx.fillRect(rampStartX - 10, rampStartY - 5, 14, 18);
+
+            // 5. Draw Target 'X' on Floor
+            if (targetX_canvas !== null) {
+                drawTargetMarker(targetX_canvas, floorY, "#38bdf8", "Predicted 'X'");
+            }
+
+            // 6. Draw Trajectory and Car Animation
+            if (isAnimating) {
+                const animStage = activeAnimStage || currentStage;
+                if (animStage >= STAGES.PART2_MEASURE_YO) {
+                    drawTableTrajectory(launchY, floorY, animProgress);
+                } else {
+                    drawLevelTrajectory(launchY, animProgress);
+                }
+            } else if (currentStage >= STAGES.PART2_MEASURE_YO && hasLaunchedPart2) {
+                // Keep table launch parabola onscreen after launch
+                drawTableTrajectory(launchY, floorY, 1.0);
+            } else if (currentStage < STAGES.PART2_MEASURE_YO && hasLaunchedPart1) {
+                // Keep level launch parabola onscreen after launch
+                drawLevelTrajectory(launchY, 1.0);
+            } else {
+                if (!hideCar) {
+                    drawHotWheelsCar(LAUNCH_ORIGIN_X, launchY, -params.angleRad);
+                }
+            }
+
+            // 7. Draw Measuring Tools
+            if (toolRuler.visible) drawMeterstick();
+            if (toolProtractor.visible) drawProtractor();
+        }
+
+        // --- TRAJECTORY ANIMATION HELPERS ---
+        function drawLevelTrajectory(launchY, progress) {
+            const totalTime = (2 * params.v0 * Math.sin(params.angleRad)) / g;
+            const currentTime = progress * totalTime;
+
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+
+            // High-density step sampling ensures parabola extends smoothly all the way to touchdown floor line
+            const steps = 60;
+            for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * currentTime;
+                const px = LAUNCH_ORIGIN_X + (params.v0 * Math.cos(params.angleRad) * t) * SCALE;
+                let py = launchY - ((params.v0 * Math.sin(params.angleRad) * t) - 0.5 * g * t * t) * SCALE;
+
+                if (progress >= 1 && i === steps) {
+                    py = launchY; // Lock touchdown point directly onto floor line
+                }
+
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Car position
+            const carX = LAUNCH_ORIGIN_X + (params.v0 * Math.cos(params.angleRad) * currentTime) * SCALE;
+            let carY = launchY - ((params.v0 * Math.sin(params.angleRad) * currentTime) - 0.5 * g * currentTime * currentTime) * SCALE;
+            
+            if (progress >= 1) {
+                carY = launchY;
+            }
+
+            const vy = params.v0 * Math.sin(params.angleRad) - g * currentTime;
+            const vx = params.v0 * Math.cos(params.angleRad);
+            const carAngle = -Math.atan2(vy, vx);
+
+            if (!hideCar) drawHotWheelsCar(carX, carY, carAngle);
+
+            // Touchdown indicator mark at the end of Part 1 launch
+            if (progress >= 1) {
+                const touchdownX = LAUNCH_ORIGIN_X + params.p1_range * SCALE;
+                drawTargetMarker(touchdownX, launchY, "#f59e0b", "Touchdown");
+            }
+        }
+
+        function drawTableTrajectory(launchY, floorY, progress) {
+            const currentTime = progress * params.p2_timeInAir;
+
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(239, 68, 68, 0.7)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+
+            const steps = 60;
+            for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * currentTime;
+                const px = LAUNCH_ORIGIN_X + (params.p2_vox * t) * SCALE;
+                let py = launchY - (params.p2_voy * t - 0.5 * g * t * t) * SCALE;
+
+                if (progress >= 1 && i === steps) {
+                    py = floorY; // Lock impact point directly onto floor line
+                }
+
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Car position
+            const carX = LAUNCH_ORIGIN_X + (params.p2_vox * currentTime) * SCALE;
+            let carY = launchY - (params.p2_voy * currentTime - 0.5 * g * currentTime * currentTime) * SCALE;
+
+            if (progress >= 1) {
+                carY = floorY;
+            }
+
+            const vy = params.p2_voy - g * currentTime;
+            const carAngle = -Math.atan2(vy, params.p2_vox);
+
+            if (!hideCar) drawHotWheelsCar(carX, carY, carAngle);
+
+            // Actual Impact Mark at end
+            if (progress >= 1) {
+                const actualImpactX = LAUNCH_ORIGIN_X + params.p2_range * SCALE;
+                drawTargetMarker(actualImpactX, floorY, "#22c55e", "Impact");
+            }
+        }
+
+        function drawHotWheelsCar(x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+
+            // Car Body
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(-12, -8, 24, 8);
+            ctx.fillStyle = "#b91c1c";
+            ctx.fillRect(-6, -13, 14, 6);
+
+            // Wheels
+            ctx.fillStyle = "#0f172a";
+            ctx.beginPath(); ctx.arc(-7, 0, 3.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7, 0, 3.5, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawTargetMarker(x, y, color, label) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x - 8, y - 8); ctx.lineTo(x + 8, y + 8);
+            ctx.moveTo(x + 8, y - 8); ctx.lineTo(x - 8, y + 8);
+            ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.font = "bold 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(label, x, y - 12);
+            ctx.restore();
+        }
+
+
+        // --- TOOL RENDERING ENGINE (METERSTICK & PROTRACTOR) ---
+        function drawMeterstick() {
+            ctx.save();
+            ctx.translate(toolRuler.x, toolRuler.y);
+            ctx.rotate(toolRuler.angle);
+
+            const rulerLengthPx = toolRuler.lengthMeters * SCALE; 
+            const rulerH = 32;
+
+            // Wood Body
+            ctx.fillStyle = "#fef08a";
+            ctx.fillRect(0, -rulerH/2, rulerLengthPx, rulerH);
+            ctx.strokeStyle = "#ca8a04";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, -rulerH/2, rulerLengthPx, rulerH);
+
+            // Ticks & Labels Every 10cm
+            ctx.fillStyle = "#0f172a";
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 1;
+            ctx.font = "bold 8px sans-serif";
+            ctx.textAlign = "center";
+
+            const totalCm = toolRuler.lengthMeters * 100;
+
+            for (let cm = 0; cm <= totalCm; cm += 1) {
+                const xPx = (cm / 100) * SCALE;
+                let tickH = 4;
+
+                if (cm % 100 === 0) tickH = 14;
+                else if (cm % 10 === 0) tickH = 10;
+                else if (cm % 5 === 0) tickH = 6;
+
+                ctx.beginPath();
+                ctx.moveTo(xPx, -rulerH/2);
+                ctx.lineTo(xPx, -rulerH/2 + tickH);
+                ctx.stroke();
+
+                // Numbers every 10cm (omit "cm" string)
+                if (cm % 10 === 0 && cm <= totalCm) {
+                    if (cm % 100 === 0 && cm > 0) {
+                        ctx.fillStyle = "#b91c1c";
+                        ctx.fillText(`${cm/100}m`, xPx, 4);
+                        ctx.fillStyle = "#0f172a";
+                    } else if (cm > 0) {
+                        ctx.fillText(`${cm}`, xPx, 4);
+                    }
+                }
+            }
+
+            // Drag Origin Handle (0-mark)
+            ctx.fillStyle = "#0284c7";
+            ctx.beginPath();
+            ctx.arc(0, 0, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Drag icon inside origin handle
+            ctx.beginPath();
+            ctx.moveTo(-4, 0); ctx.lineTo(4, 0);
+            ctx.moveTo(0, -4); ctx.lineTo(0, 4);
+            ctx.stroke();
+
+            // Rotation Handle (Right end tip)
+            ctx.fillStyle = "#d97706";
+            ctx.beginPath();
+            ctx.arc(rulerLengthPx + 14, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Rotation symbol
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("🔄", rulerLengthPx + 14, 3.5);
+
+            ctx.restore();
+        }
+
+        function drawProtractor() {
+            ctx.save();
+            ctx.translate(toolProtractor.x, toolProtractor.y);
+            ctx.rotate(toolProtractor.angle);
+
+            const r = toolProtractor.radiusPx;
+
+            // Semi-circle background
+            ctx.beginPath();
+            ctx.arc(0, 0, r, Math.PI, 0, false);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(192, 132, 252, 0.25)";
+            ctx.fill();
+            ctx.strokeStyle = "#a855f7";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Baseline
+            ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.stroke();
+            // Origin Crosshair
+            ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 6); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.stroke();
+
+            // Degree Ticks (Numbers reversed so 0° is horizontal right)
+            ctx.fillStyle = "#f8fafc";
+            ctx.strokeStyle = "#c084fc";
+            ctx.font = "8px sans-serif";
+            ctx.textAlign = "center";
+
+            for (let deg = 0; deg <= 180; deg += 5) {
+                const rad = (180 - deg) * (Math.PI / 180);
+                const isMajor = deg % 10 === 0;
+                const len = isMajor ? 10 : 5;
+
+                const x1 = Math.cos(rad) * r;
+                const y1 = -Math.sin(rad) * r;
+                const x2 = Math.cos(rad) * (r - len);
+                const y2 = -Math.sin(rad) * (r - len);
+
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+                if (isMajor && deg > 0 && deg < 180) {
+                    const tx = Math.cos(rad) * (r - 18);
+                    const ty = -Math.sin(rad) * (r - 18) + 3;
+                    ctx.fillText(`${180 - deg}°`, tx, ty);
+                }
+            }
+
+            // Rotation Handle
+            ctx.fillStyle = "#c084fc";
+            ctx.beginPath(); ctx.arc(0, -r - 12, 8, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+        }
+
+
+        // --- POINTER COORDINATES AND INTERACTION ENGINE ---
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function handlePointerDown(e) {
+            const pt = getCanvasCoords(e);
+
+            // 1. Check Rotation Handles
+            if (toolRuler.visible) {
+                const rLen = toolRuler.lengthMeters * SCALE;
+                const rHandleX = toolRuler.x + Math.cos(toolRuler.angle) * (rLen + 14);
+                const rHandleY = toolRuler.y + Math.sin(toolRuler.angle) * (rLen + 14);
+                if (Math.hypot(pt.x - rHandleX, pt.y - rHandleY) < 22) {
+                    toolRuler.isRotating = true;
+                    if (e.cancelable) e.preventDefault();
+                    return;
+                }
+            }
+
+            if (toolProtractor.visible) {
+                const pHandleX = toolProtractor.x + Math.sin(toolProtractor.angle) * (toolProtractor.radiusPx + 12);
+                const pHandleY = toolProtractor.y - Math.cos(toolProtractor.angle) * (toolProtractor.radiusPx + 12);
+                if (Math.hypot(pt.x - pHandleX, pt.y - pHandleY) < 22) {
+                    toolProtractor.isRotating = true;
+                    if (e.cancelable) e.preventDefault();
+                    return;
+                }
+            }
+
+            // 2. Check Body Hits with distance comparison
+            let rulerDist = Infinity;
+            if (toolRuler.visible) {
+                const rLen = toolRuler.lengthMeters * SCALE;
+                const rHandleX = toolRuler.x + Math.cos(toolRuler.angle) * rLen;
+                const rHandleY = toolRuler.y + Math.sin(toolRuler.angle) * rLen;
+                rulerDist = distanceToSegment(pt, {x: toolRuler.x, y: toolRuler.y}, {x: rHandleX, y: rHandleY});
+            }
+
+            let protractorDist = Infinity;
+            if (toolProtractor.visible) {
+                protractorDist = Math.hypot(pt.x - toolProtractor.x, pt.y - toolProtractor.y);
+            }
+
+            const hitRuler = toolRuler.visible && rulerDist < 25;
+            const hitProtractor = toolProtractor.visible && protractorDist < toolProtractor.radiusPx;
+
+            if (hitRuler && hitProtractor) {
+                if (rulerDist < protractorDist) {
+                    toolRuler.isDragging = true;
+                    toolRuler.dragOffset = { x: pt.x - toolRuler.x, y: pt.y - toolRuler.y };
+                } else {
+                    toolProtractor.isDragging = true;
+                    toolProtractor.dragOffset = { x: pt.x - toolProtractor.x, y: pt.y - toolProtractor.y };
+                }
+                if (e.cancelable) e.preventDefault();
+            } else if (hitRuler) {
+                toolRuler.isDragging = true;
+                toolRuler.dragOffset = { x: pt.x - toolRuler.x, y: pt.y - toolRuler.y };
+                if (e.cancelable) e.preventDefault();
+            } else if (hitProtractor) {
+                toolProtractor.isDragging = true;
+                toolProtractor.dragOffset = { x: pt.x - toolProtractor.x, y: pt.y - toolProtractor.y };
+                if (e.cancelable) e.preventDefault();
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!toolProtractor.isRotating && !toolProtractor.isDragging && !toolRuler.isRotating && !toolRuler.isDragging) {
+                return;
+            }
+            const pt = getCanvasCoords(e);
+
+            if (toolProtractor.isRotating) {
+                toolProtractor.angle = Math.atan2(pt.y - toolProtractor.y, pt.x - toolProtractor.x) + Math.PI/2;
+                drawCanvas();
+                if (e.cancelable) e.preventDefault();
+            } else if (toolProtractor.isDragging) {
+                toolProtractor.x = pt.x - toolProtractor.dragOffset.x;
+                toolProtractor.y = pt.y - toolProtractor.dragOffset.y;
+                drawCanvas();
+                if (e.cancelable) e.preventDefault();
+            } else if (toolRuler.isRotating) {
+                toolRuler.angle = Math.atan2(pt.y - toolRuler.y, pt.x - toolRuler.x);
+                drawCanvas();
+                if (e.cancelable) e.preventDefault();
+            } else if (toolRuler.isDragging) {
+                toolRuler.x = pt.x - toolRuler.dragOffset.x;
+                toolRuler.y = pt.y - toolRuler.dragOffset.y;
+                drawCanvas();
+                if (e.cancelable) e.preventDefault();
+            }
+        }
+
+        function handlePointerUp() {
+            toolProtractor.isDragging = false;
+            toolProtractor.isRotating = false;
+            toolRuler.isDragging = false;
+            toolRuler.isRotating = false;
+        }
+
+        function distanceToSegment(p, v, w) {
+            const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+            if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+        }
+
+
+        // --- EVENT LISTENERS & INTERACTION HANDLERS ---
+        function setupEventListeners() {
+            startLabBtn.addEventListener('click', function() {
+                const inputName = studentNameInput.value.trim();
+                if (inputName !== "") {
+                    studentName = inputName;
+                    studentNameDisplay.innerText = studentName;
+                }
+                nameModal.classList.add('hidden');
+                updateStepUI();
+            });
+
+            submitStepBtn.addEventListener('click', checkStepAnswer);
+            stepInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') checkStepAnswer();
+            });
+
+            testLaunchBtn.addEventListener('click', function() {
+                if (!isAnimating) {
+                    const stageType = currentStage >= STAGES.PART2_MEASURE_YO ? STAGES.PART2_RUN_SIM : STAGES.PART1_RUN_SIM;
+                    runLaunchAnimation(stageType, null);
+                }
+            });
+
+            canvas.addEventListener('click', function(e) {
+                if (currentStage === STAGES.PART2_PLACE_TARGET) {
+                    const pt = getCanvasCoords(e);
+                    targetX_canvas = pt.x;
+                    drawCanvas();
+                }
+            });
+
+            toggleRulerBtn.addEventListener('click', function() {
+                toolRuler.visible = !toolRuler.visible;
+                drawCanvas();
+            });
+
+            resetRulerBtn.addEventListener('click', function() {
+                toolRuler.x = 120;
+                toolRuler.y = 425;
+                toolRuler.angle = 0;
+                toolRuler.lengthMeters = 3.2;
+                toolRuler.visible = true;
+                drawCanvas();
+            });
+
+            fullRulerBtn.addEventListener('click', function() {
+                toolRuler.x = 120;
+                toolRuler.y = 425;
+                toolRuler.angle = 0;
+                toolRuler.lengthMeters = 5.0; 
+                toolRuler.visible = true;
+                drawCanvas();
+            });
+
+            toggleProtractorBtn.addEventListener('click', function() {
+                toolProtractor.visible = !toolProtractor.visible;
+                drawCanvas();
+            });
+
+            toggleCarBtn.addEventListener('click', function() {
+                hideCar = !hideCar;
+                toggleCarBtn.innerText = hideCar ? "🚗 Show Car" : "🚗 Hide Car";
+                drawCanvas();
+            });
+
+            downloadReportBtn.addEventListener('click', downloadLabReport);
+            restartLabBtn.addEventListener('click', function() {
+                scoreModal.classList.add('hidden');
+                score = 0;
+                extraCredit = 0;
+                targetX_canvas = null;
+                hasLaunchedPart1 = false;
+                hasLaunchedPart2 = false;
+                scoreDisplay.innerText = score;
+                currentStage = STAGES.PART1_MEASURE_RANGE;
+                initLabValues();
+                updateStepUI();
+            });
+
+            // Attach Pointer Listeners
+            canvas.addEventListener('mousedown', handlePointerDown);
+            canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+
+            window.addEventListener('mousemove', handlePointerMove);
+            window.addEventListener('touchmove', handlePointerMove, { passive: false });
+
+            window.addEventListener('mouseup', handlePointerUp);
+            window.addEventListener('touchend', handlePointerUp);
+        }
+
+
+        // --- VERIFICATION KEY GENERATOR ---
+        function generateVerificationKey(name) {
+            const cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            const first3 = (cleanName + "XYZ").substring(0, 3);
+            
+            const randChars = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+            let result = "";
+            for (let i = 0; i < 9; i++) {
+                result += randChars.charAt(Math.floor(Math.random() * randChars.length));
+            }
+            
+            const keyArr = result.split('');
+            keyArr.splice(2, 0, first3[0]);
+            keyArr.splice(6, 0, first3[1]);
+            keyArr.splice(10, 0, first3[2]);
+
+            const fullKey = keyArr.join('');
+            return `HW-${fullKey.substring(0,4)}-${fullKey.substring(4,8)}-${fullKey.substring(8,12)}`;
+        }
+
+
+        // --- FINAL SCORE MODAL & CONFETTI ---
+        function showFinalScoreModal(percentErr) {
+            const totalScore = score + extraCredit;
+            congratulationsHeader.innerText = `Congratulations, ${studentName}!`;
+            scoreSubtext.innerText = `You completed the Hot Wheels Projectile Physics Lab!`;
+            finalScoreNumber.innerHTML = `${totalScore} <span class="text-2xl text-slate-500 font-normal">/ 15</span>`;
+
+            if (percentErrorDisplay) {
+                percentErrorDisplay.innerText = `Target Prediction Error: ${percentErr.toFixed(1)}%`;
+                if (percentErr <= 10.0) {
+                    percentErrorDisplay.className = "text-xs font-semibold text-emerald-400 my-1";
+                } else {
+                    percentErrorDisplay.className = "text-xs font-semibold text-amber-400 my-1";
+                }
+            }
+
+            if (extraCredit > 0) {
+                extraCreditBadge.innerText = `⭐ +2 Extra Credit Bonus Applied (${percentErr.toFixed(1)}% prediction error)!`;
+                extraCreditBadge.classList.remove('hidden');
+            } else {
+                extraCreditBadge.classList.add('hidden');
+            }
+
+            const key = generateVerificationKey(studentName);
+            verificationCode.innerText = key;
+
+            scoreModal.classList.remove('hidden');
+
+            // Only launch confetti celebration if target prediction error is 10% or less
+            if (percentErr <= 10.0) {
+                let bursts = 1;
+                if (totalScore >= 15) bursts = 3;
+                else if (totalScore >= 12) bursts = 2;
+
+                for (let b = 0; b < bursts; b++) {
+                    setTimeout(() => {
+                        confetti({
+                            particleCount: 80,
+                            spread: 70,
+                            origin: { y: 0.6 }
+                        });
+                    }, b * 400);
+                }
+            }
+        }
+
+
+        // --- DOWNLOADABLE HTML LAB REPORT GENERATOR ---
+        function downloadLabReport() {
+            const key = verificationCode.innerText;
+            const totalScore = score + extraCredit;
+
+            // Calculations for step-by-step mathematical breakdown
+            const r1 = userRecords.p1_range || params.p1_range;
+            const theta = userRecords.p1_angle || params.angleDeg;
+            const thetaRad = theta * (Math.PI / 180);
+            const sin2Theta = Math.sin(2 * thetaRad).toFixed(4);
+            const rg = (r1 * g).toFixed(3);
+            const v0Sq = ((r1 * g) / Math.sin(2 * thetaRad)).toFixed(3);
+            const v0 = userRecords.p1_v0 || params.v0;
+
+            const yo = userRecords.p2_yo || params.p2_tableHeight;
+            const sinTheta = Math.sin(thetaRad).toFixed(4);
+            const voy = userRecords.p2_voy || (v0 * Math.sin(thetaRad)).toFixed(3);
+
+            const quadA = 4.9;
+            const quadB = -voy;
+            const quadC = -yo;
+            const disc = (quadB * quadB - 4 * quadA * quadC).toFixed(4);
+            const sqrtDisc = Math.sqrt(quadB * quadB - 4 * quadA * quadC).toFixed(4);
+            const timeAir = userRecords.p2_time || params.p2_timeInAir;
+
+            const cosTheta = Math.cos(thetaRad).toFixed(4);
+            const vox = userRecords.p2_vox || (v0 * Math.cos(thetaRad)).toFixed(3);
+
+            const predictedRange = (vox * timeAir).toFixed(3);
+            const targetX = userRecords.p2_targetX || predictedRange;
+            const actualRange = params.p2_range;
+            const percentErr = ((Math.abs(targetX - actualRange) / actualRange) * 100).toFixed(2);
+
+            const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hot Wheels Projectile Lab Report - ${studentName}</title>
+    <style>
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1e293b; background: #f8fafc; margin: 0; padding: 30px; }
+        .card { max-width: 860px; margin: auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+        h1 { color: #dc2626; margin-top: 0; font-size: 26px; }
+        h2 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-size: 18px; margin-top: 28px; }
+        .meta { color: #64748b; font-size: 14px; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+        .score-box { background: #fef2f2; border: 1px solid #fca5a5; padding: 16px 20px; border-radius: 12px; font-size: 16px; font-weight: bold; color: #991b1b; margin-bottom: 24px; }
+        .verification-subtext { font-family: monospace; font-size: 13px; color: #64748b; margin-top: 6px; font-weight: normal; letter-spacing: 0.5px; }
+        .math-block { background: #f8fafc; border-left: 4px solid #dc2626; padding: 14px 18px; margin: 12px 0; border-radius: 0 8px 8px 0; font-size: 14px; }
+        .step-title { font-weight: 700; color: #0284c7; margin-bottom: 6px; }
+        .equation { font-family: 'Georgia', serif; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; margin: 8px 0; font-weight: 600; color: #0f172a; display: inline-block; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0 20px 0; }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background: #f8fafc; color: #475569; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🏎️ Hot Wheels Projectile Physics Lab Report</h1>
+        <div class="meta">
+            <strong>Student Name:</strong> ${studentName} &bull; <strong>Date:</strong> ${new Date().toLocaleDateString()}
+        </div>
+
+        <div class="score-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Final Grade: ${totalScore} / 15 Points</span>
+                <span style="font-size: 13px; background: #fee2e2; padding: 4px 10px; border-radius: 6px;">Verified Complete</span>
+            </div>
+            <div class="verification-subtext">${key}</div>
+        </div>
+
+        <h2>PART 1: Level-Ground Launch & Initial Speed Calculation</h2>
+
+        <div class="math-block">
+            <div class="step-title">1 & 2. Measured Baseline Values</div>
+            <ul>
+                <li>Measured Level Range: <i>R</i> = ${r1} m</li>
+                <li>Measured Launch Angle: &theta; = ${theta}&deg;</li>
+                <li>Acceleration due to gravity: <i>g</i> = 9.8 m/s&sup2;</li>
+            </ul>
+        </div>
+
+        <div class="math-block">
+            <div class="step-title">3. Calculating Initial Launch Speed (<i>v</i><sub>0</sub>)</div>
+            <p><strong>General Formula:</strong></p>
+            <div class="equation"><i>R</i> = [ <i>v</i><sub>0</sub>&sup2; &middot; sin(2&theta;) ] / <i>g</i> &nbsp;&rArr;&nbsp; <i>v</i><sub>0</sub> = &radic;[ (<i>R</i> &middot; <i>g</i>) / sin(2&theta;) ]</div>
+
+            <p><strong>Step-by-Step Substitution:</strong></p>
+            <ol>
+                <li>Double the angle: 2&theta; = 2 &times; ${theta}&deg; = ${2 * theta}&deg;</li>
+                <li>Sine of double angle: sin(${2 * theta}&deg;) &approx; ${sin2Theta}</li>
+                <li>Numerator (<i>R</i> &middot; <i>g</i>): ${r1} &times; 9.8 = ${rg} m&sup2;/s&sup2;</li>
+                <li>Division: ${rg} / ${sin2Theta} &approx; ${v0Sq}</li>
+                <li>Square root: <i>v</i><sub>0</sub> = &radic;(${v0Sq}) = <strong>${v0} m/s</strong></li>
+            </ol>
+        </div>
+
+        <h2>PART 2: Table Launch & Target Prediction Calculations</h2>
+
+        <div class="math-block">
+            <div class="step-title">5 & 6. Vertical Initial Speed (<i>v</i><sub>0y</sub>)</div>
+            <p><strong>Formula:</strong> <i>v</i><sub>0y</sub> = <i>v</i><sub>0</sub> &middot; sin(&theta;)</p>
+            <div class="equation"><i>v</i><sub>0y</sub> = ${v0} &times; sin(${theta}&deg;) = ${v0} &times; ${sinTheta} = <strong>${voy} m/s</strong></div>
+        </div>
+
+        <div class="math-block">
+            <div class="step-title">7. Time in Air Calculation (<i>t</i><sub>air</sub>)</div>
+            <p><strong>Kinematic Equation for Vertical Displacement:</strong></p>
+            <div class="equation"><i>y</i>(<i>t</i>) = <i>y</i><sub>0</sub> + <i>v</i><sub>0y</sub><i>t</i> - &frac12;<i>g</i><i>t</i>&sup2;</div>
+            <p>Setting final height at floor <i>y</i> = 0 with table height <i>y</i><sub>0</sub> = ${yo} m:</p>
+            <div class="equation">0 = ${yo} + ${voy}<i>t</i> - 4.9<i>t</i>&sup2; &nbsp;&rArr;&nbsp; 4.9<i>t</i>&sup2; - ${voy}<i>t</i> - ${yo} = 0</div>
+
+            <p><strong>Applying Quadratic Formula:</strong></p>
+            <p><i>t</i> = [ -<i>b</i> &plusmn; &radic;(<i>b</i>&sup2; - 4<i>ac</i>) ] / (2<i>a</i>) &nbsp; where <i>a</i> = 4.9, <i>b</i> = -${voy}, <i>c</i> = -${yo}</p>
+            <ol>
+                <li>Discriminant (&Delta; = <i>b</i>&sup2; - 4<i>ac</i>): (-${voy})&sup2; - 4(4.9)(-${yo}) = ${disc}</li>
+                <li>Square root of discriminant: &radic;${disc} &approx; ${sqrtDisc}</li>
+                <li>Positive time root: <i>t</i> = (${voy} + ${sqrtDisc}) / 9.8 = <strong>${timeAir} s</strong></li>
+            </ol>
+        </div>
+
+        <div class="math-block">
+            <div class="step-title">8. Horizontal Velocity (<i>v</i><sub>0x</sub>)</div>
+            <p><strong>Formula:</strong> <i>v</i><sub>0x</sub> = <i>v</i><sub>0</sub> &middot; cos(&theta;)</p>
+            <div class="equation"><i>v</i><sub>0x</sub> = ${v0} &times; cos(${theta}&deg;) = ${v0} &times; ${cosTheta} = <strong>${vox} m/s</strong></div>
+        </div>
+
+        <div class="math-block">
+            <div class="step-title">9 & 10. Horizontal Target Distance & Accuracy Analysis</div>
+            <p><strong>Predicted Distance Formula:</strong> &Delta;<i>x</i> = <i>v</i><sub>0x</sub> &middot; <i>t</i><sub>air</sub></p>
+            <div class="equation">&Delta;<i>x</i> = ${vox} m/s &times; ${timeAir} s = <strong>${predictedRange} m</strong></div>
+
+            <table>
+                <tr><th>Parameter</th><th>Value</th></tr>
+                <tr><td>Calculated Predicted Landing</td><td>${predictedRange} m</td></tr>
+                <tr><td>Student Placed Target 'X'</td><td>${targetX} m</td></tr>
+                <tr><td>Actual Physics Impact Distance</td><td>${actualRange} m</td></tr>
+            </table>
+
+            <p><strong>Percentage Error:</strong></p>
+            <div class="equation">% Error = [ |Target - Actual| / Actual ] &times; 100% = [ |${targetX} - ${actualRange}| / ${actualRange} ] &times; 100% = <strong>${percentErr}%</strong></div>
+        </div>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = `Hot_Wheels_Lab_Report_${studentName.replace(/\s+/g, '_')}.html`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        }
+
+    </script>
+</body>
+</html>
