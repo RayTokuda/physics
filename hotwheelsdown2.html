@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Lesson - Launch Impact</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; 
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        .question-card {
+            background-color: white;
+            border-radius: 0.75rem; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            overflow: hidden; 
+        }
+        .question-card:not(.question-disabled) {
+             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+             transform: translateY(-2px);
+        }
+        .question-disabled {
+            background-color: #f9fafb; 
+            opacity: 0.7;
+        }
+        .question-disabled input, .question-disabled button {
+            pointer-events: none;
+            background-color: #e5e7eb;
+        }
+        .feedback {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0 0 0.75rem 0.75rem; 
+            display: none; 
+            border-top: 1px solid #e5e7eb;
+        }
+        .feedback.correct {
+            background-color: #f0fdf4; 
+            color: #166534; 
+            display: block;
+        }
+        .feedback.incorrect {
+            background-color: #fef2f2; 
+            color: #991b1b; 
+            display: block;
+        }
+        .input-correct {
+            background-color: #dcfce7; 
+            border-color: #22c55e; 
+            color: #15803d; 
+        }
+        .btn-primary {
+            background-color: #059669; 
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #047857; 
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #4f46e5; 
+        }
+        .btn-secondary:hover {
+            background-color: #4338ca; 
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">Interactive Physics: Projectile Impact</h1>
+        
+        <!-- Reset Button -->
+        <div class="flex justify-center mb-6">
+            <button id="reset-button" class="btn-primary btn-secondary">
+                New Problem
+            </button>
+        </div>
+
+        <!-- Problem Card -->
+        <div class="question-card p-6 mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">The Problem</h2>
+            <div class="flex flex-col md:flex-row gap-6">
+                <img src="https://docs.google.com/drawings/d/e/2PACX-1vRbp9SVDTRJiWV6zLsbg0AwLDLLHQ3RJUZYFvP9FKoe7MJPYDvoxgFG0HVN4VmKY8j_C4jNnRm3DFXI/pub?w=960&h=720" alt="Diagram of a car launching down off a table" class="w-full md:w-1/2 rounded-lg shadow-md object-contain bg-white">
+                <div class="flex-1">
+                    <p class="text-lg text-gray-700 leading-relaxed">
+                        A toy car starts from rest and rolls 
+                        <strong id="ramp-distance" class="text-indigo-600">...</strong> m down a ramp in 
+                        <strong id="ramp-time" class="text-indigo-600">...</strong> s. The ramp is angled at 
+                        <strong id="launch-angle" class="text-indigo-600">...</strong> degrees <strong>below</strong> the horizontal, 
+                        launching off the end of a table of height <strong id="table-height" class="text-indigo-600">...</strong> m.
+                    </p>
+                    <p class="text-md text-gray-600 mt-4">
+                        Your mission is to find the car's motion characteristics all the way to impact!
+                        Use <strong class="text-gray-800">g = 9.8 m/s²</strong> and provide all answers to
+                        <strong class="text-gray-800">3 significant digits</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div id="q1" class="question-card p-6">
+                <label for="q1-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    1. What is the car's launch velocity (v<sub>0</sub>) at the bottom of the ramp? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q1-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    <button id="q1-button" class="btn-primary">Check</button>
+                </div>
+                <div id="q1-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q2" class="question-card p-6 question-disabled">
+                <label for="q2-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    2. What is the car's vertical displacement (y - y<sub>0</sub>) as it flies through the air? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q2-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q2-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q2-feedback" class="feedback"></div>
+            </div>
+            
+            <div id="q3" class="question-card p-6 question-disabled">
+                <label for="q3-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    3. What is the initial vertical velocity (v<sub>0y</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q3-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q3-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q3-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q4" class="question-card p-6 question-disabled">
+                <label for="q4-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    4. What is the total time the car is in the air? (in s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q4-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q4-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q4-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q5" class="question-card p-6 question-disabled">
+                <label for="q5-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    5. What is the initial horizontal velocity (v<sub>0x</sub>)? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q5-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q5-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q5-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q6" class="question-card p-6 question-disabled">
+                <label for="q6-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    6. What is the total horizontal distance (x - x<sub>0</sub>) the car travels? (in m)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q6-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q6-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q6-feedback" class="feedback"></div>
+            </div>
+            
+            <div id="q7" class="question-card p-6 question-disabled">
+                <label for="q7-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    7. What is the vertical component of velocity (v<sub>y</sub>) when the car hits the floor? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q7-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q7-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q7-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q8" class="question-card p-6 question-disabled">
+                <label for="q8-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    8. What is the horizontal component of velocity (v<sub>x</sub>) when the car hits the floor? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q8-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q8-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q8-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q9" class="question-card p-6 question-disabled">
+                <label for="q9-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    9. What is the impact angle (&theta;) when the car hits the floor? (in degrees)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q9-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q9-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q9-feedback" class="feedback"></div>
+            </div>
+
+            <div id="q10" class="question-card p-6 question-disabled">
+                <label for="q10-input" class="block text-lg font-semibold text-gray-800 mb-2">
+                    10. What is the speed of the car when it hits the floor? (in m/s)
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="q10-input" class="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                    <button id="q10-button" class="btn-primary" disabled>Check</button>
+                </div>
+                <div id="q10-feedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <!-- Vector Diagram Card -->
+        <div class="question-card p-6 mt-6 mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-2 text-center">Impact Velocity Vector Diagram</h2>
+            <p class="text-center text-gray-600 mb-4">The components you just calculated form the final impact velocity vector.</p>
+            <div class="flex justify-center mb-2">
+                <svg viewBox="0 0 320 200" class="w-full max-w-md">
+                    <defs>
+                        <marker id="arrow-vx" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4f46e5" />
+                        </marker>
+                        <marker id="arrow-vy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+                        </marker>
+                        <marker id="arrow-v" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+                        </marker>
+                    </defs>
+
+                    <!-- Ground line -->
+                    <line x1="20" y1="160" x2="300" y2="160" stroke="#9ca3af" stroke-width="3" stroke-dasharray="6,4" />
+                    <text x="250" y="180" font-size="12" fill="#6b7280" font-weight="600">Floor</text>
+
+                    <!-- Horizontal Reference -->
+                    <line x1="40" y1="50" x2="220" y2="50" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4,4" />
+
+                    <!-- Vector Vx -->
+                    <line x1="40" y1="50" x2="180" y2="50" stroke="#4f46e5" stroke-width="3" marker-end="url(#arrow-vx)" />
+                    <text x="110" y="40" font-size="14" font-weight="bold" fill="#4f46e5" text-anchor="middle">
+                        v<tspan baseline-shift="sub" font-size="10">x</tspan>
+                    </text>
+
+                    <!-- Vector Vy -->
+                    <line x1="180" y1="50" x2="180" y2="150" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-vy)" />
+                    <text x="195" y="105" font-size="14" font-weight="bold" fill="#ef4444" text-anchor="start">
+                        v<tspan baseline-shift="sub" font-size="10">y</tspan>
+                    </text>
+
+                    <!-- Vector V_impact -->
+                    <line x1="40" y1="50" x2="178" y2="148" stroke="#10b981" stroke-width="3.5" marker-end="url(#arrow-v)" />
+                    <text x="95" y="115" font-size="14" font-weight="bold" fill="#10b981" text-anchor="end">
+                        v<tspan baseline-shift="sub" font-size="10">impact</tspan>
+                    </text>
+
+                    <!-- Angle theta Arc -->
+                    <path d="M 90 50 A 50 50 0 0 1 82 80" fill="none" stroke="#f59e0b" stroke-width="2.5" />
+                    <text x="100" y="72" font-size="15" font-weight="bold" fill="#d97706">&theta;</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Score Card -->
+        <div id="score-card" class="bg-emerald-600 text-white shadow-2xl rounded-lg p-8 text-center mt-8" style="display: none;">
+            <h2 class="text-3xl font-bold mb-4">Impact Challenge Complete!</h2>
+            <p id="score-message" class="text-lg text-emerald-100 mb-4">Incredible job!</p>
+            <div class="text-5xl font-extrabold text-white mb-2" id="final-score">15/15</div>
+            <p class="text-emerald-200" id="mistake-summary">Great work!</p>
+            <button id="download-button" class="w-full mt-6 bg-white hover:bg-gray-100 text-emerald-800 font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
+                Download Full Solution (HTML)
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES ---
+        const g = 9.8;
+        const numQuestions = 10;
+        let answers = {};
+        let problemValues = {}; 
+        let mistakes = {};
+        
+        // DOM mappings
+        const dom = {
+            height: document.getElementById('table-height'),
+            rampDistance: document.getElementById('ramp-distance'), 
+            rampTime: document.getElementById('ramp-time'),
+            angle: document.getElementById('launch-angle'),
+            resetButton: document.getElementById('reset-button'),
+            scoreCard: document.getElementById('score-card'),
+            finalScore: document.getElementById('final-score'),
+            scoreMessage: document.getElementById('score-message'),
+            mistakeSummary: document.getElementById('mistake-summary'),
+            downloadButton: document.getElementById('download-button'),
+            questions: []
+        };
+        
+        for (let i = 1; i <= numQuestions; i++) {
+            dom.questions.push({
+                card: document.getElementById(`q${i}`),
+                input: document.getElementById(`q${i}-input`),
+                button: document.getElementById(`q${i}-button`),
+                feedback: document.getElementById(`q${i}-feedback`),
+            });
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function toSigFigs(num, sigFigs) {
+            if (num === 0 || !num) return 0;
+            const magnitude = Math.floor(Math.log10(Math.abs(num)));
+            const factor = Math.pow(10, sigFigs - magnitude - 1);
+            return (Math.round(num * factor) / factor).toPrecision(sigFigs);
+        }
+
+        function solveQuadratic(a, b, c) {
+            const discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) return null;
+            const t1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            const t2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+            if (t1 > 0) return t1;
+            if (t2 > 0) return t2;
+            return null;
+        }
+
+        function generateProblem() {
+            // 1. Generate random parameters
+            const h = random(0.8, 1.2); 
+            const theta = Math.floor(random(-35, -9)); 
+            const thetaRad = theta * (Math.PI / 180);
+            
+            // 2. Calculate ramp physics
+            const a_ramp = g * Math.sin(Math.abs(thetaRad));
+            let d = random(1.0, 1.5);
+            d = Math.round(d * 10) / 10; 
+            
+            const v0 = Math.sqrt(2 * a_ramp * d); 
+            const t_ramp = v0 / a_ramp; 
+
+            problemValues = { h, v0, theta, d, a_ramp, t_ramp };
+
+            // 3. Calculate all 10 answers
+            const v0y = v0 * Math.sin(thetaRad); 
+            const v0x = v0 * Math.cos(thetaRad); 
+            const dy = -h;
+
+            const a_quad = 0.5 * (-g);
+            const b_quad = v0y;
+            const c_quad = -dy; 
+            const t = solveQuadratic(a_quad, b_quad, c_quad);
+
+            const vy_impact = v0y + (-g) * t; 
+            const vx_impact = v0x; 
+            const theta_impact = Math.atan2(vy_impact, vx_impact) * (180 / Math.PI); 
+            const speed_impact = Math.sqrt(vx_impact * vx_impact + vy_impact * vy_impact);
+            
+            answers = {
+                q1: v0,            
+                q2: -h,            
+                q3: v0y,           
+                q4: t,             
+                q5: v0x,           
+                q6: v0x * t,       
+                q7: vy_impact,     
+                q8: vx_impact,     
+                q9: theta_impact,  
+                q10: speed_impact  
+            };
+            
+            for (let key in answers) {
+                if (answers[key] === null || isNaN(answers[key])) {
+                    console.error("Failed to calculate answer for:", key);
+                    generateProblem();
+                    return;
+                }
+            }
+
+            // 4. Update UI
+            dom.height.textContent = h.toFixed(2);
+            dom.rampDistance.textContent = d.toFixed(1);
+            dom.rampTime.textContent = t_ramp.toFixed(2);
+            dom.angle.textContent = Math.abs(theta).toFixed(0);
+            
+            dom.scoreCard.style.display = 'none';
+            mistakes = {};
+
+            for (let i = 0; i < numQuestions; i++) {
+                const q = dom.questions[i];
+                q.card.classList.add('question-disabled');
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.input.value = '';
+                q.input.classList.remove('input-correct');
+                
+                const feedback = q.feedback;
+                feedback.innerHTML = '';
+                feedback.classList.remove('correct', 'incorrect');
+            }
+
+            // 5. Enable Q1
+            const q1 = dom.questions[0];
+            q1.card.classList.remove('question-disabled');
+            q1.input.disabled = false;
+            q1.button.disabled = false;
+            q1.input.focus();
+        }
+
+        function checkTolerance(userAns, correctAns) {
+            if (Math.abs(correctAns) < 1e-9) return Math.abs(userAns) < 1e-9;
+            const tolerance = Math.abs(correctAns * 0.03); // 3% tolerance
+            return Math.abs(userAns - correctAns) <= tolerance;
+        }
+
+        function checkAnswer(qNum) {
+            const qIndex = qNum - 1;
+            const q = dom.questions[qIndex];
+            let correctAns = answers[`q${qNum}`];
+            const userAns = parseFloat(q.input.value);
+
+            if (isNaN(userAns)) {
+                q.feedback.innerHTML = '<strong>Whoops!</strong> Please enter a valid number.';
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+                return;
+            }
+            
+            // Accept either positive or negative angle for Q9
+            let isCorrect = checkTolerance(userAns, correctAns);
+            if (qNum === 9 && !isCorrect) {
+                isCorrect = checkTolerance(userAns, -correctAns);
+            }
+
+            if (isCorrect) {
+                const formattedAns = toSigFigs(correctAns, 3);
+                q.feedback.innerHTML = `<strong>Correct!</strong> The answer is ${formattedAns}.`;
+                q.feedback.classList.add('correct');
+                q.feedback.classList.remove('incorrect');
+                
+                q.input.disabled = true;
+                q.button.disabled = true;
+                q.card.classList.add('question-disabled');
+                q.input.classList.add('input-correct');
+
+                if (qNum < numQuestions) { 
+                    const nextQ = dom.questions[qIndex + 1];
+                    nextQ.card.classList.remove('question-disabled');
+                    nextQ.input.disabled = false;
+                    nextQ.button.disabled = false;
+                    nextQ.input.focus();
+                } else {
+                    showScore();
+                }
+            } else {
+                if (!mistakes[qNum]) {
+                    mistakes[qNum] = 0;
+                }
+                mistakes[qNum]++;
+                
+                let hint = '';
+                switch (qNum) {
+                    case 1:
+                        hint = "<strong>Hint:</strong> Use <code>(x - x<sub>0</sub>) = 0.5 * (v<sub>i</sub> + v<sub>f</sub>) * t</code>. Given distance and time with <code>v<sub>i</sub> = 0</code>, solve for <code>v<sub>f</sub></code>!";
+                        break;
+                    case 2:
+                        if (userAns > 0) hint = "<strong>Hint:</strong> Displacement is final minus initial position. Since the car lands <em>below</em> the table, should displacement be positive or negative?";
+                        else hint = "<strong>Hint:</strong> Vertical displacement (y - y<sub>0</sub>) is simply the negative of the table height.";
+                        break;
+                    case 3:
+                        if (userAns > 0) hint = "<strong>Hint:</strong> The launch angle is <em>below</em> the horizontal. Initial vertical velocity must be negative!";
+                        else hint = "<strong>Hint:</strong> Use trigonometry: v<sub>0y</sub> = v<sub>0</sub> * sin(&theta;).";
+                        break;
+                    case 4:
+                        hint = "<strong>Hint:</strong> Use the kinematic equation: (y - y<sub>0</sub>) = v<sub>0y</sub>t + 0.5a<sub>y</sub>t². Solve the quadratic equation with a = -4.9!";
+                        break;
+                    case 5:
+                        hint = "<strong>Hint:</strong> Use trigonometry: v<sub>0x</sub> = v<sub>0</sub> * cos(&theta;).";
+                        break;
+                    case 6:
+                        hint = "<strong>Hint:</strong> Horizontal velocity is constant! Use (x - x<sub>0</sub>) = v<sub>0x</sub> * t.";
+                        break;
+                    case 7:
+                        if (userAns > 0) hint = "<strong>Hint:</strong> The car is moving downwards at impact, so vertical velocity must be negative!";
+                        else hint = "<strong>Hint:</strong> Use v<sub>y</sub> = v<sub>0y</sub> + a<sub>y</sub>t, where a<sub>y</sub> = -9.8 m/s².";
+                        break;
+                    case 8:
+                        hint = "<strong>Hint:</strong> No horizontal acceleration exists (a<sub>x</sub> = 0). What does that tell you about v<sub>x</sub> relative to v<sub>0x</sub>?";
+                        break;
+                    case 9:
+                        hint = "<strong>Hint:</strong> Use inverse tangent: &theta; = tan⁻¹(v<sub>y</sub> / v<sub>x</sub>). Both positive and negative angle values are accepted!";
+                        break;
+                    case 10:
+                        hint = "<strong>Hint:</strong> Speed is the magnitude of velocity. Use Pythagorean theorem: Speed = &radic;(v<sub>x</sub>² + v<sub>y</sub>²).";
+                        break;
+                    default:
+                        hint = "<strong>Not quite.</strong> Check your calculations and try again!"
+                }
+                
+                q.feedback.innerHTML = hint;
+                q.feedback.classList.add('incorrect');
+                q.feedback.classList.remove('correct');
+            }
+        }
+
+        function showScore() {
+            const numMistakes = Object.keys(mistakes).length;
+            let score = 15; 
+            let summary = "";
+
+            if (numMistakes === 0) {
+                score = 20; 
+                summary = "0 incorrect answers! Flawless! +5 bonus points!";
+            } else if (numMistakes === 1) {
+                score = 19; 
+                summary = "Only 1 mistake! Incredible work! +4 bonus points!";
+            } else if (numMistakes === 2) {
+                score = 18; 
+                summary = "Only 2 mistakes! Excellent performance! +3 bonus points!";
+            } else if (numMistakes === 3) {
+                score = 17; 
+                summary = "Only 3 mistakes! Great job! +2 bonus points!";
+            } else {
+                score = 16; 
+                summary = `Challenge completed! You earned 1 free point (+1 bonus) for your perseverance!`;
+            }
+
+            dom.finalScore.textContent = `${score}/15`; 
+            dom.mistakeSummary.textContent = summary;
+            
+            dom.scoreMessage.textContent = congratulations[Math.floor(Math.random() * congratulations.length)];
+            dom.scoreCard.style.display = 'block';
+            launchConfetti();
+        }
+        
+        function launchConfetti() {
+            const duration = 4 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 40 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+        
+        function subHTML(text) {
+            return text
+                .replace(/v_0y/g, 'v<sub>0y</sub>')
+                .replace(/v_0x/g, 'v<sub>0x</sub>')
+                .replace(/y_0/g, 'y<sub>0</sub>')
+                .replace(/x_0/g, 'x<sub>0</sub>')
+                .replace(/v_0/g, 'v<sub>0</sub>')
+                .replace(/v_y/g, 'v<sub>y</sub>')
+                .replace(/v_x/g, 'v<sub>x</sub>')
+                .replace(/v_impact/g, 'v<sub>impact</sub>')
+                .replace(/a_y/g, 'a<sub>y</sub>')
+                .replace(/v_f/g, 'v<sub>f</sub>')
+                .replace(/v_i/g, 'v<sub>i</sub>')
+                .replace(/a_ramp/g, 'a<sub>ramp</sub>');
+        }
+
+        function downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function generateHTMLSolution() {
+            const sigFig = (n) => toSigFigs(n, 3);
+            const { h, v0, theta, d, a_ramp, t_ramp } = problemValues;
+            const { q1, q2, q3, q4, q5, q6, q7, q8, q9, q10 } = answers;
+            
+            const imageUrl = document.querySelector('.question-card img').src;
+
+            const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectile Motion Impact Solution</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; background-color: #f9f9f9; color: #333; max-width: 800px; margin: 20px auto; padding: 30px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { color: #111; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px; }
+        h3 { color: #333; margin-top: 20px; margin-bottom: 5px; }
+        p { margin-bottom: 10px; }
+        code { font-family: monospace; background-color: #eee; padding: 2px 5px; border-radius: 4px; }
+        .problem-value { font-weight: bold; color: #0056b3; }
+        .answer { font-weight: bold; font-size: 1.1em; color: #00796b; }
+        .method { border-left: 3px solid #00796b; padding-left: 15px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <h1>Projectile Motion Impact Solution</h1>
+    
+    <h2>The Problem</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; background-color: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <img src="${imageUrl}" alt="Diagram of a car launching off a table" style="max-width: 50%; height: auto; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+        <div style="flex: 1; min-width: 300px;">
+            <p style="font-size: 1.1em; line-height: 1.7;">
+                A toy car starts from rest and rolls <strong style="color: #0056b3;">${d.toFixed(1)}</strong> m down a ramp in 
+                <strong style="color: #0056b3;">${t_ramp.toFixed(2)}</strong> s. The ramp is angled at 
+                <strong style="color: #0056b3;">${Math.abs(theta).toFixed(0)}</strong> degrees <strong>below</strong> the horizontal, 
+                launching off the end of a table of height <strong style="color: #0056b3;">${h.toFixed(2)}</strong> m.
+            </p>
+        </div>
+    </div>
+    
+    <h2>Given Values</h2>
+    <p>Table Height (h): <span class="problem-value">${h.toFixed(2)} m</span></p>
+    <p>Ramp Distance (d): <span class="problem-value">${d.toFixed(1)} m</span></p>
+    <p>Ramp Time (t<sub>ramp</sub>): <span class="problem-value">${t_ramp.toFixed(2)} s</span></p>
+    <p>Ramp Angle (&theta;): <span class="problem-value">${Math.abs(theta).toFixed(0)} degrees below horizontal</span></p>
+    <p>Gravitational Acceleration (g): <span class="problem-value">9.8 m/s²</span></p>
+
+    <h2>Calculated Solutions</h2>
+
+    <h3>1. Launch Velocity (v<sub>0</sub>)</h3>
+    <div class="method">
+        <p>${subHTML(`Equation: d = 0.5 * (v_i + v_f) * t_ramp`)}</p>
+        <p>${subHTML(`Solved: v_0 = (2 * ${d.toFixed(1)}) / ${t_ramp.toFixed(2)}`)}</p>
+        <p class="answer">${subHTML(`v_0 = ${sigFig(q1)} m/s`)}</p>
+    </div>
+
+    <h3>2. Vertical Displacement (y - y<sub>0</sub>)</h3>
+    <p>${subHTML(`Equation: (y - y_0) = 0 - h`)}</p>
+    <p class="answer">${subHTML(`(y - y_0) = ${sigFig(q2)} m`)}</p>
+
+    <h3>3. Initial Vertical Velocity (v<sub>0y</sub>)</h3>
+    <p>${subHTML(`Equation: v_0y = v_0 * sin(&theta;)`)}</p>
+    <p class="answer">${subHTML(`v_0y = ${sigFig(q3)} m/s`)}</p>
+
+    <h3>4. Total Time in Air (t)</h3>
+    <p>${subHTML(`Equation: (y - y_0) = v_0y * t + 0.5 * a_y * t²`)}</p>
+    <p class="answer">${subHTML(`t = ${sigFig(q4)} s`)}</p>
+
+    <h3>5. Initial Horizontal Velocity (v<sub>0x</sub>)</h3>
+    <p>${subHTML(`Equation: v_0x = v_0 * cos(&theta;)`)}</p>
+    <p class="answer">${subHTML(`v_0x = ${sigFig(q5)} m/s`)}</p>
+
+    <h3>6. Horizontal Distance (x - x<sub>0</sub>)</h3>
+    <p>${subHTML(`Equation: (x - x_0) = v_0x * t`)}</p>
+    <p class="answer">${subHTML(`(x - x_0) = ${sigFig(q6)} m`)}</p>
+    
+    <h3>7. Final Vertical Velocity (v<sub>y</sub>)</h3>
+    <p>${subHTML(`Equation: v_y = v_0y + a_y * t`)}</p>
+    <p>${subHTML(`Solved: v_y = ${sigFig(q3)} + (-9.8) * ${sigFig(q4)}`)}</p>
+    <p class="answer">${subHTML(`v_y = ${sigFig(q7)} m/s`)}</p>
+
+    <h3>8. Final Horizontal Velocity (v<sub>x</sub>)</h3>
+    <p>${subHTML(`Equation: v_x = v_0x (Constant horizontal velocity)`)}</p>
+    <p class="answer">${subHTML(`v_x = ${sigFig(q8)} m/s`)}</p>
+    
+    <h3>9. Impact Angle (&theta;)</h3>
+    <p>${subHTML(`Equation: &theta; = tan⁻¹(v_y / v_x)`)}</p>
+    <p>${subHTML(`Solved: &theta; = tan⁻¹(${sigFig(q7)} / ${sigFig(q8)})`)}</p>
+    <p class="answer">${subHTML(`&theta; = ${sigFig(q9)} degrees`)}</p>
+
+    <h3>10. Impact Speed</h3>
+    <p>${subHTML(`Equation: Speed = &radic;(v_x² + v_y²)`)}</p>
+    <p>${subHTML(`Solved: Speed = &radic;(${sigFig(q8)}² + (${sigFig(q7)})²)`)}</p>
+    <p class="answer">${subHTML(`Speed = ${sigFig(q10)} m/s`)}</p>
+
+</body>
+</html>
+            `;
+
+            downloadFile('car impact solution.html', htmlContent);
+        }
+
+        // --- EVENT LISTENERS ---
+        dom.resetButton.addEventListener('click', generateProblem);
+        dom.downloadButton.addEventListener('click', generateHTMLSolution); 
+        
+        for (let i = 1; i <= numQuestions; i++) {
+            document.getElementById(`q${i}-button`).addEventListener('click', () => checkAnswer(i));
+            
+            document.getElementById(`q${i}-input`).addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    document.getElementById(`q${i}-button`).click();
+                }
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        generateProblem();
+        
+        const congratulations = [
+            "Absolutely stellar!", "Physics wizard!", "You've mastered motion!", "Incredible job!", "Perfect calculation!",
+            "Sir Isaac Newton would be proud!", "Galileo bows to you!", "That's how it's done!", "Flawless victory!", "Top-tier problem solving!",
+            "A perfect trajectory!", "You hit the bullseye!", "Gravity is your plaything!", "Superb!", "Fantastic!"
+        ];
+
+    </script>
+</body>
+</html>
