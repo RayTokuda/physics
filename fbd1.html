@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Body Diagram Bell Ringer 1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .force-btn {
+            transition: all 0.1s ease-in-out;
+        }
+        .force-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .force-btn.selected {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* ring-blue-500 */
+        }
+        #feedback-message {
+            min-height: 2.5rem; /* h-10 */
+        }
+        .ballistic-confetti {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            bottom: -20px;
+            left: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            will-change: transform;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="p-8 text-center min-h-[60vh] flex flex-col items-center justify-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Free Body Diagram Bell Ringer 1</h1>
+            <p class="text-gray-600 mb-8 text-lg">Please enter your name to begin.</p>
+            <input type="text" id="student-name-input" class="border-2 border-gray-300 rounded-lg px-4 py-3 text-lg mb-6 w-full max-w-md focus:border-blue-500 focus:outline-none text-center" placeholder="Your Name">
+            <button id="start-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-transform transform hover:scale-105">
+                Start Activity
+            </button>
+        </div>
+
+        <div id="main-app" class="hidden">
+            <!-- Header -->
+            <header class="p-4 bg-gray-50 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-800">Free Body Diagram Bell Ringer 1</h1>
+                <div class="flex justify-between items-center mt-2">
+                    <div class="text-lg font-semibold">Student: <span id="display-student-name" class="text-blue-600"></span></div>
+                    <div class="text-lg font-semibold">Problem: <span id="problem-number">1</span> / <span id="total-problems">1</span></div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="p-4 md:p-8">
+                <div id="loading-screen" class="text-center">
+                    <p class="text-lg text-gray-600">Loading your problem...</p>
+                </div>
+
+                <div id="problem-container" class="hidden">
+                    <!-- Problem Description & Visualization -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2">The Problem</h2>
+                            <p id="problem-description" class="text-gray-700 leading-relaxed"></p>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2">Visualization</h2>
+                            <div class="bg-gray-100 rounded-lg p-4 h-64">
+                                <canvas id="problem-canvas" width="400" height="240"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step-by-Step UI -->
+                    <div id="step-container" class="space-y-8">
+                        
+                        <!-- Step 1: Free Body Diagram -->
+                        <div id="step-1-fbd" class="bg-blue-50 p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-blue-800 mb-4">Step 1: Draw the Free Body Diagram</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- FBD Canvas -->
+                                <div>
+                                    <h4 class="font-medium text-gray-700 mb-2">Your FBD:</h4>
+                                    <canvas id="fbd-canvas" width="300" height="300" class="bg-white mx-auto md:mx-0"></canvas>
+                                    <div class="flex justify-center mt-2 space-x-2">
+                                        <button id="redo-force-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg shadow-sm" style="display: none;">Undo Last Force</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Force Selection -->
+                                <div>
+                                    <h4 id="fbd-prompt" class="font-medium text-gray-700 mb-2">1. Select a force to add:</h4>
+                                    <div id="force-buttons" class="grid grid-cols-2 gap-2 mb-4">
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="N">Normal Force (N)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="mg">Force of Gravity (mg)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="T">Tension (T)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="F">Push (F)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="Th">Thrust (Th)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="D">Drag (D)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="L">Lift (L)</button>
+                                        <button class="force-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg" data-force="fk">Kinetic Friction (fk)</button>
+                                    </div>
+                                    
+                                    <h4 id="direction-prompt" class="font-medium text-gray-700 mb-2" style="display: none;">2. Select its direction:</h4>
+                                    <div id="direction-buttons" class="grid grid-cols-2 gap-2" style="display: none;">
+                                        <button class="dir-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg" data-dir="up">Up</button>
+                                        <button class="dir-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg" data-dir="down">Down</button>
+                                        <button class="dir-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg" data-dir="left">Left</button>
+                                        <button class="dir-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg" data-dir="right">Right</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: F-Net Equations -->
+                        <div id="step-2-fnet" class="bg-green-50 p-6 rounded-lg shadow-sm" style="display: none;">
+                            <h3 class="text-lg font-semibold text-green-800 mb-4">Step 2: Write Net Force Equations</h3>
+                            <p class="text-gray-700 mb-4">Based on your FBD, write the net force equations. Use positive for up/right forces and negative for down/left forces. (e.g., `N - mg`).</p>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- FBD Reference -->
+                                <div>
+                                    <h4 class="font-medium text-gray-700 mb-2">Your FBD:</h4>
+                                    <canvas id="fbd-reference-canvas" width="300" height="300" class="bg-white mx-auto md:mx-0"></canvas>
+                                </div>
+
+                                <!-- Equation Inputs -->
+                                <div class="space-y-4">
+                                    <div id="fnet-x-container">
+                                        <label for="fnet-x-input" class="block font-medium text-gray-700 mb-2">F<sub>net,x</sub> = ma<sub>x</sub></label>
+                                        <div class="flex items-center">
+                                            <input type="text" id="fnet-x-input" class="flex-1 rounded-l-md border-gray-300 shadow-sm px-3 py-2 border focus:border-blue-500 focus:outline-none" placeholder="e.g., T - fk">
+                                            <span class="inline-flex items-center px-3 py-2 rounded-r-md border border-l-0 border-gray-300 bg-gray-100 text-gray-600">= <span id="fnet-x-rhs" class="ml-1">ma<sub>x</sub></span></span>
+                                        </div>
+                                        <button id="check-fnet-x" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm">Check X-Equation</button>
+                                    </div>
+                                    <div id="fnet-y-container">
+                                        <label for="fnet-y-input" class="block font-medium text-gray-700 mb-2">F<sub>net,y</sub> = ma<sub>y</sub></label>
+                                        <div class="flex items-center">
+                                            <input type="text" id="fnet-y-input" class="flex-1 rounded-l-md border-gray-300 shadow-sm px-3 py-2 border focus:border-blue-500 focus:outline-none" placeholder="e.g., N - mg">
+                                            <span class="inline-flex items-center px-3 py-2 rounded-r-md border border-l-0 border-gray-300 bg-gray-100 text-gray-600">= <span id="fnet-y-rhs" class="ml-1">ma<sub>y</sub></span></span>
+                                        </div>
+                                        <button id="check-fnet-y" class="mt-2 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm">Check Y-Equation</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Solve -->
+                        <div id="step-3-solve" class="bg-indigo-50 p-6 rounded-lg shadow-sm" style="display: none;">
+                            <h3 class="text-lg font-semibold text-indigo-800 mb-4">Step 3: Solve for the Unknown</h3>
+                            
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                                <h4 class="font-medium text-gray-700 mb-2">Your Correct Equations:</h4>
+                                <p id="fnet-x-summary" class="text-gray-900 font-mono"></p>
+                                <p id="fnet-y-summary" class="text-gray-900 font-mono"></p>
+                            </div>
+                            
+                            <p id="solve-prompt" class="text-gray-700 mb-4">Using your equations, solve for [variable].</p>
+                            <div class="flex items-center">
+                                <span id="solve-variable" class="text-lg font-semibold text-gray-800 mr-2">[var] =</span>
+                                <input type="text" id="solve-input" class="flex-1 rounded-md border-gray-300 shadow-sm border px-3 py-2 focus:border-indigo-500 focus:outline-none" placeholder="Enter algebraic solution">
+                            </div>
+                            <button id="check-solve" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm">Check Solution</button>
+                        </div>
+                    </div>
+
+                    <!-- Feedback Message -->
+                    <div id="feedback-message" class="mt-6 p-3 text-center rounded-lg font-medium text-sm">
+                        <!-- Feedback appears here -->
+                    </div>
+                </div>
+
+                <!-- Final Score Screen -->
+                <div id="final-score-screen" class="hidden text-center p-8 min-h-[50vh]">
+                    <h2 id="final-score-title" class="text-4xl font-bold text-gray-800 mb-4"></h2>
+                    <p class="text-xl text-gray-700 mb-2">Thank you, <span id="final-student-name" class="font-semibold text-blue-600"></span>!</p>
+                    <p class="text-6xl font-bold mb-4 text-indigo-600">
+                        <span id="final-score-display">0</span> / 5 
+                    </p>
+                    <p id="code-display" class="text-sm text-gray-400 font-mono tracking-[0.2em] mb-6 select-all"></p>
+                    <div id="final-message-box" class="p-6 bg-blue-50 rounded-xl mb-6 inline-block max-w-2xl shadow-sm border border-blue-100">
+                        <p id="final-score-message" class="text-xl text-gray-800 leading-relaxed"></p>
+                    </div>
+                    <div>
+                        <button id="restart-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg transition-transform transform hover:scale-105">
+                            Try Again
+                        </button>
+                    </div>
+                    <div id="confetti-container" class="fixed inset-0 pointer-events-none overflow-hidden"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Constants ---
+            const TOTAL_PROBLEMS = 1;
+            const HORIZONTAL_ACTORS = ['person', 'winch', 'tractor'];
+            const HORIZONTAL_SURFACES = ['floor', 'road', 'ice', 'muddy field'];
+            const VERTICAL_MOVERS = ['elevator', 'crane', 'rocket']; 
+            const OBJECTS = ['box', 'crate', 'cabinet', 'sled', 'car', 'person', 'airplane'];
+            const RHS_X = ['0', 'max'];
+            const RHS_Y = ['0', 'may'];
+            
+            // --- DOM Elements ---
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const studentNameInput = document.getElementById('student-name-input');
+            const startBtn = document.getElementById('start-btn');
+            const mainApp = document.getElementById('main-app');
+            const displayStudentName = document.getElementById('display-student-name');
+            
+            const loadingScreen = document.getElementById('loading-screen');
+            const problemContainer = document.getElementById('problem-container');
+            const problemDescription = document.getElementById('problem-description');
+            const problemCanvas = document.getElementById('problem-canvas');
+            const fbdCanvas = document.getElementById('fbd-canvas');
+            const fbdRefCanvas = document.getElementById('fbd-reference-canvas');
+            const problemNumDisplay = document.getElementById('problem-number');
+            const totalProblemsDisplay = document.getElementById('total-problems');
+            
+            const step1FBD = document.getElementById('step-1-fbd');
+            const forceButtons = document.getElementById('force-buttons');
+            const directionButtons = document.getElementById('direction-buttons');
+            const fbdPrompt = document.getElementById('fbd-prompt');
+            const directionPrompt = document.getElementById('direction-prompt');
+            const redoForceBtn = document.getElementById('redo-force-btn');
+            
+            const step2FNet = document.getElementById('step-2-fnet');
+            const fnetXContainer = document.getElementById('fnet-x-container');
+            const fnetYContainer = document.getElementById('fnet-y-container');
+            const fnetXInput = document.getElementById('fnet-x-input');
+            const fnetYInput = document.getElementById('fnet-y-input');
+            const fnetXRHS = document.getElementById('fnet-x-rhs');
+            const fnetYRHS = document.getElementById('fnet-y-rhs');
+            const checkFNetXBtn = document.getElementById('check-fnet-x');
+            const checkFNetYBtn = document.getElementById('check-fnet-y');
+            
+            const step3Solve = document.getElementById('step-3-solve');
+            const fnetXSummary = document.getElementById('fnet-x-summary');
+            const fnetYSummary = document.getElementById('fnet-y-summary');
+            const solvePrompt = document.getElementById('solve-prompt');
+            const solveVariable = document.getElementById('solve-variable');
+            const solveInput = document.getElementById('solve-input');
+            const checkSolveBtn = document.getElementById('check-solve');
+            
+            const feedbackMessage = document.getElementById('feedback-message');
+            
+            const finalScoreScreen = document.getElementById('final-score-screen');
+            const finalScoreTitle = document.getElementById('final-score-title');
+            const finalStudentName = document.getElementById('final-student-name');
+            const finalScoreDisplay = document.getElementById('final-score-display');
+            const finalScoreMessage = document.getElementById('final-score-message');
+            const codeDisplay = document.getElementById('code-display');
+            const restartBtn = document.getElementById('restart-btn');
+
+            // --- Game State ---
+            let studentName = "";
+            let currentProblemIndex = 0;
+            let totalMistakes = 0;
+            let problemSet = [];
+            let currentProblem = {};
+            
+            let fbdState = { forces: [], expectedForces: [], correctForcesDrawn: [], selectedForce: null, lastDrawnForce: null };
+            let fnetState = { xCorrect: false, yCorrect: false, correctXEq: "", correctYEq: "", correctXRHS: "", correctYRHS: "" };
+            let solveState = { variable: "", correctSolution1: "" };
+
+            // --- Utility Functions ---
+            function shuffle(a) {
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            }
+
+            function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+            
+            function normalizeExpression(expr) {
+                if (!expr || typeof expr !== 'string') return "";
+                let processed = expr.replace(/\s+/g, '').toLowerCase();
+                processed = processed.replace(/([a-zA-Z0-9]+)/g, '+$1');
+                processed = processed.replace(/\+\-/g, '-').replace(/\+\+/g, '+');
+                if (processed.startsWith('+')) processed = processed.substring(1);
+                let terms = processed.match(/[+\-][a-zA-Z0-9_]+/g) || [];
+                if (!processed.startsWith('-') && processed.length > 0) {
+                    if (terms.length > 0) {
+                        const firstTermMatch = processed.match(/^[a-zA-Z0-9_]+/);
+                        if(firstTermMatch) terms.unshift('+' + firstTermMatch[0]);
+                    } else terms.unshift('+' + processed);
+                }
+                terms = terms.map(term => {
+                    let sign = term[0], body = term.substring(1).replace(/\*/g, '');
+                    let letters = body.match(/[a-zA-Z]+/g), numbers = body.match(/[0-9]+/g);
+                    if (letters) body = letters.map(part => part.split('').sort().join('')).join('');
+                    if (numbers) body += numbers.join('');
+                    return sign + body;
+                });
+                terms.sort((a, b) => a.substring(1).localeCompare(b.substring(1)));
+                return terms.join('');
+            }
+            
+            function normalizeAlgebra(expr) {
+                if (!expr || typeof expr !== 'string') return "";
+                let processed = expr.replace(/\s+/g, '').toLowerCase().replace(/\*/g, '');
+                let numerator = processed, denominator = "1";
+                const divIndex = processed.indexOf(')/');
+                if (processed.startsWith('(') && divIndex !== -1) {
+                    numerator = processed.substring(1, divIndex);
+                    denominator = processed.substring(divIndex + 2);
+                } else if (!processed.includes('(') && processed.includes('/')) {
+                    const parts = processed.split('/');
+                    numerator = parts[0]; denominator = parts[1];
+                }
+                const sortLetters = (term) => term.split('').sort().join('');
+                return `${normalizeExpression(numerator)}/${sortLetters(denominator)}`;
+            }
+
+            function checkExpression(expr1, expr2) { return normalizeExpression(expr1) === normalizeExpression(expr2); }
+            function checkAlgebra(expr1, expr2) { return normalizeAlgebra(expr1) === normalizeAlgebra(expr2); }
+
+            function showFeedback(message, type = 'info') {
+                feedbackMessage.innerHTML = message; 
+                feedbackMessage.classList.remove('bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800', 'bg-blue-100', 'text-blue-800');
+                if (type === 'success') feedbackMessage.classList.add('bg-green-100', 'text-green-800');
+                else if (type === 'error') feedbackMessage.classList.add('bg-red-100', 'text-red-800');
+                else feedbackMessage.classList.add('bg-blue-100', 'text-blue-800');
+            }
+            
+            function clearFeedback() {
+                feedbackMessage.innerHTML = '';
+                feedbackMessage.classList.remove('bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800', 'bg-blue-100', 'text-blue-800');
+            }
+            
+            function handleMistake() { totalMistakes++; }
+
+            // --- Problem Generation ---
+            function generateProblemSet() {
+                let problems = [createHorizontalProblem(true), createVerticalProblem(), createAirplaneProblem()];
+                problemSet = [shuffle(problems)[0]];
+            }
+
+            function createHorizontalProblem(isComplex = false) {
+                let problem = { type: 'horizontal', forces: [], text: "" };
+                let obj = pickRandom(OBJECTS.filter(o => o !== 'airplane' && o !== 'person'));
+                let actor = pickRandom(HORIZONTAL_ACTORS), surface = pickRandom(HORIZONTAL_SURFACES); 
+                let hasFriction, hasPullOrPush, rhs, scenario = pickRandom(isComplex ? ['C', 'D'] : ['A', 'B', 'C', 'D']);
+
+                switch (scenario) {
+                    case 'A': hasFriction = false; hasPullOrPush = false; rhs = '0'; surface = 'ice'; break;
+                    case 'B': hasFriction = false; hasPullOrPush = true; rhs = 'max'; surface = 'ice'; break;
+                    case 'C': hasFriction = true; hasPullOrPush = true; rhs = 'max'; if (surface === 'ice') surface = 'floor'; break;
+                    case 'D': hasFriction = true; hasPullOrPush = true; rhs = '0'; if (surface === 'ice') surface = 'floor'; break;
+                }
+                
+                let forceName = actor === 'person' ? "F" : "T";
+                let actionText = actor === 'person' ? `A ${actor} pushes it to the right. ` : `A ${actor} pulls it to the right with a rope. `;
+                
+                problem.forces.push({ name: 'N', dir: 'up' }, { name: 'mg', dir: 'down' });
+                
+                let text = `A ${obj} is on a ${surface} surface. `, xForces = [];
+                if (hasPullOrPush) { problem.forces.push({ name: forceName, dir: 'right' }); xForces.push(forceName); text += actionText; }
+                if (hasFriction) { problem.forces.push({ name: 'fk', dir: 'left' }); xForces.push('-fk'); text += `There is kinetic friction between the ${obj} and the ${surface}. `; } 
+                else text += `The ${surface} is frictionless. `;
+
+                if (rhs === '0') { problem.ax = '0'; text += `The ${obj} moves at a constant velocity.`; } 
+                else { problem.ax = 'ax'; text += `The ${obj} accelerates to the right.`; }
+                problem.ay = '0'; problem.fnetX = xForces.join(' + ').replace(' + -', ' - ') || "0"; 
+                problem.fnetY = "N - mg"; problem.fnetXRHS = (problem.ax === '0') ? '0' : 'max'; problem.fnetYRHS = '0';
+
+                let solveVars = [];
+                if (hasPullOrPush) solveVars.push(forceName);
+                if (hasFriction) solveVars.push('fk');
+                if (problem.ax !== '0') solveVars.push('ax');
+                problem.solveVar = pickRandom(solveVars) || 'N'; problem.text = text;
+                return problem;
+            }
+
+            function createVerticalProblem() {
+                let problem = { type: 'vertical', forces: [], text: "", mover: pickRandom(VERTICAL_MOVERS) };
+                let obj = pickRandom(OBJECTS.filter(o => o !== 'airplane'));
+                let rhs = pickRandom(RHS_Y.filter(r => r !== '0')), accelDir = pickRandom(['upward', 'downward']), forceName;
+                
+                if (problem.mover === 'rocket' && obj === 'person') { forceName = 'N'; problem.forces.push({ name: 'N', dir: 'up' }); problem.text = `A ${obj} is in a ${problem.mover}. `; } 
+                else if (problem.mover === 'rocket') { forceName = 'Th'; problem.text = `A ${problem.mover} is launching upward. There is drag.`; problem.forces.push({ name: 'Th', dir: 'up' }, { name: 'D', dir: 'down' }); } 
+                else { forceName = 'N'; problem.text = `A ${obj} is in ${problem.mover === 'elevator' ? 'an' : 'a'} ${problem.mover}. `; problem.forces.push({ name: 'N', dir: 'up' }); }
+                
+                problem.forces.push({ name: 'mg', dir: 'down' });
+                
+                if (rhs === 'may') { problem.ay = 'ay'; problem.text += ` It is accelerating ${accelDir}.`; } 
+                problem.ax = '0'; problem.fnetX = "0"; problem.fnetY = problem.mover === 'rocket' && !problem.text.includes('in a rocket') ? `${forceName} - mg - D` : `${forceName} - mg`;
+                problem.fnetXRHS = '0'; problem.fnetYRHS = 'may'; 
+
+                let solveVars = [forceName];
+                if (problem.ay !== '0') solveVars.push('ay');
+                if (problem.mover === 'rocket' && !problem.text.includes('in a rocket')) solveVars.push('D'); 
+                problem.solveVar = pickRandom(solveVars); return problem;
+            }
+            
+            function createAirplaneProblem() {
+                let problem = { type: 'airplane', forces: [], text: "An airplane is in flight. " };
+                problem.forces.push({ name: 'L', dir: 'up' }, { name: 'mg', dir: 'down' }, { name: 'Th', dir: 'right' }, { name: 'D', dir: 'left' });
+                problem.fnetX = "Th - D"; problem.fnetY = "L - mg";
+                
+                let solveVars = ['L', 'Th', 'D']; 
+                if (pickRandom(['cruise', 'climb']) === 'cruise') { problem.ax = '0'; problem.ay = '0'; problem.fnetXRHS = '0'; problem.fnetYRHS = '0'; problem.text += "It flies at a constant velocity."; } 
+                else { problem.ax = 'ax'; problem.ay = 'ay'; problem.fnetXRHS = 'max'; problem.fnetYRHS = 'may'; problem.text += "It is accelerating forward and climbing."; solveVars.push('ax', 'ay'); }
+                problem.solveVar = pickRandom(solveVars); return problem;
+            }
+            
+            function generateSolutions(problem) {
+                let { solveVar, fnetX, fnetY, fnetXRHS, fnetYRHS } = problem;
+                let sol1 = "";
+                fnetX = fnetX.replace(/\*/g, '').replace(/\s/g, ''); fnetY = fnetY.replace(/\*/g, '').replace(/\s/g, '');
+                fnetXRHS = fnetXRHS.replace(/\*/g, '').replace(/\s/g, ''); fnetYRHS = fnetYRHS.replace(/\*/g, '').replace(/\s/g, '');
+
+                try {
+                    const processHorizontal = () => {
+                        if (solveVar === 'N') return `${fnetYRHS} - (-mg)`;
+                        if (solveVar === 'ax') return `(${fnetX}) / m`; 
+                        let forces = fnetX.split(/([+-])/).filter(Boolean).map(s => s.trim()), terms = [];
+                        let sign = '+';
+                        if (forces.length > 0 && !['+','-'].includes(forces[0])) { terms = [forces[0]]; for(let i = 1; i < forces.length; i+=2) terms.push(forces[i] + forces[i+1]); } 
+                        else { for (let p of forces) { if (p==='+' || p==='-') sign=p; else if (p) terms.push(sign + p); } }
+                        let solveTerm = terms.find(t => t.includes(solveVar)), otherTerms = terms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
+                        if (solveTerm && (solveTerm.startsWith('+') || !solveTerm.startsWith('-'))) return `${fnetXRHS} - (${otherTerms})`; 
+                        return `${terms.filter(t => !t.includes(solveVar)).join(' + ').replace(/\+\-/g, '-').replace(/^\+/, '')} - ${fnetXRHS}`; 
+                    };
+                    const processVertical = () => {
+                        if (solveVar === 'ay') return `(${fnetY}) / m`;
+                        let forces = fnetY.split(/([+-])/).filter(Boolean).map(s => s.trim()), terms = [];
+                        let sign = '+';
+                        if (forces.length > 0 && !['+','-'].includes(forces[0])) { terms = [forces[0]]; for(let i = 1; i < forces.length; i+=2) terms.push(forces[i] + forces[i+1]); } 
+                        else { for (let p of forces) { if (p==='+' || p==='-') sign=p; else if (p) terms.push(sign + p); } }
+                        let solveTerm = terms.find(t => t.includes(solveVar)), otherTerms = terms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
+                        if (solveTerm && (solveTerm.startsWith('+') || !solveTerm.startsWith('-'))) return `${fnetYRHS} - (${otherTerms})`;
+                        return `${terms.filter(t => !t.includes(solveVar)).join(' + ').replace(/\+\-/g, '-').replace(/^\+/, '')} - ${fnetYRHS}`; 
+                    };
+                    if (problem.type === 'horizontal') sol1 = processHorizontal();
+                    else if (problem.type === 'vertical') sol1 = processVertical();
+                    else if (problem.type === 'airplane') {
+                        if (solveVar === 'ax') sol1 = `(${fnetX}) / m`; else if (solveVar === 'ay') sol1 = `(${fnetY}) / m`;
+                        else if (['Th', 'D'].includes(solveVar)) { let term = ['Th', '-D'].find(t => t.includes(solveVar)); sol1 = (term.startsWith('+') || !term.startsWith('-')) ? `${fnetXRHS} - (${['Th', '-D'].filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('')})` : `Th - ${fnetXRHS}`; }
+                        else if (['L', 'mg'].includes(solveVar)) { let term = ['L', '-mg'].find(t => t.includes(solveVar)); sol1 = (term.startsWith('+') || !term.startsWith('-')) ? `${fnetYRHS} - (${['L', '-mg'].filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('')})` : `L - ${fnetYRHS}`; }
+                    }
+                } catch (e) { sol1 = "ERROR"; }
+                
+                const cleanup = (s) => {
+                    let c = s.replace(/\+\-/g, '-').replace(/--/g, '+').replace(/\(\+/g, '(').replace(/\s/g, '').replace(/\*/g, '').replace(/\(-/g, '(neg').replace(/-/g, '+-').replace(/neg/g, '-');
+                    c = c.replace(/\( /g, '(').replace(/ \)/g, ')').replace(/\(0\+-/g, '(-').replace(/\(0\+/g, '(').replace(/-\(+/g, '-('); 
+                    c = c.replace(/0\+/g, '').replace(/\+0/g, '').replace(/0-/g, '-').replace(/-0/g, '').replace(/\(-([a-zA-Z0-9]+)\)/g, '-$1').replace(/\(\+([a-zA-Z0-9]+)\)/g, '$1').replace(/\(([a-zA-Z0-9]+)\)/g, '$1').replace(/\+\-/g, '-').replace(/--/g, '+');
+                    return c.startsWith('+') ? c.substring(1) : c;
+                };
+                solveState.correctSolution1 = cleanup(sol1);
+            }
+
+            // --- Drawing Functions ---
+            function drawArrow(ctx, fromx, fromy, tox, toy, label = null) {
+                ctx.save(); ctx.beginPath(); ctx.moveTo(fromx, fromy); ctx.lineTo(tox, toy); ctx.stroke();
+                let headlen = 10, angle = Math.atan2(toy - fromy, tox - fromx);
+                ctx.beginPath(); ctx.moveTo(tox, toy);
+                ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(tox, toy); ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+                if (label) {
+                    ctx.fillStyle = 'black'; ctx.font = '16px Inter'; ctx.textAlign = 'center';
+                    let labelX = tox, labelY = toy;
+                    if (tox > fromx) labelX += 20; if (tox < fromx) labelX -= 20;
+                    if (toy > fromy) labelY += 20; if (toy < fromy) labelY -= 20;
+                    ctx.fillText(label, labelX, labelY);
+                }
+                ctx.restore();
+            }
+
+            function drawProblemVisualization() {
+                const ctx = problemCanvas.getContext('2d'); ctx.clearRect(0, 0, problemCanvas.width, problemCanvas.height);
+                const w = problemCanvas.width, h = problemCanvas.height, groundY = h - 50, objW = 60, objH = 60, objX = w / 2 - objW / 2, objY = groundY - objH;
+
+                if (currentProblem.type === 'horizontal') {
+                    ctx.fillStyle = '#964B00'; ctx.fillRect(0, groundY, w, 50); ctx.fillStyle = 'blue'; ctx.fillRect(objX, objY, objW, objH);
+                    currentProblem.forces.forEach(force => {
+                        ctx.strokeStyle = 'red'; ctx.lineWidth = 2;
+                        if (force.dir === 'right') drawArrow(ctx, objX + objW, objY + objH / 2, objX + objW + 50, objY + objH / 2);
+                        else if (force.dir === 'left') { ctx.strokeStyle = 'orange'; drawArrow(ctx, objX, objY + objH / 2, objX - 50, objY + objH / 2); }
+                    });
+                } else if (currentProblem.type === 'airplane') {
+                    ctx.fillStyle = '#d1d5db'; ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.ellipse(w / 2, h / 2, 120, 30, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.ellipse(w / 2 + 80, h / 2 - 15, 30, 15, -0.2, 0, Math.PI * 2); ctx.fillStyle = '#93c5fd'; ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(w / 2 - 100, h / 2 - 25); ctx.lineTo(w / 2 - 130, h / 2 - 70); ctx.lineTo(w / 2 - 120, h / 2 - 25); ctx.closePath(); ctx.fillStyle = '#ef4444'; ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(w / 2 - 130, h / 2 - 20); ctx.lineTo(w / 2 - 90, h / 2 - 15); ctx.lineTo(w / 2 - 90, h / 2 - 30); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(w / 2 - 30, h / 2 + 5); ctx.lineTo(w / 2 + 20, h / 2 + 30); ctx.lineTo(w / 2 + 40, h / 2 + 25); ctx.lineTo(w / 2 + 10, h / 2 + 2); ctx.closePath(); ctx.fillStyle = '#a5f3fc'; ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = 'red'; ctx.lineWidth = 2; drawArrow(ctx, w / 2 + 120, h / 2, w / 2 + 170, h / 2);
+                    ctx.strokeStyle = 'orange'; drawArrow(ctx, w / 2 - 120, h / 2, w / 2 - 170, h / 2);
+                } else { 
+                    if (currentProblem.mover === 'rocket' && !currentProblem.text.includes('in a rocket')) {
+                        ctx.fillStyle = '#d1d5db'; ctx.beginPath(); ctx.moveTo(w/2 - 30, h - 20); ctx.lineTo(w/2 - 30, h - 150); ctx.lineTo(w/2, h - 200); ctx.lineTo(w/2 + 30, h - 150); ctx.lineTo(w/2 + 30, h - 20); ctx.closePath(); ctx.fill();
+                        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(w/2 - 30, h - 50); ctx.lineTo(w/2 - 50, h - 20); ctx.lineTo(w/2 - 30, h - 20); ctx.fill(); ctx.beginPath(); ctx.moveTo(w/2 + 30, h - 50); ctx.lineTo(w/2 + 50, h - 20); ctx.lineTo(w/2 + 30, h - 20); ctx.fill();
+                        if (currentProblem.forces.some(f => f.name === 'Th')) { ctx.fillStyle = 'orange'; ctx.beginPath(); ctx.moveTo(w/2 - 20, h - 20); ctx.lineTo(w/2 + 20, h - 20); ctx.lineTo(w/2, h + 10); ctx.closePath(); ctx.fill(); }
+                    } else {
+                        const cageX = w / 2 - 50, cageY = h / 2 - 60, cageW = 100, cageH = 120;
+                        ctx.strokeStyle = 'gray'; ctx.lineWidth = 3; ctx.strokeRect(cageX, cageY, cageW, cageH); ctx.fillStyle = 'blue'; ctx.fillRect(cageX + (cageW-objW)/2, cageY + cageH - objH, objW, objH);
+                    }
+                }
+            }
+
+            function drawFBD(canvas) {
+                const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
+                ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2 * Math.PI); ctx.fill();
+                let upLen = 100, downLen = 100, leftLen = 100, rightLen = 100;
+                if (currentProblem.fnetXRHS === 'max') { rightLen = 120; leftLen = 80; }
+                if (currentProblem.fnetYRHS === 'may') { if (currentProblem.text.includes('upward') || currentProblem.text.includes('climbing')) { upLen = 120; downLen = 80; } else if (currentProblem.text.includes('downward')) { upLen = 80; downLen = 120; } }
+
+                let drawnDirs = { up: 0, down: 0, left: 0, right: 0 };
+                fbdState.forces.forEach(force => {
+                    let offset = 0;
+                    switch(force.dir) {
+                        case 'up': offset = (drawnDirs.up - 0.5 * (fbdState.forces.filter(f => f.dir === 'up').length - 1)) * 20; drawArrow(ctx, cx + offset, cy - 20, cx + offset, cy - upLen, force.name); drawnDirs.up++; break;
+                        case 'down': offset = (drawnDirs.down - 0.5 * (fbdState.forces.filter(f => f.dir === 'down').length - 1)) * 20; drawArrow(ctx, cx + offset, cy + 20, cx + offset, cy + downLen, force.name); drawnDirs.down++; break;
+                        case 'left': offset = (drawnDirs.left - 0.5 * (fbdState.forces.filter(f => f.dir === 'left').length - 1)) * 20; drawArrow(ctx, cx - 20, cy + offset, cx - leftLen, cy + offset, force.name); drawnDirs.left++; break;
+                        case 'right': offset = (drawnDirs.right - 0.5 * (fbdState.forces.filter(f => f.dir === 'right').length - 1)) * 20; drawArrow(ctx, cx + 20, cy + offset, cx + rightLen, cy + offset, force.name); drawnDirs.right++; break;
+                    }
+                });
+            }
+
+            // --- Step Logic ---
+            function updateForceButtons() {
+                document.querySelectorAll('#force-buttons .force-btn').forEach(btn => {
+                    if (fbdState.correctForcesDrawn.includes(btn.dataset.force)) { btn.disabled = true; btn.classList.add('bg-green-500', 'text-white'); btn.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'selected'); } 
+                    else { btn.disabled = false; btn.classList.remove('bg-green-500', 'text-white'); btn.classList.add('bg-gray-200', 'hover:bg-gray-300'); btn.classList.toggle('selected', fbdState.selectedForce === btn.dataset.force); }
+                });
+            }
+
+            function setupFBDStep() {
+                fbdState = { forces: [], expectedForces: currentProblem.forces.map(f => f.name), correctForcesDrawn: [], selectedForce: null, lastDrawnForce: null };
+                step1FBD.style.display = 'block'; step2FNet.style.display = 'none'; step3Solve.style.display = 'none';
+                fbdPrompt.textContent = '1. Select a force to add:'; directionPrompt.style.display = 'none'; directionButtons.style.display = 'none'; redoForceBtn.style.display = 'none';
+                updateForceButtons(); drawFBD(fbdCanvas); clearFeedback();
+            }
+
+            function setupFNetStep() {
+                step1FBD.style.display = 'none'; step2FNet.style.display = 'block'; drawFBD(fbdRefCanvas);
+                fnetState = { xCorrect: false, yCorrect: false, correctXEq: currentProblem.fnetX, correctYEq: currentProblem.fnetY, correctXRHS: currentProblem.fnetXRHS, correctYRHS: currentProblem.fnetYRHS };
+                fnetXRHS.innerHTML = fnetState.correctXRHS === 'max' ? 'ma<sub>x</sub>' : fnetState.correctXRHS;
+                fnetYRHS.innerHTML = fnetState.correctYRHS === 'may' ? 'ma<sub>y</sub>' : (fnetState.correctYRHS === '-may' ? '-ma<sub>y</sub>' : fnetState.correctYRHS);
+                
+                if (fnetState.correctXEq === "0" || fnetState.correctXEq === "") { fnetXContainer.style.display = 'none'; fnetState.xCorrect = true; } 
+                else { fnetXContainer.style.display = 'block'; fnetXInput.value = ''; checkFNetXBtn.disabled = false; fnetXInput.disabled = false; }
+                
+                if (fnetState.correctYEq === "0" || fnetState.correctYEq === "") { fnetYContainer.style.display = 'none'; fnetState.yCorrect = true; } 
+                else { fnetYContainer.style.display = 'block'; fnetYInput.value = ''; checkFNetYBtn.disabled = false; fnetYInput.disabled = false; }
+                clearFeedback();
+            }
+
+            function setupSolveStep() {
+                step2FNet.style.display = 'none'; step3Solve.style.display = 'block';
+                solveState.variable = currentProblem.solveVar; generateSolutions(currentProblem);
+                fnetXSummary.innerHTML = `F<sub>net,x</sub>:  ${fnetState.correctXEq} = ${fnetState.correctXRHS.replace('max', 'ma<sub>x</sub>')}`;
+                fnetYSummary.innerHTML = `F<sub>net,y</sub>:  ${fnetState.correctYEq} = ${fnetState.correctYRHS.replace('may', 'ma<sub>y</sub>')}`;
+                let solveEq = 'x'; if (currentProblem.type === 'vertical' || (currentProblem.type === 'airplane' && ['L', 'ay', 'D', 'mg'].includes(solveState.variable)) || (currentProblem.type === 'vertical' && currentProblem.mover === 'rocket')) solveEq = 'y';
+                solvePrompt.innerHTML = `Using your F<sub>net,${solveEq}</sub> equation, solve for ${solveState.variable}.`;
+                solveVariable.textContent = `${solveState.variable} =`; solveInput.value = ''; checkSolveBtn.disabled = false; clearFeedback();
+            }
+
+            // --- Interactions ---
+            forceButtons.addEventListener('click', (e) => {
+                const btn = e.target.closest('.force-btn'); if (!btn || btn.disabled) return;
+                fbdState.selectedForce = btn.dataset.force;
+                if (!fbdState.expectedForces.includes(fbdState.selectedForce)) { showFeedback(`The force ${fbdState.selectedForce} is not acting on the object. Try again!`, 'error'); handleMistake(); fbdState.selectedForce = null; updateForceButtons(); return; }
+                clearFeedback(); updateForceButtons(); fbdPrompt.textContent = '1. Force selected. Great!'; directionPrompt.style.display = 'block'; directionButtons.style.display = 'grid';
+            });
+
+            directionButtons.addEventListener('click', (e) => {
+                const selectedDir = e.target.closest('.dir-btn').dataset.dir, expectedForce = currentProblem.forces.find(f => f.name === fbdState.selectedForce);
+                if (expectedForce.dir === selectedDir) {
+                    showFeedback(`Correct! ${fbdState.selectedForce} points ${selectedDir}.`, 'success');
+                    const newForce = { name: fbdState.selectedForce, dir: selectedDir };
+                    fbdState.forces.push(newForce); fbdState.correctForcesDrawn.push(fbdState.selectedForce); fbdState.lastDrawnForce = newForce; drawFBD(fbdCanvas);
+                    fbdState.selectedForce = null; fbdPrompt.textContent = '1. Select a force to add:'; directionPrompt.style.display = 'none'; directionButtons.style.display = 'none'; redoForceBtn.style.display = 'inline-block'; updateForceButtons();
+                    if (fbdState.correctForcesDrawn.length === fbdState.expectedForces.length) { showFeedback('Excellent! Free Body Diagram complete. Let\'s move to the equations.', 'success'); redoForceBtn.style.display = 'none'; setTimeout(setupFNetStep, 1500); }
+                } else { showFeedback(`Hmm, does ${fbdState.selectedForce} really point ${selectedDir}? Check the problem again.`, 'error'); handleMistake(); }
+            });
+
+            redoForceBtn.addEventListener('click', () => {
+                if (fbdState.lastDrawnForce) {
+                    fbdState.forces = fbdState.forces.filter(f => f.name !== fbdState.lastDrawnForce.name);
+                    fbdState.correctForcesDrawn = fbdState.correctForcesDrawn.filter(n => n !== fbdState.lastDrawnForce.name);
+                    fbdState.lastDrawnForce = null; redoForceBtn.style.display = 'none'; updateForceButtons(); drawFBD(fbdCanvas); clearFeedback();
+                }
+            });
+
+            const checkFNet = (axis) => {
+                const input = axis === 'x' ? fnetXInput.value : fnetYInput.value, correctEq = axis === 'x' ? fnetState.correctXEq : fnetState.correctYEq;
+                if (checkExpression(input, correctEq) || normalizeExpression(correctEq) === normalizeExpression(input)) {
+                    showFeedback(`Correct! The F<sub>net,${axis}</sub> equation is right.`, 'success');
+                    if (axis === 'x') { fnetState.xCorrect = true; checkFNetXBtn.disabled = true; fnetXInput.disabled = true; } 
+                    else { fnetState.yCorrect = true; checkFNetYBtn.disabled = true; fnetYInput.disabled = true; }
+                    if (fnetState.xCorrect && fnetState.yCorrect) { showFeedback('Great! Both net force equations are correct. Time to solve!', 'success'); setTimeout(setupSolveStep, 1500); }
+                } else {
+                    handleMistake(); const uT = normalizeExpression(input).match(/[+\-][a-z0-9]+/g) || [], cT = normalizeExpression(correctEq).match(/[+\-][a-z0-9]+/g) || [];
+                    showFeedback(`Not quite. ${uT.length > cT.length ? "Extra force." : uT.length < cT.length ? "Missing force." : "Check signs (+/-)."} Remember + for right/up and - for left/down.`, 'error');
+                }
+            };
+            checkFNetXBtn.addEventListener('click', () => checkFNet('x')); checkFNetYBtn.addEventListener('click', () => checkFNet('y'));
+
+            checkSolveBtn.addEventListener('click', () => {
+                if (checkAlgebra(solveInput.value, solveState.correctSolution1)) {
+                    showFeedback('That\'s exactly right! Problem complete!', 'success');
+                    checkSolveBtn.disabled = true; solveInput.disabled = true; setTimeout(showFinalScore, 1500);
+                } else { handleMistake(); showFeedback('That algebra doesn\'t look quite right. Try isolating the variable again.', 'error'); }
+            });
+
+            // --- Game Flow ---
+            function generateAuthCode(name) {
+                const cleanName = name.replace(/[^a-zA-Z]/g, '').padEnd(3, 'X');
+                let prefix = cleanName.substring(0, 3).toUpperCase();
+                let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let codeArr = Array(12).fill('');
+                
+                let pos = [];
+                while(pos.length < 3) {
+                    let p = Math.floor(Math.random() * 12);
+                    if(!pos.includes(p)) pos.push(p);
+                }
+                for(let i=0; i<3; i++) codeArr[pos[i]] = prefix[i];
+                for(let i=0; i<12; i++) {
+                    if(codeArr[i] === '') codeArr[i] = chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return codeArr.join('');
+            }
+
+            function fireBallisticConfetti(bursts) {
+                if (bursts <= 0) return;
+                const container = document.getElementById('confetti-container');
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+                
+                const fireBurst = () => {
+                    for (let i = 0; i < 60; i++) {
+                        const conf = document.createElement('div');
+                        conf.className = 'ballistic-confetti rounded-sm';
+                        conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        container.appendChild(conf);
+
+                        // Physics
+                        const angle = (Math.random() * 60 + 60) * (Math.PI / 180); // 60 to 120 degrees
+                        const velocity = Math.random() * 20 + 15;
+                        let vx = Math.cos(angle) * velocity;
+                        let vy = -Math.sin(angle) * velocity;
+                        let x = window.innerWidth / 2;
+                        let y = window.innerHeight;
+                        
+                        let rot = Math.random() * 360;
+                        let rotSpeed = Math.random() * 10 - 5;
+                        
+                        const animate = () => {
+                            vy += 0.4; // Gravity
+                            x += vx; y += vy; rot += rotSpeed;
+                            conf.style.transform = `translate(${x - window.innerWidth/2}px, ${y - window.innerHeight}px) rotate(${rot}deg)`;
+                            if (y < window.innerHeight + 100) requestAnimationFrame(animate); else conf.remove();
+                        };
+                        requestAnimationFrame(animate);
+                    }
+                };
+
+                let burstsFired = 0;
+                let interval = setInterval(() => {
+                    fireBurst();
+                    burstsFired++;
+                    if (burstsFired >= bursts) clearInterval(interval);
+                }, 400);
+            }
+
+            function showFinalScore() {
+                problemContainer.style.display = 'none';
+                finalScoreScreen.style.display = 'block';
+
+                let finalScore = 7 - totalMistakes;
+                if (finalScore < 0) finalScore = 0;
+                // Max is 7 out of 5 mathematically, but it represents perfect 5/5
+                let displayScore = Math.min(finalScore, 5);
+                if (finalScore === 7) displayScore = 5;
+                if (finalScore === 6) displayScore = 5;
+                
+                finalScoreDisplay.textContent = Math.max(0, finalScore - 2); // Show normalized score
+                
+                if (finalScore >= 7) finalScoreDisplay.textContent = '5';
+                else if (finalScore === 6) finalScoreDisplay.textContent = '5';
+                else if (finalScore === 5) finalScoreDisplay.textContent = '5';
+                else if (finalScore === 4) finalScoreDisplay.textContent = '4';
+                else finalScoreDisplay.textContent = Math.max(0, finalScore - 1);
+                
+                // Adjust per specific prompt rules
+                let actualScoreStr = "";
+                let bursts = 0;
+                if (totalMistakes === 0) { actualScoreStr = "7"; bursts = 3; }
+                else if (totalMistakes === 1) { actualScoreStr = "6"; bursts = 2; }
+                else if (totalMistakes === 2) { actualScoreStr = "5"; bursts = 1; }
+                else if (totalMistakes === 3) { actualScoreStr = "4"; bursts = 0; }
+                else { actualScoreStr = Math.max(0, 7 - totalMistakes).toString(); bursts = 0; }
+
+                finalScoreDisplay.textContent = actualScoreStr;
+                
+                finalStudentName.textContent = studentName;
+                codeDisplay.textContent = generateAuthCode(studentName);
+
+                if (totalMistakes >= 4) {
+                    finalScoreTitle.textContent = "Keep Trying!";
+                    finalScoreTitle.className = "text-4xl font-bold text-gray-800 mb-4";
+                    finalScoreMessage.textContent = "You made 4 or more corrections. Physics takes practice! Please try again to improve your score and master these concepts.";
+                } else {
+                    finalScoreTitle.textContent = "Congratulations!";
+                    finalScoreTitle.className = "text-4xl font-bold text-green-600 mb-4";
+                    finalScoreMessage.textContent = "Excellent work on completing the Free Body Diagram Bell Ringer! Your understanding of forces is solid.";
+                    fireBallisticConfetti(bursts);
+                }
+            }
+
+            function initGame() {
+                loadingScreen.style.display = 'none'; problemContainer.style.display = 'block';
+                totalProblemsDisplay.textContent = TOTAL_PROBLEMS; currentProblemIndex = 0; totalMistakes = 0;
+                document.getElementById('confetti-container').innerHTML = ''; // clear confetti
+                
+                generateProblemSet(); currentProblem = problemSet[0]; problemNumDisplay.textContent = 1;
+                problemDescription.textContent = currentProblem.text;
+                
+                drawProblemVisualization(); setupFBDStep();
+                finalScoreScreen.style.display = 'none';
+                solveInput.disabled = false; fnetXInput.disabled = false; fnetYInput.disabled = false;
+            }
+
+            startBtn.addEventListener('click', () => {
+                const name = studentNameInput.value.trim();
+                if (name.length > 0) {
+                    studentName = name;
+                    displayStudentName.textContent = studentName;
+                    welcomeScreen.style.display = 'none';
+                    mainApp.style.display = 'block';
+                    initGame();
+                } else {
+                    studentNameInput.classList.add('border-red-500');
+                    setTimeout(() => studentNameInput.classList.remove('border-red-500'), 1000);
+                }
+            });
+
+            restartBtn.addEventListener('click', initGame);
+        });
+    </script>
+</body>
+</html>
