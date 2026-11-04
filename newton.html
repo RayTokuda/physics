@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newton's Laws Space Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #020617;
+            color: #e2e8f0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .panel {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 40px rgba(14, 165, 233, 0.2);
+            transition: all 0.3s ease;
+        }
+        .glow-text { text-shadow: 0 0 10px rgba(56, 189, 248, 0.8); }
+        .input-sci {
+            background: rgba(2, 6, 23, 0.6);
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            color: #38bdf8;
+            outline: none;
+            transition: box-shadow 0.2s;
+        }
+        .input-sci:focus {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+            border-color: #38bdf8;
+        }
+        .btn-sci {
+            background: linear-gradient(45deg, #0284c7, #0ea5e9);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-sci:hover {
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.6);
+            transform: translateY(-2px);
+        }
+        .btn-sci:active { transform: translateY(1px); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- WebGL/Canvas Background for Simulations -->
+    <canvas id="simCanvas"></canvas>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer">
+        
+        <!-- Screen 0: Login -->
+        <div id="screen-login" class="panel rounded-2xl p-8 max-w-md w-full mx-4 text-center flex flex-col gap-6">
+            <div>
+                <h1 class="text-3xl font-bold text-sky-400 glow-text mb-2">Space Academy</h1>
+                <p class="text-slate-400 text-sm">Advanced Orbital Dynamics & Newtonian Mechanics Certification</p>
+            </div>
+            <div class="flex flex-col gap-2 text-left">
+                <label for="studentName" class="text-sky-300 text-sm font-semibold uppercase tracking-wider">Cadet Name</label>
+                <input type="text" id="studentName" class="input-sci rounded-lg px-4 py-3 text-lg" placeholder="Enter your name..." autocomplete="off">
+                <p id="login-error" class="text-red-400 text-xs hidden">Please enter a valid name to begin.</p>
+            </div>
+            <button onclick="app.nextPhase()" class="btn-sci text-white font-bold text-lg rounded-lg py-3 mt-4 uppercase tracking-widest">
+                Initialize Mission
+            </button>
+        </div>
+
+        <!-- Screen: Theory Pop-up -->
+        <div id="screen-theory" class="hidden panel rounded-2xl p-8 max-w-xl w-full mx-4 flex flex-col gap-6 relative overflow-hidden">
+            <div class="absolute inset-0 bg-sky-900/10 blur-3xl rounded-full"></div>
+            <div class="relative z-10">
+                <h2 id="theory-title" class="text-3xl font-bold text-sky-400 glow-text mb-1">Theory</h2>
+                <p id="theory-subtitle" class="text-slate-400 text-sm uppercase tracking-widest mb-4">Briefing</p>
+                <div id="theory-content" class="text-slate-200 text-base leading-relaxed space-y-4"></div>
+            </div>
+            <button onclick="app.nextPhase()" class="relative z-10 btn-sci text-white font-bold text-lg rounded-lg py-3 mt-2 uppercase tracking-widest w-full">
+                Acknowledge & Begin
+            </button>
+        </div>
+
+        <!-- Screen: HUD for Laws -->
+        <div id="screen-hud" class="hidden absolute inset-0 pointer-events-none flex flex-col justify-between p-6">
+            <div class="flex justify-between items-start pointer-events-auto">
+                <div class="panel px-6 py-3 rounded-xl border-sky-500/50">
+                    <h2 id="hud-title" class="text-xl font-bold text-sky-400 glow-text">Mission</h2>
+                    <p id="hud-subtitle" class="text-xs text-slate-300 uppercase tracking-widest">Law</p>
+                </div>
+                <div class="panel px-6 py-3 rounded-xl border-sky-500/50 text-right">
+                    <p class="text-xs text-slate-300 uppercase tracking-widest">Current Score</p>
+                    <p id="hud-score" class="text-xl font-bold text-green-400">0 / 15</p>
+                </div>
+            </div>
+
+            <div class="flex justify-center pointer-events-auto mb-4">
+                <div class="panel w-full max-w-4xl p-6 rounded-2xl flex flex-col md:flex-row gap-8 items-center border-t-4 border-sky-500 relative">
+                    
+                    <!-- Restart button overlaid during sim -->
+                    <button id="btn-restart" onclick="app.restartSim()" class="hidden absolute -top-12 right-0 bg-red-600/90 hover:bg-red-500 text-white text-xs font-bold py-2 px-4 rounded-lg uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                        Abort & Restart
+                    </button>
+
+                    <div class="flex-1 text-sm md:text-base text-slate-200" id="hud-description"></div>
+
+                    <div class="flex flex-col gap-4 min-w-[250px]">
+                        <div class="flex items-center gap-3">
+                            <input type="number" id="sim-input" class="input-sci rounded-lg px-4 py-2 w-full text-xl text-center font-bold" placeholder="0" step="any">
+                            <span id="sim-unit" class="text-sky-300 font-bold w-12 text-left">m</span>
+                        </div>
+                        <button id="btn-simulate" onclick="app.runSimulation()" class="btn-sci text-white font-bold py-3 rounded-lg uppercase tracking-wider w-full">
+                            Simulate
+                        </button>
+                        <button id="btn-next" onclick="app.nextPhase()" class="hidden bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg uppercase tracking-wider w-full transition-all shadow-[0_0_15px_rgba(34,197,94,0.5)]">
+                            Next Phase
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Modal -->
+        <div id="feedback-modal" class="hidden absolute panel rounded-2xl p-6 border-2 flex flex-col items-center gap-4 animate-bounce z-50 pointer-events-auto">
+            <h3 id="feedback-title" class="text-2xl font-bold">Target Hit</h3>
+            <p id="feedback-msg" class="text-center text-slate-300">Perfect calculation.</p>
+            <div class="text-3xl font-bold text-yellow-400" id="feedback-pts">+5 pts</div>
+        </div>
+
+        <!-- Screen: Results -->
+        <div id="screen-results" class="hidden panel rounded-2xl p-8 max-w-lg w-full mx-4 flex flex-col gap-6 relative overflow-hidden">
+            <div class="absolute inset-0 bg-sky-900/20 blur-3xl rounded-full"></div>
+            <div class="relative z-10 text-center">
+                <h1 class="text-4xl font-bold text-sky-400 glow-text mb-2">Mission Complete</h1>
+                <p class="text-slate-300 text-lg">Evaluation for Cadet <span id="res-name" class="font-bold text-white"></span></p>
+            </div>
+            
+            <div class="relative z-10 my-2 p-6 bg-slate-900/80 rounded-xl border border-slate-700 text-center flex flex-col items-center">
+                <p class="text-sm uppercase tracking-widest text-slate-400 mb-2">Final Grade</p>
+                <div class="flex justify-center items-end gap-2">
+                    <span id="res-score" class="text-6xl font-bold text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">15</span>
+                    <span class="text-2xl text-slate-500 mb-1">/ 15</span>
+                </div>
+                <!-- Gray alphanumeric string exactly beneath score, no labels -->
+                <p id="res-code" class="text-sm font-mono text-gray-500 tracking-[0.2em] mt-2"></p>
+            </div>
+
+            <button onclick="location.reload()" class="relative z-10 btn-sci text-white font-bold text-sm rounded-lg py-3 mt-2 uppercase tracking-widest">
+                Restart Academy
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const app = {
+            state: {
+                name: '',
+                currentPhase: 0, 
+                /* 
+                  Phases:
+                  0: Login
+                  1: Theory 1
+                  2: Mission 1
+                  3: Theory 2
+                  4: Mission 2
+                  5: Theory 3
+                  6: Mission 3
+                  7: Results
+                */
+                scores: [0, 0, 0],
+                missionParams: {},
+                isSimulating: false,
+                simTime: 0,
+                lastTime: 0,
+                entities: {},
+                feedbackShown: false
+            },
+
+            config: {
+                scale: 3, 
+                camX: 0,
+                camY: 0
+            },
+
+            canvas: null,
+            ctx: null,
+            stars: [],
+
+            init() {
+                this.canvas = document.getElementById('simCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                for(let i=0; i<200; i++) {
+                    this.stars.push({
+                        x: Math.random() * 2000 - 1000,
+                        y: Math.random() * 2000 - 1000,
+                        size: Math.random() * 2,
+                        speed: Math.random() * 0.5 + 0.1
+                    });
+                }
+                requestAnimationFrame((t) => this.renderLoop(t));
+            },
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            },
+
+            showScreen(id) {
+                ['screen-login', 'screen-theory', 'screen-hud', 'screen-results'].forEach(s => {
+                    document.getElementById(s).classList.add('hidden');
+                });
+                if(id) document.getElementById(id).classList.remove('hidden');
+                document.getElementById('feedback-modal').classList.add('hidden');
+            },
+
+            nextPhase() {
+                if(this.state.currentPhase === 0) {
+                    const nameInput = document.getElementById('studentName').value.trim();
+                    if(nameInput.length < 1) {
+                        document.getElementById('login-error').classList.remove('hidden');
+                        return;
+                    }
+                    this.state.name = nameInput;
+                }
+                this.state.currentPhase++;
+                this.setupPhase();
+            },
+
+            generateRandomParams() {
+                // Generates random variations for each mission
+                if(this.state.currentPhase === 2) {
+                    // Mission 1: Random v (20-60), a (5-15)
+                    let v = Math.floor(Math.random() * 5 + 2) * 10;
+                    let a = Math.floor(Math.random() * 11 + 5); 
+                    this.state.missionParams = { v: v, a: a, mass: 1000, targetX: 0 };
+                } 
+                else if (this.state.currentPhase === 4) {
+                    // Mission 2: Random m (100-500), v (10-40), d (50, 100, 150)
+                    let v = Math.floor(Math.random() * 4 + 1) * 10;
+                    let m = Math.floor(Math.random() * 9 + 2) * 50; 
+                    let d = Math.floor(Math.random() * 3 + 1) * 50; 
+                    this.state.missionParams = { v: v, m: m, d: d };
+                }
+                else if (this.state.currentPhase === 6) {
+                    // Mission 3: Random m (80-120), t (2-6), v (2-10)
+                    let m = Math.floor(Math.random() * 5 + 8) * 10;
+                    let t = Math.floor(Math.random() * 5 + 2);
+                    let v = Math.floor(Math.random() * 5 + 1) * 2;
+                    this.state.missionParams = { m: m, t: t, v: v };
+                }
+            },
+
+            setupPhase() {
+                this.state.isSimulating = false;
+                this.state.feedbackShown = false;
+                document.getElementById('feedback-modal').classList.add('hidden');
+                document.getElementById('btn-restart').classList.add('hidden');
+                
+                const phase = this.state.currentPhase;
+
+                if (phase === 1 || phase === 3 || phase === 5) {
+                    this.showTheoryScreen(phase);
+                } 
+                else if (phase === 2 || phase === 4 || phase === 6) {
+                    this.generateRandomParams();
+                    this.setupEntities();
+                    this.showScreen('screen-hud');
+                    this.updateHUD();
+                } 
+                else if (phase === 7) {
+                    this.showResults();
+                }
+            },
+
+            showTheoryScreen(phase) {
+                this.showScreen('screen-theory');
+                const title = document.getElementById('theory-title');
+                const sub = document.getElementById('theory-subtitle');
+                const content = document.getElementById('theory-content');
+
+                if(phase === 1) {
+                    title.innerText = "Newton's 1st Law";
+                    sub.innerText = "The Law of Inertia";
+                    content.innerHTML = `
+                        <p><strong>Definition:</strong> An object at rest stays at rest, and an object in motion stays in motion with the same speed and in the same direction unless acted upon by an unbalanced force.</p>
+                        <p>In the vacuum of space, there is no air resistance or friction. If a spacecraft is coasting at a constant velocity, it will continue doing so forever.</p>
+                        <p>To change its velocity (to slow down and stop), an external force must be applied via thrusters, which causes an acceleration (or deceleration). You can predict stopping distance using kinematics: <strong>v² = v₀² + 2ad</strong>.</p>
+                    `;
+                } else if (phase === 3) {
+                    title.innerText = "Newton's 2nd Law";
+                    sub.innerText = "F = ma";
+                    content.innerHTML = `
+                        <p><strong>Definition:</strong> The acceleration of an object is directly proportional to the net force acting upon it and inversely proportional to its mass.</p>
+                        <p>Formula: <strong>F = m × a</strong> (Force equals mass times acceleration).</p>
+                        <p>If you want to move a heavy cargo crate, you need to apply a force. The more mass (m) the crate has, or the faster you want it to accelerate (a), the more force (F) your tractor beam must output.</p>
+                    `;
+                } else if (phase === 5) {
+                    title.innerText = "Newton's 3rd Law";
+                    sub.innerText = "Action and Reaction";
+                    content.innerHTML = `
+                        <p><strong>Definition:</strong> For every action, there is an equal and opposite reaction.</p>
+                        <p>If you push against a massive object in space (like a heavy satellite), it pushes back on you with the exact same amount of force.</p>
+                        <p>Since your mass is much smaller than the satellite's, that equal force will cause you to accelerate away quickly (a = F/m). You can calculate your final velocity after pushing for a certain time using <strong>v = a × t</strong>.</p>
+                    `;
+                }
+            },
+
+            setupEntities() {
+                const p = this.state.missionParams;
+                this.config.camX = 0;
+
+                if (this.state.currentPhase === 2) {
+                    // Law 1 Entities
+                    // Probe starts far enough back so it can decelerate in time before hitting x=0
+                    const reqDist = (p.v * p.v) / (2 * p.a);
+                    const startX = -(reqDist + 200); // Give 200m of coasting before required ignition
+                    
+                    this.state.entities = {
+                        probe: { x: startX, y: 0, v: p.v, a: 0, type: 'ship' },
+                        pad: { x: 0, y: 0, type: 'pad' }
+                    };
+                    this.config.camX = this.state.entities.probe.x + 100;
+
+                } else if (this.state.currentPhase === 4) {
+                    // Law 2 Entities
+                    this.state.entities = {
+                        crate: { x: 0, y: 0, v: 0, a: 0, type: 'crate' },
+                        beamSource: { x: -100, y: 0, type: 'beam' },
+                        target: { x: p.d, y: 0, type: 'targetline' }
+                    };
+                    this.config.camX = 0;
+
+                } else if (this.state.currentPhase === 6) {
+                    // Law 3 Entities
+                    this.state.entities = {
+                        astro: { x: 0, y: 0, v: 0, a: 0, type: 'astro' },
+                        sat: { x: 20, y: 0, type: 'sat' },
+                        station: { x: -100, y: 0, type: 'station' }
+                    };
+                    this.config.camX = 0;
+                }
+            },
+
+            updateHUD() {
+                document.getElementById('btn-simulate').classList.remove('hidden');
+                document.getElementById('btn-next').classList.add('hidden');
+                document.getElementById('sim-input').value = '';
+                document.getElementById('sim-input').disabled = false;
+                
+                const title = document.getElementById('hud-title');
+                const subtitle = document.getElementById('hud-subtitle');
+                const desc = document.getElementById('hud-description');
+                const unit = document.getElementById('sim-unit');
+                const p = this.state.missionParams;
+                
+                let scoreText = this.state.scores.reduce((a,b)=>a+b, 0);
+                document.getElementById('hud-score').innerText = `${scoreText} / 15`;
+
+                if (this.state.currentPhase === 2) {
+                    title.innerText = "Mission 1: The Void";
+                    subtitle.innerText = "Newton's 1st Law";
+                    desc.innerHTML = `Your probe is coasting at <strong>${p.v} m/s</strong>. Firing the retro-thrusters applies a deceleration of <strong>-${p.a} m/s²</strong>. You must stop the probe exactly on the landing pad (x = 0).<br><br>At what exact distance (in meters) from the pad should you ignite the thrusters?`;
+                    unit.innerText = "m";
+                } else if (this.state.currentPhase === 4) {
+                    title.innerText = "Mission 2: Cargo Sync";
+                    subtitle.innerText = "Newton's 2nd Law";
+                    desc.innerHTML = `You need to accelerate a <strong>${p.m} kg</strong> cargo crate from rest to exactly <strong>${p.v} m/s</strong> over a distance of <strong>${p.d} m</strong> to sync with a passing ship.<br><br>How much continuous force (in Newtons) must your tractor beam apply?`;
+                    unit.innerText = "N";
+                } else if (this.state.currentPhase === 6) {
+                    title.innerText = "Mission 3: Spacewalk Rescue";
+                    subtitle.innerText = "Newton's 3rd Law";
+                    desc.innerHTML = `You (mass <strong>${p.m} kg</strong>) are stranded near a heavy, stationary satellite. You must push off the satellite for exactly <strong>${p.t} seconds</strong> to coast back to the station at exactly <strong>${p.v} m/s</strong>.<br><br>What constant Force (in Newtons) must you exert on the satellite during the push?`;
+                    unit.innerText = "N";
+                }
+            },
+
+            restartSim() {
+                this.state.isSimulating = false;
+                this.setupEntities(); // Reset positions
+                document.getElementById('btn-simulate').classList.remove('hidden');
+                document.getElementById('btn-restart').classList.add('hidden');
+                document.getElementById('sim-input').disabled = false;
+                document.getElementById('feedback-modal').classList.add('hidden');
+                this.state.feedbackShown = false;
+            },
+
+            runSimulation() {
+                const inputVal = parseFloat(document.getElementById('sim-input').value);
+                if(isNaN(inputVal)) return;
+
+                document.getElementById('sim-input').disabled = true;
+                document.getElementById('btn-simulate').classList.add('hidden');
+                document.getElementById('btn-restart').classList.remove('hidden');
+                
+                this.state.inputValue = inputVal;
+                this.state.isSimulating = true;
+                this.state.simTime = 0;
+            },
+
+            showFeedback(title, msg, pts, isSuccess) {
+                if(this.state.feedbackShown) return;
+                this.state.feedbackShown = true;
+                
+                // Which array index based on phase? (Phase 2->0, Phase 4->1, Phase 6->2)
+                const scoreIdx = (this.state.currentPhase / 2) - 1;
+                this.state.scores[scoreIdx] = pts;
+
+                const modal = document.getElementById('feedback-modal');
+                modal.classList.remove('hidden');
+                document.getElementById('btn-restart').classList.add('hidden');
+                document.getElementById('feedback-title').innerText = title;
+                document.getElementById('feedback-msg').innerText = msg;
+                document.getElementById('feedback-pts').innerText = `+${pts} pts`;
+
+                if(isSuccess) {
+                    modal.classList.remove('border-red-500', 'bg-red-900/90');
+                    modal.classList.add('border-green-500', 'bg-green-900/90');
+                    document.getElementById('feedback-title').className = 'text-2xl font-bold text-green-400';
+                } else {
+                    modal.classList.remove('border-green-500', 'bg-green-900/90');
+                    modal.classList.add('border-red-500', 'bg-red-900/90');
+                    document.getElementById('feedback-title').className = 'text-2xl font-bold text-red-400';
+                }
+
+                document.getElementById('btn-next').classList.remove('hidden');
+                let scoreText = this.state.scores.reduce((a,b)=>a+b, 0);
+                document.getElementById('hud-score').innerText = `${scoreText} / 15`;
+            },
+
+            generateCertificateCode(name) {
+                let prefix = name.replace(/[^a-zA-Z]/g, '').padEnd(3, 'x').toLowerCase().substring(0, 3);
+                let chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                let codeArr = new Array(12).fill('');
+                
+                let positions = [];
+                while(positions.length < 3) {
+                    let r = Math.floor(Math.random() * 12);
+                    if(!positions.includes(r)) positions.push(r);
+                }
+                positions.sort((a,b) => a-b);
+                
+                codeArr[positions[0]] = prefix[0];
+                codeArr[positions[1]] = prefix[1];
+                codeArr[positions[2]] = prefix[2];
+                
+                for(let i=0; i<12; i++) {
+                    if(codeArr[i] === '') codeArr[i] = chars[Math.floor(Math.random() * chars.length)];
+                }
+                return codeArr.join('');
+            },
+
+            showResults() {
+                this.showScreen('screen-results');
+                document.getElementById('res-name').innerText = this.state.name;
+                
+                const finalScore = this.state.scores.reduce((a,b)=>a+b, 0);
+                document.getElementById('res-score').innerText = finalScore;
+
+                const code = this.generateCertificateCode(this.state.name);
+                document.getElementById('res-code').innerText = code;
+                
+                const scoreEl = document.getElementById('res-score');
+                scoreEl.className = 'text-6xl font-bold ' + (finalScore >= 12 ? 'text-green-400' : finalScore >= 8 ? 'text-yellow-400' : 'text-red-400') + ' drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]';
+            },
+
+            updatePhysics(dt) {
+                if(!this.state.isSimulating || dt > 0.1) return;
+                
+                this.state.simTime += dt;
+                const p = this.state.missionParams;
+
+                if (this.state.currentPhase === 2) {
+                    // Mission 1: Inertia
+                    const probe = this.state.entities.probe;
+                    const inputDist = this.state.inputValue; 
+                    
+                    if (probe.x >= -inputDist && probe.v > 0) {
+                        probe.a = -p.a; 
+                    } else if (probe.v <= 0) {
+                        probe.a = 0;
+                        probe.v = 0;
+                    }
+
+                    probe.v += probe.a * dt;
+                    if(probe.v < 0) probe.v = 0;
+                    probe.x += probe.v * dt;
+
+                    // Dynamic camera
+                    this.config.camX = probe.x + 100;
+
+                    if (probe.v === 0) {
+                        this.state.isSimulating = false;
+                        const error = Math.abs(probe.x - 0); 
+                        let pts = 0;
+                        if(error < 1) pts = 5;
+                        else if(error < 5) pts = 4;
+                        else if(error < 15) pts = 3;
+                        else if(error < 30) pts = 1;
+                        
+                        let msg = error < 1 ? "Flawless landing!" : error < 15 ? `Missed center by ${error.toFixed(1)}m.` : `Crashed! Missed by ${error.toFixed(1)}m.`;
+                        this.showFeedback(pts >= 4 ? "Success" : "Suboptimal", msg, pts, pts >= 3);
+                    } else if (probe.x > 50) {
+                         this.state.isSimulating = false;
+                         this.showFeedback("Total Failure", "Probe flew right past the station!", 0, false);
+                    }
+                } 
+                else if (this.state.currentPhase === 4) {
+                    // Mission 2: F=ma
+                    const crate = this.state.entities.crate;
+                    const force = this.state.inputValue;
+                    
+                    crate.a = force / p.m;
+                    crate.v += crate.a * dt;
+                    crate.x += crate.v * dt;
+
+                    // Camera follows crate, panning out
+                    this.config.camX = crate.x / 2 - 50;
+
+                    if (crate.x >= p.d) {
+                        this.state.isSimulating = false;
+                        const error = Math.abs(crate.v - p.v);
+                        let pts = 0;
+                        if(error < 0.1) pts = 5;
+                        else if(error < 1.0) pts = 4;
+                        else if(error < 3.0) pts = 3;
+                        else if(error < 6.0) pts = 1;
+
+                        let msg = error < 0.1 ? "Perfect synchronization velocity!" : `Final velocity was ${crate.v.toFixed(1)} m/s (Target: ${p.v} m/s).`;
+                        this.showFeedback(pts >= 4 ? "Sync Successful" : "Sync Failed", msg, pts, pts >= 3);
+                    }
+                }
+                else if (this.state.currentPhase === 6) {
+                    // Mission 3: Action/Reaction (Push off satellite)
+                    const astro = this.state.entities.astro;
+                    const force = this.state.inputValue;
+                    
+                    if(this.state.simTime <= p.t) {
+                        // Push Phase (acceleration)
+                        // F = ma -> a = F/m. Since they want to go towards negative X (station is at -100), 
+                        // if they enter positive force, we apply it towards the station (negative dir).
+                        astro.a = -Math.abs(force) / p.m;
+                    } else {
+                        // Coast Phase (zero acceleration)
+                        astro.a = 0;
+                    }
+
+                    astro.v += astro.a * dt;
+                    astro.x += astro.v * dt;
+
+                    // Dynamic camera
+                    this.config.camX = astro.x;
+
+                    if (astro.x <= -100) {
+                        this.state.isSimulating = false;
+                        const finalSpeed = Math.abs(astro.v);
+                        const error = Math.abs(finalSpeed - p.v);
+                        let pts = 0;
+                        if(error < 0.05) pts = 5;
+                        else if(error < 0.5) pts = 4;
+                        else if(error < 1.5) pts = 3;
+                        else pts = 1;
+
+                        let msg = error < 0.05 ? "Perfect velocity approach!" : `Approached at ${finalSpeed.toFixed(1)} m/s (Target: ${p.v} m/s).`;
+                        this.showFeedback(pts >= 4 ? "Rescue Successful" : "Rough Docking", msg, pts, pts >= 3);
+                    }
+                }
+            },
+
+            renderLoop(timestamp) {
+                const dt = (timestamp - this.state.lastTime) / 1000;
+                this.state.lastTime = timestamp;
+
+                this.updatePhysics(dt);
+                this.draw();
+
+                requestAnimationFrame((t) => this.renderLoop(t));
+            },
+
+            draw() {
+                const ctx = this.ctx;
+                const cw = this.canvas.width;
+                const ch = this.canvas.height;
+                const cx = cw / 2;
+                const cy = ch / 2;
+
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, cw, ch);
+
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                this.stars.forEach(s => {
+                    let px = s.x - (this.config.camX * s.speed * this.config.scale);
+                    px = ((px % cw) + cw) % cw;
+                    ctx.beginPath();
+                    ctx.arc(px, cy + s.y, s.size, 0, Math.PI*2);
+                    ctx.fill();
+                });
+
+                // Only draw physics if in a mission phase
+                if (this.state.currentPhase !== 2 && this.state.currentPhase !== 4 && this.state.currentPhase !== 6) return;
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                
+                const s = this.config.scale;
+                const camX = this.config.camX;
+                const screenX = (px) => (px - camX) * s;
+
+                // Ground Grid Line
+                ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                ctx.beginPath();
+                ctx.moveTo(-cw/2, 0); ctx.lineTo(cw/2, 0);
+                ctx.stroke();
+
+                if (this.state.currentPhase === 2) {
+                    // M1: Pad
+                    const padX = screenX(this.state.entities.pad.x);
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(padX - 20, -10, 40, 20);
+                    ctx.strokeRect(padX - 20, -10, 40, 20);
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillText("TARGET", padX - 20, 25);
+
+                    // M1: Firing Line Indicator
+                    if(this.state.isSimulating || this.state.feedbackShown) {
+                        const fireX = screenX(-this.state.inputValue);
+                        ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+                        ctx.setLineDash([5, 5]);
+                        ctx.beginPath();
+                        ctx.moveTo(fireX, -50); ctx.lineTo(fireX, 50);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = '#eab308';
+                        ctx.fillText("IGNITE", fireX - 15, -60);
+                    }
+
+                    // M1: Probe
+                    const probe = this.state.entities.probe;
+                    const pX = screenX(probe.x);
+                    
+                    if (probe.a < 0) {
+                        ctx.fillStyle = '#f97316';
+                        ctx.beginPath();
+                        ctx.moveTo(pX + 15, 0);
+                        ctx.lineTo(pX + 35 + Math.random()*10, -5);
+                        ctx.lineTo(pX + 35 + Math.random()*10, 5);
+                        ctx.fill();
+                    }
+
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.moveTo(pX + 15, 0);
+                    ctx.lineTo(pX - 15, -10);
+                    ctx.lineTo(pX - 15, 10);
+                    ctx.fill();
+
+                } else if (this.state.currentPhase === 4) {
+                    // M2: Beam Source
+                    const beamX = screenX(this.state.entities.beamSource.x);
+                    const crateX = screenX(this.state.entities.crate.x);
+                    
+                    if (this.state.isSimulating && this.state.entities.crate.x < this.state.missionParams.d) {
+                        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+                        ctx.lineWidth = 4 + Math.random()*4;
+                        ctx.beginPath();
+                        ctx.moveTo(beamX, 0); ctx.lineTo(crateX, 0);
+                        ctx.stroke();
+                    }
+
+                    // M2: Target Line
+                    const tX = screenX(this.state.entities.target.x);
+                    ctx.strokeStyle = '#22c55e';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(tX, -50); ctx.lineTo(tX, 50);
+                    ctx.stroke();
+                    ctx.fillStyle = '#22c55e';
+                    ctx.fillText(`${this.state.missionParams.d}m MARK`, tX - 30, -60);
+
+                    // M2: Crate
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(crateX - 15, -15, 30, 30);
+                    ctx.strokeRect(crateX - 15, -15, 30, 30);
+
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(`v = ${this.state.entities.crate.v.toFixed(1)} m/s`, crateX - 25, 30);
+
+                } else if (this.state.currentPhase === 6) {
+                    // M3: Station
+                    const sX = screenX(this.state.entities.station.x);
+                    ctx.fillStyle = '#64748b';
+                    ctx.fillRect(sX - 40, -40, 40, 80);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(sX - 10, -10, 10, 20); // airlock
+
+                    // M3: Satellite
+                    const satX = screenX(this.state.entities.sat.x);
+                    ctx.fillStyle = '#475569';
+                    ctx.fillRect(satX, -30, 60, 60);
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.fillRect(satX+10, -20, 40, 40);
+
+                    // M3: Astronaut
+                    const astro = this.state.entities.astro;
+                    const aX = screenX(astro.x);
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.beginPath();
+                    ctx.arc(aX, 0, 10, 0, Math.PI*2);
+                    ctx.fill();
+
+                    // Phase HUD
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.font = '12px sans-serif';
+                    
+                    let phaseText = "AWAITING PUSH";
+                    if(this.state.isSimulating) {
+                        phaseText = (this.state.simTime <= this.state.missionParams.t) ? "PUSH PHASE" : "COAST PHASE";
+                    }
+
+                    ctx.fillText(phaseText, aX - 35, -25);
+                    ctx.fillText(`v = ${Math.abs(astro.v).toFixed(2)} m/s`, aX - 35, 25);
+                    ctx.fillText(`a = ${Math.abs(astro.a).toFixed(2)} m/s²`, aX - 35, 40);
+                }
+
+                ctx.restore();
+            }
+        };
+
+        window.onload = () => {
+            app.init();
+        };
+    </script>
+</body>
+</html>
