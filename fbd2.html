@@ -144,6 +144,12 @@
                     <!-- Multiple Choice Section (Hidden initially until FBD is passed) -->
                     <div id="mcqSection" class="hidden">
                         <h3 class="font-semibold text-lg mb-4" id="mcqQuestion">Question goes here?</h3>
+                        
+                        <!-- NEW: Dedicated Canvas for drawing FBDs in the MCQ -->
+                        <div class="flex justify-center w-full mb-6">
+                            <canvas id="mcqFbdCanvas" width="200" height="200" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
+                        </div>
+
                         <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
                             <!-- Radio buttons injected via JS -->
                         </div>
@@ -214,96 +220,118 @@
     let fails = 0;
 
     // --- Physics Scenarios Data ---
-    const steps = [
-        {
-            title: "1. Resting on a Table",
-            desc: "An object is resting on a horizontal table. Construct the FBD. Hint: Forces must be balanced.",
-            scenarioType: 'floor',
-            elevatorAccel: 0,
-            expectedFn: 1.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-            fbdErrorFeedback: "Hint: If it's resting on a table, it's not accelerating. Make N and mg equal.",
-            question: "Explain why these two arrows (N and mg) must be the exact same length?",
-            options: [
-                { id: 'opt1', text: "Gravity always equals normal force in every situation.", isCorrect: false, feedback: "Not in elevators! Think about acceleration." },
-                { id: 'opt2', text: "Because it is not accelerating, so Fnet = 0.", isCorrect: true, feedback: "Correct, {name}! Since it is resting (a=0), the math is: \\( F_{net} = ma \\implies N - mg = m(0) \\implies N - mg = 0 \\implies N = mg \\)." },
-                { id: 'opt3', text: "Because the table is strong.", isCorrect: false, feedback: "While true, the physics reason relates to acceleration." }
-            ]
-        },
-        {
-            title: "2. Elevator Accelerating Upwards",
-            desc: "An elevator is accelerating UPWARDS at +1.0g. Build the FBD with N = 2.0 mg and mg = 1.0 mg.",
-            scenarioType: 'elevator',
-            elevatorAccel: 1.0,
-            expectedFn: 2.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-            fbdErrorFeedback: "Hint: Make N=2.0 and mg=1.0.",
-            question: "Why is the normal force twice as long as gravity?",
-            options: [
-                { id: 'opt1', text: "Because gravity is doubled in an elevator.", isCorrect: false, feedback: "Gravity never changes! Only the Normal force changes." },
-                { id: 'opt2', text: "Because the net force must be 1mg upwards.", isCorrect: true, feedback: "Awesome! We can prove it using math: \\( F_{net} = ma \\implies 2mg - mg = ma \\implies 1mg = ma \\implies 1g = a \\)." },
-                { id: 'opt3', text: "Normal force is always twice gravity when moving.", isCorrect: false, feedback: "Only when accelerating exactly at +1.0g." }
-            ]
-        },
-        {
-            title: "3. Elevator Faster Upwards",
-            desc: "The elevator accelerates even faster! Build the FBD with N = 3.0 mg and mg = 1.0 mg.",
-            scenarioType: 'elevator',
-            elevatorAccel: 2.0,
-            expectedFn: 3.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-            fbdErrorFeedback: "Hint: N needs to be 3.0 and mg stays 1.0.",
-            question: "Just by looking at the FBD, could you estimate the number of g's the acceleration would be?",
-            options: [
-                { id: 'opt1', text: "+1.0g", isCorrect: false, feedback: "That's if N=2mg. Calculate \\( F_{net} \\)." },
-                { id: 'opt2', text: "+2.0g", isCorrect: true, feedback: "Spot on! The math proves it: \\( F_{net} = ma \\implies 3mg - mg = ma \\implies 2mg = ma \\implies 2g = a \\)." },
-                { id: 'opt3', text: "+3.0g", isCorrect: false, feedback: "You didn't subtract gravity! Re-calculate \\( F_{net} \\)." }
-            ]
-        },
-        {
-            title: "4. Elevator Gentle Acceleration",
-            desc: "Now, a gentle start. Build the FBD with N = 1.5 mg and mg = 1.0 mg.",
-            scenarioType: 'elevator',
-            elevatorAccel: 0.5,
-            expectedFn: 1.5, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-            fbdErrorFeedback: "Hint: Set N to 1.5 mg.",
-            question: "Calculate the acceleration in g's for this free body diagram.",
-            options: [
-                { id: 'opt1', text: "+0.5g", isCorrect: true, feedback: "Perfect! We set it up like this: \\( F_{net} = ma \\implies 1.5mg - mg = ma \\implies 0.5mg = ma \\implies 0.5g = a \\)." },
-                { id: 'opt2', text: "+1.5g", isCorrect: false, feedback: "You forgot to subtract gravity." },
-                { id: 'opt3', text: "+9.8 g", isCorrect: false, feedback: "That's way too fast! Calculate net force in terms of mg first." }
-            ]
-        },
-        {
-            title: "5. Car Accelerating Right",
-            desc: "A car is accelerating to the right. Drag (D) pushes backwards (left) at -1.0 mg. Build the FBD so the net force creates an acceleration of a = +1.5g.",
-            scenarioType: 'racecar',
-            carAccel: 1.5,
-            expectedFn: 1.0, expectedFg: 1.0, expectedFs: 2.5, expectedD: -1.0,
-            fbdErrorFeedback: "Hint: We need a net force of +1.5. If D is -1.0 (left), f_s must be +2.5 (right) so that 2.5 + (-1.0) = +1.5.",
-            question: "Now imagine a DIFFERENT scenario where the FBD shows \\( f_s = +3.0mg \\) and \\( D = -1.0mg \\). What is the acceleration in g's?",
-            options: [
-                { id: 'opt1', text: "+1.0g", isCorrect: false, feedback: "Close, but subtract properly. \\( F_{net} = f_s + D \\)." },
-                { id: 'opt2', text: "+1.5g", isCorrect: false, feedback: "That was the acceleration for the drawing, but this is a new scenario!" },
-                { id: 'opt3', text: "+2.0g", isCorrect: true, feedback: "Awesome! The math works out: \\( F_{net} = ma \\implies 3.0mg + (-1.0mg) = ma \\implies 2.0mg = ma \\implies +2.0g = a \\)." },
-                { id: 'opt4', text: "+2.5g", isCorrect: false, feedback: "Incorrect. Recalculate net force." },
-                { id: 'opt5', text: "+3.0g", isCorrect: false, feedback: "You forgot to subtract Drag!" }
-            ]
-        },
-        {
-            title: "6. Car Braking (Decelerating)",
-            desc: "The car hits the brakes! Both Drag and Friction point LEFT (negative). Draw an FBD that will give an acceleration of a = -2.0g (slowing down). The Drag force is D = -0.5 mg (left).",
-            scenarioType: 'racecar',
-            carAccel: -2.0,
-            expectedFn: 1.0, expectedFg: 1.0, expectedFs: -1.5, expectedD: -0.5,
-            fbdErrorFeedback: "Hint: We need a net force of -2.0 (left). If D is -0.5, f_s must be -1.5 so that (-1.5) + (-0.5) = -2.0.",
-            question: "Now suppose you have a DIFFERENT FBD showing \\( D = -1.0mg \\) and \\( f_s = -2.0mg \\) (both pointing left). What is the acceleration in g's?",
-            options: [
-                { id: 'opt1', text: "-1.0g", isCorrect: false, feedback: "Since they both point left, they add together in the negative direction, they don't cancel out!" },
-                { id: 'opt2', text: "-1.5g", isCorrect: false, feedback: "Add them up carefully." },
-                { id: 'opt3', text: "-2.0g", isCorrect: false, feedback: "That was the acceleration for the drawing, but this is a new scenario!" },
-                { id: 'opt4', text: "-3.0g", isCorrect: true, feedback: "Correct! The math is: \\( F_{net} = ma \\implies -1.0mg + (-2.0mg) = ma \\implies -3.0mg = ma \\implies -3.0g = a \\)." },
-                { id: 'opt5', text: "+3.0g", isCorrect: false, feedback: "Left is the negative direction! They are slowing the car down." }
-            ]
-        }
-    ];
+    let steps = [];
+
+    function buildOpts(correctA, type, dForce = 0) {
+        let pool = type === 'braking' ? [-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -4.0] : [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
+        let wrongPool = pool.filter(v => v !== correctA);
+        wrongPool.sort(() => 0.5 - Math.random()); // Shuffle
+        let selectedOpts = wrongPool.slice(0, 4);
+        selectedOpts.push(correctA);
+        selectedOpts.sort((a, b) => a - b); // Sort numerically
+        
+        return selectedOpts.map((val, idx) => {
+            let isCorrect = val === correctA;
+            let text = (val > 0 ? "+" : "") + val.toFixed(1) + "g";
+            let feedback = "Not quite. Re-evaluate \\( F_{net} \\) based on the arrows!";
+            if (isCorrect) {
+                if (type === 'elevator') {
+                    feedback = `Perfect! We set it up like this: \\( F_{net} = ma \\implies ${(val + 1.0).toFixed(1)}mg - 1.0mg = ma \\implies ${val.toFixed(1)}mg = ma \\implies ${text} = a \\).`;
+                } else {
+                    let fs = val - dForce;
+                    feedback = `Awesome! The math works out: \\( F_{net} = ma \\implies ${fs > 0 ? '+' : ''}${fs.toFixed(1)}mg + (${dForce.toFixed(1)}mg) = ma \\implies ${val.toFixed(1)}mg = ma \\implies ${text} = a \\).`;
+                }
+            }
+            return { id: 'opt' + idx, text: text, isCorrect: isCorrect, feedback: feedback };
+        });
+    }
+
+    function initSteps() {
+        const rChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        
+        // Randomize MCQs for 4, 5, 6
+        const a4 = rChoice([1.5, 2.0, 2.5, 3.0]); // Random Step 4 target
+        const a5 = rChoice([1.0, 2.0, 2.5, 3.0]); // Random Step 5 target
+        const a6 = rChoice([-1.0, -1.5, -2.5, -3.0]); // Random Step 6 target
+
+        steps = [
+            {
+                title: "1. Resting on a Table",
+                desc: "An object is resting on a horizontal table. Construct the FBD. Hint: Forces must be balanced.",
+                scenarioType: 'floor',
+                elevatorAccel: 0,
+                expectedFn: 1.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: "Hint: If it's resting on a table, it's not accelerating. Make N and mg equal.",
+                question: "Explain why these two arrows (N and mg) must be the exact same length?",
+                options: [
+                    { id: 'opt1', text: "Gravity always equals normal force in every situation.", isCorrect: false, feedback: "Not in elevators! Think about acceleration." },
+                    { id: 'opt2', text: "Because it is not accelerating, so Fnet = 0.", isCorrect: true, feedback: "Correct, {name}! Since it is resting (a=0), the math is: \\( F_{net} = ma \\implies N - mg = m(0) \\implies N - mg = 0 \\implies N = mg \\)." },
+                    { id: 'opt3', text: "Because the table is strong.", isCorrect: false, feedback: "While true, the physics reason relates to acceleration." }
+                ]
+            },
+            {
+                title: "2. Elevator Accelerating Upwards",
+                desc: "An elevator is accelerating UPWARDS at +1.0g. Build the FBD with N = 2.0 mg and mg = 1.0 mg.",
+                scenarioType: 'elevator',
+                elevatorAccel: 1.0,
+                expectedFn: 2.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: "Hint: Make N=2.0 and mg=1.0.",
+                question: "Why is the normal force twice as long as gravity?",
+                options: [
+                    { id: 'opt1', text: "Because gravity is doubled in an elevator.", isCorrect: false, feedback: "Gravity never changes! Only the Normal force changes." },
+                    { id: 'opt2', text: "Because the net force must be 1mg upwards.", isCorrect: true, feedback: "Awesome! We can prove it using math: \\( F_{net} = ma \\implies 2mg - mg = ma \\implies 1mg = ma \\implies 1g = a \\)." },
+                    { id: 'opt3', text: "Normal force is always twice gravity when moving.", isCorrect: false, feedback: "Only when accelerating exactly at +1.0g." }
+                ]
+            },
+            {
+                title: "3. Elevator Faster Upwards",
+                desc: "The elevator accelerates even faster! Build the FBD with N = 3.0 mg and mg = 1.0 mg.",
+                scenarioType: 'elevator',
+                elevatorAccel: 2.0,
+                expectedFn: 3.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: "Hint: N needs to be 3.0 and mg stays 1.0.",
+                question: "Just by looking at the FBD you built, could you estimate the number of g's the acceleration would be?",
+                options: [
+                    { id: 'opt1', text: "Impossible to tell without knowing the exact mass of the object.", isCorrect: false, feedback: "Actually, mass cancels out! \\( F_{net} = ma \\implies 2mg = ma \\implies a = 2g \\)." },
+                    { id: 'opt2', text: "Visually subtract the 1mg down vector from the 3mg up vector to get 2mg net force up, so +2.0g", isCorrect: true, feedback: "Spot on! The math proves your visual intuition: \\( F_{net} = ma \\implies 3mg - mg = ma \\implies 2mg = ma \\implies 2g = a \\)." },
+                    { id: 'opt3', text: "Visually add the vectors together to get 4mg up, so +4.0g", isCorrect: false, feedback: "They are pointing in opposite directions, so they subtract, they don't add! Re-calculate \\( F_{net} \\)." }
+                ]
+            },
+            {
+                title: "4. Elevator Gentle Acceleration",
+                desc: "Now, a gentle start. Build the FBD with N = 1.5 mg and mg = 1.0 mg.",
+                scenarioType: 'elevator',
+                elevatorAccel: 0.5,
+                expectedFn: 1.5, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: "Hint: Set N to 1.5 mg.",
+                question: "Look at this NEW Free Body Diagram below. Calculate the acceleration in g's.",
+                mcqFbd: { fn: a4 + 1.0, fg: 1.0, fs: 0.0, d: 0.0 },
+                options: buildOpts(a4, 'elevator')
+            },
+            {
+                title: "5. Car Accelerating Right",
+                desc: "A car is accelerating to the right. Drag (D) pushes backwards (left) at -1.0 mg. Build the FBD so the net force creates an acceleration of a = +1.5g.",
+                scenarioType: 'racecar',
+                carAccel: 1.5,
+                expectedFn: 1.0, expectedFg: 1.0, expectedFs: 2.5, expectedD: -1.0,
+                fbdErrorFeedback: "Hint: We need a net force of +1.5. If D is -1.0 (left), f_s must be +2.5 (right) so that 2.5 + (-1.0) = +1.5.",
+                question: "Look at the Free Body Diagram below representing a DIFFERENT scenario. What is the acceleration in g's?",
+                mcqFbd: { fn: 1.0, fg: 1.0, fs: a5 - (-1.0), d: -1.0 },
+                options: buildOpts(a5, 'car', -1.0)
+            },
+            {
+                title: "6. Car Braking (Decelerating)",
+                desc: "The car hits the brakes! Both Drag and Friction point LEFT (negative). Draw an FBD that will give an acceleration of a = -2.0g (slowing down). The Drag force is D = -0.5 mg (left).",
+                scenarioType: 'racecar',
+                carAccel: -2.0,
+                expectedFn: 1.0, expectedFg: 1.0, expectedFs: -1.5, expectedD: -0.5,
+                fbdErrorFeedback: "Hint: We need a net force of -2.0 (left). If D is -0.5, f_s must be -1.5 so that (-1.5) + (-0.5) = -2.0.",
+                question: "Look at this new FBD below for a braking car. What is the acceleration in g's?",
+                mcqFbd: { fn: 1.0, fg: 1.0, fs: a6 - (-1.0), d: -1.0 },
+                options: buildOpts(a6, 'braking', -1.0)
+            }
+        ];
+    }
 
     // --- DOM Elements ---
     const welcomeScreen = document.getElementById('welcomeScreen');
@@ -335,6 +363,8 @@
     const fbdLockMessage = document.getElementById('fbdLockMessage');
     const mcqSection = document.getElementById('mcqSection');
     const mcqQuestion = document.getElementById('mcqQuestion');
+    const mcqFbdCanvas = document.getElementById('mcqFbdCanvas');
+    const mCtx = mcqFbdCanvas.getContext('2d');
     const optionsContainer = document.getElementById('optionsContainer');
     const submitAnswerBtn = document.getElementById('submitAnswerBtn');
     const nextStepBtn = document.getElementById('nextStepBtn');
@@ -350,6 +380,7 @@
         const name = studentNameInput.value.trim();
         if (name.length > 0) {
             studentName = name;
+            initSteps(); // Initialize and randomize questions for this student
             welcomeScreen.classList.add('hidden');
             loadStep();
         } else {
@@ -539,6 +570,36 @@
         }
     }
 
+    function renderMcqFbd(forces) {
+        mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
+        const cx = mcqFbdCanvas.width / 2;
+        const cy = mcqFbdCanvas.height / 2;
+        const scale = 30; 
+
+        // Center Dot
+        mCtx.fillStyle = '#0f172a';
+        mCtx.beginPath();
+        mCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+        mCtx.fill();
+
+        if (forces.fn > 0) drawArrow(mCtx, cx, cy, cx, cy - forces.fn * scale, '#2563eb', 'N');
+        if (forces.fg > 0) drawArrow(mCtx, cx, cy, cx, cy + forces.fg * scale, '#dc2626', 'mg');
+        
+        if (forces.fs !== 0) {
+            const fsLen = Math.abs(forces.fs) * scale;
+            const tox = forces.fs > 0 ? cx + fsLen : cx - fsLen;
+            drawArrow(mCtx, cx, cy, tox, cy, '#10b981', 'f_s');
+        }
+
+        if (forces.d !== 0) {
+            const dLen = Math.abs(forces.d) * scale;
+            const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
+            const yOffset = sameSide ? -10 : 0;
+            const tox = forces.d > 0 ? cx + dLen : cx - dLen;
+            drawArrow(mCtx, cx, cy + yOffset, tox, cy + yOffset, '#f97316', 'D');
+        }
+    }
+
     // --- Interaction Logic ---
     function updateFbdState() {
         if(fbdLocked) return;
@@ -597,6 +658,15 @@
         
         const step = steps[currentStepIndex];
         mcqQuestion.textContent = step.question;
+
+        // Draw custom MCQ FBD if it exists
+        if (step.mcqFbd) {
+            mcqFbdCanvas.classList.remove('hidden');
+            renderMcqFbd(step.mcqFbd);
+        } else {
+            mcqFbdCanvas.classList.add('hidden');
+        }
+
         optionsContainer.innerHTML = '';
         
         step.options.forEach(opt => {
@@ -668,8 +738,11 @@
     }
 
     function showMcqFeedback(message, type) {
-        mcqFeedback.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-emerald-100', 'text-emerald-700', 'bg-amber-100', 'text-amber-800');
+        // Completely reset classes to ensure old colors (red/green) don't conflict
+        mcqFeedback.className = "mt-4 p-4 rounded-lg text-sm font-medium"; 
+        mcqFeedback.classList.remove('hidden');
         mcqFeedback.innerHTML = message;
+        
         if (type === 'success') mcqFeedback.classList.add('bg-emerald-100', 'text-emerald-800', 'border', 'border-emerald-200');
         else if (type === 'error') mcqFeedback.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
         else mcqFeedback.classList.add('bg-amber-50', 'text-amber-800', 'border', 'border-amber-200');
