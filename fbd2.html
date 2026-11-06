@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elevator Physics: Newton's 2nd Law</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .canvas-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; }
+        canvas { width: 100%; height: auto; border-radius: 0.5rem; background: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #2563eb; cursor: pointer; margin-top: -8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; cursor: pointer; background: #cbd5e1; border-radius: 3px;
+        }
+        .ai-glow { animation: ai-pulse 2s infinite; }
+        @keyframes ai-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+        }
+        .hidden { display: none !important; }
+        .confetti-piece { position: fixed; width: 10px; height: 10px; z-index: 9999; pointer-events: none; }
+    </style>
+    <!-- MathJax for rendering LaTeX from AI and hardcoded questions -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body class="text-slate-800">
+
+    <!-- Welcome / Name Input Screen -->
+    <div id="welcomeScreen" class="fixed inset-0 bg-slate-900/90 flex flex-col items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+            <h2 class="text-3xl font-bold text-slate-900 mb-4">Welcome to Physics Lab!</h2>
+            <p class="text-slate-600 mb-6">Before we dive into Free Body Diagrams, please tell us your name so we can personalize your session.</p>
+            <input type="text" id="studentNameInput" placeholder="Your Name" class="w-full px-4 py-3 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-blue-500 mb-2 text-lg text-center font-medium transition-colors" autocomplete="off">
+            <p id="nameError" class="text-red-500 text-sm font-semibold h-5 mb-4 opacity-0 transition-opacity">Please enter a valid name.</p>
+            <button id="startLessonBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg shadow-blue-600/30">Start Lesson</button>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-4 md:p-6 lg:p-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Forces & Elevators</h1>
+            <p class="text-slate-600">Master Free Body Diagrams and Newton's Second Law</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Column: Visuals & FBD Suite -->
+            <div class="w-full lg:w-1/2 flex flex-col gap-6">
+                
+                <!-- Scenario Canvas -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold mb-3 text-slate-700">Scenario Context</h2>
+                    <div class="canvas-container">
+                        <canvas id="scenarioCanvas" width="400" height="300"></canvas>
+                    </div>
+                </div>
+
+                <!-- Free Body Diagram Canvas & Controls -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold mb-1 text-slate-700">Free Body Diagram</h2>
+                    <p class="text-sm text-slate-500 mb-4">Adjust the vector lengths in multiples of gravity (mg).</p>
+                    
+                    <div class="flex gap-4">
+                        <div class="w-1/2 canvas-container">
+                            <canvas id="fbdCanvas" width="250" height="300"></canvas>
+                        </div>
+                        <div class="w-1/2 flex flex-col justify-center gap-3">
+                            
+                            <!-- Upward Force Slider -->
+                            <div>
+                                <label class="flex justify-between text-sm font-semibold text-blue-700 mb-1">
+                                    <span>Normal (N)</span>
+                                    <span id="fnLabel">0.5 mg</span>
+                                </label>
+                                <input type="range" id="fnSlider" min="0" max="3" step="0.1" value="0.5">
+                            </div>
+
+                            <!-- Downward Force Slider -->
+                            <div>
+                                <label class="flex justify-between text-sm font-semibold text-red-600 mb-1">
+                                    <span>Gravity (mg)</span>
+                                    <span id="fgLabel">1.0 mg</span>
+                                </label>
+                                <input type="range" id="fgSlider" min="0" max="3" step="0.1" value="1.0">
+                            </div>
+
+                            <div id="horizontalControls" class="flex flex-col gap-3 hidden">
+                                <!-- Forward Force Slider -->
+                                <div>
+                                    <label class="flex justify-between text-sm font-semibold text-emerald-600 mb-1">
+                                        <span id="fsNameLabel">Static Friction (f<sub>s</sub>)</span>
+                                        <span id="fsLabel">0.0 mg</span>
+                                    </label>
+                                    <input type="range" id="fsSlider" min="-3" max="3" step="0.1" value="0.0">
+                                </div>
+
+                                <!-- Backward Force Slider -->
+                                <div>
+                                    <label class="flex justify-between text-sm font-semibold text-orange-500 mb-1">
+                                        <span>Drag (D)</span>
+                                        <span id="dLabel">0.0 mg</span>
+                                    </label>
+                                    <input type="range" id="dSlider" min="-3" max="3" step="0.1" value="0.0">
+                                </div>
+                            </div>
+
+                            <button id="checkFbdBtn" class="mt-2 bg-slate-800 hover:bg-slate-900 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                                Check Diagram
+                            </button>
+                            <div id="fbdFeedback" class="text-sm font-medium hidden"></div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Interactive Questions & AI -->
+            <div class="w-full lg:w-1/2 flex flex-col gap-6">
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600">
+                    <div id="stepHeader" class="text-sm font-bold text-blue-600 uppercase tracking-wider mb-2">Step 1 of 3</div>
+                    <h2 id="scenarioTitle" class="text-2xl font-bold text-slate-900 mb-2">Standing on the Floor</h2>
+                    <p id="scenarioDesc" class="text-slate-600 mb-6 border-b border-slate-100 pb-6">
+                        A person is standing completely still on the solid ground. 
+                    </p>
+
+                    <!-- Multiple Choice Section (Hidden initially until FBD is passed) -->
+                    <div id="mcqSection" class="hidden">
+                        <h3 class="font-semibold text-lg mb-4" id="mcqQuestion">Question goes here?</h3>
+                        <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
+                            <!-- Radio buttons injected via JS -->
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                            <button id="submitAnswerBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors">
+                                Submit Answer
+                            </button>
+                            <button id="nextStepBtn" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-6 rounded-lg font-medium transition-colors">
+                                Next Scenario →
+                            </button>
+                        </div>
+                        
+                        <div id="mcqFeedback" class="mt-4 p-4 rounded-lg text-sm font-medium hidden"></div>
+                    </div>
+
+                    <div id="fbdLockMessage" class="text-slate-500 italic p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        Please correctly construct the Free Body Diagram on the left to unlock the question.
+                    </div>
+                </div>
+
+                <!-- AI Tutor Panel -->
+                <div class="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-xl shadow-sm border border-purple-100">
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-purple-900 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                AI Physics Tutor
+                            </h3>
+                            <p class="text-sm text-purple-700">Need a deeper explanation? Ask Gemini.</p>
+                        </div>
+                        <button id="askAiBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-1.5 px-4 rounded-full text-sm font-semibold transition-colors ai-glow">
+                            Explain This
+                        </button>
+                    </div>
+                    
+                    <div id="aiResponseContainer" class="hidden">
+                        <div id="aiLoading" class="hidden flex items-center gap-3 text-purple-600 font-medium p-4">
+                            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Analyzing physics principles...
+                        </div>
+                        <div id="aiContent" class="text-sm text-slate-700 leading-relaxed bg-white p-4 rounded-lg border border-purple-100 shadow-inner">
+                            <!-- AI text injected here -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Application State ---
+    let studentName = "";
+    let currentStepIndex = 0;
+    let fnValue = 0.5;
+    let fgValue = 1.0;
+    let fsValue = 0.0;
+    let dValue = 0.0;
+    let fbdLocked = false;
+    let attempts = 0;
+    let currentSelectedAnswer = null;
+    let firstTryCorrect = 0;
+    let corrections = 0;
+    let fails = 0;
+
+    // --- Physics Scenarios Data ---
+    const steps = [
+        {
+            title: "1. Resting on a Table",
+            desc: "An object is resting on a horizontal table. Construct the FBD. Hint: Forces must be balanced.",
+            scenarioType: 'floor',
+            elevatorAccel: 0,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+            fbdErrorFeedback: "Hint: If it's resting on a table, it's not accelerating. Make N and mg equal.",
+            question: "Explain why these two arrows (N and mg) must be the exact same length?",
+            options: [
+                { id: 'opt1', text: "Gravity always equals normal force in every situation.", isCorrect: false, feedback: "Not in elevators! Think about acceleration." },
+                { id: 'opt2', text: "Because it is not accelerating, so Fnet = 0.", isCorrect: true, feedback: "Correct, {name}! Since it is resting (a=0), the math is: \\( F_{net} = ma \\implies N - mg = m(0) \\implies N - mg = 0 \\implies N = mg \\)." },
+                { id: 'opt3', text: "Because the table is strong.", isCorrect: false, feedback: "While true, the physics reason relates to acceleration." }
+            ]
+        },
+        {
+            title: "2. Elevator Accelerating Upwards",
+            desc: "An elevator is accelerating UPWARDS at +1.0g. Build the FBD with N = 2.0 mg and mg = 1.0 mg.",
+            scenarioType: 'elevator',
+            elevatorAccel: 1.0,
+            expectedFn: 2.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+            fbdErrorFeedback: "Hint: Make N=2.0 and mg=1.0.",
+            question: "Why is the normal force twice as long as gravity?",
+            options: [
+                { id: 'opt1', text: "Because gravity is doubled in an elevator.", isCorrect: false, feedback: "Gravity never changes! Only the Normal force changes." },
+                { id: 'opt2', text: "Because the net force must be 1mg upwards.", isCorrect: true, feedback: "Awesome! We can prove it using math: \\( F_{net} = ma \\implies 2mg - mg = ma \\implies 1mg = ma \\implies 1g = a \\)." },
+                { id: 'opt3', text: "Normal force is always twice gravity when moving.", isCorrect: false, feedback: "Only when accelerating exactly at +1.0g." }
+            ]
+        },
+        {
+            title: "3. Elevator Faster Upwards",
+            desc: "The elevator accelerates even faster! Build the FBD with N = 3.0 mg and mg = 1.0 mg.",
+            scenarioType: 'elevator',
+            elevatorAccel: 2.0,
+            expectedFn: 3.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+            fbdErrorFeedback: "Hint: N needs to be 3.0 and mg stays 1.0.",
+            question: "Just by looking at the FBD, could you estimate the number of g's the acceleration would be?",
+            options: [
+                { id: 'opt1', text: "+1.0g", isCorrect: false, feedback: "That's if N=2mg. Calculate \\( F_{net} \\)." },
+                { id: 'opt2', text: "+2.0g", isCorrect: true, feedback: "Spot on! The math proves it: \\( F_{net} = ma \\implies 3mg - mg = ma \\implies 2mg = ma \\implies 2g = a \\)." },
+                { id: 'opt3', text: "+3.0g", isCorrect: false, feedback: "You didn't subtract gravity! Re-calculate \\( F_{net} \\)." }
+            ]
+        },
+        {
+            title: "4. Elevator Gentle Acceleration",
+            desc: "Now, a gentle start. Build the FBD with N = 1.5 mg and mg = 1.0 mg.",
+            scenarioType: 'elevator',
+            elevatorAccel: 0.5,
+            expectedFn: 1.5, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+            fbdErrorFeedback: "Hint: Set N to 1.5 mg.",
+            question: "Calculate the acceleration in g's for this free body diagram.",
+            options: [
+                { id: 'opt1', text: "+0.5g", isCorrect: true, feedback: "Perfect! We set it up like this: \\( F_{net} = ma \\implies 1.5mg - mg = ma \\implies 0.5mg = ma \\implies 0.5g = a \\)." },
+                { id: 'opt2', text: "+1.5g", isCorrect: false, feedback: "You forgot to subtract gravity." },
+                { id: 'opt3', text: "+9.8 g", isCorrect: false, feedback: "That's way too fast! Calculate net force in terms of mg first." }
+            ]
+        },
+        {
+            title: "5. Car Accelerating Right",
+            desc: "A car is accelerating to the right. Drag (D) pushes backwards (left) at -1.0 mg. Build the FBD so the net force creates an acceleration of a = +1.5g.",
+            scenarioType: 'racecar',
+            carAccel: 1.5,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: 2.5, expectedD: -1.0,
+            fbdErrorFeedback: "Hint: We need a net force of +1.5. If D is -1.0 (left), f_s must be +2.5 (right) so that 2.5 + (-1.0) = +1.5.",
+            question: "Now imagine a DIFFERENT scenario where the FBD shows \\( f_s = +3.0mg \\) and \\( D = -1.0mg \\). What is the acceleration in g's?",
+            options: [
+                { id: 'opt1', text: "+1.0g", isCorrect: false, feedback: "Close, but subtract properly. \\( F_{net} = f_s + D \\)." },
+                { id: 'opt2', text: "+1.5g", isCorrect: false, feedback: "That was the acceleration for the drawing, but this is a new scenario!" },
+                { id: 'opt3', text: "+2.0g", isCorrect: true, feedback: "Awesome! The math works out: \\( F_{net} = ma \\implies 3.0mg + (-1.0mg) = ma \\implies 2.0mg = ma \\implies +2.0g = a \\)." },
+                { id: 'opt4', text: "+2.5g", isCorrect: false, feedback: "Incorrect. Recalculate net force." },
+                { id: 'opt5', text: "+3.0g", isCorrect: false, feedback: "You forgot to subtract Drag!" }
+            ]
+        },
+        {
+            title: "6. Car Braking (Decelerating)",
+            desc: "The car hits the brakes! Both Drag and Friction point LEFT (negative). Draw an FBD that will give an acceleration of a = -2.0g (slowing down). The Drag force is D = -0.5 mg (left).",
+            scenarioType: 'racecar',
+            carAccel: -2.0,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: -1.5, expectedD: -0.5,
+            fbdErrorFeedback: "Hint: We need a net force of -2.0 (left). If D is -0.5, f_s must be -1.5 so that (-1.5) + (-0.5) = -2.0.",
+            question: "Now suppose you have a DIFFERENT FBD showing \\( D = -1.0mg \\) and \\( f_s = -2.0mg \\) (both pointing left). What is the acceleration in g's?",
+            options: [
+                { id: 'opt1', text: "-1.0g", isCorrect: false, feedback: "Since they both point left, they add together in the negative direction, they don't cancel out!" },
+                { id: 'opt2', text: "-1.5g", isCorrect: false, feedback: "Add them up carefully." },
+                { id: 'opt3', text: "-2.0g", isCorrect: false, feedback: "That was the acceleration for the drawing, but this is a new scenario!" },
+                { id: 'opt4', text: "-3.0g", isCorrect: true, feedback: "Correct! The math is: \\( F_{net} = ma \\implies -1.0mg + (-2.0mg) = ma \\implies -3.0mg = ma \\implies -3.0g = a \\)." },
+                { id: 'opt5', text: "+3.0g", isCorrect: false, feedback: "Left is the negative direction! They are slowing the car down." }
+            ]
+        }
+    ];
+
+    // --- DOM Elements ---
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const studentNameInput = document.getElementById('studentNameInput');
+    const nameError = document.getElementById('nameError');
+    const startLessonBtn = document.getElementById('startLessonBtn');
+
+    const scenarioCanvas = document.getElementById('scenarioCanvas');
+    const sCtx = scenarioCanvas.getContext('2d');
+    const fbdCanvas = document.getElementById('fbdCanvas');
+    const fCtx = fbdCanvas.getContext('2d');
+    
+    const fnSlider = document.getElementById('fnSlider');
+    const fgSlider = document.getElementById('fgSlider');
+    const fsSlider = document.getElementById('fsSlider');
+    const dSlider = document.getElementById('dSlider');
+    const horizontalControls = document.getElementById('horizontalControls');
+    const fnLabel = document.getElementById('fnLabel');
+    const fgLabel = document.getElementById('fgLabel');
+    const fsLabel = document.getElementById('fsLabel');
+    const fsNameLabel = document.getElementById('fsNameLabel');
+    const dLabel = document.getElementById('dLabel');
+    const checkFbdBtn = document.getElementById('checkFbdBtn');
+    const fbdFeedback = document.getElementById('fbdFeedback');
+    
+    const stepHeader = document.getElementById('stepHeader');
+    const scenarioTitle = document.getElementById('scenarioTitle');
+    const scenarioDesc = document.getElementById('scenarioDesc');
+    const fbdLockMessage = document.getElementById('fbdLockMessage');
+    const mcqSection = document.getElementById('mcqSection');
+    const mcqQuestion = document.getElementById('mcqQuestion');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const submitAnswerBtn = document.getElementById('submitAnswerBtn');
+    const nextStepBtn = document.getElementById('nextStepBtn');
+    const mcqFeedback = document.getElementById('mcqFeedback');
+
+    const askAiBtn = document.getElementById('askAiBtn');
+    const aiResponseContainer = document.getElementById('aiResponseContainer');
+    const aiLoading = document.getElementById('aiLoading');
+    const aiContent = document.getElementById('aiContent');
+
+    // --- Welcome Logic ---
+    startLessonBtn.addEventListener('click', () => {
+        const name = studentNameInput.value.trim();
+        if (name.length > 0) {
+            studentName = name;
+            welcomeScreen.classList.add('hidden');
+            loadStep();
+        } else {
+            nameError.classList.remove('opacity-0');
+        }
+    });
+
+    studentNameInput.addEventListener('input', () => {
+        nameError.classList.add('opacity-0');
+    });
+
+    // --- Drawing Functions ---
+    function drawPerson(ctx, x, y) {
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y - 50, 15, 0, Math.PI * 2);
+        ctx.moveTo(x, y - 35); ctx.lineTo(x, y + 10);
+        ctx.moveTo(x, y - 20); ctx.lineTo(x - 20, y + 5);
+        ctx.moveTo(x, y - 20); ctx.lineTo(x + 20, y + 5);
+        ctx.moveTo(x, y + 10); ctx.lineTo(x - 15, y + 50);
+        ctx.moveTo(x, y + 10); ctx.lineTo(x + 15, y + 50);
+        ctx.stroke();
+    }
+
+    function drawRaceCar(ctx, x, y, accel) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(0, y + 20, ctx.canvas.width, 40);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(x - 50, y + 10); ctx.lineTo(x + 40, y + 10);
+        ctx.lineTo(x + 50, y); ctx.lineTo(x + 30, y - 20);
+        ctx.lineTo(x - 20, y - 20); ctx.lineTo(x - 40, y);
+        ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(x - 30, y + 15, 10, 0, Math.PI * 2);
+        ctx.arc(x + 30, y + 15, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(x - 30, y + 15, 4, 0, Math.PI * 2);
+        ctx.arc(x + 30, y + 15, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (accel !== 0) {
+            const isFwd = accel > 0;
+            ctx.strokeStyle = isFwd ? '#22c55e' : '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            const startX = isFwd ? x + 60 : x - 60;
+            const endX = isFwd ? x + 100 : x - 100;
+            ctx.moveTo(startX, y - 10); ctx.lineTo(endX, y - 10);
+            ctx.lineTo(isFwd ? endX - 10 : endX + 10, y - 20);
+            ctx.moveTo(endX, y - 10); ctx.lineTo(isFwd ? endX - 10 : endX + 10, y);
+            ctx.stroke();
+
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.font = 'bold 14px Inter';
+            ctx.fillText('a = ' + Math.abs(accel) + 'g', isFwd ? startX : endX - 40, y - 30);
+        }
+    }
+
+    function renderScenario() {
+        const step = steps[currentStepIndex];
+        sCtx.clearRect(0, 0, scenarioCanvas.width, scenarioCanvas.height);
+        
+        const cx = scenarioCanvas.width / 2;
+        const cy = scenarioCanvas.height / 2 + 50;
+
+        sCtx.fillStyle = '#f1f5f9';
+        sCtx.fillRect(0, 0, scenarioCanvas.width, scenarioCanvas.height);
+
+        if (step.scenarioType === 'floor') {
+            sCtx.fillStyle = '#94a3b8';
+            sCtx.fillRect(0, cy + 50, scenarioCanvas.width, 50);
+            drawPerson(sCtx, cx, cy);
+        } else if (step.scenarioType === 'elevator') {
+            sCtx.strokeStyle = '#64748b';
+            sCtx.lineWidth = 4;
+            sCtx.strokeRect(cx - 60, cy - 90, 120, 140);
+            
+            sCtx.beginPath();
+            sCtx.moveTo(cx, cy - 90); sCtx.lineTo(cx, 0);
+            sCtx.lineWidth = 3; sCtx.strokeStyle = '#475569';
+            sCtx.stroke();
+
+            sCtx.fillStyle = '#94a3b8';
+            sCtx.fillRect(cx - 58, cy + 46, 116, 4);
+
+            drawPerson(sCtx, cx, cy - 4); 
+
+            if (step.elevatorAccel > 0) {
+                sCtx.strokeStyle = '#ef4444'; 
+                sCtx.lineWidth = 3;
+                sCtx.beginPath();
+                sCtx.moveTo(cx + 80, cy - 20); sCtx.lineTo(cx + 80, cy - 70);
+                sCtx.lineTo(cx + 70, cy - 60);
+                sCtx.moveTo(cx + 80, cy - 70); sCtx.lineTo(cx + 90, cy - 60);
+                sCtx.stroke();
+                
+                sCtx.fillStyle = '#ef4444';
+                sCtx.font = 'bold 14px Inter';
+                sCtx.fillText('a = ' + step.elevatorAccel + 'g', cx + 95, cy - 40);
+            }
+        } else if (step.scenarioType === 'racecar') {
+            drawRaceCar(sCtx, cx, cy + 30, step.carAccel);
+        }
+    }
+
+    function renderFBD() {
+        fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
+        
+        const cx = fbdCanvas.width / 2;
+        const cy = fbdCanvas.height / 2;
+        const scale = 40; // Reduced scale to fit N=3mg
+        const step = steps[currentStepIndex];
+
+        // Center Dot
+        fCtx.fillStyle = '#0f172a';
+        fCtx.beginPath();
+        fCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+        fCtx.fill();
+
+        // Draw Upward Arrow (N)
+        if (fnValue > 0) {
+            const upLength = fnValue * scale;
+            drawArrow(fCtx, cx, cy, cx, cy - upLength, '#2563eb', 'N');
+        }
+
+        // Draw Downward Arrow (mg)
+        if (fgValue > 0) {
+            const downLength = fgValue * scale;
+            drawArrow(fCtx, cx, cy, cx, cy + downLength, '#dc2626', 'mg');
+        }
+
+        // Draw Horizontal Arrows
+        if (fsValue !== 0) {
+            const fsLength = Math.abs(fsValue) * scale;
+            const tox = fsValue > 0 ? cx + fsLength : cx - fsLength;
+            drawArrow(fCtx, cx, cy, tox, cy, '#10b981', 'f_s');
+        }
+
+        if (dValue !== 0) {
+            const dLength = Math.abs(dValue) * scale;
+            // Shift slightly vertically if both forces point in the same direction to avoid overlap
+            const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
+            const yOffset = sameSide ? -12 : 0;
+            const tox = dValue > 0 ? cx + dLength : cx - dLength;
+            drawArrow(fCtx, cx, cy + yOffset, tox, cy + yOffset, '#f97316', 'D');
+        }
+    }
+
+    function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
+        const headlen = 10; 
+        const dx = tox - fromx;
+        const dy = toy - fromy;
+        const angle = Math.atan2(dy, dx);
+        
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 4;
+        
+        ctx.beginPath();
+        ctx.moveTo(fromx, fromy);
+        ctx.lineTo(tox, toy);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(tox, toy);
+        ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(tox, toy);
+        ctx.fill();
+
+        ctx.font = 'bold 14px Inter';
+        if (dx > 0) { 
+            ctx.fillText(label, tox - 25, toy - 10);
+        } else if (dx < 0) { 
+            ctx.fillText(label, tox + 5, toy - 10);
+        } else if (dy < 0) { 
+            ctx.fillText(label, tox + 10, toy + 10);
+        } else { 
+            ctx.fillText(label, tox + 10, toy);
+        }
+    }
+
+    // --- Interaction Logic ---
+    function updateFbdState() {
+        if(fbdLocked) return;
+        fnValue = parseFloat(fnSlider.value);
+        fgValue = parseFloat(fgSlider.value);
+        fsValue = parseFloat(fsSlider.value);
+        dValue = parseFloat(dSlider.value);
+        
+        fnLabel.textContent = fnValue.toFixed(1) + ' mg';
+        fgLabel.textContent = fgValue.toFixed(1) + ' mg';
+        
+        // Show signs for horizontal
+        const formatSign = (val) => val > 0 ? '+' + val.toFixed(1) : val.toFixed(1);
+        fsLabel.textContent = formatSign(fsValue) + ' mg';
+        dLabel.textContent = formatSign(dValue) + ' mg';
+        
+        renderFBD();
+        
+        fbdFeedback.classList.add('hidden');
+    }
+
+    fnSlider.addEventListener('input', updateFbdState);
+    fgSlider.addEventListener('input', updateFbdState);
+    fsSlider.addEventListener('input', updateFbdState);
+    dSlider.addEventListener('input', updateFbdState);
+
+    checkFbdBtn.addEventListener('click', () => {
+        if(fbdLocked) return;
+        const step = steps[currentStepIndex];
+        const fnCorrect = Math.abs(fnValue - step.expectedFn) < 0.05;
+        const fgCorrect = Math.abs(fgValue - step.expectedFg) < 0.05;
+        const fsCorrect = Math.abs(fsValue - step.expectedFs) < 0.05;
+        const dCorrect = Math.abs(dValue - step.expectedD) < 0.05;
+
+        fbdFeedback.classList.remove('hidden');
+        if (fnCorrect && fgCorrect && fsCorrect && dCorrect) {
+            fbdFeedback.textContent = `Perfect, ${studentName}! The Free Body Diagram is correct.`;
+            fbdFeedback.className = "text-sm font-semibold text-emerald-600 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200";
+            unlockQuestion();
+        } else {
+            fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${step.fbdErrorFeedback}`;
+            fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
+        }
+    });
+
+    function unlockQuestion() {
+        fbdLocked = true;
+        fnSlider.disabled = true;
+        fgSlider.disabled = true;
+        fsSlider.disabled = true;
+        dSlider.disabled = true;
+        checkFbdBtn.classList.add('hidden');
+        
+        fbdLockMessage.classList.add('hidden');
+        mcqSection.classList.remove('hidden');
+        
+        const step = steps[currentStepIndex];
+        mcqQuestion.textContent = step.question;
+        optionsContainer.innerHTML = '';
+        
+        step.options.forEach(opt => {
+            const label = document.createElement('label');
+            label.className = "flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors";
+            label.innerHTML = `
+                <input type="radio" name="mcq" value="${opt.id}" class="mt-1 flex-shrink-0 w-4 h-4 text-blue-600 cursor-pointer">
+                <span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>
+            `;
+            label.querySelector('input').addEventListener('change', (e) => {
+                document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-300'));
+                if(e.target.checked) {
+                    label.classList.add('bg-blue-50', 'border-blue-300');
+                    currentSelectedAnswer = opt;
+                }
+            });
+            optionsContainer.appendChild(label);
+        });
+
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('mcqSection')]).catch((err) => console.error(err));
+        }
+    }
+
+    submitAnswerBtn.addEventListener('click', () => {
+        if (!currentSelectedAnswer) {
+            showMcqFeedback(`${studentName}, please select an answer first.`, "warning");
+            return;
+        }
+
+        attempts++;
+        let personalizedFeedback = currentSelectedAnswer.feedback.replace(/{name}/g, studentName);
+        
+        if (currentSelectedAnswer.isCorrect) {
+            if (attempts === 1) firstTryCorrect++;
+            else corrections++;
+
+            showMcqFeedback(personalizedFeedback, "success");
+            submitAnswerBtn.classList.add('hidden');
+            if (currentStepIndex < steps.length - 1) {
+                nextStepBtn.classList.remove('hidden');
+            } else {
+                nextStepBtn.classList.remove('hidden');
+                nextStepBtn.textContent = "See Final Score";
+            }
+            disableOptions();
+        } else {
+            if (attempts === 1) {
+                showMcqFeedback(`Not quite. ${personalizedFeedback} Look at the Free Body Diagram and try again! (Second chance)`, "error");
+            } else {
+                fails++;
+                const correctOpt = steps[currentStepIndex].options.find(o => o.isCorrect);
+                let correctFeedback = correctOpt.feedback.replace(/{name}/g, studentName);
+                showMcqFeedback(`Out of attempts. The correct answer was: "${correctOpt.text}". ${correctFeedback}`, "error");
+                submitAnswerBtn.classList.add('hidden');
+                if (currentStepIndex < steps.length - 1) {
+                    nextStepBtn.classList.remove('hidden');
+                } else {
+                    nextStepBtn.classList.remove('hidden');
+                    nextStepBtn.textContent = "See Final Score";
+                }
+                disableOptions();
+            }
+        }
+    });
+
+    function disableOptions() {
+        document.querySelectorAll('input[name="mcq"]').forEach(radio => radio.disabled = true);
+    }
+
+    function showMcqFeedback(message, type) {
+        mcqFeedback.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-emerald-100', 'text-emerald-700', 'bg-amber-100', 'text-amber-800');
+        mcqFeedback.innerHTML = message;
+        if (type === 'success') mcqFeedback.classList.add('bg-emerald-100', 'text-emerald-800', 'border', 'border-emerald-200');
+        else if (type === 'error') mcqFeedback.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
+        else mcqFeedback.classList.add('bg-amber-50', 'text-amber-800', 'border', 'border-amber-200');
+        
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([mcqFeedback]).catch((err) => console.error(err));
+        }
+    }
+
+    nextStepBtn.addEventListener('click', () => {
+        if (currentStepIndex < steps.length - 1) {
+            currentStepIndex++;
+            loadStep();
+        } else {
+            // Advanced Scoring Logic
+            let finalScore = 15;
+            if (corrections === 0) finalScore = 17;
+            else if (corrections === 1) finalScore = 16;
+            else if (corrections === 2 || corrections === 3) finalScore = 14;
+            else if (corrections > 3) finalScore = 14 - (corrections - 3);
+
+            let tryAgainHtml = '';
+            if (finalScore < 15) {
+                let encourageTxt = finalScore <= 10 ? "You should try again!" : "Keep practicing!";
+                tryAgainHtml = `
+                <p class="text-sm font-bold text-red-600 mb-4">${encourageTxt}</p>
+                <button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-blue-600/30">
+                    Restart Lesson
+                </button>`;
+            } else {
+                tryAgainHtml = `<p class="text-sm font-bold text-emerald-600 mb-4">Masterful work! No need to restart.</p>`;
+            }
+
+            // Security String logic
+            let nameClean = studentName.toUpperCase().replace(/[^A-Z]/g, '');
+            while(nameClean.length < 3) nameClean += 'X';
+            let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let secArr = Array.from({length: 12}, () => chars.charAt(Math.floor(Math.random() * chars.length)));
+            secArr[2] = nameClean[0];
+            secArr[6] = nameClean[1];
+            secArr[10] = nameClean[2];
+            let securityString = secArr.join('');
+
+            mcqSection.innerHTML = `
+                <div class="text-center animate-[fadeIn_0.5s_ease-out]">
+                    <h3 class="text-3xl font-bold text-slate-900 mb-2">Lesson Complete, ${studentName}!</h3>
+                    <p class="text-slate-600 mb-6">Here is how you did on the Newton's 2nd Law challenges:</p>
+                    
+                    <div class="bg-blue-50 border border-blue-200 p-6 rounded-xl mb-6 shadow-sm">
+                        <div class="text-5xl font-black text-blue-700">${finalScore}/15</div>
+                        <div class="text-sm text-slate-400 mt-2 font-mono tracking-widest">${securityString}</div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
+                            <div class="text-2xl font-black text-emerald-600">${firstTryCorrect}</div>
+                            <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider mt-1">First Try</div>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm">
+                            <div class="text-2xl font-black text-amber-600">${corrections}</div>
+                            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider mt-1">Corrections</div>
+                        </div>
+                    </div>
+                    
+                    ${tryAgainHtml}
+                </div>
+            `;
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([mcqSection]).catch((err) => console.error(err));
+            }
+
+            // Confetti
+            if (finalScore === 17) fireConfetti(3);
+            else if (finalScore === 16) fireConfetti(2);
+            else if (finalScore === 15) fireConfetti(1);
+        }
+    });
+
+    // Ballistic Confetti Engine
+    function fireConfetti(bursts) {
+        let b = 0;
+        let int = setInterval(() => {
+            if(b >= bursts) { clearInterval(int); return; }
+            for(let i=0; i<40; i++) {
+                let c = document.createElement('div');
+                c.className = 'confetti-piece';
+                c.style.backgroundColor = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][Math.floor(Math.random()*5)];
+                document.body.appendChild(c);
+                
+                let v = 15 + Math.random() * 20;
+                let theta = (Math.random() * 60 + 60) * (Math.PI / 180); 
+                let vx = v * Math.cos(theta);
+                let vy = -v * Math.sin(theta);
+                
+                let x = window.innerWidth / 2;
+                let y = window.innerHeight;
+                let frame = 0;
+                
+                function step() {
+                    frame++;
+                    vy += 0.5; // gravity
+                    x += vx;
+                    y += vy;
+                    c.style.left = x + 'px';
+                    c.style.top = y + 'px';
+                    c.style.transform = `rotate(${frame * 15}deg)`;
+                    if (y < window.innerHeight + 20) requestAnimationFrame(step);
+                    else c.remove();
+                }
+                requestAnimationFrame(step);
+            }
+            b++;
+        }, 600);
+    }
+
+    function loadStep() {
+        const step = steps[currentStepIndex];
+        
+        fbdLocked = false;
+        attempts = 0;
+        currentSelectedAnswer = null;
+        
+        fnSlider.disabled = false;
+        fgSlider.disabled = false;
+        fsSlider.disabled = false;
+        dSlider.disabled = false;
+        
+        // Setup initial sliders and toggle horizontal visibility
+        fnValue = 0.5; fgValue = 1.0; fsValue = 0.0; dValue = 0.0;
+        fnSlider.value = fnValue; fgSlider.value = fgValue;
+        fsSlider.value = fsValue; dSlider.value = dValue;
+
+        if (step.scenarioType === 'floor' || step.scenarioType === 'elevator') {
+            horizontalControls.classList.add('hidden');
+        } else {
+            horizontalControls.classList.remove('hidden');
+        }
+
+        updateFbdState();
+
+        checkFbdBtn.classList.remove('hidden');
+        fbdFeedback.classList.add('hidden');
+        fbdLockMessage.classList.remove('hidden');
+        mcqSection.classList.add('hidden');
+        submitAnswerBtn.classList.remove('hidden');
+        nextStepBtn.classList.add('hidden');
+        mcqFeedback.classList.add('hidden');
+        
+        aiResponseContainer.classList.add('hidden');
+        aiContent.innerHTML = '';
+
+        stepHeader.textContent = `Step ${currentStepIndex + 1} of ${steps.length}`;
+        scenarioTitle.innerHTML = step.title;
+        scenarioDesc.innerHTML = step.desc;
+
+        renderScenario();
+
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([document.getElementById('scenarioDesc'), document.getElementById('mcqSection')]).catch((err) => console.error(err));
+        }
+    }
+
+    // --- Gemini AI Integration ---
+    askAiBtn.addEventListener('click', async () => {
+        const step = steps[currentStepIndex];
+        
+        let aiPrompt = `You are a helpful, encouraging physics tutor. The student's name is ${studentName}. You MUST address them by their name in your response. The student is working on a physics interactive worksheet about Newton's Second Law and Free Body Diagrams. 
+        Current Scenario: ${step.desc}. `;
+
+        if (fbdLocked) {
+            aiPrompt += `\nThe student has correctly drawn the Free Body Diagram (N = ${step.expectedFn}mg, mg = ${step.expectedFg}mg). 
+            They are now looking at this multiple choice question: "${step.question}". `;
+            if (currentSelectedAnswer) {
+                aiPrompt += `The student selected: "${currentSelectedAnswer.text}". `;
+            }
+        } else {
+            aiPrompt += `\nThe student is currently trying to build the Free Body Diagram but is stuck. They need to figure out what the Normal Force and Gravity vectors should be (in multiples of mg). `;
+        }
+
+        aiPrompt += `\nProvide a short (max 2 paragraphs), insightful explanation of the physics concepts at play here. Do NOT just give away the exact final answer immediately, but guide their intuition. EXPLICITLY use the formula F_net = ma in your logic. 
+        IMPORTANT FORMATTING INSTRUCTION: Use LaTeX for all math, variables, and formulas. Wrap inline math with \\( and \\) and display math with $$ and $$. Do NOT use plain text for things like N or F_net. Use HTML formatting for readability.`;
+
+        aiResponseContainer.classList.remove('hidden');
+        aiLoading.classList.remove('hidden');
+        aiContent.classList.add('hidden');
+
+        try {
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: aiPrompt }] }]
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            aiLoading.classList.add('hidden');
+            aiContent.classList.remove('hidden');
+            
+            if (text) {
+                aiContent.innerHTML = text.replace(/\n/g, '<br>');
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    MathJax.typesetPromise([aiContent]).catch((err) => console.error(err));
+                }
+            } else {
+                aiContent.innerHTML = "<em>I'm having trouble thinking right now. Please try again!</em>";
+            }
+
+        } catch (err) {
+            aiLoading.classList.add('hidden');
+            aiContent.classList.remove('hidden');
+            aiContent.innerHTML = `<span class="text-red-600">Error connecting to the AI tutor. Please check your connection or try again later.</span>`;
+            console.error("Gemini API Error:", err);
+        }
+    });
+</script>
+</body>
+</html>
