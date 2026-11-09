@@ -213,15 +213,15 @@
     const aiResponseContainer = document.getElementById('aiResponseContainer'), aiLoading = document.getElementById('aiLoading'), aiContent = document.getElementById('aiContent');
 
     // --- Generators ---
-    function buildOpts(correctText, allOptsTexts, numDistractors = 5) {
+    function buildOpts(correctText, allOptsTexts, numDistractors = 5, correctFb = "Correct!", wrongFb = "Not quite. Look at the FBD and try again!") {
         let unique = [...new Set(allOptsTexts.map(t => t.replace('+-','-')))];
         let cClean = correctText.replace('+-','-');
         unique = unique.filter(t => t !== cClean);
         unique.sort(() => 0.5 - Math.random());
-        let finalOpts = unique.slice(0, numDistractors).map(text => ({ text, isCorrect: false }));
-        finalOpts.push({ text: cClean, isCorrect: true });
+        let finalOpts = unique.slice(0, numDistractors).map(text => ({ text, isCorrect: false, feedback: wrongFb }));
+        finalOpts.push({ text: cClean, isCorrect: true, feedback: correctFb });
         finalOpts.sort(() => 0.5 - Math.random());
-        return finalOpts.map((opt, i) => ({ id: 'opt'+i, text: `\\( ${opt.text} \\)`, isCorrect: opt.isCorrect }));
+        return finalOpts.map((opt, i) => ({ id: 'opt'+i, text: `\\( ${opt.text} \\)`, isCorrect: opt.isCorrect, feedback: opt.feedback }));
     }
 
     function initSteps() {
@@ -262,7 +262,7 @@
             mode: 'mcq', topic: 1, title: "1. Solve Numerically",
             desc: `Using the correct algebraic equation: \\( N = m(${a1.toFixed(1)}g) + mg \\)...`,
             question: "What is the numerical value of the Normal force?",
-            options: buildOpts(`${f(n1)}mg`, [`${f(1.0 - a1)}mg`, `${f(-1.0 + a1)}mg`, `0.5mg`, `1.5mg`]),
+            options: buildOpts(`${f(n1)}mg`, [`${f(1.0 - a1)}mg`, `${f(-1.0 + a1)}mg`, `${f(0.5)}mg`, `${f(1.5)}mg`]),
             givenFn: n1, givenFg: 1.0, givenFs: 0, givenD: 0
         });
 
@@ -298,7 +298,7 @@
             mode: 'mcq', topic: 2, title: "2. Solve Numerically",
             desc: `Using the correct algebraic equation: \\( N = m(${a2.toFixed(1)}g) + mg \\)...`,
             question: "What is the numerical value of the Normal force?",
-            options: buildOpts(`${f(n2)}mg`, [`${f(1.0 - a2)}mg`, `${f(-1.0 + a2)}mg`, `0.5mg`, `1.5mg`]),
+            options: buildOpts(`${f(n2)}mg`, [`${f(1.0 - a2)}mg`, `${f(-1.0 + a2)}mg`, `${f(0.5)}mg`, `${f(1.5)}mg`]),
             givenFn: n2, givenFg: 1.0, givenFs: 0, givenD: 0
         });
 
@@ -387,40 +387,45 @@
         let d5mag = rChoice([0.5, 1.0, 1.5, 2.0]);
         let d5 = -d5mag;
         let a5 = fs5 + d5;
+        let isLeft = fs5 < 0;
+        let fs5mag = Math.abs(fs5);
+        let eq18 = isLeft ? `-f_s - D = ma_x` : `f_s - D = ma_x`;
+        let eq19 = isLeft ? `a_x = \\frac{-f_s - D}{m}` : `a_x = \\frac{f_s - D}{m}`;
+
         steps.push({
             mode: 'draw', topic: 5, title: "5. Car: Find the Acceleration",
-            desc: `Friction (f_s) is ${f(fs5)} mg. Drag (D) is ${d5mag.toFixed(1)} mg (left). Build the complete FBD by matching the known sliders to these values.`,
+            desc: `Friction (\\( f_s \\)) is ${fs5mag.toFixed(1)} mg (${isLeft ? 'left' : 'right'}). Drag (D) is ${d5mag.toFixed(1)} mg (left). Build the complete FBD by matching the known sliders to these values.`,
             scenarioType: 'racecar', unknownForce: null,
             givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5, expectedFn: 1.0, expectedFs: fs5, expectedD: d5, accel: a5
         });
         steps.push({
             mode: 'mcq', topic: 5, title: "5. Equation Setup",
             desc: `Based on your completed FBD...`,
-            question: "What is the correct expression for \\( F_{net,x} = ma_x \\)? (Assume D is a subtracted magnitude)",
-            options: buildOpts(`f_s - D = ma_x`, [
+            question: "What is the correct expression for \\( F_{net,x} = ma_x \\)? (Assume both D and \\( f_s \\) are magnitudes based on their drawn directions)",
+            options: buildOpts(eq18, [
                 `f_s + D = ma_x`, `D - f_s = ma_x`, `-f_s - D = ma_x`,
-                `f_s - D = -ma_x`, `f_s + D = -ma_x`
-            ]),
+                `f_s - D = ma_x`, `-f_s + D = ma_x`, `f_s - D = -ma_x`, `-f_s - D = -ma_x`
+            ], 5, "Spot on! The signs perfectly match the directions drawn on the FBD.", "Not quite. Remember: vectors pointing left are subtracted (negative) and right are positive."),
             givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
         });
         steps.push({
             mode: 'mcq', topic: 5, title: "5. Solve Algebraically",
-            desc: `Using the correct equation: \\( f_s - D = ma_x \\)...`,
+            desc: `Using the correct equation: \\( ${eq18} \\)...`,
             question: "Solve for acceleration (\\( a_x \\)) algebraically:",
-            options: buildOpts(`a_x = \\frac{f_s - D}{m}`, [
-                `a_x = \\frac{f_s + D}{m}`, `a_x = \\frac{D - f_s}{m}`, `a_x = \\frac{-f_s - D}{m}`, `a_x = m(f_s - D)`
-            ]),
+            options: buildOpts(eq19, [
+                `a_x = \\frac{f_s + D}{m}`, `a_x = \\frac{D - f_s}{m}`, `a_x = \\frac{-f_s - D}{m}`, `a_x = \\frac{f_s - D}{m}`, `a_x = m(${eq18.split('=')[0].trim()})`
+            ], 4, "Correct algebraic isolation!", "Incorrect algebra. You just need to divide both sides by mass (m)."),
             givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
         });
         steps.push({
             mode: 'mcq', topic: 5, title: "5. Solve Numerically",
-            desc: `Substitute \\( f_s = ${f(fs5)}mg \\) and \\( D = ${d5mag.toFixed(1)}mg \\) into your algebraic equation...`,
+            desc: `Substitute \\( f_s = ${fs5mag.toFixed(1)}mg \\) and \\( D = ${d5mag.toFixed(1)}mg \\) into your algebraic equation...`,
             question: "What is the acceleration (\\( a_x \\)) in g's?",
             options: buildOpts(`${f(a5)}g`, [
-                `${f(fs5 + d5mag)}g`, `${f(-a5)}g`, `${f(d5mag - fs5)}g`, 
+                `${f(fs5mag + d5mag)}g`, `${f(-a5)}g`, `${f(d5mag - fs5mag)}g`, 
                 `${f(a5+1)}g`, `${f(a5-1 === 0 ? a5-1.5 : a5-1)}g`, `${f(a5+0.5)}g`, `${f(a5-0.5 === 0 ? a5-1.5 : a5-0.5)}g`,
                 `${f(-a5+1 === 0 ? -a5+1.5 : -a5+1)}g`, `${f(fs5)}g`, `${f(-d5mag)}g`
-            ].filter(v => v !== '0g' && v !== '+0.0g' && v !== '-0.0g' && v !== '0.0g'), 8),
+            ].filter(v => v !== '0g' && v !== '+0.0g' && v !== '-0.0g' && v !== '0.0g'), 8, "Great calculation!", "Make sure you plugged in the magnitudes and signs correctly according to your formula."),
             givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
         });
     }
@@ -619,10 +624,10 @@
         attempts++;
         if (currentSelectedAnswer.isCorrect) {
             if (attempts === 1) firstTryCorrect++; else corrections++;
-            showMcqFeedback("Correct!", "success"); submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
+            showMcqFeedback(currentSelectedAnswer.feedback || "Correct!", "success"); submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
             document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
         } else {
-            if (attempts === 1) { showMcqFeedback(`Not quite. Try again! (Second chance)`, "error"); } 
+            if (attempts === 1) { showMcqFeedback(`${currentSelectedAnswer.feedback || "Not quite."} Try again! (Second chance)`, "error"); } 
             else {
                 fails++; const correctOpt = steps[currentStepIndex].options.find(o => o.isCorrect);
                 showMcqFeedback(`Out of attempts. The correct answer was: ${correctOpt.text}.`, "error");
