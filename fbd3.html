@@ -223,7 +223,7 @@
         const format = (v) => (v > 0 ? '+' : '') + v;
         
         // Topic 1: Upward
-        let upA = [1, 2, 3, 4].sort(() => 0.5 - Math.random());
+        let upA = [1, 2, 3].sort(() => 0.5 - Math.random());
         steps.push({
             mode: 'mcq', title: "Concept: Accelerating Upwards",
             desc: `An elevator is accelerating UPWARDS at ${format(upA[0])}g. Which equation correctly describes the required Normal force (N)?`,
@@ -461,8 +461,8 @@
         fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
         const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2, scale = 22;
         fCtx.fillStyle = '#0f172a'; fCtx.beginPath(); fCtx.arc(cx, cy, 6, 0, Math.PI * 2); fCtx.fill();
-        if (fnValue > 0) drawArrow(fCtx, cx, cy, cx, cy - fnValue * scale, '#2563eb', 'N');
-        if (fgValue > 0) drawArrow(fCtx, cx, cy, cx, cy + fgValue * scale, '#dc2626', 'mg');
+        if (fnValue > 0) drawArrow(fCtx, cx - 6, cy, cx - 6, cy - fnValue * scale, '#2563eb', 'N');
+        if (fgValue > 0) drawArrow(fCtx, cx + 6, cy, cx + 6, cy + fgValue * scale, '#dc2626', 'mg');
         if (fsValue !== 0) drawArrow(fCtx, cx, cy, fsValue > 0 ? cx + Math.abs(fsValue)*scale : cx - Math.abs(fsValue)*scale, cy, '#10b981', 'f_s');
         if (dValue !== 0) {
             const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
@@ -475,8 +475,8 @@
         mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
         const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 20, scale = 18;
         mCtx.fillStyle = '#0f172a'; mCtx.beginPath(); mCtx.arc(cx, cy, 5, 0, Math.PI * 2); mCtx.fill();
-        if (forces.fn > 0) drawArrow(mCtx, cx, cy, cx, cy - forces.fn * scale, '#2563eb', 'N');
-        if (forces.fg > 0) drawArrow(mCtx, cx, cy, cx, cy + forces.fg * scale, '#dc2626', 'mg');
+        if (forces.fn > 0) drawArrow(mCtx, cx - 6, cy, cx - 6, cy - forces.fn * scale, '#2563eb', 'N');
+        if (forces.fg > 0) drawArrow(mCtx, cx + 6, cy, cx + 6, cy + forces.fg * scale, '#dc2626', 'mg');
         if (forces.fs !== 0) drawArrow(mCtx, cx, cy, forces.fs > 0 ? cx + Math.abs(forces.fs)*scale : cx - Math.abs(forces.fs)*scale, cy, '#10b981', 'f_s');
         if (forces.d !== 0) {
             const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
