@@ -128,7 +128,7 @@
                         
                         <!-- Dedicated Canvas for Estimate Mode FBDs -->
                         <div class="flex justify-center w-full mb-6">
-                            <canvas id="mcqFbdCanvas" width="200" height="250" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
+                            <canvas id="mcqFbdCanvas" width="250" height="350" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
                         </div>
 
                         <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
@@ -516,16 +516,21 @@
     }
 
     function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
-        const headlen = 12, dx = tox - fromx, dy = toy - fromy, angle = Math.atan2(dy, dx);
-        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const headlen = 14, dx = tox - fromx, dy = toy - fromy, angle = Math.atan2(dy, dx);
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4; 
+        ctx.lineCap = 'butt'; // Forces exact length, no rounded padding
+        ctx.lineJoin = 'miter';
+        
         const lineEndX = tox - headlen * 0.8 * Math.cos(angle), lineEndY = toy - headlen * 0.8 * Math.sin(angle);
         ctx.beginPath(); ctx.moveTo(fromx, fromy); ctx.lineTo(lineEndX, lineEndY); ctx.stroke();
+        
         ctx.beginPath();
         ctx.moveTo(tox, toy);
         ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
         ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
         ctx.closePath(); ctx.fill();
-        ctx.font = 'bold 14px Inter';
+        
+        ctx.font = 'bold 16px Inter';
         if (dx > 0) ctx.fillText(label, tox - 25, toy - 10);
         else if (dx < 0) ctx.fillText(label, tox + 5, toy - 10);
         else if (dy < 0) ctx.fillText(label, tox + 10, toy + 10);
@@ -534,7 +539,8 @@
 
     function renderFBD() {
         fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
-        const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2, scale = 25, gap = 4;
+        // cy is shifted down slightly to leave more room for tall Normal forces
+        const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2 + 30, scale = 35, gap = 4;
         fCtx.fillStyle = '#0f172a'; fCtx.beginPath(); fCtx.arc(cx, cy, 3, 0, Math.PI * 2); fCtx.fill();
         
         if (fnValue > 0) drawArrow(fCtx, cx, cy - gap, cx, cy - gap - fnValue * scale, '#2563eb', 'N');
@@ -565,9 +571,11 @@
 
     function renderMcqFbd(forces) {
         mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
-        const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 10, scale = 25, gap = 4;
+        // cy is shifted down slightly to leave more room for tall Normal forces
+        const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 40, scale = 35, gap = 4;
         mCtx.fillStyle = '#0f172a'; mCtx.beginPath(); mCtx.arc(cx, cy, 3, 0, Math.PI * 2); mCtx.fill();
         
+        // Vectors start exactly 'gap' distance from center. (radius 3 + 1px = 4)
         if (forces.fn > 0) drawArrow(mCtx, cx, cy - gap, cx, cy - gap - forces.fn * scale, '#2563eb', 'N');
         if (forces.fg > 0) drawArrow(mCtx, cx, cy + gap, cx, cy + gap + forces.fg * scale, '#dc2626', 'mg');
         
