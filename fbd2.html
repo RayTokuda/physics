@@ -74,7 +74,8 @@
                 <!-- Free Body Diagram Canvas & Controls -->
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                     <h2 class="text-lg font-semibold mb-1 text-slate-700">Free Body Diagram</h2>
-                    <p class="text-sm text-slate-500 mb-4">Adjust the vector lengths in multiples of gravity (mg).</p>
+                    <p class="text-sm text-slate-500 mb-2">Adjust the vector lengths in multiples of gravity (mg).</p>
+                    <div id="fbdInstructions" class="text-sm font-semibold text-blue-800 mb-4 hidden bg-blue-50 p-2 rounded-lg border border-blue-200"></div>
                     
                     <div class="flex gap-4">
                         <div class="w-1/2 canvas-container">
@@ -88,7 +89,7 @@
                                     <span>Normal (N)</span>
                                     <span id="fnLabel">0.5 mg</span>
                                 </label>
-                                <input type="range" id="fnSlider" min="0" max="3" step="0.1" value="0.5">
+                                <input type="range" id="fnSlider" min="0" max="5" step="0.1" value="0.5">
                             </div>
 
                             <!-- Downward Force Slider -->
@@ -97,7 +98,7 @@
                                     <span>Gravity (mg)</span>
                                     <span id="fgLabel">1.0 mg</span>
                                 </label>
-                                <input type="range" id="fgSlider" min="0" max="3" step="0.1" value="1.0">
+                                <input type="range" id="fgSlider" min="0" max="5" step="0.1" value="1.0">
                             </div>
 
                             <div id="horizontalControls" class="flex flex-col gap-3 hidden">
@@ -107,7 +108,7 @@
                                         <span id="fsNameLabel">Static Friction (f<sub>s</sub>)</span>
                                         <span id="fsLabel">0.0 mg</span>
                                     </label>
-                                    <input type="range" id="fsSlider" min="-3" max="3" step="0.1" value="0.0">
+                                    <input type="range" id="fsSlider" min="-5" max="5" step="0.1" value="0.0">
                                 </div>
 
                                 <!-- Backward Force Slider -->
@@ -116,7 +117,7 @@
                                         <span>Drag (D)</span>
                                         <span id="dLabel">0.0 mg</span>
                                     </label>
-                                    <input type="range" id="dSlider" min="-3" max="3" step="0.1" value="0.0">
+                                    <input type="range" id="dSlider" min="-5" max="5" step="0.1" value="0.0">
                                 </div>
                             </div>
 
@@ -147,7 +148,7 @@
                         
                         <!-- NEW: Dedicated Canvas for drawing FBDs in the MCQ -->
                         <div class="flex justify-center w-full mb-6">
-                            <canvas id="mcqFbdCanvas" width="200" height="200" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
+                            <canvas id="mcqFbdCanvas" width="200" height="250" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
                         </div>
 
                         <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
@@ -223,7 +224,7 @@
     let steps = [];
 
     function buildOpts(correctA, type, dForce = 0) {
-        let pool = type === 'braking' ? [-0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -4.0] : [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
+        let pool = type === 'braking' ? [-1.0, -2.0, -3.0, -4.0, -5.0] : [1.0, 2.0, 3.0, 4.0, 5.0];
         let wrongPool = pool.filter(v => v !== correctA);
         wrongPool.sort(() => 0.5 - Math.random()); // Shuffle
         let selectedOpts = wrongPool.slice(0, 4);
@@ -232,14 +233,14 @@
         
         return selectedOpts.map((val, idx) => {
             let isCorrect = val === correctA;
-            let text = (val > 0 ? "+" : "") + val.toFixed(1) + "g";
+            let text = (val > 0 ? "+" : "") + val + "g";
             let feedback = "Not quite. Re-evaluate \\( F_{net} \\) based on the arrows!";
             if (isCorrect) {
                 if (type === 'elevator') {
-                    feedback = `Perfect! We set it up like this: \\( F_{net} = ma \\implies ${(val + 1.0).toFixed(1)}mg - 1.0mg = ma \\implies ${val.toFixed(1)}mg = ma \\implies ${text} = a \\).`;
+                    feedback = `Perfect! We set it up like this: \\( F_{net} = ma \\implies ${val + 1}mg - 1mg = ma \\implies ${val}mg = ma \\implies ${text} = a \\).`;
                 } else {
                     let fs = val - dForce;
-                    feedback = `Awesome! The math works out: \\( F_{net} = ma \\implies ${fs > 0 ? '+' : ''}${fs.toFixed(1)}mg + (${dForce.toFixed(1)}mg) = ma \\implies ${val.toFixed(1)}mg = ma \\implies ${text} = a \\).`;
+                    feedback = `Awesome! The math works out: \\( F_{net} = ma \\implies ${fs > 0 ? '+' : ''}${fs}mg + (${dForce}mg) = ma \\implies ${val}mg = ma \\implies ${text} = a \\).`;
                 }
             }
             return { id: 'opt' + idx, text: text, isCorrect: isCorrect, feedback: feedback };
@@ -249,52 +250,66 @@
     function initSteps() {
         const rChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
         
+        // Randomize Elevator Drawing targets
+        const a2 = rChoice([1.0, 2.0, 3.0]); // Random Step 2 target
+        let a3 = rChoice([1.0, 2.0, 3.0, 4.0]); // Random Step 3 target
+        while (a3 === a2) a3 = rChoice([1.0, 2.0, 3.0, 4.0]); // Make sure it's a new acceleration
+
         // Randomize MCQs for 4, 5, 6
-        const a4 = rChoice([1.5, 2.0, 2.5, 3.0]); // Random Step 4 target
-        const a5 = rChoice([1.0, 2.0, 2.5, 3.0]); // Random Step 5 target
-        const a6 = rChoice([-1.0, -1.5, -2.5, -3.0]); // Random Step 6 target
+        const a4 = rChoice([1.0, 2.0, 3.0, 4.0]); // Random Step 4 target
+        const a5 = rChoice([1.0, 2.0, 3.0, 4.0]); // Random Step 5 target
+        const a6 = rChoice([-1.0, -2.0, -3.0, -4.0]); // Random Step 6 target
+
+        // Randomize Car Drawing targets (Whole numbers)
+        const drag5 = rChoice([-1.0, -2.0]);
+        const carAccel5 = rChoice([1.0, 2.0, 3.0]);
+        const expectedFs5 = carAccel5 - drag5;
+        
+        const drag6 = rChoice([-1.0, -2.0]);
+        const expectedFs6 = rChoice([-1.0, -2.0, -3.0]); 
+        const carAccel6 = drag6 + expectedFs6;
 
         steps = [
             {
-                title: "1. Resting on a Table",
-                desc: "An object is resting on a horizontal table. Construct the FBD. Hint: Forces must be balanced.",
+                title: "1. Standing on the Floor",
+                desc: "A person is standing completely still on the solid floor. Construct the FBD. Hint: Forces must be balanced.",
                 scenarioType: 'floor',
                 elevatorAccel: 0,
                 expectedFn: 1.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-                fbdErrorFeedback: "Hint: If it's resting on a table, it's not accelerating. Make N and mg equal.",
+                fbdErrorFeedback: "Hint: If they are standing on the floor, they are not accelerating. Make N and mg equal.",
                 question: "Explain why these two arrows (N and mg) must be the exact same length?",
                 options: [
                     { id: 'opt1', text: "Gravity always equals normal force in every situation.", isCorrect: false, feedback: "Not in elevators! Think about acceleration." },
-                    { id: 'opt2', text: "Because it is not accelerating, so Fnet = 0.", isCorrect: true, feedback: "Correct, {name}! Since it is resting (a=0), the math is: \\( F_{net} = ma \\implies N - mg = m(0) \\implies N - mg = 0 \\implies N = mg \\)." },
-                    { id: 'opt3', text: "Because the table is strong.", isCorrect: false, feedback: "While true, the physics reason relates to acceleration." }
+                    { id: 'opt2', text: "Because they are not accelerating, so Fnet = 0.", isCorrect: true, feedback: "Correct, {name}! Since they are standing still (a=0), the math is: \\( F_{net} = ma \\implies N - mg = m(0) \\implies N - mg = 0 \\implies N = mg \\)." },
+                    { id: 'opt3', text: "Because the floor is strong.", isCorrect: false, feedback: "While true, the physics reason relates to acceleration." }
                 ]
             },
             {
                 title: "2. Elevator Accelerating Upwards",
-                desc: "An elevator is accelerating UPWARDS at +1.0g. Build the FBD with N = 2.0 mg and mg = 1.0 mg.",
+                desc: `An elevator is accelerating UPWARDS at +${a2.toFixed(1)}g. Build the FBD.`,
                 scenarioType: 'elevator',
-                elevatorAccel: 1.0,
-                expectedFn: 2.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-                fbdErrorFeedback: "Hint: Make N=2.0 and mg=1.0.",
-                question: "Why is the normal force twice as long as gravity?",
+                elevatorAccel: a2,
+                expectedFn: 1.0 + a2, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: `Hint: To get +${a2.toFixed(1)}g upwards, what must N be if mg is 1.0?`,
+                question: "Why is the normal force longer than gravity here?",
                 options: [
                     { id: 'opt1', text: "Because gravity is doubled in an elevator.", isCorrect: false, feedback: "Gravity never changes! Only the Normal force changes." },
-                    { id: 'opt2', text: "Because the net force must be 1mg upwards.", isCorrect: true, feedback: "Awesome! We can prove it using math: \\( F_{net} = ma \\implies 2mg - mg = ma \\implies 1mg = ma \\implies 1g = a \\)." },
-                    { id: 'opt3', text: "Normal force is always twice gravity when moving.", isCorrect: false, feedback: "Only when accelerating exactly at +1.0g." }
+                    { id: 'opt2', text: `Because the net force must be ${a2.toFixed(1)}mg upwards.`, isCorrect: true, feedback: `Awesome! We can prove it using math: \\( F_{net} = ma \\implies ${(1.0 + a2).toFixed(1)}mg - mg = ma \\implies ${a2.toFixed(1)}mg = ma \\implies ${a2.toFixed(1)}g = a \\).` },
+                    { id: 'opt3', text: "Normal force is always twice gravity when moving.", isCorrect: false, feedback: "Only when accelerating exactly at a constant speed, not accelerating." }
                 ]
             },
             {
                 title: "3. Elevator Faster Upwards",
-                desc: "The elevator accelerates even faster! Build the FBD with N = 3.0 mg and mg = 1.0 mg.",
+                desc: `The elevator accelerates even faster! Build the FBD for an acceleration of +${a3.toFixed(1)}g.`,
                 scenarioType: 'elevator',
-                elevatorAccel: 2.0,
-                expectedFn: 3.0, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
-                fbdErrorFeedback: "Hint: N needs to be 3.0 and mg stays 1.0.",
+                elevatorAccel: a3,
+                expectedFn: 1.0 + a3, expectedFg: 1.0, expectedFs: 0.0, expectedD: 0.0,
+                fbdErrorFeedback: `Hint: You need a net force of +${a3.toFixed(1)}g upwards. Make sure N is long enough!`,
                 question: "Just by looking at the FBD you built, could you estimate the number of g's the acceleration would be?",
                 options: [
-                    { id: 'opt1', text: "Impossible to tell without knowing the exact mass of the object.", isCorrect: false, feedback: "Actually, mass cancels out! \\( F_{net} = ma \\implies 2mg = ma \\implies a = 2g \\)." },
-                    { id: 'opt2', text: "Visually subtract the 1mg down vector from the 3mg up vector to get 2mg net force up, so +2.0g", isCorrect: true, feedback: "Spot on! The math proves your visual intuition: \\( F_{net} = ma \\implies 3mg - mg = ma \\implies 2mg = ma \\implies 2g = a \\)." },
-                    { id: 'opt3', text: "Visually add the vectors together to get 4mg up, so +4.0g", isCorrect: false, feedback: "They are pointing in opposite directions, so they subtract, they don't add! Re-calculate \\( F_{net} \\)." }
+                    { id: 'opt1', text: "Impossible to tell without knowing the exact mass of the object.", isCorrect: false, feedback: `Actually, mass cancels out! \\( F_{net} = ma \\implies ${a3.toFixed(1)}mg = ma \\implies a = ${a3.toFixed(1)}g \\).` },
+                    { id: 'opt2', text: `Visually subtract the 1mg down vector from the ${(1.0 + a3).toFixed(1)}mg up vector to get ${a3.toFixed(1)}mg net force up, so +${a3.toFixed(1)}g`, isCorrect: true, feedback: `Spot on! The math proves your visual intuition: \\( F_{net} = ma \\implies ${(1.0 + a3).toFixed(1)}mg - mg = ma \\implies ${a3.toFixed(1)}mg = ma \\implies ${a3.toFixed(1)}g = a \\).` },
+                    { id: 'opt3', text: `Visually add the vectors together to get ${(2.0 + a3).toFixed(1)}mg up, so +${(2.0 + a3).toFixed(1)}g`, isCorrect: false, feedback: "They are pointing in opposite directions, so they subtract, they don't add! Re-calculate \\( F_{net} \\)." }
                 ]
             },
             {
@@ -310,22 +325,22 @@
             },
             {
                 title: "5. Car Accelerating Right",
-                desc: "A car is accelerating to the right. Drag (D) pushes backwards (left) at -1.0 mg. Build the FBD so the net force creates an acceleration of a = +1.5g.",
+                desc: `A car is accelerating to the right. Drag (D) pushes backwards (left) at ${drag5.toFixed(1)} mg. Build the FBD so the net force creates an acceleration of a = +${carAccel5.toFixed(1)}g.`,
                 scenarioType: 'racecar',
-                carAccel: 1.5,
-                expectedFn: 1.0, expectedFg: 1.0, expectedFs: 2.5, expectedD: -1.0,
-                fbdErrorFeedback: "Hint: We need a net force of +1.5. If D is -1.0 (left), f_s must be +2.5 (right) so that 2.5 + (-1.0) = +1.5.",
+                carAccel: carAccel5,
+                expectedFn: 1.0, expectedFg: 1.0, expectedFs: expectedFs5, expectedD: drag5,
+                fbdErrorFeedback: `Hint: We need a net force of +${carAccel5.toFixed(1)}. If D is ${drag5.toFixed(1)} (left), f_s must be +${expectedFs5.toFixed(1)} (right) so that ${expectedFs5.toFixed(1)} + (${drag5.toFixed(1)}) = +${carAccel5.toFixed(1)}.`,
                 question: "Look at the Free Body Diagram below representing a DIFFERENT scenario. What is the acceleration in g's?",
                 mcqFbd: { fn: 1.0, fg: 1.0, fs: a5 - (-1.0), d: -1.0 },
                 options: buildOpts(a5, 'car', -1.0)
             },
             {
                 title: "6. Car Braking (Decelerating)",
-                desc: "The car hits the brakes! Both Drag and Friction point LEFT (negative). Draw an FBD that will give an acceleration of a = -2.0g (slowing down). The Drag force is D = -0.5 mg (left).",
+                desc: `The car hits the brakes! Both Drag and Friction point LEFT (negative). Draw an FBD that will give an acceleration of a = ${carAccel6.toFixed(1)}g (slowing down). The Drag force is D = ${drag6.toFixed(1)} mg (left).`,
                 scenarioType: 'racecar',
-                carAccel: -2.0,
-                expectedFn: 1.0, expectedFg: 1.0, expectedFs: -1.5, expectedD: -0.5,
-                fbdErrorFeedback: "Hint: We need a net force of -2.0 (left). If D is -0.5, f_s must be -1.5 so that (-1.5) + (-0.5) = -2.0.",
+                carAccel: carAccel6,
+                expectedFn: 1.0, expectedFg: 1.0, expectedFs: expectedFs6, expectedD: drag6,
+                fbdErrorFeedback: `Hint: We need a net force of ${carAccel6.toFixed(1)} (left). If D is ${drag6.toFixed(1)}, f_s must be ${expectedFs6.toFixed(1)} so that (${expectedFs6.toFixed(1)}) + (${drag6.toFixed(1)}) = ${carAccel6.toFixed(1)}.`,
                 question: "Look at this new FBD below for a braking car. What is the acceleration in g's?",
                 mcqFbd: { fn: 1.0, fg: 1.0, fs: a6 - (-1.0), d: -1.0 },
                 options: buildOpts(a6, 'braking', -1.0)
@@ -356,6 +371,7 @@
     const dLabel = document.getElementById('dLabel');
     const checkFbdBtn = document.getElementById('checkFbdBtn');
     const fbdFeedback = document.getElementById('fbdFeedback');
+    const fbdInstructions = document.getElementById('fbdInstructions');
     
     const stepHeader = document.getElementById('stepHeader');
     const scenarioTitle = document.getElementById('scenarioTitle');
@@ -498,7 +514,7 @@
         
         const cx = fbdCanvas.width / 2;
         const cy = fbdCanvas.height / 2;
-        const scale = 40; // Reduced scale to fit N=3mg
+        const scale = 22; // Reduced scale to fit N=5mg cleanly on canvas
         const step = steps[currentStepIndex];
 
         // Center Dot
@@ -537,7 +553,7 @@
     }
 
     function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
-        const headlen = 10; 
+        const headlen = 12; 
         const dx = tox - fromx;
         const dy = toy - fromy;
         const angle = Math.atan2(dy, dx);
@@ -545,17 +561,24 @@
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
         ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         
+        // Shorten the main line slightly so it doesn't poke out of the arrow head
+        const lineEndX = tox - headlen * 0.8 * Math.cos(angle);
+        const lineEndY = toy - headlen * 0.8 * Math.sin(angle);
+
         ctx.beginPath();
         ctx.moveTo(fromx, fromy);
-        ctx.lineTo(tox, toy);
+        ctx.lineTo(lineEndX, lineEndY);
         ctx.stroke();
         
+        // Draw the arrowhead polygon
         ctx.beginPath();
         ctx.moveTo(tox, toy);
         ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
         ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
-        ctx.lineTo(tox, toy);
+        ctx.closePath();
         ctx.fill();
 
         ctx.font = 'bold 14px Inter';
@@ -573,8 +596,8 @@
     function renderMcqFbd(forces) {
         mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
         const cx = mcqFbdCanvas.width / 2;
-        const cy = mcqFbdCanvas.height / 2;
-        const scale = 30; 
+        const cy = mcqFbdCanvas.height / 2 + 20;
+        const scale = 18; // Reduced scale to fit large 5mg horizontal vectors with labels
 
         // Center Dot
         mCtx.fillStyle = '#0f172a';
@@ -758,11 +781,12 @@
             loadStep();
         } else {
             // Advanced Scoring Logic
+            let mistakes = corrections + (fails * 2); // Fails penalize 2 points
             let finalScore = 15;
-            if (corrections === 0) finalScore = 17;
-            else if (corrections === 1) finalScore = 16;
-            else if (corrections === 2 || corrections === 3) finalScore = 14;
-            else if (corrections > 3) finalScore = 14 - (corrections - 3);
+            if (mistakes === 0) finalScore = 17;
+            else if (mistakes === 1) finalScore = 16;
+            else if (mistakes === 2 || mistakes === 3) finalScore = 14;
+            else if (mistakes > 3) finalScore = 14 - (mistakes - 3);
 
             let tryAgainHtml = '';
             if (finalScore < 15) {
@@ -802,8 +826,8 @@
                             <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider mt-1">First Try</div>
                         </div>
                         <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm">
-                            <div class="text-2xl font-black text-amber-600">${corrections}</div>
-                            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider mt-1">Corrections</div>
+                            <div class="text-2xl font-black text-amber-600">${mistakes}</div>
+                            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider mt-1">Mistake Penalties</div>
                         </div>
                     </div>
                     
@@ -879,6 +903,13 @@
             horizontalControls.classList.add('hidden');
         } else {
             horizontalControls.classList.remove('hidden');
+        }
+
+        if (step.scenarioType === 'racecar') {
+            fbdInstructions.innerHTML = `⚠️ <strong>Goal:</strong> Acceleration = ${step.carAccel > 0 ? '+' : ''}${step.carAccel.toFixed(1)}g &nbsp;|&nbsp; <strong>Required Drag (D):</strong> ${step.expectedD > 0 ? '+' : ''}${step.expectedD.toFixed(1)} mg`;
+            fbdInstructions.classList.remove('hidden');
+        } else {
+            fbdInstructions.classList.add('hidden');
         }
 
         updateFbdState();
