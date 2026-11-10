@@ -288,7 +288,17 @@
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                if (result.error) throw new Error(`Google API Error: ${result.error.message}`);
+                
+                if (result.error) {
+                    throw new Error(`Google API Error: ${result.error.message}`);
+                }
+                
+                // --- THE FIX IS HERE ---
+                if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
+                    throw new Error("Google API returned empty content (This is usually caused by AI Safety Filters).");
+                }
+                // -----------------------
+                
                 return result.candidates[0].content.parts[0].text;
             } catch (err) {
                 console.error("Direct API Routing Error:", err);
