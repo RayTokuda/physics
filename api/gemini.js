@@ -58,17 +58,23 @@ export default async function handler(req, res) {
         });
 
         if (!response.ok) {
-            throw new Error(`Gemini API responded with status: ${response.status}`);
+            throw new Error(`Google API responded with status: ${response.status}`);
         }
 
-        // 5. Parse the answer and send it back down to the student's browser
+        // 5. Parse the answer and safely extract the text
         const data = await response.json();
-        const text = data.candidates[0].content.parts[0].text;
         
+        // Safety Check: Did Google block the request or return an empty answer?
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+            console.error("Google API returned empty content or blocked request:", data);
+            return res.status(500).json({ error: 'AI Safety Filter blocked the response or returned an empty answer.' });
+        }
+
+        const text = data.candidates[0].content.parts[0].text;
         return res.status(200).json({ text: text });
 
     } catch (error) {
         console.error("Backend fetch error:", error);
-        return res.status(500).json({ error: 'Failed to generate content from AI.' });
+        return res.status(500).json({ error: 'Failed to communicate with Google Gemini API.' });
     }
 }
