@@ -1,8 +1,21 @@
 export default async function handler(req, res) {
+    // 0. Handle CORS Preflight requests (The Browser Security Check)
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Credentials', true);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+        res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+        return res.status(200).end();
+    }
+
     // 1. Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed. Use POST.' });
     }
+
+    // Set CORS headers for the actual POST response
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
     const { prompt, systemInstruction, requireJson } = req.body;
     
@@ -58,7 +71,10 @@ export default async function handler(req, res) {
         });
 
         if (!response.ok) {
-            throw new Error(`Google API responded with status: ${response.status}`);
+            // CRITICAL FIX: Extract and return the actual error from Google instead of swallowing it
+            const errorText = await response.text();
+            console.error(`Google API Error (${response.status}):`, errorText);
+            return res.status(response.status).json({ error: `Google API returned ${response.status}: ${errorText}` });
         }
 
         // 5. Parse the answer and safely extract the text
@@ -75,6 +91,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Backend fetch error:", error);
-        return res.status(500).json({ error: 'Failed to communicate with Google Gemini API.' });
+        return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
     }
 }
