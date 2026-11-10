@@ -104,9 +104,6 @@
                             <button id="checkFbdBtn" class="mt-2 bg-slate-800 hover:bg-slate-900 text-white py-2 px-4 rounded-lg font-medium transition-colors">
                                 Check Diagram
                             </button>
-                            <button id="retryFbdBtn" class="mt-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg font-medium transition-colors hidden shadow-lg shadow-purple-600/30">
-                                Try a New Question
-                            </button>
                             <div id="fbdFeedback" class="text-sm font-medium hidden"></div>
                         </div>
                     </div>
@@ -128,7 +125,7 @@
                         
                         <!-- Dedicated Canvas for Estimate Mode FBDs -->
                         <div class="flex justify-center w-full mb-6">
-                            <canvas id="mcqFbdCanvas" width="250" height="350" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
+                            <canvas id="mcqFbdCanvas" width="200" height="250" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
                         </div>
 
                         <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
@@ -138,9 +135,6 @@
                         <div class="flex items-center gap-4">
                             <button id="submitAnswerBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors">
                                 Submit Answer
-                            </button>
-                            <button id="retryMcqBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-lg font-medium transition-colors hidden shadow-lg shadow-purple-600/30">
-                                Try a New Question
                             </button>
                         </div>
                         <div id="mcqFeedback" class="mt-4 p-4 rounded-lg text-sm font-medium hidden"></div>
@@ -152,9 +146,6 @@
                             Next Question →
                         </button>
                     </div>
-
-                    <!-- Success Screen -->
-                    <div id="successScreen" class="hidden mt-4"></div>
                 </div>
 
                 <!-- AI Tutor Panel -->
@@ -198,6 +189,76 @@
     let firstTryCorrect = 0, corrections = 0, fails = 0;
     let steps = [];
 
+    // --- AI Routing Function ---
+    async function fetchFromAI(promptText, isJsonMode = false) {
+        // Detect if we are running on a real web domain (like Vercel) instead of local preview
+        const isVercelEnvironment = window.location.hostname && 
+                                    window.location.hostname !== 'localhost' && 
+                                    window.location.hostname !== '127.0.0.1' && 
+                                    !window.location.hostname.includes('google') && 
+                                    !window.location.hostname.includes('csb.app');
+        
+        if (isVercelEnvironment) {
+            // Route securely through Vercel backend
+            try {
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText, requireJson: isJsonMode })
+                });
+                if (!response.ok) {
+                    throw new Error(`Backend Error (${response.status}): Could not reach /api/gemini.`);
+                }
+                const data = await response.json();
+                return data.text;
+            } catch (err) {
+                console.error("Vercel Routing Error:", err);
+                throw err;
+            }
+        } else {
+            // Route via platform proxy (Empty API Key)
+            const apiKey = ""; // <-- IF RUNNING LOCALLY WITHOUT VERCEL, PASTE YOUR KEY HERE
+            let payload = { contents: [{ parts: [{ text: promptText }] }] };
+            
+            if (isJsonMode) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "explanation": { "type": "STRING" },
+                            "newQuestion": { "type": "STRING" },
+                            "options": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "text": { "type": "STRING" },
+                                        "isCorrect": { "type": "BOOLEAN" }
+                                    }
+                                }
+                            }
+                        },
+                        required: ["explanation", "newQuestion", "options"]
+                    }
+                };
+            }
+            
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.error) throw new Error(`Google API Error: ${result.error.message}`);
+                return result.candidates[0].content.parts[0].text;
+            } catch (err) {
+                console.error("Direct API Routing Error:", err);
+                throw err;
+            }
+        }
+    }
+
     // --- DOM Elements ---
     const welcomeScreen = document.getElementById('welcomeScreen');
     const studentNameInput = document.getElementById('studentNameInput');
@@ -214,9 +275,15 @@
     
     const mcqSection = document.getElementById('mcqSection'), optionsContainer = document.getElementById('optionsContainer');
     const submitAnswerBtn = document.getElementById('submitAnswerBtn'), mcqFeedback = document.getElementById('mcqFeedback');
-    const retryMcqBtn = document.getElementById('retryMcqBtn'), retryFbdBtn = document.getElementById('retryFbdBtn');
     const nextStepContainer = document.getElementById('nextStepContainer'), nextStepBtn = document.getElementById('nextStepBtn');
-    const successScreen = document.getElementById('successScreen');
+
+    // DOM Variable Fixes
+    const fnLabel = document.getElementById('fnLabel'), fgLabel = document.getElementById('fgLabel');
+    const fsLabel = document.getElementById('fsLabel'), dLabel = document.getElementById('dLabel');
+    const fbdInstructions = document.getElementById('fbdInstructions'), nameError = document.getElementById('nameError');
+    const stepHeader = document.getElementById('stepHeader'), scenarioTitle = document.getElementById('scenarioTitle'), scenarioDesc = document.getElementById('scenarioDesc');
+    const mcqQuestion = document.getElementById('mcqQuestion');
+    const aiResponseContainer = document.getElementById('aiResponseContainer'), aiLoading = document.getElementById('aiLoading'), aiContent = document.getElementById('aiContent');
 
     // --- Generators ---
     function buildOptions(correct, distractors, explanationCorrect, explanationWrong) {
@@ -229,202 +296,154 @@
         return opts.map((opt, i) => ({ id: 'opt'+i, ...opt }));
     }
 
-    const stepGenerators = [
-        // 0: Topic 1 - Concept
-        () => {
-            let a = [1, 2, 3][Math.floor(Math.random()*3)];
-            return {
-                mode: 'mcq', title: "Concept: Accelerating Upwards",
-                desc: `An elevator is accelerating UPWARDS at +${a}g. Which equation correctly describes the required Normal force (N)?`,
-                scenarioType: 'elevator', hideAccelText: true,
-                question: "Select the correct relationship:",
-                options: buildOptions(`\\( N = ${1 + a}mg \\)`, [`\\( N = mg \\)`, `\\( N = ${a}mg \\)`, `\\( N = ${Math.abs(1 - a)}mg \\)`, `\\( N = 0mg \\)`, `\\( N = 2mg \\)`],
-                    `Correct! \\( F_{net} = ma \\implies N - mg = ${a}mg \\implies N = ${1 + a}mg \\).`,
-                    `Not quite. Since \\( a = +${a}g \\), the upward force N must be ${a}mg LARGER than gravity (mg).`)
-            };
-        },
-        // 1: Topic 1 - Draw
-        () => {
-            let a = [1, 2, 3][Math.floor(Math.random()*3)];
-            return {
-                mode: 'draw', title: "Draw: Accelerating Upwards",
-                desc: `Build the Free Body Diagram for an elevator accelerating UPWARDS at +${a}g.`,
-                scenarioType: 'elevator', elevatorAccel: a, hideAccelText: false,
-                expectedFn: 1 + a, expectedFg: 1.0, expectedFs: 0, expectedD: 0
-            };
-        },
-        // 2: Topic 1 - Estimate (N is forced to be 2, 3, or 4)
-        () => {
-            let a = [1, 2, 3][Math.floor(Math.random()*3)];
-            return {
-                mode: 'estimate', title: "Estimate: Accelerating Upwards",
-                desc: `Visually analyze the unknown Free Body Diagram shown below. (Note: Vectors are drawn strictly to scale. Compare their lengths from tail to tip!)`,
-                scenarioType: 'elevator', hideAccelText: true,
-                givenFn: 1 + a, givenFg: 1.0, givenFs: 0, givenD: 0,
-                question: "Based purely on estimating the vector lengths, what is the acceleration in g's?",
-                options: buildOptions(`+${a}g`, [`+${a+1}g`, a - 1 === 0 ? `0g` : `+${a-1}g`, `0g`, `+1g`, `+2g`],
-                    `Spot on! \\( F_{net} = ${1+a}mg - 1mg = ${a}mg \\). Since \\( F_{net} = ma \\), \\( a = +${a}g \\).`,
-                    `Incorrect. Subtract the length of the downward vector (mg) from the upward vector (N) to find the net force.`)
-            };
-        },
-        // 3: Topic 2 - Concept
-        () => {
-            let downA = [0.2, 0.4, 0.5, 0.6, 0.8][Math.floor(Math.random()*5)];
-            return {
-                mode: 'mcq', title: "Concept: Accelerating Downwards",
-                desc: `An elevator is accelerating DOWNWARDS at -${downA}g. Which equation correctly describes the Normal force (N)?`,
-                scenarioType: 'elevator', hideAccelText: true,
-                question: "Select the correct relationship:",
-                options: buildOptions(`\\( N = ${(1 - downA).toFixed(1)}mg \\)`, [`\\( N = mg \\)`, `\\( N = ${downA}mg \\)`, `\\( N = ${(1 + downA).toFixed(1)}mg \\)`, `\\( N = 0mg \\)`, `\\( N = 0.5mg \\)`],
-                    `Correct! Downward is negative. \\( F_{net} = ma \\implies N - mg = -${downA}mg \\implies N = ${(1 - downA).toFixed(1)}mg \\).`,
-                    `Not quite. Since acceleration is downwards, the net force must be negative, meaning N must be smaller than mg.`)
-            };
-        },
-        // 4: Topic 2 - Draw
-        () => {
-            let downA = [0.2, 0.4, 0.5, 0.6, 0.8][Math.floor(Math.random()*5)];
-            return {
-                mode: 'draw', title: "Draw: Accelerating Downwards",
-                desc: `Build the Free Body Diagram for an elevator accelerating DOWNWARDS at -${downA}g.`,
-                scenarioType: 'elevator', elevatorAccel: -downA, hideAccelText: false,
-                expectedFn: Math.round((1 - downA)*10)/10, expectedFg: 1.0, expectedFs: 0, expectedD: 0
-            };
-        },
-        // 5: Topic 2 - Estimate
-        () => {
-            let downA = [0.2, 0.4, 0.5, 0.6, 0.8][Math.floor(Math.random()*5)];
-            return {
-                mode: 'estimate', title: "Estimate: Accelerating Downwards",
-                desc: `Analyze the unlabelled Free Body Diagram shown below.`,
-                scenarioType: 'elevator', hideAccelText: true,
-                givenFn: Math.round((1 - downA)*10)/10, givenFg: 1.0, givenFs: 0, givenD: 0,
-                question: "By estimating the vector lengths, what is the acceleration in g's?",
-                options: buildOptions(`-${downA}g`, [`+${downA}g`, `-${(downA+1).toFixed(1)}g`, `0g`, `-1g`, `-2g`],
-                    `Spot on! \\( F_{net} = ${(1-downA).toFixed(1)}mg - 1mg = -${downA}mg \\). Therefore \\( a = -${downA}g \\).`,
-                    `Incorrect. Remember downward acceleration means gravity is winning (negative).`)
-            };
-        },
-        // 6: Topic 3 - Concept
-        () => {
-            let dV = [-1, -2, -3, -4][Math.floor(Math.random()*4)];
-            return {
-                mode: 'mcq', title: "Concept: Constant Velocity",
-                desc: `A car moves to the right at a CONSTANT speed. The Drag (D) force is ${dV}mg. What is the required static friction (\\( f_s \\))?`,
-                scenarioType: 'racecar', hideAccelText: true, carAccel: 0,
-                question: "Select the correct friction force:",
-                options: buildOptions(`+${Math.abs(dV)}mg`, [`0mg`, `${dV}mg`, `+${Math.abs(dV)+1}mg`, `+1mg`, `+2mg`],
-                    `Correct! Constant speed means \\( a = 0 \\), so \\( F_{net} = 0 \\). Therefore \\( f_s = -D \\).`,
-                    `Not quite. Constant speed means acceleration is zero, so the horizontal forces must perfectly balance!`)
-            };
-        },
-        // 7: Topic 3 - Draw
-        () => {
-            let dV = [-1, -2, -3, -4][Math.floor(Math.random()*4)];
-            return {
-                mode: 'draw', title: "Draw: Constant Velocity",
-                desc: `Build the Free Body Diagram for a car moving right at CONSTANT speed. Drag is ${dV}mg.`,
-                scenarioType: 'racecar', carAccel: 0, hideAccelText: false,
-                expectedFn: 1.0, expectedFg: 1.0, expectedFs: Math.abs(dV), expectedD: dV
-            };
-        },
-        // 8: Topic 3 - Estimate
-        () => {
-            let dV = [-1, -2, -3, -4][Math.floor(Math.random()*4)];
-            return {
-                mode: 'estimate', title: "Estimate: Constant Velocity",
-                desc: `Analyze the horizontal forces on the car shown.`,
-                scenarioType: 'racecar', hideAccelText: true,
-                givenFn: 1.0, givenFg: 1.0, givenFs: Math.abs(dV), givenD: dV,
-                question: "Based on comparing these vector lengths, what is the horizontal acceleration in g's?",
-                options: buildOptions(`0g`, [`+${Math.abs(dV)}g`, `${dV}g`, `+1g`, `-1g`, `+2g`],
-                    `Correct! The forces are balanced (\\( f_s + D = 0 \\)), so \\( F_{net} = 0 \\) and \\( a = 0 \\).`,
-                    `Look closely! The forward and backward horizontal forces are completely equal in length.`)
-            };
-        },
-        // 9: Topic 4 - Concept
-        () => {
-            let pairs = [[1, -1], [2, -1], [3, -1], [1, -2], [2, -2], [3, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'mcq', title: "Concept: Accelerating Right",
-                desc: `A car accelerates right at +${p[0]}g. Drag is ${p[1]}mg. What is the required static friction (\\( f_s \\))?`,
-                scenarioType: 'racecar', hideAccelText: true,
-                question: "Select the correct friction force:",
-                options: buildOptions(`+${p[0] - p[1]}mg`, [`+${p[0]}mg`, `${p[1]}mg`, `+${p[0] + p[1]}mg`, `0mg`, `+1mg`],
-                    `Correct! \\( F_{net} = f_s + D = ma \\implies f_s + (${p[1]}) = ${p[0]} \\implies f_s = ${p[0] - p[1]}mg \\).`,
-                    `Not quite. Remember \\( F_{net} = f_s + D \\). Friction must overcome drag AND provide the net force.`)
-            };
-        },
-        // 10: Topic 4 - Draw
-        () => {
-            let pairs = [[1, -1], [2, -1], [3, -1], [1, -2], [2, -2], [3, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'draw', title: "Draw: Accelerating Right",
-                desc: `Draw the Free Body Diagram for a car accelerating right at +${p[0]}g. Drag is ${p[1]}mg.`,
-                scenarioType: 'racecar', carAccel: p[0], hideAccelText: false,
-                expectedFn: 1.0, expectedFg: 1.0, expectedFs: p[0] - p[1], expectedD: p[1]
-            };
-        },
-        // 11: Topic 4 - Estimate
-        () => {
-            let pairs = [[1, -1], [2, -1], [3, -1], [1, -2], [2, -2], [3, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'estimate', title: "Estimate: Accelerating Right",
-                desc: `Analyze the horizontal forces on the car shown.`,
-                scenarioType: 'racecar', hideAccelText: true,
-                givenFn: 1.0, givenFg: 1.0, givenFs: p[0] - p[1], givenD: p[1],
-                question: "By estimating vector lengths, what is the horizontal acceleration in g's?",
-                options: buildOptions(`+${p[0]}g`, [`+${p[0] - p[1]}g`, `${p[1]}g`, `+1g`, `0g`, `+2g`],
-                    `Correct! \\( F_{net} = ${p[0] - p[1]} + (${p[1]}) = ${p[0]}mg \\). So \\( a = +${p[0]}g \\).`,
-                    `Incorrect. Subtract the backward drag vector from the forward friction vector to find the net force.`)
-            };
-        },
-        // 12: Topic 5 - Concept
-        () => {
-            let pairs = [[-2, -1], [-3, -1], [-4, -1], [-3, -2], [-4, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'mcq', title: "Concept: Braking",
-                desc: `A car is moving right but hitting the brakes, creating an acceleration of ${p[0]}g (left). Drag is ${p[1]}mg (left). What is the braking friction (\\( f_s \\))?`,
-                scenarioType: 'racecar', hideAccelText: true,
-                question: "Select the correct friction force:",
-                options: buildOptions(`${p[0] - p[1]}mg`, [`${p[0]}mg`, `${p[1]}mg`, `${p[0] + p[1]}mg`, `0mg`, `-1mg`],
-                    `Correct! \\( F_{net} = f_s + D = ma \\implies f_s + (${p[1]}) = ${p[0]} \\implies f_s = ${p[0] - p[1]}mg \\).`,
-                    `Not quite. Remember both Drag and Friction are helping to decelerate the car.`)
-            };
-        },
-        // 13: Topic 5 - Draw
-        () => {
-            let pairs = [[-2, -1], [-3, -1], [-4, -1], [-3, -2], [-4, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'draw', title: "Draw: Braking",
-                desc: `Draw the Free Body Diagram for a braking car with an acceleration of ${p[0]}g (left). Drag is ${p[1]}mg (left).`,
-                scenarioType: 'racecar', carAccel: p[0], hideAccelText: false,
-                expectedFn: 1.0, expectedFg: 1.0, expectedFs: p[0] - p[1], expectedD: p[1]
-            };
-        },
-        // 14: Topic 5 - Estimate
-        () => {
-            let pairs = [[-2, -1], [-3, -1], [-4, -1], [-3, -2], [-4, -2]];
-            let p = pairs[Math.floor(Math.random()*pairs.length)];
-            return {
-                mode: 'estimate', title: "Estimate: Braking",
-                desc: `Analyze the horizontal forces on the braking car shown.`,
-                scenarioType: 'racecar', hideAccelText: true,
-                givenFn: 1.0, givenFg: 1.0, givenFs: p[0] - p[1], givenD: p[1],
-                question: "By estimating vector lengths, what is the horizontal acceleration in g's?",
-                options: buildOptions(`${p[0]}g`, [`${p[0] - p[1]}g`, `${p[1]}g`, `0g`, `-1g`, `+1g`],
-                    `Correct! Both forces point left. \\( F_{net} = ${p[0] - p[1]} + (${p[1]}) = ${p[0]}mg \\). So \\( a = ${p[0]}g \\).`,
-                    `Incorrect. Add the two horizontal vectors together to find the net force since they both point the same direction.`)
-            };
-        }
-    ];
-
     function initSteps() {
-        steps = stepGenerators.map(gen => gen());
+        steps = [];
+        const format = (v) => (v > 0 ? '+' : '') + v;
+        
+        // Topic 1: Upward
+        let upA = [1, 2, 3, 4].sort(() => 0.5 - Math.random());
+        steps.push({
+            mode: 'mcq', title: "Concept: Accelerating Upwards",
+            desc: `An elevator is accelerating UPWARDS at ${format(upA[0])}g. Which equation correctly describes the required Normal force (N)?`,
+            scenarioType: 'elevator', hideAccelText: true,
+            question: "Select the correct relationship:",
+            options: buildOptions(`\\( N = ${1 + upA[0]}mg \\)`, [`\\( N = mg \\)`, `\\( N = ${upA[0]}mg \\)`, `\\( N = ${Math.abs(1 - upA[0])}mg \\)`, `\\( N = 0mg \\)`, `\\( N = 2mg \\)`],
+                `Correct! \\( F_{net} = ma \\implies N - mg = ${upA[0]}mg \\implies N = ${1 + upA[0]}mg \\).`,
+                `Not quite. Remember \\( F_{net} = ma \\implies N - mg = ${upA[0]}mg \\).`)
+        });
+        steps.push({
+            mode: 'draw', title: "Draw: Accelerating Upwards",
+            desc: `Build the Free Body Diagram for an elevator accelerating UPWARDS at ${format(upA[1])}g.`,
+            scenarioType: 'elevator', elevatorAccel: upA[1], hideAccelText: false,
+            expectedFn: 1 + upA[1], expectedFg: 1.0, expectedFs: 0, expectedD: 0,
+            fbdErrorFeedback: `Hint: Net force must be ${format(upA[1])}mg upwards. Set N accordingly!`
+        });
+        steps.push({
+            mode: 'estimate', title: "Estimate: Accelerating Upwards",
+            desc: `Visually analyze the unknown Free Body Diagram shown below.`,
+            scenarioType: 'elevator', hideAccelText: true,
+            givenFn: 1 + upA[2], givenFg: 1.0, givenFs: 0, givenD: 0,
+            question: "Based purely on estimating the vector lengths, what is the acceleration in g's?",
+            options: buildOptions(`+${upA[2]}g`, [`+${upA[2]+1}g`, upA[2] - 1 === 0 ? `0g` : `+${upA[2]-1}g`, `0g`, `+1g`, `+2g`],
+                `Spot on! \\( F_{net} = ${1+upA[2]}mg - 1mg = ${upA[2]}mg \\). Since \\( F_{net} = ma \\), \\( a = +${upA[2]}g \\).`,
+                `Incorrect. Subtract the length of mg from N to find the net force.`)
+        });
+        
+        // Topic 2: Downward (Requires fractions because gravity is only 1.0)
+        let downA = [0.2, 0.4, 0.5, 0.6, 0.8, 0.9].sort(() => 0.5 - Math.random());
+        steps.push({
+            mode: 'mcq', title: "Concept: Accelerating Downwards",
+            desc: `An elevator is accelerating DOWNWARDS at -${downA[0]}g. Which equation correctly describes the Normal force (N)?`,
+            scenarioType: 'elevator', hideAccelText: true,
+            question: "Select the correct relationship:",
+            options: buildOptions(`\\( N = ${(1 - downA[0]).toFixed(1)}mg \\)`, [`\\( N = mg \\)`, `\\( N = ${downA[0]}mg \\)`, `\\( N = ${(1 + downA[0]).toFixed(1)}mg \\)`, `\\( N = 0mg \\)`, `\\( N = 0.5mg \\)`],
+                `Correct! Downward is negative. \\( F_{net} = ma \\implies N - mg = -${downA[0]}mg \\implies N = ${(1 - downA[0]).toFixed(1)}mg \\).`,
+                `Not quite. Since acceleration is downwards, \\( F_{net} \\) must be negative.`)
+        });
+        steps.push({
+            mode: 'draw', title: "Draw: Accelerating Downwards",
+            desc: `Build the Free Body Diagram for an elevator accelerating DOWNWARDS at -${downA[1]}g.`,
+            scenarioType: 'elevator', elevatorAccel: -downA[1], hideAccelText: false,
+            expectedFn: Math.round((1 - downA[1])*10)/10, expectedFg: 1.0, expectedFs: 0, expectedD: 0,
+            fbdErrorFeedback: `Hint: Net force must be -${downA[1]}mg (downwards). So N must be smaller than mg!`
+        });
+        steps.push({
+            mode: 'estimate', title: "Estimate: Accelerating Downwards",
+            desc: `Analyze the unlabelled Free Body Diagram shown below.`,
+            scenarioType: 'elevator', hideAccelText: true,
+            givenFn: Math.round((1 - downA[2])*10)/10, givenFg: 1.0, givenFs: 0, givenD: 0,
+            question: "By estimating the vector lengths, what is the acceleration in g's?",
+            options: buildOptions(`-${downA[2]}g`, [`+${downA[2]}g`, `-${(downA[2]+1).toFixed(1)}g`, `0g`, `-1g`, `-2g`],
+                `Spot on! \\( F_{net} = ${(1-downA[2]).toFixed(1)}mg - 1mg = -${downA[2]}mg \\). Therefore \\( a = -${downA[2]}g \\).`,
+                `Incorrect. Remember downward acceleration means gravity is winning (negative).`)
+        });
+        
+        // Topic 3: Constant Velocity
+        let dragV = [-1, -2, -3, -4, -5].sort(() => 0.5 - Math.random());
+        steps.push({
+            mode: 'mcq', title: "Concept: Constant Velocity",
+            desc: `A car moves to the right at a CONSTANT speed. The Drag (D) force is ${dragV[0]}mg. What is the required static friction (\\( f_s \\))?`,
+            scenarioType: 'racecar', hideAccelText: true, carAccel: 0,
+            question: "Select the correct friction force:",
+            options: buildOptions(`+${Math.abs(dragV[0])}mg`, [`0mg`, `${dragV[0]}mg`, `+${Math.abs(dragV[0])+1}mg`, `+1mg`, `+2mg`],
+                `Correct! Constant speed means \\( a = 0 \\), so \\( F_{net} = 0 \\). Therefore \\( f_s = -D \\).`,
+                `Not quite. Constant speed means acceleration is zero!`)
+        });
+        steps.push({
+            mode: 'draw', title: "Draw: Constant Velocity",
+            desc: `Build the Free Body Diagram for a car moving right at CONSTANT speed. Drag is ${dragV[1]}mg.`,
+            scenarioType: 'racecar', carAccel: 0, hideAccelText: false,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: Math.abs(dragV[1]), expectedD: dragV[1],
+            fbdErrorFeedback: `Hint: Constant speed means zero acceleration. The horizontal forces must balance perfectly.`
+        });
+        steps.push({
+            mode: 'estimate', title: "Estimate: Constant Velocity",
+            desc: `Analyze the horizontal forces on the car shown.`,
+            scenarioType: 'racecar', hideAccelText: true,
+            givenFn: 1.0, givenFg: 1.0, givenFs: Math.abs(dragV[2]), givenD: dragV[2],
+            question: "Based on comparing these vector lengths, what is the horizontal acceleration in g's?",
+            options: buildOptions(`0g`, [`+${Math.abs(dragV[2])}g`, `${dragV[2]}g`, `+1g`, `-1g`, `+2g`],
+                `Correct! The forces are balanced (\\( f_s + D = 0 \\)), so \\( F_{net} = 0 \\) and \\( a = 0 \\).`,
+                `Look closely! The forward and backward forces are completely equal in length.`)
+        });
+
+        // Topic 4: Accel Right (Strictly integers up to limits)
+        let accelPairs = [[1, -1], [2, -1], [3, -1], [4, -1], [1, -2], [2, -2], [3, -2]].sort(() => 0.5 - Math.random());
+        steps.push({
+            mode: 'mcq', title: "Concept: Accelerating Right",
+            desc: `A car accelerates right at +${accelPairs[0][0]}g. Drag is ${accelPairs[0][1]}mg. What is the required static friction (\\( f_s \\))?`,
+            scenarioType: 'racecar', hideAccelText: true,
+            question: "Select the correct friction force:",
+            options: buildOptions(`+${accelPairs[0][0] - accelPairs[0][1]}mg`, [`+${accelPairs[0][0]}mg`, `${accelPairs[0][1]}mg`, `+${accelPairs[0][0] + accelPairs[0][1]}mg`, `0mg`, `+1mg`],
+                `Correct! \\( F_{net} = f_s + D = ma \\implies f_s + (${accelPairs[0][1]}) = ${accelPairs[0][0]} \\implies f_s = ${accelPairs[0][0] - accelPairs[0][1]}mg \\).`,
+                `Not quite. Remember \\( F_{net} = f_s + D \\).`)
+        });
+        steps.push({
+            mode: 'draw', title: "Draw: Accelerating Right",
+            desc: `Draw the Free Body Diagram for a car accelerating right at +${accelPairs[1][0]}g. Drag is ${accelPairs[1][1]}mg.`,
+            scenarioType: 'racecar', carAccel: accelPairs[1][0], hideAccelText: false,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: accelPairs[1][0] - accelPairs[1][1], expectedD: accelPairs[1][1],
+            fbdErrorFeedback: `Hint: \\( F_{net} \\) must be +${accelPairs[1][0]}. So \\( f_s + (${accelPairs[1][1]}) = ${accelPairs[1][0]} \\).`
+        });
+        steps.push({
+            mode: 'estimate', title: "Estimate: Accelerating Right",
+            desc: `Analyze the horizontal forces on the car shown.`,
+            scenarioType: 'racecar', hideAccelText: true,
+            givenFn: 1.0, givenFg: 1.0, givenFs: accelPairs[2][0] - accelPairs[2][1], givenD: accelPairs[2][1],
+            question: "By estimating vector lengths, what is the horizontal acceleration in g's?",
+            options: buildOptions(`+${accelPairs[2][0]}g`, [`+${accelPairs[2][0] - accelPairs[2][1]}g`, `${accelPairs[2][1]}g`, `+1g`, `0g`, `+2g`],
+                `Correct! \\( F_{net} = ${accelPairs[2][0] - accelPairs[2][1]} + (${accelPairs[2][1]}) = ${accelPairs[2][0]}mg \\). So \\( a = +${accelPairs[2][0]}g \\).`,
+                `Incorrect. Subtract the backward drag vector from the forward vector to find the net force.`)
+        });
+
+        // Topic 5: Braking (Strictly integers where Fs stays negative)
+        let brakePairs = [[-2, -1], [-3, -1], [-4, -1], [-3, -2], [-4, -2], [-4, -3]].sort(() => 0.5 - Math.random());
+        steps.push({
+            mode: 'mcq', title: "Concept: Braking",
+            desc: `A car is moving right but hitting the brakes, creating an acceleration of ${brakePairs[0][0]}g (left). Drag is ${brakePairs[0][1]}mg (left). What is the braking friction (\\( f_s \\))?`,
+            scenarioType: 'racecar', hideAccelText: true,
+            question: "Select the correct friction force:",
+            options: buildOptions(`${brakePairs[0][0] - brakePairs[0][1]}mg`, [`${brakePairs[0][0]}mg`, `${brakePairs[0][1]}mg`, `${brakePairs[0][0] + brakePairs[0][1]}mg`, `0mg`, `-1mg`],
+                `Correct! \\( F_{net} = f_s + D = ma \\implies f_s + (${brakePairs[0][1]}) = ${brakePairs[0][0]} \\implies f_s = ${brakePairs[0][0] - brakePairs[0][1]}mg \\).`,
+                `Not quite. Remember both Drag and Friction are helping to decelerate the car.`)
+        });
+        steps.push({
+            mode: 'draw', title: "Draw: Braking",
+            desc: `Draw the Free Body Diagram for a braking car with an acceleration of ${brakePairs[1][0]}g (left). Drag is ${brakePairs[1][1]}mg (left).`,
+            scenarioType: 'racecar', carAccel: brakePairs[1][0], hideAccelText: false,
+            expectedFn: 1.0, expectedFg: 1.0, expectedFs: brakePairs[1][0] - brakePairs[1][1], expectedD: brakePairs[1][1],
+            fbdErrorFeedback: `Hint: \\( F_{net} \\) must be ${brakePairs[1][0]}. So \\( f_s + (${brakePairs[1][1]}) = ${brakePairs[1][0]} \\). Both point left!`
+        });
+        steps.push({
+            mode: 'estimate', title: "Estimate: Braking",
+            desc: `Analyze the horizontal forces on the braking car shown.`,
+            scenarioType: 'racecar', hideAccelText: true,
+            givenFn: 1.0, givenFg: 1.0, givenFs: brakePairs[2][0] - brakePairs[2][1], givenD: brakePairs[2][1],
+            question: "By estimating vector lengths, what is the horizontal acceleration in g's?",
+            options: buildOptions(`${brakePairs[2][0]}g`, [`${brakePairs[2][0] - brakePairs[2][1]}g`, `${brakePairs[2][1]}g`, `0g`, `-1g`, `+1g`],
+                `Correct! Both forces point left. \\( F_{net} = ${brakePairs[2][0] - brakePairs[2][1]} + (${brakePairs[2][1]}) = ${brakePairs[2][0]}mg \\). So \\( a = ${brakePairs[2][0]}g \\).`,
+                `Incorrect. Add the two horizontal vectors together to find the net force since they both point the same direction.`)
+        });
     }
 
     startLessonBtn.addEventListener('click', () => {
@@ -468,22 +487,6 @@
         }
     }
 
-    function getSpecificFBDFeedback(step, fn, fg, fs, d) {
-        if (fg !== step.expectedFg) return "Gravity is always 1.0 mg on Earth!";
-        if (fn !== step.expectedFn) {
-            if (step.expectedFn === 1.0) return "Since there is no vertical acceleration, the Normal force must perfectly balance gravity.";
-            if (step.expectedFn > 1.0) return `Since the acceleration is upwards, the Normal force must be LARGER than gravity by exactly the net force (${Math.abs(step.elevatorAccel)}mg).`;
-            if (step.expectedFn < 1.0) return `Since the acceleration is downwards, the Normal force must be SMALLER than gravity so the net force points down.`;
-        }
-        if (fs !== step.expectedFs) {
-            let expectedNetX = step.expectedFs + step.expectedD;
-            if (expectedNetX === 0) return "To have constant velocity, the friction must perfectly balance the drag force.";
-            return `To accelerate at ${Math.abs(step.carAccel)}g, the net horizontal force must be ${Math.abs(step.carAccel)}mg. Check your friction length!`;
-        }
-        if (d !== step.expectedD) return `The drag force was given in the problem as ${Math.abs(step.expectedD)}mg.`;
-        return "Check the lengths of your vectors to match the required net force.";
-    }
-
     function renderScenario() {
         const step = steps[currentStepIndex];
         sCtx.clearRect(0, 0, scenarioCanvas.width, scenarioCanvas.height);
@@ -516,21 +519,19 @@
     }
 
     function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
-        const headlen = 14, dx = tox - fromx, dy = toy - fromy, angle = Math.atan2(dy, dx);
-        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4; 
-        ctx.lineCap = 'butt'; // Forces exact length, no rounded padding
-        ctx.lineJoin = 'miter';
-        
-        const lineEndX = tox - headlen * 0.8 * Math.cos(angle), lineEndY = toy - headlen * 0.8 * Math.sin(angle);
+        const headlen = 12, dx = tox - fromx, dy = toy - fromy, angle = Math.atan2(dy, dx);
+        if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return; 
+        const scaleHead = Math.min(1, Math.sqrt(dx*dx + dy*dy) / 15);
+        const actualHeadlen = headlen * scaleHead;
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const lineEndX = tox - actualHeadlen * 0.8 * Math.cos(angle), lineEndY = toy - actualHeadlen * 0.8 * Math.sin(angle);
         ctx.beginPath(); ctx.moveTo(fromx, fromy); ctx.lineTo(lineEndX, lineEndY); ctx.stroke();
-        
         ctx.beginPath();
         ctx.moveTo(tox, toy);
-        ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(tox - actualHeadlen * Math.cos(angle - Math.PI / 6), toy - actualHeadlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(tox - actualHeadlen * Math.cos(angle + Math.PI / 6), toy - actualHeadlen * Math.sin(angle + Math.PI / 6));
         ctx.closePath(); ctx.fill();
-        
-        ctx.font = 'bold 16px Inter';
+        ctx.font = 'bold 14px Inter';
         if (dx > 0) ctx.fillText(label, tox - 25, toy - 10);
         else if (dx < 0) ctx.fillText(label, tox + 5, toy - 10);
         else if (dy < 0) ctx.fillText(label, tox + 10, toy + 10);
@@ -539,66 +540,35 @@
 
     function renderFBD() {
         fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
-        // cy is shifted down slightly to leave more room for tall Normal forces
-        const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2 + 30, scale = 35, gap = 4;
-        fCtx.fillStyle = '#0f172a'; fCtx.beginPath(); fCtx.arc(cx, cy, 3, 0, Math.PI * 2); fCtx.fill();
-        
-        if (fnValue > 0) drawArrow(fCtx, cx, cy - gap, cx, cy - gap - fnValue * scale, '#2563eb', 'N');
-        if (fgValue > 0) drawArrow(fCtx, cx, cy + gap, cx, cy + gap + fgValue * scale, '#dc2626', 'mg');
-        
-        if (fsValue !== 0) {
-            const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
-            const isOpposite = !sameSide && dValue !== 0;
-            const yOffset = (sameSide && dValue !== 0) ? -12 : 0;
-            
-            let startX = cx;
-            if (isOpposite) startX = fsValue > 0 ? cx + gap : cx - gap;
-            
-            const endX = fsValue > 0 ? startX + Math.abs(fsValue)*scale : startX - Math.abs(fsValue)*scale;
-            drawArrow(fCtx, startX, cy + yOffset, endX, cy + yOffset, '#10b981', 'f_s');
-        }
+        const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2;
+        const maxF = Math.max(fnValue, fgValue, Math.abs(fsValue), Math.abs(dValue), 1.0);
+        const scale = Math.min(45, (fbdCanvas.height / 2 - 30) / maxF); // Dynamic scaling!
+
+        fCtx.fillStyle = '#0f172a'; fCtx.beginPath(); fCtx.arc(cx, cy, 6, 0, Math.PI * 2); fCtx.fill();
+        if (fnValue > 0) drawArrow(fCtx, cx, cy, cx, cy - fnValue * scale, '#2563eb', 'N');
+        if (fgValue > 0) drawArrow(fCtx, cx, cy, cx, cy + fgValue * scale, '#dc2626', 'mg');
+        if (fsValue !== 0) drawArrow(fCtx, cx, cy, fsValue > 0 ? cx + Math.abs(fsValue)*scale : cx - Math.abs(fsValue)*scale, cy, '#10b981', 'f_s');
         if (dValue !== 0) {
-            const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
-            const isOpposite = !sameSide && fsValue !== 0;
-            
-            let startX = cx;
-            if (isOpposite) startX = dValue > 0 ? cx + gap : cx - gap;
-            
-            const endX = dValue > 0 ? startX + Math.abs(dValue)*scale : startX - Math.abs(dValue)*scale;
-            drawArrow(fCtx, startX, cy, endX, cy, '#f97316', 'D');
+            const sameSide = (Math.sign(fsValue) === Math.sign(dValue) && fsValue !== 0 && dValue !== 0);
+            const yOffset = sameSide ? -12 : 0;
+            drawArrow(fCtx, cx, cy + yOffset, dValue > 0 ? cx + Math.abs(dValue)*scale : cx - Math.abs(dValue)*scale, cy + yOffset, '#f97316', 'D');
         }
     }
 
     function renderMcqFbd(forces) {
         mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
-        // cy is shifted down slightly to leave more room for tall Normal forces
-        const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 40, scale = 35, gap = 4;
-        mCtx.fillStyle = '#0f172a'; mCtx.beginPath(); mCtx.arc(cx, cy, 3, 0, Math.PI * 2); mCtx.fill();
-        
-        // Vectors start exactly 'gap' distance from center. (radius 3 + 1px = 4)
-        if (forces.fn > 0) drawArrow(mCtx, cx, cy - gap, cx, cy - gap - forces.fn * scale, '#2563eb', 'N');
-        if (forces.fg > 0) drawArrow(mCtx, cx, cy + gap, cx, cy + gap + forces.fg * scale, '#dc2626', 'mg');
-        
-        if (forces.fs !== 0) {
-            const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
-            const isOpposite = !sameSide && forces.d !== 0;
-            const yOffset = (sameSide && forces.d !== 0) ? -12 : 0;
-            
-            let startX = cx;
-            if (isOpposite) startX = forces.fs > 0 ? cx + gap : cx - gap;
-            
-            const endX = forces.fs > 0 ? startX + Math.abs(forces.fs)*scale : startX - Math.abs(forces.fs)*scale;
-            drawArrow(mCtx, startX, cy + yOffset, endX, cy + yOffset, '#10b981', 'f_s');
-        }
+        const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 20;
+        const maxF = Math.max(forces.fn, forces.fg, Math.abs(forces.fs), Math.abs(forces.d), 1.0);
+        const scale = Math.min(35, (mcqFbdCanvas.height / 2 - 20) / maxF); // Dynamic scaling!
+
+        mCtx.fillStyle = '#0f172a'; mCtx.beginPath(); mCtx.arc(cx, cy, 5, 0, Math.PI * 2); mCtx.fill();
+        if (forces.fn > 0) drawArrow(mCtx, cx, cy, cx, cy - forces.fn * scale, '#2563eb', 'N');
+        if (forces.fg > 0) drawArrow(mCtx, cx, cy, cx, cy + forces.fg * scale, '#dc2626', 'mg');
+        if (forces.fs !== 0) drawArrow(mCtx, cx, cy, forces.fs > 0 ? cx + Math.abs(forces.fs)*scale : cx - Math.abs(forces.fs)*scale, cy, '#10b981', 'f_s');
         if (forces.d !== 0) {
-            const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
-            const isOpposite = !sameSide && forces.fs !== 0;
-            
-            let startX = cx;
-            if (isOpposite) startX = forces.d > 0 ? cx + gap : cx - gap;
-            
-            const endX = forces.d > 0 ? startX + Math.abs(forces.d)*scale : startX - Math.abs(forces.d)*scale;
-            drawArrow(mCtx, startX, cy, endX, cy, '#f97316', 'D');
+            const sameSide = (Math.sign(forces.fs) === Math.sign(forces.d) && forces.fs !== 0 && forces.d !== 0);
+            const yOffset = sameSide ? -10 : 0;
+            drawArrow(mCtx, cx, cy + yOffset, forces.d > 0 ? cx + Math.abs(forces.d)*scale : cx - Math.abs(forces.d)*scale, cy + yOffset, '#f97316', 'D');
         }
     }
 
@@ -615,41 +585,28 @@
     fnSlider.addEventListener('input', updateFbdState); fgSlider.addEventListener('input', updateFbdState);
     fsSlider.addEventListener('input', updateFbdState); dSlider.addEventListener('input', updateFbdState);
 
-    function handleRetry() {
-        steps[currentStepIndex] = stepGenerators[currentStepIndex]();
-        steps[currentStepIndex].isRetry = true;
-        loadStep();
-    }
-
-    retryFbdBtn.addEventListener('click', handleRetry);
-    retryMcqBtn.addEventListener('click', handleRetry);
-
     checkFbdBtn.addEventListener('click', () => {
         const step = steps[currentStepIndex];
         const pass = Math.abs(fnValue - step.expectedFn) < 0.05 && Math.abs(fgValue - step.expectedFg) < 0.05 && 
                      Math.abs(fsValue - step.expectedFs) < 0.05 && Math.abs(dValue - step.expectedD) < 0.05;
+        attempts++;
         fbdFeedback.classList.remove('hidden');
-        
         if (pass) {
-            if (!step.isRetry) firstTryCorrect++; 
+            if (attempts === 1) firstTryCorrect++; else corrections++;
             fbdFeedback.textContent = `Perfect, ${studentName}! Your Free Body Diagram is exactly right.`;
             fbdFeedback.className = "text-sm font-semibold text-emerald-600 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200";
             checkFbdBtn.classList.add('hidden');
-            retryFbdBtn.classList.add('hidden');
             fnSlider.disabled = true; fgSlider.disabled = true; fsSlider.disabled = true; dSlider.disabled = true;
             nextStepContainer.classList.remove('hidden');
         } else {
-            if (!step.isRetry) {
-                 fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${getSpecificFBDFeedback(step, fnValue, fgValue, fsValue, dValue)}`;
-                 fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200";
-                 checkFbdBtn.classList.add('hidden');
-                 retryFbdBtn.classList.remove('hidden');
+            if (attempts === 1) {
+                 fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${step.fbdErrorFeedback}`;
+                 fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
             } else {
                  fails++;
-                 fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Incorrect.</span> The correct vectors were: N=${step.expectedFn}, mg=${step.expectedFg}, fs=${step.expectedFs}, D=${step.expectedD}.`;
+                 fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Out of attempts.</span> The correct vectors were: N=${step.expectedFn}, mg=${step.expectedFg}, fs=${step.expectedFs}, D=${step.expectedD}.`;
                  fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
                  checkFbdBtn.classList.add('hidden');
-                 retryFbdBtn.classList.add('hidden');
                  fnSlider.disabled = true; fgSlider.disabled = true; fsSlider.disabled = true; dSlider.disabled = true;
                  fnValue = step.expectedFn; fgValue = step.expectedFg; fsValue = step.expectedFs; dValue = step.expectedD;
                  updateFbdState();
@@ -662,27 +619,20 @@
         if (!currentSelectedAnswer) {
             showMcqFeedback(`${studentName}, please select an answer first.`, "warning"); return;
         }
-        const step = steps[currentStepIndex];
-        
+        attempts++;
         if (currentSelectedAnswer.isCorrect) {
-            if (!step.isRetry) firstTryCorrect++;
+            if (attempts === 1) firstTryCorrect++; else corrections++;
             showMcqFeedback(currentSelectedAnswer.feedback, "success");
-            submitAnswerBtn.classList.add('hidden'); 
-            retryMcqBtn.classList.add('hidden');
-            nextStepContainer.classList.remove('hidden');
+            submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
             document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
         } else {
-            if (!step.isRetry) {
-                showMcqFeedback(`Not quite. ${currentSelectedAnswer.feedback}`, "warning");
-                submitAnswerBtn.classList.add('hidden');
-                retryMcqBtn.classList.remove('hidden');
+            if (attempts === 1) {
+                showMcqFeedback(`Not quite. ${currentSelectedAnswer.feedback} Try again! (Second chance)`, "error");
             } else {
                 fails++;
                 const correctOpt = steps[currentStepIndex].options.find(o => o.isCorrect);
-                showMcqFeedback(`Incorrect. The correct answer was: "${correctOpt.text}". ${correctOpt.feedback}`, "error");
-                submitAnswerBtn.classList.add('hidden');
-                retryMcqBtn.classList.add('hidden');
-                nextStepContainer.classList.remove('hidden');
+                showMcqFeedback(`Out of attempts. The correct answer was: "${correctOpt.text}". ${correctOpt.feedback}`, "error");
+                submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
                 document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
             }
         }
@@ -696,19 +646,12 @@
         if (window.MathJax) MathJax.typesetPromise([mcqFeedback]).catch(console.error);
     }
 
-    function restartLesson() {
-        currentStepIndex = 0; firstTryCorrect = 0; fails = 0;
-        initSteps();
-        successScreen.classList.add('hidden');
-        document.getElementById('fbdSuiteContainer').classList.remove('hidden');
-        loadStep();
-    }
-
     nextStepBtn.addEventListener('click', () => {
         if (currentStepIndex < steps.length - 1) { currentStepIndex++; loadStep(); } 
         else {
-            let mistakes = fails; 
-            let finalScore = Math.max(0, 15 - mistakes);
+            let mistakes = corrections + (fails * 2), finalScore = 15;
+            if (mistakes === 0) finalScore = 17; else if (mistakes === 1) finalScore = 16;
+            else if (mistakes === 2 || mistakes === 3) finalScore = 14; else if (mistakes > 3) finalScore = Math.max(0, 14 - (mistakes - 3));
 
             let nameClean = studentName.toUpperCase().replace(/[^A-Z]/g, '');
             while(nameClean.length < 3) nameClean += 'X';
@@ -720,10 +663,9 @@
             let securityString = secArr.join('');
 
             document.getElementById('fbdSuiteContainer').classList.add('hidden');
-            mcqSection.classList.add('hidden'); 
-            nextStepContainer.classList.add('hidden');
+            mcqSection.classList.remove('hidden'); nextStepContainer.classList.add('hidden');
             
-            successScreen.innerHTML = `
+            mcqSection.innerHTML = `
                 <div class="text-center animate-[fadeIn_0.5s_ease-out]">
                     <h3 class="text-3xl font-bold text-slate-900 mb-2">Level 2 Complete, ${studentName}!</h3>
                     <p class="text-slate-600 mb-6">Here is your final mastery score:</p>
@@ -734,30 +676,25 @@
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
                             <div class="text-2xl font-black text-emerald-600">${firstTryCorrect}</div>
-                            <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider mt-1">First Try Perfect</div>
+                            <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider mt-1">First Try</div>
                         </div>
                         <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm">
                             <div class="text-2xl font-black text-amber-600">${mistakes}</div>
                             <div class="text-xs font-bold text-amber-800 uppercase tracking-wider mt-1">Mistake Penalties</div>
                         </div>
                     </div>
-                    ${finalScore < 15 ? `<button onclick="restartLesson()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-bold text-lg">Restart Level 2</button>` : `<p class="text-sm font-bold text-emerald-600 mb-4">Physics Master!</p><button onclick="restartLesson()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-6 rounded-xl font-bold text-lg">Replay Level 2</button>`}
+                    ${finalScore < 15 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-bold text-lg">Restart Level 2</button>` : `<p class="text-sm font-bold text-emerald-600">Physics Master!</p>`}
                 </div>`;
-            successScreen.classList.remove('hidden');
-            
-            if (finalScore === 15 && mistakes === 0) fireConfetti(3); 
-            else if (finalScore >= 13) fireConfetti(2); 
-            else if (finalScore >= 10) fireConfetti(1);
+            if (finalScore === 17) fireConfetti(3); else if (finalScore === 16) fireConfetti(2); else if (finalScore === 15) fireConfetti(1);
         }
     });
 
     function loadStep() {
         const step = steps[currentStepIndex];
-        currentSelectedAnswer = null; mcqFeedback.classList.add('hidden'); nextStepContainer.classList.add('hidden');
+        attempts = 0; currentSelectedAnswer = null; mcqFeedback.classList.add('hidden'); nextStepContainer.classList.add('hidden');
         aiResponseContainer.classList.add('hidden'); aiContent.innerHTML = '';
-        retryFbdBtn.classList.add('hidden'); retryMcqBtn.classList.add('hidden');
         
-        stepHeader.textContent = `Question ${currentStepIndex + 1} of ${steps.length} ${step.isRetry ? '(Retry)' : ''}`;
+        stepHeader.textContent = `Question ${currentStepIndex + 1} of ${steps.length}`;
         scenarioTitle.innerHTML = step.title; scenarioDesc.innerHTML = step.desc;
         renderScenario();
 
@@ -825,18 +762,13 @@
 
         aiResponseContainer.classList.remove('hidden'); aiLoading.classList.remove('hidden'); aiContent.classList.add('hidden');
         try {
-            const apiKey = ""; 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: aiPrompt }] }] })
-            });
-            const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            const text = await fetchFromAI(aiPrompt, false);
             aiLoading.classList.add('hidden'); aiContent.classList.remove('hidden');
             if (text) { aiContent.innerHTML = text.replace(/\n/g, '<br>'); if (window.MathJax) MathJax.typesetPromise([aiContent]); }
         } catch (err) {
+            console.error("Tutor Panel Error:", err);
             aiLoading.classList.add('hidden'); aiContent.classList.remove('hidden');
-            aiContent.innerHTML = `<span class="text-red-600">Error connecting to the AI tutor.</span>`;
+            aiContent.innerHTML = `<span class="text-red-600 font-bold">Error connecting to the AI tutor:</span><br><span class="text-slate-700 text-xs">${err.message || 'Check the developer console for details.'}</span><br><br><span class="text-xs text-slate-500">If you are running this locally outside of Vercel, ensure you pasted an API Key into the fetchFromAI function.</span>`;
         }
     });
 </script>
