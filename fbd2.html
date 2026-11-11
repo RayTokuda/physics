@@ -79,7 +79,7 @@
                     
                     <div class="flex gap-4">
                         <div class="w-1/2 canvas-container">
-                            <canvas id="fbdCanvas" width="250" height="300"></canvas>
+                            <canvas id="fbdCanvas" width="400" height="400"></canvas>
                         </div>
                         <div class="w-1/2 flex flex-col justify-center gap-3">
                             
@@ -146,9 +146,9 @@
                     <div id="mcqSection" class="hidden">
                         <h3 class="font-semibold text-lg mb-4" id="mcqQuestion">Question goes here?</h3>
                         
-                        <!-- NEW: Dedicated Canvas for drawing FBDs in the MCQ -->
+                        <!-- Dedicated Canvas for drawing FBDs in the MCQ -->
                         <div class="flex justify-center w-full mb-6">
-                            <canvas id="mcqFbdCanvas" width="200" height="250" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
+                            <canvas id="mcqFbdCanvas" width="400" height="400" class="hidden bg-slate-50 border border-slate-200 rounded-lg shadow-inner"></canvas>
                         </div>
 
                         <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
@@ -293,11 +293,9 @@
                     throw new Error(`Google API Error: ${result.error.message}`);
                 }
                 
-                // --- THE FIX IS HERE ---
                 if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
                     throw new Error("Google API returned empty content (This is usually caused by AI Safety Filters).");
                 }
-                // -----------------------
                 
                 return result.candidates[0].content.parts[0].text;
             } catch (err) {
@@ -483,7 +481,7 @@
         const name = studentNameInput.value.trim();
         if (name.length > 0) {
             studentName = name;
-            initSteps(); // Initialize and randomize questions for this student
+            initSteps(); 
             welcomeScreen.classList.add('hidden');
             loadStep();
         } else {
@@ -600,47 +598,53 @@
         fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
         
         const cx = fbdCanvas.width / 2;
-        const cy = fbdCanvas.height / 2;
-        const scale = 22; // Reduced scale to fit N=5mg cleanly on canvas
-        const step = steps[currentStepIndex];
+        const cy = fbdCanvas.height / 2 + 40; // Shifted down for tall vectors
+        const scale = 30;
+        const gap = 4;
 
         // Center Dot
         fCtx.fillStyle = '#0f172a';
         fCtx.beginPath();
-        fCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+        fCtx.arc(cx, cy, 3, 0, Math.PI * 2);
         fCtx.fill();
 
         // Draw Upward Arrow (N)
         if (fnValue > 0) {
-            const upLength = fnValue * scale;
-            drawArrow(fCtx, cx, cy, cx, cy - upLength, '#2563eb', 'N');
+            drawArrow(fCtx, cx, cy - gap, cx, cy - gap - (fnValue * scale), '#2563eb', 'N');
         }
 
         // Draw Downward Arrow (mg)
         if (fgValue > 0) {
-            const downLength = fgValue * scale;
-            drawArrow(fCtx, cx, cy, cx, cy + downLength, '#dc2626', 'mg');
+            drawArrow(fCtx, cx, cy + gap, cx, cy + gap + (fgValue * scale), '#dc2626', 'mg');
         }
 
         // Draw Horizontal Arrows
         if (fsValue !== 0) {
-            const fsLength = Math.abs(fsValue) * scale;
-            const tox = fsValue > 0 ? cx + fsLength : cx - fsLength;
-            drawArrow(fCtx, cx, cy, tox, cy, '#10b981', 'f_s');
+            const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
+            const isOpposite = !sameSide && dValue !== 0;
+            const yOffset = (sameSide && dValue !== 0) ? -12 : 0;
+            
+            let startX = cx;
+            if (isOpposite) startX = fsValue > 0 ? cx + gap : cx - gap;
+            
+            const endX = fsValue > 0 ? startX + Math.abs(fsValue)*scale : startX - Math.abs(fsValue)*scale;
+            drawArrow(fCtx, startX, cy + yOffset, endX, cy + yOffset, '#10b981', 'f_s');
         }
 
         if (dValue !== 0) {
-            const dLength = Math.abs(dValue) * scale;
-            // Shift slightly vertically if both forces point in the same direction to avoid overlap
             const sameSide = (fsValue > 0 && dValue > 0) || (fsValue < 0 && dValue < 0);
-            const yOffset = sameSide ? -12 : 0;
-            const tox = dValue > 0 ? cx + dLength : cx - dLength;
-            drawArrow(fCtx, cx, cy + yOffset, tox, cy + yOffset, '#f97316', 'D');
+            const isOpposite = !sameSide && fsValue !== 0;
+            
+            let startX = cx;
+            if (isOpposite) startX = dValue > 0 ? cx + gap : cx - gap;
+            
+            const endX = dValue > 0 ? startX + Math.abs(dValue)*scale : startX - Math.abs(dValue)*scale;
+            drawArrow(fCtx, startX, cy, endX, cy, '#f97316', 'D');
         }
     }
 
     function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
-        const headlen = 12; 
+        const headlen = 14; 
         const dx = tox - fromx;
         const dy = toy - fromy;
         const angle = Math.atan2(dy, dx);
@@ -648,8 +652,8 @@
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
         ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
         
         // Shorten the main line slightly so it doesn't poke out of the arrow head
         const lineEndX = tox - headlen * 0.8 * Math.cos(angle);
@@ -668,7 +672,7 @@
         ctx.closePath();
         ctx.fill();
 
-        ctx.font = 'bold 14px Inter';
+        ctx.font = 'bold 16px Inter';
         if (dx > 0) { 
             ctx.fillText(label, tox - 25, toy - 10);
         } else if (dx < 0) { 
@@ -683,30 +687,40 @@
     function renderMcqFbd(forces) {
         mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
         const cx = mcqFbdCanvas.width / 2;
-        const cy = mcqFbdCanvas.height / 2 + 20;
-        const scale = 18; // Reduced scale to fit large 5mg horizontal vectors with labels
+        const cy = mcqFbdCanvas.height / 2 + 40;
+        const scale = 30; 
+        const gap = 4;
 
         // Center Dot
         mCtx.fillStyle = '#0f172a';
         mCtx.beginPath();
-        mCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+        mCtx.arc(cx, cy, 3, 0, Math.PI * 2);
         mCtx.fill();
 
-        if (forces.fn > 0) drawArrow(mCtx, cx, cy, cx, cy - forces.fn * scale, '#2563eb', 'N');
-        if (forces.fg > 0) drawArrow(mCtx, cx, cy, cx, cy + forces.fg * scale, '#dc2626', 'mg');
+        if (forces.fn > 0) drawArrow(mCtx, cx, cy - gap, cx, cy - gap - (forces.fn * scale), '#2563eb', 'N');
+        if (forces.fg > 0) drawArrow(mCtx, cx, cy + gap, cx, cy + gap + (forces.fg * scale), '#dc2626', 'mg');
         
         if (forces.fs !== 0) {
-            const fsLen = Math.abs(forces.fs) * scale;
-            const tox = forces.fs > 0 ? cx + fsLen : cx - fsLen;
-            drawArrow(mCtx, cx, cy, tox, cy, '#10b981', 'f_s');
+            const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
+            const isOpposite = !sameSide && forces.d !== 0;
+            const yOffset = (sameSide && forces.d !== 0) ? -12 : 0;
+            
+            let startX = cx;
+            if (isOpposite) startX = forces.fs > 0 ? cx + gap : cx - gap;
+            
+            const endX = forces.fs > 0 ? startX + Math.abs(forces.fs)*scale : startX - Math.abs(forces.fs)*scale;
+            drawArrow(mCtx, startX, cy + yOffset, endX, cy + yOffset, '#10b981', 'f_s');
         }
 
         if (forces.d !== 0) {
-            const dLen = Math.abs(forces.d) * scale;
             const sameSide = (forces.fs > 0 && forces.d > 0) || (forces.fs < 0 && forces.d < 0);
-            const yOffset = sameSide ? -10 : 0;
-            const tox = forces.d > 0 ? cx + dLen : cx - dLen;
-            drawArrow(mCtx, cx, cy + yOffset, tox, cy + yOffset, '#f97316', 'D');
+            const isOpposite = !sameSide && forces.fs !== 0;
+            
+            let startX = cx;
+            if (isOpposite) startX = forces.d > 0 ? cx + gap : cx - gap;
+            
+            const endX = forces.d > 0 ? startX + Math.abs(forces.d)*scale : startX - Math.abs(forces.d)*scale;
+            drawArrow(mCtx, startX, cy, endX, cy, '#f97316', 'D');
         }
     }
 
@@ -750,7 +764,19 @@
             fbdFeedback.className = "text-sm font-semibold text-emerald-600 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200";
             unlockQuestion();
         } else {
-            fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${step.fbdErrorFeedback}`;
+            let specificFeedback = step.fbdErrorFeedback;
+            
+            if (!fgCorrect) {
+                specificFeedback = "Hint: Gravity is always 1.0 mg! Fix the downward gravity vector first.";
+            } else if (!fnCorrect) {
+                if (step.scenarioType === 'racecar') {
+                    specificFeedback = "Hint: The car is moving horizontally, not flying or sinking. The vertical forces (N and mg) must perfectly balance! Fix your Normal force.";
+                } else if (step.scenarioType === 'floor') {
+                    specificFeedback = "Hint: If they are standing on the floor, they are not accelerating vertically. Make N and mg equal.";
+                }
+            }
+
+            fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${specificFeedback}`;
             fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
         }
     });
@@ -848,7 +874,6 @@
     }
 
     function showMcqFeedback(message, type) {
-        // Completely reset classes to ensure old colors (red/green) don't conflict
         mcqFeedback.className = "mt-4 p-4 rounded-lg text-sm font-medium"; 
         mcqFeedback.classList.remove('hidden');
         mcqFeedback.innerHTML = message;
