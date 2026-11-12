@@ -426,6 +426,7 @@ export default async function handler(req, res) {
                 processed = processed.replace(/([a-zA-Z0-9]+)/g, '+$1');
                 processed = processed.replace(/\+\-/g, '-');
                 processed = processed.replace(/\+\+/g, '+');
+                processed = processed.replace(/\-\+/g, '-'); // Fixes negative variable parsing bug
                 if (processed.startsWith('+')) processed = processed.substring(1);
                 let terms = processed.match(/[+\-][a-zA-Z0-9_]+/g) || [];
                 if (!processed.startsWith('-') && processed.length > 0) {
@@ -482,7 +483,7 @@ export default async function handler(req, res) {
                 feedbackMessage.className = 'hidden';
             }
             
-            async function handleMistake(contextAction) {
+            async function handleMistake(contextAction, customMessage = null) {
                 totalMistakes++;
                 mistakesThisQuestion++;
                 
@@ -495,6 +496,11 @@ export default async function handler(req, res) {
                     
                     showFeedback(`Maximum attempts reached. ${answerReveal}. Check the formula concepts and proceed carefully.`, 'info');
                     return; // Don't fetch AI
+                }
+
+                if (customMessage) {
+                    showFeedback(customMessage, 'hint');
+                    return; // Skip AI if we have a specific known error!
                 }
 
                 // AI Hint System routing
@@ -511,7 +517,9 @@ export default async function handler(req, res) {
 
             // --- Problem Generation (Preserved from original) ---
             function generateProblemSet() {
-                problemSet = shuffle([createHorizontalProblem(true), createVerticalProblem(), createAirplaneProblem()]); 
+                let problems = [createHorizontalProblem(true), createVerticalProblem(), createAirplaneProblem()];
+                problems.forEach(p => generateSolutions(p));
+                problemSet = shuffle(problems); 
             }
 
             function createHorizontalProblem(isComplex = false) {
@@ -613,76 +621,66 @@ export default async function handler(req, res) {
             function generateSolutions(problem) {
                 let { solveVar, fnetX, fnetY, fnetXRHS, fnetYRHS } = problem;
                 let sol1 = "";
-                fnetX = fnetX.replace(/\*/g, '').replace(/\s/g, ''); fnetY = fnetY.replace(/\*/g, '').replace(/\s/g, '');
-                fnetXRHS = fnetXRHS.replace(/\*/g, '').replace(/\s/g, ''); fnetYRHS = fnetYRHS.replace(/\*/g, '').replace(/\s/g, '');
+                
+                const parseTerms = (eq) => {
+                    let eqNoSpaces = eq.replace(/\*/g, '').replace(/\s/g, '');
+                    let forces = eqNoSpaces.split(/([+-])/).filter(Boolean);
+                    let terms = [];
+                    let sign = '+';
+                    for (let part of forces) {
+                        if (part === '+' || part === '-') sign = part;
+                        else terms.push(sign + part);
+                    }
+                    return terms;
+                };
+
+                function getIsolated(terms, sVar, rhs) {
+                    if (sVar === 'ax' || sVar === 'ay') {
+                        let num = terms.join('');
+                        if (num.startsWith('+')) num = num.substring(1);
+                        return `(${num})/m`;
+                    }
+                    
+                    let otherTerms = terms.filter(t => !t.includes(sVar));
+                    let solveTerm = terms.find(t => t.includes(sVar));
+                    if (!solveTerm) return "ERROR";
+                    
+                    if (solveTerm.startsWith('-')) {
+                        let side = otherTerms.join('');
+                        if (side.startsWith('+')) side = side.substring(1);
+                        if (rhs === '0') return side || '0';
+                        return side ? `${side}-${rhs}` : `-${rhs}`;
+                    } else {
+                        let invertedOthers = otherTerms.map(t => {
+                            if (t.startsWith('-')) return '+' + t.substring(1);
+                            if (t.startsWith('+')) return '-' + t.substring(1);
+                            return '-' + t;
+                        });
+                        let side = invertedOthers.join('');
+                        if (rhs === '0') {
+                            if (side.startsWith('+')) side = side.substring(1);
+                            return side || '0';
+                        } else {
+                            return rhs + side;
+                        }
+                    }
+                }
 
                 try {
-                    if (problem.type === 'horizontal' && solveVar === 'N') { sol1 = `${fnetYRHS} - (-mg)`; } 
-                    else if (problem.type === 'horizontal') {
-                        let forces = fnetX.split(/([+-])/).filter(Boolean).map(s => s.trim());
-                        let terms = [];
-                        if (forces.length > 0 && !['+','-'].includes(forces[0])) {
-                            terms = [forces[0]]; for(let i = 1; i < forces.length; i+=2) terms.push(forces[i] + forces[i+1]);
-                        } else {
-                             let sign = '+'; for (let part of forces) { if (part === '+' || part === '-') sign = part; else terms.push(sign + part); }
-                        }
-                        if (solveVar === 'ax') sol1 = `(${fnetX}) / m`;
-                        else {
-                            let otherTerms = terms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
-                            let solveTerm = terms.find(t => t.includes(solveVar));
-                            if (!solveTerm) sol1 = "ERROR";
-                            else if (solveTerm.startsWith('+') || !solveTerm.startsWith('-')) sol1 = `${fnetXRHS} - (${otherTerms})`;
-                            else {
-                                let otherSide = terms.filter(t => !t.includes(solveVar)).join(' + ').replace(/\+\-/g, '-');
-                                if (otherSide.startsWith('+')) otherSide = otherSide.substring(1);
-                                sol1 = `${otherSide} - ${fnetXRHS}`;
-                            }
-                        }
+                    if (problem.type === 'horizontal' && solveVar === 'N') { 
+                        sol1 = getIsolated(parseTerms(fnetY), solveVar, fnetYRHS); 
+                    } else if (problem.type === 'horizontal') {
+                        sol1 = getIsolated(parseTerms(fnetX), solveVar, fnetXRHS);
                     } else if (problem.type === 'vertical') {
-                        let forces = fnetY.split(/([+-])/).filter(Boolean).map(s => s.trim());
-                        let yTerms = [];
-                        if (forces.length > 0 && !['+','-'].includes(forces[0])) {
-                            yTerms.push(forces[0]); for(let i = 1; i < forces.length; i+=2) yTerms.push(forces[i] + forces[i+1]);
-                        } else {
-                             let sign = '+'; for (let part of forces) { if (part === '+' || part === '-') sign = part; else yTerms.push(sign + part); }
-                        }
-                        if (solveVar === 'ay') sol1 = `(${fnetY}) / m`;
-                        else {
-                            let otherTerms = yTerms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
-                            let solveTerm = yTerms.find(t => t.includes(solveVar));
-                            if (!solveTerm) sol1 = "ERROR";
-                            else if (solveTerm.startsWith('+') || !solveTerm.startsWith('-')) sol1 = `${fnetYRHS} - (${otherTerms})`;
-                            else {
-                                let otherSide = yTerms.filter(t => !t.includes(solveVar)).join(' + ').replace(/\+\-/g, '-');
-                                if (otherSide.startsWith('+')) otherSide = otherSide.substring(1);
-                                sol1 = `${otherSide} - ${fnetYRHS}`;
-                            }
-                        }
+                        sol1 = getIsolated(parseTerms(fnetY), solveVar, fnetYRHS);
                     } else if (problem.type === 'airplane') {
-                        if (solveVar === 'ax') sol1 = `(${fnetX}) / m`;
-                        else if (solveVar === 'ay') sol1 = `(${fnetY}) / m`;
-                        else if (['Th', 'D'].includes(solveVar)) {
-                            let terms = ['Th', '-D']; let otherTerms = terms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
-                            let solveTerm = terms.find(t => t.includes(solveVar));
-                            sol1 = (solveTerm.startsWith('+') || !solveTerm.startsWith('-')) ? `${fnetXRHS} - (${otherTerms})` : `Th - ${fnetXRHS}`;
-                        } else if (['L', 'mg'].includes(solveVar)) {
-                            let terms = ['L', '-mg']; let otherTerms = terms.filter(t => !t.includes(solveVar)).map(t => t.startsWith('+') ? t.substring(1) : t).join('');
-                            let solveTerm = terms.find(t => t.includes(solveVar));
-                            sol1 = (solveTerm.startsWith('+') || !solveTerm.startsWith('-')) ? `${fnetYRHS} - (${otherTerms})` : `L - ${fnetYRHS}`;
-                        }
+                        if (['ax', 'Th', 'D'].includes(solveVar)) sol1 = getIsolated(parseTerms(fnetX), solveVar, fnetXRHS);
+                        else if (['ay', 'L', 'mg'].includes(solveVar)) sol1 = getIsolated(parseTerms(fnetY), solveVar, fnetYRHS);
                     }
                 } catch (e) { sol1 = "ERROR"; }
                 
-                const cleanup = (s) => {
-                    let cleaned = s.replace(/\+\-/g, '-').replace(/--/g, '+').replace(/\(\+/g, '(').replace(/\s/g, '').replace(/\*/g, '');
-                    cleaned = cleaned.replace(/\(-/g, '(neg').replace(/-/g, '+-').replace(/neg/g, '-');
-                    cleaned = cleaned.replace(/\( /g, '(').replace(/ \)/g, ')').replace(/\(0\+-/g, '(-').replace(/\(0\+/g, '(').replace(/-\(+/g, '-(');
-                    cleaned = cleaned.replace(/0\+/g, '').replace(/\+0/g, '').replace(/0-/g, '-').replace(/-0/g, '');
-                    cleaned = cleaned.replace(/\(-([a-zA-Z0-9]+)\)/g, '-$1').replace(/\(\+([a-zA-Z0-9]+)\)/g, '$1').replace(/\(([a-zA-Z0-9]+)\)/g, '$1');
-                    cleaned = cleaned.replace(/\+\-/g, '-').replace(/--/g, '+');
-                    return cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
-                };
-                solveState.correctSolution1 = cleanup(sol1);
+                problem.correctSolution = sol1;
+                solveState.correctSolution1 = problem.correctSolution;
             }
 
             // --- Drawing Functions ---
@@ -840,13 +838,17 @@ export default async function handler(req, res) {
             function checkFNet(axis) {
                 const input = (axis === 'x') ? fnetXInput.value : fnetYInput.value;
                 const correctEq = (axis === 'x') ? fnetState.correctXEq : fnetState.correctYEq;
+                const otherEq = (axis === 'x') ? fnetState.correctYEq : fnetState.correctXEq;
                 const altCorrectEq = normalizeExpression(correctEq) === normalizeExpression(input);
+                const isSwapped = (otherEq !== "0" && otherEq !== "") && (normalizeExpression(otherEq) === normalizeExpression(input) || checkExpression(input, otherEq));
                 
                 if (checkExpression(input, correctEq) || altCorrectEq) {
                     showFeedback(`Correct! The F<sub>net,${axis}</sub> equation is right.`, 'success');
                     if (axis === 'x') { fnetState.xCorrect = true; checkFNetXBtn.disabled = true; fnetXInput.disabled = true; } 
                     else { fnetState.yCorrect = true; checkFNetYBtn.disabled = true; fnetYInput.disabled = true; }
                     if (fnetState.xCorrect && fnetState.yCorrect) { showFeedback('Great! Both net force equations are correct. Time to solve!', 'success'); setTimeout(setupSolveStep, 1500); }
+                } else if (isSwapped) {
+                    handleMistake(`fnet${axis}`, `You entered the forces for the ${axis === 'x' ? 'y' : 'x'}-axis! Remember, F<sub>net,x</sub> is horizontal and F<sub>net,y</sub> is vertical.`);
                 } else { handleMistake(`fnet${axis}`); }
             }
             
@@ -868,11 +870,17 @@ export default async function handler(req, res) {
             
             checkSolveBtn.addEventListener('click', () => {
                 const userInput = solveInput.value;
+                let strippedZeroInput = userInput.replace(/0\+/g, '').replace(/\+0/g, '').replace(/-0/g, '');
+                strippedZeroInput = strippedZeroInput.replace(/(^|[^a-zA-Z0-9])0-([a-zA-Z0-9])/g, '$1-$2');
+
                 if (checkAlgebra(userInput, solveState.correctSolution1)) {
                     showFeedback('That\'s exactly right! Problem complete!', 'success');
                     checkSolveBtn.disabled = true; solveInput.disabled = true;
                     if (currentProblemIndex === TOTAL_PROBLEMS - 1) setTimeout(showFinalScore, 1500);
                     else nextProblemContainer.style.display = 'block';
+                } else if (checkAlgebra(strippedZeroInput, solveState.correctSolution1) && /0\+|\+0|-0|0-/.test(userInput.replace(/\s/g, ''))) {
+                    handleMistake('solve', "You have a '0' in your expression. While technically true, the zero is usually left out when reporting this sort of algebraic answer.");
+                    checkSolveBtn.disabled = false; solveInput.disabled = false;
                 } else {
                     handleMistake('solve'); checkSolveBtn.disabled = false; solveInput.disabled = false;
                 }
@@ -1076,6 +1084,7 @@ export default async function handler(req, res) {
                             <p><strong>Expected Forces:</strong> ${q.forces.map(f=>f.name).join(', ')}</p>
                             <p><strong>X-Equation:</strong> ${q.fnetX} = ${q.fnetXRHS}</p>
                             <p><strong>Y-Equation:</strong> ${q.fnetY} = ${q.fnetYRHS}</p>
+                            <p><strong>Solution for ${q.solveVar}:</strong> ${q.correctSolution}</p>
                         </div>
                         <div style="flex: 0 0 320px; text-align:center;">
                             <h4 style="margin-top:0; color:#4b5563;">Correct FBD</h4>
