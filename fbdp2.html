@@ -356,8 +356,8 @@
 
         steps.push({
             mode: 'draw', title: "3. Angled Rope Drag",
-            desc: `A crate is dragged right by a rope with Tension T = ${Tmag.toFixed(2)} mg, angled at ${thetaDeg}° above the horizontal. Gravity is 1.0 mg. <strong>Adjust Normal (N) and Kinetic Friction (f_k)</strong> to build the correct FBD.`,
-            scenarioType: 'crate', unknownForce: 'both_n_fk', upLabel: 'Normal (N)', rightLabel: '(None)', leftLabel: 'Friction (f_k)',
+            desc: `A crate is dragged right by a rope with Tension T = ${Tmag.toFixed(2)} mg, angled at ${thetaDeg}° above the horizontal. Gravity is 1.0 mg. <strong>Adjust Normal (N) and Kinetic Friction (F_k)</strong> to build the correct FBD.`,
+            scenarioType: 'crate', unknownForce: 'both_n_fk', upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k',
             angledForce: angledF,
             givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3, expectedFn: n3, expectedFs: 0, expectedD: fk3, accel: a3
         });
@@ -368,7 +368,7 @@
             options: buildOpts(`T \\cos(${thetaDeg}^\\circ)`, [
                 `T \\sin(${thetaDeg}^\\circ)`, `T \\tan(${thetaDeg}^\\circ)`, `\\frac{T}{\\cos(${thetaDeg}^\\circ)}`
             ]),
-            angledForce: angledF, upLabel: 'Normal (N)', rightLabel: '(None)', leftLabel: 'Friction (f_k)', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
         });
         steps.push({
             mode: 'mcq', title: "3. Vertical Equilibrium",
@@ -377,25 +377,43 @@
             options: buildOpts(`N + T \\sin(${thetaDeg}^\\circ) - mg = 0`, [
                 `N - mg = 0`, `N + T \\cos(${thetaDeg}^\\circ) - mg = 0`, `N - T \\sin(${thetaDeg}^\\circ) - mg = 0`
             ]),
-            angledForce: angledF, upLabel: 'Normal (N)', rightLabel: '(None)', leftLabel: 'Friction (f_k)', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+        });
+        steps.push({
+            mode: 'mcq', title: "3. Equation for Normal Force",
+            desc: `Using the vertical equilibrium equation: \\( N + T \\sin(${thetaDeg}^\\circ) - mg = 0 \\)...`,
+            question: "What is the algebraic equation for the normal force (N)?",
+            options: buildOpts(`N = mg - T \\sin(${thetaDeg}^\\circ)`, [
+                `N = mg + T \\sin(${thetaDeg}^\\circ)`, `N = T \\sin(${thetaDeg}^\\circ) - mg`, `N = mg - T \\cos(${thetaDeg}^\\circ)`
+            ]),
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
         });
         steps.push({
             mode: 'mcq', title: "3. Solve Normal Force",
-            desc: `Using \\( N + T \\sin(${thetaDeg}^\\circ) - mg = 0 \\) and \\( T = ${Tmag.toFixed(2)} mg \\)...`,
+            desc: `Using \\( N = mg - T \\sin(${thetaDeg}^\\circ) \\) and \\( T = ${Tmag.toFixed(2)} mg \\)...`,
             question: "What is the numerical value of the Normal force (N)?",
             options: buildOpts(`${n3.toFixed(2)}mg`, [
                 `1.00mg`, `${(1.0 + Ty).toFixed(2)}mg`, `${(1.0 - Tx).toFixed(2)}mg`
             ]),
-            angledForce: angledF, upLabel: 'Normal (N)', rightLabel: '(None)', leftLabel: 'Friction (f_k)', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+        });
+        steps.push({
+            mode: 'mcq', title: "3. Equation for Acceleration",
+            desc: `Using Newton's Second Law for the horizontal direction: \\( F_{net,x} = T \\cos(${thetaDeg}^\\circ) - F_k = ma_x \\).`,
+            question: "What is the algebraic equation for horizontal acceleration (\\( a_x \\))?",
+            options: buildOpts(`a_x = \\frac{T \\cos(${thetaDeg}^\\circ) - F_k}{m}`, [
+                `a_x = \\frac{T \\sin(${thetaDeg}^\\circ) - F_k}{m}`, `a_x = \\frac{F_k - T \\cos(${thetaDeg}^\\circ)}{m}`, `a_x = \\frac{T \\cos(${thetaDeg}^\\circ) + F_k}{m}`
+            ]),
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
         });
         steps.push({
             mode: 'mcq', title: "3. Horizontal Acceleration",
-            desc: `Using the x-components: \\( F_{net,x} = T \\cos(${thetaDeg}^\\circ) - f_k = ma_x \\). We know \\( T = ${Tmag.toFixed(2)} mg \\) and \\( f_k = ${fk3mag.toFixed(2)} mg \\).`,
+            desc: `Using the equation: \\( a_x = \\frac{T \\cos(${thetaDeg}^\\circ) - F_k}{m} \\). We know \\( T = ${Tmag.toFixed(2)} mg \\) and \\( F_k = ${fk3mag.toFixed(2)} mg \\).`,
             question: "What is the horizontal acceleration (\\( a_x \\)) of the crate?",
             options: buildOpts(`${a3.toFixed(2)}g`, [
                 `${(Tx + fk3mag).toFixed(2)}g`, `${(Ty - fk3mag).toFixed(2)}g`, `${Tx.toFixed(2)}g`
             ]),
-            angledForce: angledF, upLabel: 'Normal (N)', rightLabel: '(None)', leftLabel: 'Friction (f_k)', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
+            angledForce: angledF, upLabel: 'N', rightLabel: '(None)', leftLabel: 'F_k', givenFn: n3, givenFg: 1.0, givenFs: 0, givenD: fk3
         });
     }
 
@@ -504,7 +522,7 @@
         ctx.font = 'bold 14px Inter';
         
         if (dx > 0 && Math.abs(dy) < 5) ctx.fillText(label, actualToX - 25, actualToY - 10); 
-        else if (dx < 0 && Math.abs(dy) < 5) ctx.fillText(label, actualToX + 5, actualToY - 10);
+        else if (dx < 0 && Math.abs(dy) < 5) ctx.fillText(label, actualToX - 20, actualToY - 15);
         else if (dy < 0) ctx.fillText(label, actualToX + 10, actualToY + 10); 
         else ctx.fillText(label, actualToX + 10, actualToY);
     }
