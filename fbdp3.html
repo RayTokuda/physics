@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forces and Acceleration: Mouse Physics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        canvas#confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .latex-container { overflow-x: auto; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
+
+    <canvas id="confetti"></canvas>
+
+    <div id="app" class="flex-grow flex items-center justify-center p-4 sm:p-8">
+        <!-- Dynamic Content Injected Here -->
+    </div>
+
+<script>
+    /* --- CONSTANTS & IMAGES --- */
+    const EXERCISE_NAME = "Forces and Acceleration: Mouse Physics";
+    const IMG_BASE_DOWN = "https://docs.google.com/drawings/d/e/2PACX-1vRCKseYUqxFnH7cAvW_HsFen1mzP9hr1hFaw1CHFMkrqJN3QJQHnL_AXbamX5AaaCd-F__QwN355hS3/pub?w=1200&h=892";
+    const IMG_BASE_UP = "https://docs.google.com/drawings/d/e/2PACX-1vTe-4me1WUSRXJcmcZEEkWz9YmFP0rjOjBtXuuBZ0YWlKoIYZAoNBzvNyZIWXoW8HPJDmYTEK6UZS-W/pub?w=1200&h=892";
+
+    /* --- STATE --- */
+    let state = {
+        studentName: "",
+        screen: "start", // start, quiz, win
+        questions: [],
+        currentQ: 0,
+        corrections: 0,
+        hintsUsed: {},
+        answered: {},
+        studentAnswers: {},
+        isLoadingHint: false,
+        hintMessage: "",
+        uiWarning: ""
+    };
+
+    /* --- UTILS --- */
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function reTypeset() {
+        if (window.MathJax) {
+            MathJax.typesetPromise().catch((err) => console.log('MathJax error:', err));
+        }
+    }
+
+    function generateAlphanumeric(name) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        let nameChars = name.replace(/[^A-Za-z]/g, '').toUpperCase().split('');
+        let lettersToUse = nameChars.slice(0, 3);
+        while (lettersToUse.length < 3) lettersToUse.push(chars.charAt(Math.floor(Math.random() * chars.length)));
+        
+        for (let i = 0; i < 9; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        
+        for(let letter of lettersToUse) {
+            const pos = Math.floor(Math.random() * (result.length + 1));
+            result = result.slice(0, pos) + letter + result.slice(pos);
+        }
+        return result.slice(0, 12);
+    }
+
+    /* --- PROCEDURAL SVG FBD GENERATOR --- */
+    function createFBDSVG(upLabel, downLabel, upLen, downLen) {
+        // maps logical sizes to pixel lengths
+        const mapLen = { small: 25, mid: 40, large: 65 };
+        const u = mapLen[upLen];
+        const d = mapLen[downLen];
+        const cy = 75, cx = 60;
+        return `<svg width="120" height="150" viewBox="0 0 120 150" class="mx-auto bg-white rounded-lg shadow-sm border border-slate-200">
+            <circle cx="${cx}" cy="${cy}" r="6" fill="#334155"/>
+            <!-- Up Vector -->
+            <line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - u + 8}" stroke="#2563eb" stroke-width="4"/>
+            <polygon points="${cx-6},${cy - u + 8} ${cx+6},${cy - u + 8} ${cx},${cy - u}" fill="#2563eb"/>
+            <text x="${cx + 10}" y="${cy - u + 15}" font-size="16" font-weight="bold" fill="#2563eb" font-family="sans-serif">${upLabel}</text>
+            <!-- Down Vector -->
+            <line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy + d - 8}" stroke="#dc2626" stroke-width="4"/>
+            <polygon points="${cx-6},${cy + d - 8} ${cx+6},${cy + d - 8} ${cx},${cy + d}" fill="#dc2626"/>
+            <text x="${cx + 10}" y="${cy + d - 5}" font-size="16" font-weight="bold" fill="#dc2626" font-family="sans-serif">${downLabel}</text>
+        </svg>`;
+    }
+
+    /* --- API ROUTING FUNCTION --- */
+    async function fetchFromAI(promptText, isJsonMode = false) {
+        const isVercelEnvironment = window.location.hostname && 
+                                    window.location.hostname !== 'localhost' && 
+                                    window.location.hostname !== '127.0.0.1' && 
+                                    !window.location.hostname.includes('google') && 
+                                    !window.location.hostname.includes('csb.app');
+        
+        if (isVercelEnvironment) {
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: promptText, requireJson: isJsonMode })
+            });
+            if (!response.ok) throw new Error("Backend fetch failed");
+            const data = await response.json();
+            return data.text;
+        } else {
+            const apiKey = ""; 
+            let payload = { contents: [{ parts: [{ text: promptText }] }] };
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            return result.candidates[0].content.parts[0].text;
+        }
+    }
+
+    /* --- QUESTION GENERATOR --- */
+    function generateQuestions() {
+        const qs = [];
+        const scenarios = [
+            { id: 'pulley', name: 'Pulley', force: 'Tension', sym: 'T' },
+            { id: 'elevator', name: 'Elevator', force: 'Normal force', sym: 'N' },
+            { id: 'jetpack', name: 'Jetpack', force: 'Thrust', sym: 'Thrust' }
+        ];
+        const directions = ['down', 'up'];
+
+        scenarios.forEach(scen => {
+            directions.forEach(dir => {
+                // Denominators 2 through 8 for 7 different magnitude variations
+                const d = Math.floor(Math.random() * 7) + 2; 
+                
+                let mediaHtml = "";
+                let baseText = "";
+
+                if (scen.id === 'pulley') {
+                    // Restore original images for the pulley
+                    mediaHtml = `<img src="${dir === 'down' ? IMG_BASE_DOWN : IMG_BASE_UP}" class="w-full max-w-lg mx-auto rounded-lg shadow-sm border border-gray-200 mb-6">`;
+                    baseText = `A small mouse is playing on a physics pulley and has an acceleration of \\( ${dir==='down'?'-':'+'}\\frac{1}{${d}}g \\) (up is positive).`;
+                } else if (scen.id === 'elevator') {
+                    // Draw elevator svg with fixed vectors and un-cropped horizontal text
+                    const aVec = dir === 'down' 
+                        ? `<line x1="95" y1="40" x2="95" y2="80" stroke="#ef4444" stroke-width="3"/><polygon points="91,76 99,76 95,84" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = -g/${d}</text>`
+                        : `<line x1="95" y1="80" x2="95" y2="40" stroke="#ef4444" stroke-width="3"/><polygon points="91,44 99,44 95,36" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = +g/${d}</text>`;
+                    mediaHtml = `<svg width="100%" max-width="300" viewBox="0 0 160 120" class="mx-auto my-4 bg-slate-200 rounded-xl shadow-inner border border-slate-300">
+                        <line x1="50" y1="0" x2="50" y2="20" stroke="#475569" stroke-width="3"/>
+                        <rect x="20" y="20" width="60" height="80" rx="4" fill="#94a3b8" stroke="#334155" stroke-width="2"/>
+                        <rect x="25" y="25" width="50" height="70" rx="2" fill="#cbd5e1"/>
+                        <circle cx="50" cy="85" r="8" fill="#facc15" stroke="#3f3f46" stroke-width="1"/>
+                        <circle cx="44" cy="79" r="4" fill="#f43f5e" stroke="#3f3f46" stroke-width="0.5"/>
+                        <circle cx="56" cy="79" r="4" fill="#f43f5e" stroke="#3f3f46" stroke-width="0.5"/>
+                        ${aVec}
+                    </svg>`;
+                    baseText = `The mouse is in an elevator accelerating <b>${dir}wards</b> at \\( ${dir==='down'?'-':'+'}\\frac{1}{${d}}g \\) (up is positive).`;
+                } else if (scen.id === 'jetpack') {
+                    // Draw jetpack svg with expanded viewBox to prevent cropping
+                    const aVec = dir === 'down' 
+                        ? `<line x1="95" y1="40" x2="95" y2="80" stroke="#ef4444" stroke-width="3"/><polygon points="91,76 99,76 95,84" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = -g/${d}</text>`
+                        : `<line x1="95" y1="80" x2="95" y2="40" stroke="#ef4444" stroke-width="3"/><polygon points="91,44 99,44 95,36" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = +g/${d}</text>`;
+                    mediaHtml = `<svg width="100%" max-width="300" viewBox="0 0 160 120" class="mx-auto my-4 bg-sky-100 rounded-xl shadow-inner border border-sky-300">
+                        <path d="M10 30 Q20 20 30 30 T50 30 T70 30 Q80 20 90 30" fill="white" opacity="0.8"/>
+                        <circle cx="50" cy="60" r="12" fill="#facc15" stroke="#3f3f46" stroke-width="1.5"/>
+                        <rect x="33" y="55" width="8" height="15" rx="3" fill="#64748b" stroke="#334155"/>
+                        <rect x="59" y="55" width="8" height="15" rx="3" fill="#64748b" stroke="#334155"/>
+                        <path d="M33 70 L37 85 L41 70 Z" fill="#f97316"/>
+                        <path d="M59 70 L63 85 L67 70 Z" fill="#f97316"/>
+                        ${aVec}
+                    </svg>`;
+                    baseText = `The mouse is wearing a jetpack and accelerating <b>${dir}wards</b> at \\( ${dir==='down'?'-':'+'}\\frac{1}{${d}}g \\) (up is positive).`;
+                }
+
+                // 1. FBD Question (6 unique distractors)
+                const fbdOptions = [];
+                if (dir === 'down') {
+                    fbdOptions.push({ val: 'correct', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'large'), desc: `${scen.sym} < mg (Correct)` });
+                    fbdOptions.push({ val: 'wrong1', svg: createFBDSVG(scen.sym, 'mg', 'large', 'mid'), desc: `${scen.sym} > mg (Wrong direction)` });
+                    fbdOptions.push({ val: 'wrong2', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'mid'), desc: `${scen.sym} = mg (Constant v)` });
+                } else {
+                    fbdOptions.push({ val: 'correct', svg: createFBDSVG(scen.sym, 'mg', 'large', 'mid'), desc: `${scen.sym} > mg (Correct)` });
+                    fbdOptions.push({ val: 'wrong1', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'large'), desc: `${scen.sym} < mg (Wrong direction)` });
+                    fbdOptions.push({ val: 'wrong2', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'mid'), desc: `${scen.sym} = mg (Constant v)` });
+                }
+                
+                // Incorrect label variables to ensure diversity
+                const wrongSym1 = scen.sym === 'T' ? 'N' : 'T';
+                const wrongSym2 = scen.sym === 'Thrust' ? 'N' : 'Thrust';
+                
+                fbdOptions.push({ val: 'wrong3', svg: createFBDSVG(wrongSym1, 'mg', 'large', 'mid'), desc: `Wrong Force Label` });
+                fbdOptions.push({ val: 'wrong4', svg: createFBDSVG('mg', scen.sym, 'large', 'mid'), desc: `Gravity is Down!` });
+                fbdOptions.push({ val: 'wrong5', svg: createFBDSVG(wrongSym2, 'mg', 'mid', 'large'), desc: `Wrong Force Label` });
+
+                qs.push({
+                    type: 'mc_svg',
+                    scenario: `${scen.name} ${dir}wards`,
+                    imageHTML: mediaHtml,
+                    text: `${baseText}<br><br>What is the correct free body diagram?`,
+                    options: shuffleArray(fbdOptions),
+                    correctVal: 'correct',
+                    solutionText: dir === 'down' ? `Acceleration is down, so downward gravity must be larger than upward ${scen.force} (${scen.sym} < mg).` : `Acceleration is up, so upward ${scen.force} must be larger than downward gravity (${scen.sym} > mg).`
+                });
+
+                // 2. Equation Question
+                const sign = dir === 'down' ? '-' : '+';
+                const wrongSign = dir === 'down' ? '+' : '-';
+                
+                qs.push({
+                    type: 'mc_text',
+                    scenario: `${scen.name} ${dir}wards`,
+                    imageHTML: mediaHtml,
+                    text: `${baseText}<br><br>What is the correct form of \\( F_{net} = ma \\)?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: `\\( ${scen.sym} - mg = ${sign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong1', text: `\\( ${scen.sym} - mg = ${wrongSign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong2', text: `\\( ${wrongSym1} - mg = ${sign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong3', text: `\\( mg - ${scen.sym} = ${sign}\\frac{mg}{${d}} \\)` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `Sum of forces (Up positive) is ${scen.sym} - mg. This equals mass times acceleration: m(${sign}g/${d}) = ${sign}mg/${d}.`
+                });
+
+                // 3. Force Calculation Question
+                const topCorrect = dir === 'down' ? d - 1 : d + 1;
+                const topWrong1 = dir === 'down' ? d + 1 : d - 1;
+                
+                qs.push({
+                    type: 'mc_text',
+                    scenario: `${scen.name} ${dir}wards`,
+                    imageHTML: mediaHtml,
+                    text: `${baseText}<br><br>What is the magnitude of the upward force (${scen.force})?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: `\\( \\frac{${topCorrect}}{${d}} mg \\)` },
+                        { val: 'wrong1', text: `\\( \\frac{${topWrong1}}{${d}} mg \\)` },
+                        { val: 'wrong2', text: `\\( \\frac{1}{${d}} mg \\)` },
+                        { val: 'wrong3', text: `\\( \\frac{${d}}{${topCorrect}} mg \\)` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `From ${scen.sym} - mg = ${sign}mg/${d}, solve for ${scen.sym}: ${scen.sym} = mg ${sign} mg/${d} = \\frac{${topCorrect}}{${d}}mg.`
+                });
+            });
+        });
+        
+        return qs;
+    }
+
+    /* --- RENDERING --- */
+    function render() {
+        const app = document.getElementById('app');
+        
+        let warningHtml = state.uiWarning ? `
+            <div class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-rose-600 text-white px-6 py-3 rounded-xl shadow-2xl z-50 animate-bounce font-bold">
+                ${state.uiWarning}
+            </div>
+        ` : '';
+
+        if (state.screen === 'start') {
+            app.innerHTML = `
+                ${warningHtml}
+                <div class="glass-panel p-8 rounded-2xl max-w-md w-full text-center fade-in">
+                    <h1 class="text-3xl font-bold text-indigo-900 mb-2">Physics Interactive</h1>
+                    <h2 class="text-lg text-indigo-700 mb-8">${EXERCISE_NAME}</h2>
+                    <p class="mb-4 text-gray-600">Enter your name to begin the assessment.</p>
+                    <input type="text" id="studentName" class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:ring-2 focus:ring-indigo-500 outline-none text-center text-lg" placeholder="Student Name" value="${state.studentName}" onkeypress="if(event.key === 'Enter') startQuiz()">
+                    <button onclick="startQuiz()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg">Start Exercise</button>
+                </div>
+            `;
+        } else if (state.screen === 'quiz') {
+            const q = state.questions[state.currentQ];
+            const isAnswered = state.answered[state.currentQ];
+            
+            let mediaHtml = q.imageHTML ? q.imageHTML : `<img src="${q.image}" class="w-full max-w-lg mx-auto rounded-lg shadow-sm border border-gray-200 mb-6">`;
+            
+            let interactionHtml = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">`;
+            q.options.forEach((opt, idx) => {
+                let content = q.type === 'mc_svg' 
+                    ? opt.svg 
+                    : `<span class="text-lg">${opt.text}</span>`;
+                interactionHtml += `
+                    <button onclick="handleMC('${opt.val}')" class="p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all ${isAnswered ? 'opacity-50 cursor-not-allowed' : ''}" ${isAnswered ? 'disabled' : ''}>
+                        <div class="font-bold text-slate-400 mb-2 text-left">Option ${String.fromCharCode(65+idx)}</div>
+                        ${content}
+                    </button>
+                `;
+            });
+            interactionHtml += `</div>`;
+
+            let hintStyle = isAnswered 
+                ? 'bg-emerald-50 border-emerald-500 text-emerald-900' 
+                : 'bg-amber-50 border-amber-500 text-amber-900';
+            let hintTitleStyle = isAnswered ? 'text-emerald-800' : 'text-amber-800';
+
+            let hintSection = state.hintMessage ? `
+                <div class="${hintStyle} border-l-4 p-4 mb-6 rounded-r-lg shadow-sm">
+                    <p class="${hintTitleStyle} font-semibold mb-1">${isAnswered ? 'Correct!' : 'Feedback & Hint'}</p>
+                    <p>${state.hintMessage}</p>
+                </div>
+            ` : '';
+
+            if (state.isLoadingHint) {
+                hintSection = `<div class="p-4 text-center text-indigo-600 animate-pulse font-medium">Generating intelligent hint...</div>`;
+            }
+
+            app.innerHTML = `
+                ${warningHtml}
+                <div class="glass-panel p-6 sm:p-10 rounded-2xl w-full max-w-5xl fade-in relative">
+                    <div class="absolute top-4 right-6 text-sm font-semibold text-slate-400">Question ${state.currentQ + 1} of ${state.questions.length}</div>
+                    
+                    ${mediaHtml}
+                    
+                    <div class="text-xl text-slate-800 mb-8 latex-container">${q.text}</div>
+                    
+                    ${hintSection}
+                    ${interactionHtml}
+                    
+                    <div class="flex justify-between items-center mt-8 border-t border-gray-100 pt-6">
+                        <button onclick="prevQ()" class="text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 disabled:opacity-30" ${state.currentQ === 0 ? 'disabled' : ''}>&larr; Back</button>
+                        ${isAnswered ? `<div class="text-emerald-600 font-bold text-lg">Correct!</div>` : ''}
+                        <button onclick="nextQ()" class="bg-slate-800 hover:bg-slate-900 text-white font-medium px-6 py-2 rounded-lg shadow transition-colors disabled:opacity-30" ${(isAnswered || state.currentQ === state.questions.length - 1) ? '' : 'disabled'}>
+                            ${state.currentQ === state.questions.length - 1 ? (isAnswered ? 'Finish Exercise' : 'Finish Exercise') : 'Next Question &rarr;'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            setTimeout(reTypeset, 50);
+        } else if (state.screen === 'win') {
+            const scoreObj = calculateScore();
+            let tryAgainBtn = scoreObj.percent < 100 ? `<button onclick="resetExercise()" class="block w-full text-center bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-lg mt-4 shadow-lg transition-colors">Try Again</button>` : '';
+            
+            app.innerHTML = `
+                <div class="glass-panel p-8 sm:p-12 rounded-2xl max-w-lg w-full text-center fade-in relative z-10">
+                    <p class="text-sm text-slate-400 mb-2 uppercase tracking-widest">${EXERCISE_NAME}</p>
+                    <h1 class="text-6xl font-extrabold text-emerald-500 mb-1">${scoreObj.points} / 10</h1>
+                    <div class="text-xs text-slate-400 mb-8">${generateAlphanumeric(state.studentName)}</div>
+                    <p class="text-sm text-slate-500 mb-4 uppercase tracking-widest">${state.studentName}</p>
+                    
+                    <h2 class="text-2xl font-semibold text-indigo-700 mb-4">${scoreObj.message}</h2>
+                    <p class="text-slate-600 mb-8">Total hints required: ${state.corrections}</p>
+                    
+                    <button onclick="downloadStudyGuide()" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors">Download Study Guide</button>
+                    ${tryAgainBtn}
+                </div>
+            `;
+            if (scoreObj.confettiRounds > 0) {
+                fireConfetti(scoreObj.confettiRounds);
+            }
+        }
+    }
+
+    /* --- LOGIC --- */
+    function showWarning(msg) {
+        state.uiWarning = msg;
+        render();
+        setTimeout(() => { state.uiWarning = ""; render(); }, 3000);
+    }
+
+    function startQuiz() {
+        const name = document.getElementById('studentName').value.trim();
+        if (!name) { showWarning("Please enter your name."); return; }
+        state.studentName = name;
+        state.questions = generateQuestions();
+        state.currentQ = 0;
+        state.corrections = 0;
+        state.hintsUsed = {};
+        state.answered = {};
+        state.studentAnswers = {};
+        state.screen = 'quiz';
+        render();
+    }
+
+    function resetExercise() {
+        state.questions = generateQuestions();
+        state.currentQ = 0;
+        state.corrections = 0;
+        state.hintsUsed = {};
+        state.answered = {};
+        state.studentAnswers = {};
+        state.screen = 'quiz';
+        state.hintMessage = "";
+        clearConfetti();
+        render();
+    }
+
+    function prevQ() {
+        if (state.currentQ > 0) { state.currentQ--; state.hintMessage = ""; render(); }
+    }
+
+    function nextQ() {
+        if (!state.answered[state.currentQ]) { showWarning("Please answer correctly before moving on."); return; }
+        if (state.currentQ < state.questions.length - 1) {
+            state.currentQ++; state.hintMessage = ""; render();
+        } else {
+            state.screen = 'win'; render();
+        }
+    }
+
+    async function handleMC(val) {
+        if (state.answered[state.currentQ]) return;
+        const q = state.questions[state.currentQ];
+        if (val === q.correctVal) {
+            state.answered[state.currentQ] = true;
+            state.hintMessage = "<span class='text-emerald-700 font-bold'>Excellent! You got the right answer.</span>";
+            state.studentAnswers[state.currentQ] = "Correctly Answered";
+            render();
+        } else {
+            await handleMistake(q, "a multiple choice option that was incorrect.");
+        }
+    }
+
+    async function handleMistake(q, wrongAnswerDesc) {
+        state.corrections++;
+        if (!state.hintsUsed[state.currentQ]) state.hintsUsed[state.currentQ] = 0;
+        state.hintsUsed[state.currentQ]++;
+        
+        if (state.hintsUsed[state.currentQ] >= 5) {
+            state.hintMessage = `You've tried 5 times. Let's look at the solution:<br><br><b>${q.solutionText}</b><br><br>The exact answer is marked below. Please move to the next question.`;
+            state.answered[state.currentQ] = true; 
+            render(); return;
+        }
+
+        state.isLoadingHint = true;
+        state.hintMessage = "";
+        render();
+
+        try {
+            // STRICT AI INSTRUCTIONS: Block LaTeX and mandate physics rules.
+            const prompt = `A student is solving this physics problem: "${q.text}". The context is ${q.scenario}. The correct reasoning is: ${q.solutionText}. The student selected an incorrect option. Give a robust, insightful, and instructive hint to help them understand why it's wrong and how to find the right answer. Do NOT give away the final answer directly. Be encouraging. 
+            CRITICAL RULES FOR YOU: 
+            1. DO NOT use markdown formatting (like asterisks for bolding). Use plain text.
+            2. DO NOT use LaTeX formatting. Use HTML subscript for subscripts like F<sub>net</sub>.
+            3. Strictly enforce that gravity (mg) is NEVER upwards.
+            4. Strictly enforce that the force exerted by a string is Tension (T), NOT the Normal force (N).`;
+            
+            const hintText = await fetchFromAI(prompt, false); 
+            state.hintMessage = hintText;
+        } catch (e) {
+            state.hintMessage = "Double check your force directions and signs. Remember F<sub>net</sub> = ma. Gravity always pulls down.";
+        } finally {
+            state.isLoadingHint = false;
+            render();
+        }
+    }
+
+    /* --- SCORING, WIN LOGIC & STUDY GUIDE --- */
+    function calculateScore() {
+        const c = state.corrections;
+        let points = 10, extra = 0, confetti = 0;
+        if (c === 0) { extra = 2; confetti = 3; }
+        else if (c === 1) { extra = 1; confetti = 2; }
+        else if (c === 2) { extra = 0; confetti = 1; }
+        else { points = Math.max(0, 10 - (c - 2)); confetti = 0; }
+
+        const total = points + extra, percent = Math.min(100, Math.round((total / 10) * 100));
+        let msg = percent >= 100 ? "Outstanding achievement! Flawless reasoning!" 
+                : percent >= 90 ? "Solid job. You're very close to mastering this!"
+                : percent >= 80 ? "You made it through, keep practicing those force balances!"
+                : "Physics is tough, but practice makes perfect. Try Again to reinforce these concepts!";
+        return { points: total, percent, message: msg, confettiRounds: total < 10 ? 0 : confetti };
+    }
+    function generateQuestions() {
+        const qs = [];
+        const scenarios = shuffleArray([
+            { id: 'pulley', name: 'Pulley', force: 'Tension', sym: 'T', obj: 'mouse' },
+            { id: 'elevator', name: 'Elevator', force: 'Normal force', sym: 'N', obj: 'mouse' },
+            { id: 'jetpack', name: 'Jetpack', force: 'Thrust', sym: 'Thrust', obj: 'mouse' }
+        ]);
+        const dirs = shuffleArray(['up', 'down']); 
+        
+        // Helper to generate a question set (4 questions for accel, 2 for constant v)
+        const generateSet = (scen, dir, isConstantV) => {
+            const d = Math.floor(Math.random() * 7) + 2; 
+            const sign = dir === 'down' ? '-' : '+';
+            const wrongSign = dir === 'down' ? '+' : '-';
+            
+            let mediaHtml = "";
+            let baseText = "";
+            let aVec = "";
+            
+            if (!isConstantV) {
+                aVec = dir === 'down' 
+                    ? `<line x1="95" y1="40" x2="95" y2="80" stroke="#ef4444" stroke-width="3"/><polygon points="91,76 99,76 95,84" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = -g/${d}</text>`
+                    : `<line x1="95" y1="80" x2="95" y2="40" stroke="#ef4444" stroke-width="3"/><polygon points="91,44 99,44 95,36" fill="#ef4444"/><text x="105" y="65" font-size="14" font-weight="bold" fill="#ef4444">a = +g/${d}</text>`;
+            }
+
+            if (scen.id === 'pulley') {
+                const img = dir === 'down' ? IMG_BASE_DOWN : IMG_BASE_UP;
+                mediaHtml = `<div class="relative w-full max-w-lg mx-auto mb-6">
+                    <img src="${img}" class="w-full rounded-lg shadow-sm border border-gray-200">
+                    ${isConstantV ? '<div class="absolute top-[60%] right-4 sm:right-10 bg-white/90 p-2 text-rose-600 font-bold text-xl rounded border border-rose-200 shadow-md">a = 0</div>' : ''}
+                </div>`;
+                baseText = isConstantV 
+                    ? `A small mouse is playing on a physics pulley and is moving ${dir}wards at a <b>constant velocity</b> (\\( a = 0 \\)).`
+                    : `A small mouse is playing on a physics pulley and has an acceleration of \\( ${sign}\\frac{1}{${d}}g \\) (up is positive).`;
+            } else if (scen.id === 'elevator') {
+                mediaHtml = `<svg width="100%" max-width="300" viewBox="0 0 160 120" class="mx-auto my-4 bg-slate-200 rounded-xl shadow-inner border border-slate-300">
+                    <line x1="50" y1="0" x2="50" y2="20" stroke="#475569" stroke-width="3"/>
+                    <rect x="20" y="20" width="60" height="80" rx="4" fill="#94a3b8" stroke="#334155" stroke-width="2"/>
+                    <rect x="25" y="25" width="50" height="70" rx="2" fill="#cbd5e1"/>
+                    <circle cx="50" cy="85" r="8" fill="#facc15" stroke="#3f3f46" stroke-width="1"/>
+                    <circle cx="44" cy="79" r="4" fill="#f43f5e" stroke="#3f3f46" stroke-width="0.5"/>
+                    <circle cx="56" cy="79" r="4" fill="#f43f5e" stroke="#3f3f46" stroke-width="0.5"/>
+                    ${aVec}
+                </svg>`;
+                baseText = isConstantV
+                    ? `The mouse is in an elevator moving <b>${dir}wards</b> at a <b>constant velocity</b> (\\( a = 0 \\)).`
+                    : `The mouse is in an elevator accelerating <b>${dir}wards</b> at \\( ${sign}\\frac{1}{${d}}g \\) (up is positive).`;
+            } else if (scen.id === 'jetpack') {
+                mediaHtml = `<svg width="100%" max-width="300" viewBox="0 0 160 120" class="mx-auto my-4 bg-sky-100 rounded-xl shadow-inner border border-sky-300">
+                    <path d="M10 30 Q20 20 30 30 T50 30 T70 30 Q80 20 90 30" fill="white" opacity="0.8"/>
+                    <circle cx="50" cy="60" r="12" fill="#facc15" stroke="#3f3f46" stroke-width="1.5"/>
+                    <rect x="33" y="55" width="8" height="15" rx="3" fill="#64748b" stroke="#334155"/>
+                    <rect x="59" y="55" width="8" height="15" rx="3" fill="#64748b" stroke="#334155"/>
+                    <path d="M33 70 L37 85 L41 70 Z" fill="#f97316"/>
+                    <path d="M59 70 L63 85 L67 70 Z" fill="#f97316"/>
+                    ${aVec}
+                </svg>`;
+                baseText = isConstantV
+                    ? `The mouse is wearing a jetpack and moving <b>${dir}wards</b> at a <b>constant velocity</b> (\\( a = 0 \\)).`
+                    : `The mouse is wearing a jetpack and accelerating <b>${dir}wards</b> at \\( ${sign}\\frac{1}{${d}}g \\) (up is positive).`;
+            }
+
+            const wrongSym1 = scen.sym === 'T' ? 'N' : 'T';
+            const wrongSym2 = scen.sym === 'Thrust' ? 'N' : 'Thrust';
+
+            const correctFbdSvg = isConstantV ? createFBDSVG(scen.sym, 'mg', 'mid', 'mid') :
+                (dir === 'down' ? createFBDSVG(scen.sym, 'mg', 'mid', 'large') : createFBDSVG(scen.sym, 'mg', 'large', 'mid'));
+            
+            const comboMediaHtml = `<div class="flex flex-col sm:flex-row items-center justify-center gap-6 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div class="w-full max-w-xs flex justify-center">${mediaHtml}</div>
+                <div class="flex-shrink-0 bg-white p-2 rounded-lg shadow-sm border border-slate-200">${correctFbdSvg}</div>
+            </div>`;
+
+            if (isConstantV) {
+                // FBD for constant V
+                qs.push({
+                    type: 'mc_svg', scenario: `${scen.name} Constant V`, imageHTML: mediaHtml,
+                    text: `${baseText}<br><br>What is the correct free body diagram?`,
+                    options: shuffleArray([
+                        { val: 'correct', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'mid'), desc: `${scen.sym} = mg (Correct)` },
+                        { val: 'wrong1', svg: createFBDSVG(scen.sym, 'mg', 'large', 'mid'), desc: `${scen.sym} > mg` },
+                        { val: 'wrong2', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'large'), desc: `${scen.sym} < mg` },
+                        { val: 'wrong3', svg: createFBDSVG(wrongSym1, 'mg', 'mid', 'mid'), desc: `Wrong Label` },
+                        { val: 'wrong4', svg: createFBDSVG('mg', scen.sym, 'mid', 'mid'), desc: `Gravity Up!` },
+                        { val: 'wrong5', svg: createFBDSVG(wrongSym2, 'mg', 'mid', 'mid'), desc: `Wrong Label` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `Acceleration is zero, so upward ${scen.force} must exactly cancel downward gravity (${scen.sym} = mg).`,
+                    studyGuideHtml: `<div style="display:flex; gap: 20px; align-items:center; margin-bottom: 20px;"><div>${mediaHtml}</div><div>${correctFbdSvg}</div></div>`
+                });
+
+                // Reasoning for constant V
+                const correctPool = [
+                    `Since \\(F_{net,y} = ma_y\\) and the acceleration is zero, the two vectors must cancel.`,
+                    `Because of Newton's first law of motion, the net force should be zero if the object is moving with constant velocity.`,
+                    `Constant velocity implies zero acceleration, meaning the upward and downward forces must be perfectly balanced.`,
+                    `With no change in velocity, the net force is zero, forcing the upward force to equal the downward gravitational force.`,
+                    `An acceleration of zero requires the vector sum of all forces to be zero, so the magnitudes of the opposing forces are equal.`
+                ];
+                const distractorPool = [
+                    `Since the ${scen.id} is moving ${dir}wards the two vectors must cancel.`,
+                    `Since the ${scen.id} is moving in the direction of the force of gravity, ${scen.force} must be equal but opposite the force of gravity.`,
+                    `Because of Newton's 3rd Law of motion the ${scen.force} must be equal but opposite the force of gravity.`,
+                    `Since the velocity is below the threshold limit the forces are equal.`,
+                    `Because the mouse is moving in the positive direction the ${scen.force} can be the same size as the force of gravity.`,
+                    `In fact the ${scen.force} must be greater than the force of gravity if the mouse is moving ${dir}wards at constant velocity.`
+                ];
+                
+                qs.push({
+                    type: 'mc_text', scenario: `${scen.name} Constant V`, imageHTML: comboMediaHtml,
+                    text: `${baseText}<br><br>What is the correct reasoning for why the upward ${scen.force} is the same length as the downward gravity (mg)?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: shuffleArray(correctPool)[0] },
+                        { val: 'wrong1', text: distractorPool[0] },
+                        { val: 'wrong2', text: distractorPool[1] },
+                        { val: 'wrong3', text: distractorPool[2] }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `Constant velocity means acceleration is zero. By Newton's First or Second law (F_net = ma), if a=0, net force is zero.`,
+                    studyGuideHtml: `<p><strong>Step 1: Set up Newton's Second Law</strong><br>\\[ F_{net,y} = m a_y \\]</p>
+                                     <p><strong>Step 2: Substitute given values</strong><br>\\[ ${scen.sym} - mg = m(0) \\]<br>\\[ ${scen.sym} = mg \\]</p>`
+                });
+                
+            } else {
+                // Q1: FBD
+                const fbdOptions = [];
+                if (dir === 'down') {
+                    fbdOptions.push({ val: 'correct', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'large'), desc: `${scen.sym} < mg (Correct)` });
+                    fbdOptions.push({ val: 'wrong1', svg: createFBDSVG(scen.sym, 'mg', 'large', 'mid'), desc: `${scen.sym} > mg` });
+                    fbdOptions.push({ val: 'wrong2', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'mid'), desc: `${scen.sym} = mg` });
+                } else {
+                    fbdOptions.push({ val: 'correct', svg: createFBDSVG(scen.sym, 'mg', 'large', 'mid'), desc: `${scen.sym} > mg (Correct)` });
+                    fbdOptions.push({ val: 'wrong1', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'large'), desc: `${scen.sym} < mg` });
+                    fbdOptions.push({ val: 'wrong2', svg: createFBDSVG(scen.sym, 'mg', 'mid', 'mid'), desc: `${scen.sym} = mg` });
+                }
+                fbdOptions.push({ val: 'wrong3', svg: createFBDSVG(wrongSym1, 'mg', 'large', 'mid'), desc: `Wrong Force Label` });
+                fbdOptions.push({ val: 'wrong4', svg: createFBDSVG('mg', scen.sym, 'large', 'mid'), desc: `Gravity is Down!` });
+                fbdOptions.push({ val: 'wrong5', svg: createFBDSVG(wrongSym2, 'mg', 'mid', 'large'), desc: `Wrong Force Label` });
+
+                qs.push({
+                    type: 'mc_svg', scenario: `${scen.name} ${dir}wards`, imageHTML: mediaHtml,
+                    text: `${baseText}<br><br>What is the correct free body diagram?`,
+                    options: shuffleArray(fbdOptions),
+                    correctVal: 'correct',
+                    solutionText: dir === 'down' ? `Acceleration is down, so downward gravity must be larger than upward ${scen.force}.` : `Acceleration is up, so upward ${scen.force} must be larger than downward gravity.`,
+                    studyGuideHtml: `<div style="display:flex; gap: 20px; align-items:center; margin-bottom: 20px;"><div>${mediaHtml}</div><div>${correctFbdSvg}</div></div>`
+                });
+
+                // Q2: Why larger?
+                const largerForce = dir === 'down' ? 'Gravity (mg)' : scen.force;
+                
+                const accelCorrectPool = [
+                    `Since \\(F_{net,y} = ma_y\\) and acceleration is ${dir}wards, the net force must be ${dir}wards, so the ${dir}ward force must be larger.`,
+                    `Newton's Second Law dictates that the direction of acceleration (${dir}wards) requires a net force in that same direction, making the ${dir}ward force strictly greater.`,
+                    `To accelerate ${dir}wards, the sum of forces cannot be zero; the force pointing ${dir}wards (${largerForce}) must be the dominant force.`,
+                    `Because the acceleration points ${dir}wards, the vector sum of the forces must result in a net force pointing ${dir}wards, requiring ${largerForce} to be larger.`
+                ];
+
+                qs.push({
+                    type: 'mc_text', scenario: `${scen.name} ${dir}wards`, imageHTML: comboMediaHtml,
+                    text: `${baseText}<br><br>Based on the correct FBD, what is the correct reasoning for why ${largerForce} is larger than the opposing force?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: shuffleArray(accelCorrectPool)[0] },
+                        { val: 'wrong1', text: `The ${dir}ward force is inherently stronger than the opposite force regardless of motion.` },
+                        { val: 'wrong2', text: `Newton's Third Law states that the ${dir}ward force must overpower the other.` },
+                        { val: 'wrong3', text: `Because the mouse might be moving ${dir}wards, the force must also be larger in that direction.` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `Acceleration determines the direction of the net force (Newton's 2nd Law). Velocity direction doesn't determine net force.`,
+                    studyGuideHtml: `<p><strong>Explanation:</strong> Acceleration determines the direction of the net force (Newton's 2nd Law). The force in the direction of acceleration must be larger.</p>`
+                });
+
+                // Q3: Equation
+                qs.push({
+                    type: 'mc_text', scenario: `${scen.name} ${dir}wards`, imageHTML: comboMediaHtml,
+                    text: `${baseText}<br><br>What is the correct form of the net force equation \\( F_{net,y} = ma_y \\)?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: `\\( ${scen.sym} - mg = ${sign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong1', text: `\\( ${scen.sym} - mg = ${wrongSign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong2', text: `\\( ${wrongSym1} - mg = ${sign}\\frac{mg}{${d}} \\)` },
+                        { val: 'wrong3', text: `\\( mg - ${scen.sym} = ${sign}\\frac{mg}{${d}} \\)` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `Sum of forces (Up positive) is ${scen.sym} - mg. This equals mass times acceleration: m(${sign}g/${d}).`,
+                    studyGuideHtml: `<p><strong>Step 1: Set up Newton's Second Law</strong><br>\\[ F_{net,y} = m a_y \\]</p>
+                                     <p><strong>Step 2: Substitute FBD and Acceleration</strong><br>\\[ ${scen.sym} - mg = m(${sign}\\frac{g}{${d}}) \\]</p>`
+                });
+
+                // Q4: Magnitude
+                const topCorrect = dir === 'down' ? d - 1 : d + 1;
+                const correctFractionVal = topCorrect / d;
+                
+                // Dynamically build distractor values ensuring no collisions with correct answer or each other
+                let wrongFractions = [];
+                let candidates = [
+                    {s: `${d + 1}/${d}`, v: (d+1)/d},
+                    {s: `${d - 1}/${d}`, v: (d-1)/d},
+                    {s: `1/${d}`, v: 1/d},
+                    {s: `${d}/${topCorrect}`, v: d/topCorrect},
+                    {s: `${topCorrect + 1}/${d}`, v: (topCorrect+1)/d},
+                    {s: `${topCorrect - 1}/${d}`, v: (topCorrect-1)/d}
+                ];
+                
+                for (let c of candidates) {
+                    if (c.v !== correctFractionVal && !wrongFractions.some(w => w.v === c.v)) {
+                        wrongFractions.push(c);
+                    }
+                    if (wrongFractions.length === 3) break;
+                }
+
+                qs.push({
+                    type: 'mc_text', scenario: `${scen.name} ${dir}wards`, imageHTML: comboMediaHtml,
+                    text: `${baseText}<br><br>Using the correct equation \\( ${scen.sym} - mg = ${sign}\\frac{mg}{${d}} \\), what is the magnitude of the upward force (${scen.force})?`,
+                    options: shuffleArray([
+                        { val: 'correct', text: `\\( \\frac{${topCorrect}}{${d}} mg \\)` },
+                        { val: 'wrong1', text: `\\( \\frac{${wrongFractions[0].s.split('/')[0]}}{${wrongFractions[0].s.split('/')[1]}} mg \\)` },
+                        { val: 'wrong2', text: `\\( \\frac{${wrongFractions[1].s.split('/')[0]}}{${wrongFractions[1].s.split('/')[1]}} mg \\)` },
+                        { val: 'wrong3', text: `\\( \\frac{${wrongFractions[2].s.split('/')[0]}}{${wrongFractions[2].s.split('/')[1]}} mg \\)` }
+                    ]),
+                    correctVal: 'correct',
+                    solutionText: `From ${scen.sym} - mg = ${sign}mg/${d}, solve for ${scen.sym}: ${scen.sym} = mg ${sign} mg/${d} = \\frac{${topCorrect}}{${d}}mg.`,
+                    studyGuideHtml: `<p><strong>Step 1: Start with correct substitution</strong><br>\\[ ${scen.sym} - mg = ${sign}\\frac{mg}{${d}} \\]</p>
+                                     <p><strong>Step 2: Solve algebraically for ${scen.sym}</strong><br>\\[ ${scen.sym} = mg ${sign} \\frac{mg}{${d}} \\]<br>\\[ ${scen.sym} = \\frac{${d}}{${d}}mg ${sign} \\frac{1}{${d}}mg = \\frac{${topCorrect}}{${d}}mg \\]</p>`
+                });
+            }
+        };
+
+        generateSet(scenarios[0], dirs[0], false); // Accel set 1 (4 questions)
+        generateSet(scenarios[1], dirs[1], false); // Accel set 2 (4 questions)
+        const randDir = Math.random() > 0.5 ? 'up' : 'down';
+        generateSet(scenarios[2], randDir, true);  // Constant V set 3 (2 questions)
+
+        return qs; // Exactly 10 questions
+    }
+
+    async function handleMistake(q, wrongAnswerDesc) {
+        state.corrections++;
+        if (!state.hintsUsed[state.currentQ]) state.hintsUsed[state.currentQ] = 0;
+        state.hintsUsed[state.currentQ]++;
+        
+        if (state.hintsUsed[state.currentQ] >= 5) {
+            state.hintMessage = `You've tried 5 times. Let's look at the solution:<br><br><b>${q.solutionText}</b><br><br>The exact answer is marked below. Please move to the next question.`;
+            state.answered[state.currentQ] = true; 
+            render(); return;
+        }
+
+        state.isLoadingHint = true;
+        state.hintMessage = "";
+        render();
+
+        try {
+            // STRICT AI INSTRUCTIONS: Block LaTeX and mandate physics rules.
+            const prompt = `A student is solving this physics problem: "${q.text}". The context is ${q.scenario}. The correct reasoning is: ${q.solutionText}. The student selected an incorrect option. Give a robust, insightful, and instructive hint to help them understand why it's wrong and how to find the right answer. Do NOT give away the final answer directly. Be encouraging. 
+            CRITICAL RULES FOR YOU: 
+            1. Do NOT use LaTeX formatting (no \\( \\) or $$). Use plain text (like F_net or a = g/2).
+            2. Strictly enforce that gravity (mg) is NEVER upwards.
+            3. Strictly enforce that the force exerted by a string is Tension (T), NOT the Normal force (N).`;
+            
+            const hintText = await fetchFromAI(prompt, false); 
+            state.hintMessage = hintText;
+        } catch (e) {
+            state.hintMessage = "Double check your force directions and signs. Remember F_net = ma. Gravity always pulls down.";
+        } finally {
+            state.isLoadingHint = false;
+            render();
+        }
+    }
+
+    /* --- SCORING, WIN LOGIC & STUDY GUIDE --- */
+    function calculateScore() {
+        const c = state.corrections;
+        let points = 10, extra = 0, confetti = 0;
+        if (c === 0) { extra = 2; confetti = 3; }
+        else if (c === 1) { extra = 1; confetti = 2; }
+        else if (c === 2) { extra = 0; confetti = 1; }
+        else { points = Math.max(0, 10 - (c - 2)); confetti = 0; }
+
+        const total = points + extra, percent = Math.min(100, Math.round((total / 10) * 100));
+        let msg = percent >= 100 ? "Outstanding achievement! Flawless reasoning!" 
+                : percent >= 90 ? "Solid job. You're very close to mastering this!"
+                : percent >= 80 ? "You made it through, keep practicing those force balances!"
+                : "Physics is tough, but practice makes perfect. Try Again to reinforce these concepts!";
+        return { points: total, percent, message: msg, confettiRounds: confetti };
+    }
+
+    function downloadStudyGuide() {
+        let htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Study Guide: ${EXERCISE_NAME}</title><style>body { font-family: sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6; color: #333; } h1 { color: #4338ca; } .question { background: #f8fafc; padding: 20px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #4338ca; } .solution { color: #15803d; font-weight: bold; margin-top: 10px; } svg { max-width: 150px; }</style><script src="https://polyfill.io/v3/polyfill.min.js?features=es6"><\/script><script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"><\/script></head><body><h1>Study Guide: ${EXERCISE_NAME}</h1><p><strong>Student:</strong> ${state.studentName}</p><hr>`;
+        state.questions.forEach((q, i) => { 
+            let expl = q.studyGuideHtml || `<p>${q.solutionText}</p>`;
+            htmlContent += `<div class="question"><h3>Question ${i + 1}</h3><p>${q.text}</p><div class="solution">Solution & Explanation:</div>${expl}</div>`; 
+        });
+        htmlContent += `</body></html>`;
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([htmlContent], { type: 'text/html' })); a.download = `Physics_Study_Guide_${state.studentName.replace(/\s+/g, '_')}.html`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    /* --- CONFETTI LOGIC --- */
+    let confettiParticles = [], confettiContext, animationFrame;
+    function initConfetti() { const canvas = document.getElementById('confetti'); canvas.width = window.innerWidth; canvas.height = window.innerHeight; confettiContext = canvas.getContext('2d'); }
+    function fireConfetti(rounds) {
+        if (!confettiContext) initConfetti();
+        const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+        for (let r = 0; r < rounds; r++) setTimeout(() => {
+            for (let i = 0; i < 100; i++) confettiParticles.push({ x: window.innerWidth / 2, y: window.innerHeight, r: Math.random() * 6 + 4, dx: Math.random() * 20 - 10, dy: Math.random() * -15 - 10, color: colors[Math.floor(Math.random() * colors.length)], tilt: Math.floor(Math.random() * 10) - 10, tiltAngleInc: (Math.random() * 0.07) + 0.05, tiltAngle: 0 });
+        }, r * 600);
+        if(!animationFrame) animateConfetti();
+    }
+    function animateConfetti() {
+        animationFrame = requestAnimationFrame(animateConfetti);
+        confettiContext.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        confettiParticles.forEach((p, index) => {
+            p.tiltAngle += p.tiltAngleInc; p.y += (Math.cos(p.tiltAngle) + 1 + p.r / 2) / 2; p.x += Math.sin(p.tiltAngle) * 2; p.dy += 0.2; p.x += p.dx; p.y += p.dy;
+            confettiContext.beginPath(); confettiContext.lineWidth = p.r; confettiContext.strokeStyle = p.color; confettiContext.moveTo(p.x + p.tilt + p.r, p.y); confettiContext.lineTo(p.x + p.tilt, p.y + p.tilt + p.r); confettiContext.stroke();
+            if (p.y > window.innerHeight) confettiParticles.splice(index, 1);
+        });
+    }
+    function clearConfetti() { confettiParticles = []; if (confettiContext) confettiContext.clearRect(0, 0, window.innerWidth, window.innerHeight); if (animationFrame) cancelAnimationFrame(animationFrame); animationFrame = null; }
+    window.addEventListener('resize', () => { const canvas = document.getElementById('confetti'); if(canvas) { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }});
+
+    // Boot
+    render();
+
+</script>
+</body>
+</html>
