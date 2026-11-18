@@ -771,8 +771,8 @@
             fbdLocked = true;
             if (pass) {
                 if (attempts === 1 && extraCredit) totalExtraCredit++;
-                else if (attempts > 1) totalPenalties++;
-            } else { totalPenalties += 2; fbMsg = "Out of attempts! Snapping to the correct diagram."; }
+                else if (attempts > 1) totalPenalties += 2; // doubled
+            } else { totalPenalties += 4; fbMsg = "Out of attempts! Snapping to the correct diagram."; } // doubled
 
             fbdFeedback.innerHTML = pass ? fbMsg : `<span class="font-bold text-red-600">${fbMsg}</span>`;
             fbdFeedback.className = pass ? (extraCredit ? "text-sm font-semibold text-purple-700 mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200" : "text-sm font-semibold text-emerald-700 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200") : "text-sm text-red-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
@@ -892,8 +892,8 @@
             if (currentSelectedAnswer.isCorrect) {
                 showMcqFeedback(`Correct! Excellent job applying the feedback. You get full points for this question!`, "success");
             } else {
-                totalPenalties++;
-                showMcqFeedback(`Not quite. The correct answer was ${aiRetryCorrectOption.text}. (-1 point)`, "error");
+                totalPenalties += 2; // doubled penalty
+                showMcqFeedback(`Not quite. The correct answer was ${aiRetryCorrectOption.text}. (-2 points)`, "error");
             }
             submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
             document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
@@ -911,7 +911,7 @@
     nextStepBtn.addEventListener('click', () => {
         if (currentStepIndex < steps.length - 1) { currentStepIndex++; loadStep(); } 
         else {
-            let mistakes = totalPenalties, finalScore = Math.max(0, 20 - mistakes) + totalExtraCredit;
+            let mistakes = totalPenalties, finalScore = Math.max(0, 40 - mistakes) + totalExtraCredit;
             let nameClean = studentName.toUpperCase().replace(/[^A-Z]/g, ''); while(nameClean.length < 3) nameClean += 'X';
             let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", secArr = Array.from({length: 12}, () => chars.charAt(Math.floor(Math.random() * chars.length)));
             secArr[2] = nameClean[0]; secArr[6] = nameClean[1]; secArr[10] = nameClean[2];
@@ -925,7 +925,7 @@
                     <h3 class="text-3xl font-bold text-slate-900 mb-2">Quiz Complete, ${studentName}!</h3>
                     <p class="text-slate-600 mb-6">Here is your final Equations & Unknowns score:</p>
                     <div class="bg-blue-50 border border-blue-200 p-8 rounded-2xl mb-8 shadow-sm">
-                        <div class="text-6xl font-black text-blue-700">${finalScore}<span class="text-3xl text-blue-500 font-bold">/20</span></div>
+                        <div class="text-6xl font-black text-blue-700">${finalScore}<span class="text-3xl text-blue-500 font-bold">/40</span></div>
                         <div class="text-sm text-slate-400 mt-3 font-mono tracking-widest">${securityString}</div>
                     </div>
                     <div class="grid grid-cols-2 gap-4 mb-8">
@@ -942,12 +942,12 @@
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Download Study Guide
                     </button>
-                    ${finalScore < 20 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95">Restart Quiz</button>` : `<p class="text-lg font-black text-emerald-600 mt-4">Physics Master!</p>`}
+                    ${finalScore < 40 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95">Restart Quiz</button>` : `<p class="text-lg font-black text-emerald-600 mt-4">Physics Master!</p>`}
                 </div>`;
             
             document.getElementById('downloadStudyGuideBtn').addEventListener('click', downloadStudyGuide);
             
-            if (finalScore >= 22) fireConfetti(3); else if (finalScore >= 20) fireConfetti(2); else if (finalScore >= 18) fireConfetti(1);
+            if (finalScore >= 42) fireConfetti(3); else if (finalScore >= 40) fireConfetti(2); else if (finalScore >= 36) fireConfetti(1);
         }
     });
 
