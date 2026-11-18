@@ -168,69 +168,6 @@
     let aiRetryCorrectOption = null;
     let steps = [];
 
-    // --- AI Routing Function (Strictly enforced) ---
-    async function fetchFromAI(promptText, isJsonMode = false) {
-        // 1. Detect if running on a real web domain (like Vercel) instead of local preview
-        const isVercelEnvironment = window.location.hostname && 
-                                    window.location.hostname !== 'localhost' && 
-                                    window.location.hostname !== '127.0.0.1' && 
-                                    !window.location.hostname.includes('google') && 
-                                    !window.location.hostname.includes('csb.app');
-        
-        if (isVercelEnvironment) {
-            // 2. Route securely through Vercel backend
-            const response = await fetch('/api/gemini', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: promptText, requireJson: isJsonMode })
-            });
-            if (!response.ok) throw new Error("Backend fetch failed");
-            const data = await response.json();
-            return data.text;
-        } else {
-            // 3. Route via platform proxy (Empty API Key)
-            const apiKey = ""; // Leave empty for platform proxy
-            let payload = { contents: [{ parts: [{ text: promptText }] }] };
-            
-            // Inject JSON Schema if required
-            if (isJsonMode) {
-                payload.generationConfig = {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "explanation": { "type": "STRING" },
-                            "newQuestion": { "type": "STRING" },
-                            "options": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "text": { "type": "STRING", "description": "Option text, use LaTeX format like \\( ... \\) for math." },
-                                        "isCorrect": { "type": "BOOLEAN" }
-                                    }
-                                }
-                            }
-                        },
-                        required: ["explanation", "newQuestion", "options"]
-                    }
-                };
-            }
-            
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            
-            // Safety check for empty or blocked responses
-            if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
-                throw new Error("API returned empty content (Safety filter or missing key).");
-            }
-            return result.candidates[0].content.parts[0].text;
-        }
-    }
-
     // --- DOM Elements ---
     const welcomeScreen = document.getElementById('welcomeScreen');
     const studentNameInput = document.getElementById('studentNameInput');
@@ -771,8 +708,8 @@
             fbdLocked = true;
             if (pass) {
                 if (attempts === 1 && extraCredit) totalExtraCredit++;
-                else if (attempts > 1) totalPenalties++;
-            } else { totalPenalties += 2; fbMsg = "Out of attempts! Snapping to the correct diagram."; }
+                else if (attempts > 1) totalPenalties += 2; // doubled
+            } else { totalPenalties += 4; fbMsg = "Out of attempts! Snapping to the correct diagram."; } // doubled
 
             fbdFeedback.innerHTML = pass ? fbMsg : `<span class="font-bold text-red-600">${fbMsg}</span>`;
             fbdFeedback.className = pass ? (extraCredit ? "text-sm font-semibold text-purple-700 mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200" : "text-sm font-semibold text-emerald-700 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200") : "text-sm text-red-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
@@ -804,96 +741,41 @@
                 submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
                 document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
             } else {
-                // Generate 2nd Chance using the AI endpoint in the background
-                submitAnswerBtn.disabled = true;
-                submitAnswerBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                submitAnswerBtn.innerHTML = "Generating 2nd Chance...";
-                aiLoading.classList.remove('hidden');
-                aiLoading.classList.add('flex');
-                mcqFeedback.classList.add('hidden');
-                
+                // Static Second Chance (No AI Required)
                 const step = steps[currentStepIndex];
-                const correctOpt = step.options.find(o => o.isCorrect);
+                const wrongAnswerId = currentSelectedAnswer.id;
+                isAiRetry = true; currentSelectedAnswer = null;
                 
-                const prompt = `The student is answering a physics question: "${step.question}"
-                Scenario Context: ${step.desc}
-                The options were: ${step.options.map(o => o.text).join(', ')}
-                The correct answer is: ${correctOpt.text}
-                The student incorrectly selected: ${currentSelectedAnswer.text}.
-                1. Identify their likely physics or math misunderstanding and explain how to get the correct answer in 1-2 sentences. Address the student directly by name (${studentName}).
-                2. Create a NEW, DIFFERENT multiple choice question testing the EXACT same concept (use different numbers or slightly different context). Provide 1 correct answer and 3 incorrect distractors.
-                Output JSON strictly.`;
-
-                try {
-                    const jsonStr = await fetchFromAI(prompt, true);
-                    
-                    let cleanJson = jsonStr.trim();
-                    if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```(json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-                    const aiData = JSON.parse(cleanJson);
-                    
-                    isAiRetry = true;
-                    currentSelectedAnswer = null;
-                    aiLoading.classList.add('hidden'); aiLoading.classList.remove('flex');
-                    
-                    mcqQuestion.innerHTML = `<div class="mb-5 p-4 bg-purple-50 text-purple-900 border border-purple-200 rounded-xl shadow-sm"><strong class="text-purple-700 flex items-center gap-2 uppercase tracking-wide text-xs mb-1">Feedback from previous attempt</strong> ${aiData.explanation}</div><div class="mt-4 font-black text-blue-800 text-xl">Second Chance Challenge:</div><div class="mt-2">${aiData.newQuestion}</div>`;
-                    
-                    optionsContainer.innerHTML = '';
-                    aiData.options.sort(() => 0.5 - Math.random());
-                    aiData.options.forEach((opt, i) => {
-                        if (opt.isCorrect) aiRetryCorrectOption = opt;
-                        const label = document.createElement('label'); label.className = "flex items-start gap-4 p-4 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-blue-50 transition-all font-medium text-lg";
-                        label.innerHTML = `<input type="radio" name="mcq" value="ai_opt${i}" class="mt-1.5 flex-shrink-0 w-5 h-5 text-blue-600 cursor-pointer"><span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>`;
-                        label.querySelector('input').addEventListener('change', (e) => {
-                            document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
-                            if(e.target.checked) { label.classList.add('bg-blue-50', 'border-blue-400'); currentSelectedAnswer = opt; }
-                        });
-                        optionsContainer.appendChild(label);
+                let staticHint = "Make sure your mathematical signs (+ / -) match the visual directions of the arrows on the Free Body Diagram. Remember that vectors pointing left or down are usually negative, and right or up are positive. Double check your algebra!";
+                
+                mcqQuestion.innerHTML = `<div class="mb-5 p-4 bg-blue-50 text-blue-900 border border-blue-200 rounded-xl shadow-sm"><strong class="text-blue-700 flex items-center gap-2 uppercase tracking-wide text-xs mb-1">Hint</strong> ${staticHint}</div><div class="mt-4 font-black text-blue-800 text-xl">Second Chance Challenge:</div><div class="mt-2">${step.question}</div>`;
+                
+                optionsContainer.innerHTML = '';
+                // Remove the student's selected wrong answer to give them a better chance
+                let fallbackOpts = step.options.filter(o => o.id !== wrongAnswerId);
+                fallbackOpts.sort(() => 0.5 - Math.random());
+                
+                fallbackOpts.forEach((opt, i) => {
+                    if (opt.isCorrect) aiRetryCorrectOption = opt;
+                    const label = document.createElement('label'); label.className = "flex items-start gap-4 p-4 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-blue-50 transition-all font-medium text-lg";
+                    label.innerHTML = `<input type="radio" name="mcq" value="fallback_opt${i}" class="mt-1.5 flex-shrink-0 w-5 h-5 text-blue-600 cursor-pointer"><span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>`;
+                    label.querySelector('input').addEventListener('change', (e) => {
+                        document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
+                        if(e.target.checked) { label.classList.add('bg-blue-50', 'border-blue-400'); currentSelectedAnswer = opt; }
                     });
-                    
-                    if (window.MathJax) MathJax.typesetPromise([mcqSection]);
-                    
-                    submitAnswerBtn.disabled = false;
-                    submitAnswerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    submitAnswerBtn.innerHTML = "Submit Second Try";
-                    
-                } catch (err) {
-                    console.error("AI Retry Failed, using fallback remediation.", err);
-                    const wrongAnswerId = currentSelectedAnswer.id;
-                    isAiRetry = true; currentSelectedAnswer = null;
-                    aiLoading.classList.add('hidden'); aiLoading.classList.remove('flex');
-                    
-                    let fallbackHint = "Make sure your mathematical signs (+ / -) match the visual directions of the arrows on the Free Body Diagram. Remember that vectors pointing left or down are usually negative, and right or up are positive. Double check your algebra!";
-                    
-                    mcqQuestion.innerHTML = `<div class="mb-5 p-4 bg-orange-50 text-orange-900 border border-orange-200 rounded-xl shadow-sm"><strong class="text-orange-700 flex items-center gap-2 uppercase tracking-wide text-xs mb-1">⚠️ System Notice</strong> AI Generation is currently unavailable. <br><br><strong>Hint:</strong> ${fallbackHint}</div><div class="mt-4 font-black text-blue-800 text-xl">Second Chance Challenge:</div><div class="mt-2">${step.question}</div>`;
-                    
-                    optionsContainer.innerHTML = '';
-                    let fallbackOpts = step.options.filter(o => o.id !== wrongAnswerId);
-                    fallbackOpts.sort(() => 0.5 - Math.random());
-                    
-                    fallbackOpts.forEach((opt, i) => {
-                        if (opt.isCorrect) aiRetryCorrectOption = opt;
-                        const label = document.createElement('label'); label.className = "flex items-start gap-4 p-4 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-blue-50 transition-all font-medium text-lg";
-                        label.innerHTML = `<input type="radio" name="mcq" value="fallback_opt${i}" class="mt-1.5 flex-shrink-0 w-5 h-5 text-blue-600 cursor-pointer"><span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>`;
-                        label.querySelector('input').addEventListener('change', (e) => {
-                            document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
-                            if(e.target.checked) { label.classList.add('bg-blue-50', 'border-blue-400'); currentSelectedAnswer = opt; }
-                        });
-                        optionsContainer.appendChild(label);
-                    });
-                    
-                    if (window.MathJax) MathJax.typesetPromise([mcqSection]);
-                    submitAnswerBtn.disabled = false;
-                    submitAnswerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    submitAnswerBtn.innerHTML = "Submit Second Try";
-                }
+                    optionsContainer.appendChild(label);
+                });
+                
+                if (window.MathJax) MathJax.typesetPromise([mcqSection]);
+                submitAnswerBtn.innerHTML = "Submit Second Try";
             }
         } else {
             // Processing Second Chance Submission
             if (currentSelectedAnswer.isCorrect) {
                 showMcqFeedback(`Correct! Excellent job applying the feedback. You get full points for this question!`, "success");
             } else {
-                totalPenalties++;
-                showMcqFeedback(`Not quite. The correct answer was ${aiRetryCorrectOption.text}. (-1 point)`, "error");
+                totalPenalties += 2; // doubled penalty
+                showMcqFeedback(`Not quite. The correct answer was ${aiRetryCorrectOption.text}. (-2 points)`, "error");
             }
             submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
             document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
@@ -911,7 +793,7 @@
     nextStepBtn.addEventListener('click', () => {
         if (currentStepIndex < steps.length - 1) { currentStepIndex++; loadStep(); } 
         else {
-            let mistakes = totalPenalties, finalScore = Math.max(0, 20 - mistakes) + totalExtraCredit;
+            let mistakes = totalPenalties, finalScore = Math.max(0, 40 - mistakes) + totalExtraCredit;
             let nameClean = studentName.toUpperCase().replace(/[^A-Z]/g, ''); while(nameClean.length < 3) nameClean += 'X';
             let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", secArr = Array.from({length: 12}, () => chars.charAt(Math.floor(Math.random() * chars.length)));
             secArr[2] = nameClean[0]; secArr[6] = nameClean[1]; secArr[10] = nameClean[2];
@@ -925,7 +807,7 @@
                     <h3 class="text-3xl font-bold text-slate-900 mb-2">Quiz Complete, ${studentName}!</h3>
                     <p class="text-slate-600 mb-6">Here is your final Equations & Unknowns score:</p>
                     <div class="bg-blue-50 border border-blue-200 p-8 rounded-2xl mb-8 shadow-sm">
-                        <div class="text-6xl font-black text-blue-700">${finalScore}<span class="text-3xl text-blue-500 font-bold">/20</span></div>
+                        <div class="text-6xl font-black text-blue-700">${finalScore}<span class="text-3xl text-blue-500 font-bold">/40</span></div>
                         <div class="text-sm text-slate-400 mt-3 font-mono tracking-widest">${securityString}</div>
                     </div>
                     <div class="grid grid-cols-2 gap-4 mb-8">
@@ -942,12 +824,12 @@
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Download Study Guide
                     </button>
-                    ${finalScore < 20 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95">Restart Quiz</button>` : `<p class="text-lg font-black text-emerald-600 mt-4">Physics Master!</p>`}
+                    ${finalScore < 40 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95">Restart Quiz</button>` : `<p class="text-lg font-black text-emerald-600 mt-4">Physics Master!</p>`}
                 </div>`;
             
             document.getElementById('downloadStudyGuideBtn').addEventListener('click', downloadStudyGuide);
             
-            if (finalScore >= 22) fireConfetti(3); else if (finalScore >= 20) fireConfetti(2); else if (finalScore >= 18) fireConfetti(1);
+            if (finalScore >= 42) fireConfetti(3); else if (finalScore >= 40) fireConfetti(2); else if (finalScore >= 36) fireConfetti(1);
         }
     });
 
