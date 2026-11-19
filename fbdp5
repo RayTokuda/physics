@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Interactive Worksheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- KaTeX for equation rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow-x: hidden; }
+        .step-container { transition: all 0.3s ease; }
+        .hidden { display: none !important; }
+        /* Confetti Canvas */
+        #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+        /* FBD Builder styles */
+        .fbd-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <canvas id="confetti-canvas" class="hidden"></canvas>
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Physics: Newton's Laws & Forces</h1>
+            <div id="header-status" class="hidden text-sm opacity-90">
+                <span id="header-names"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="max-w-4xl w-full bg-white rounded-xl shadow-lg p-6 md:p-8 relative min-h-[400px]">
+            
+            <!-- Start Screen -->
+            <div id="start-screen" class="text-center space-y-6">
+                <h2 class="text-3xl font-extrabold text-gray-900 mb-2">Welcome to the Physics Lab</h2>
+                <p class="text-gray-600 mb-6">Enter the first names of the students in your group (up to 3) to begin.</p>
+                
+                <div class="space-y-4 max-w-sm mx-auto">
+                    <input type="text" id="student1" placeholder="Student 1 Name (Required)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="student2" placeholder="Student 2 Name (Optional)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="student3" placeholder="Student 3 Name (Optional)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+
+                <button onclick="startGame()" class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105">
+                    Start Worksheet
+                </button>
+            </div>
+
+            <!-- Workspace Screen -->
+            <div id="workspace-screen" class="hidden flex flex-col h-full">
+                <!-- Navigation & Progress -->
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <button onclick="navigateStep(-1)" id="btn-back" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        &larr; Back
+                    </button>
+                    <span id="progress-indicator" class="text-sm font-bold text-gray-500">Problem 1 / 3</span>
+                    <button onclick="navigateStep(1)" id="btn-forward" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        Forward &rarr;
+                    </button>
+                </div>
+
+                <!-- Problem Context -->
+                <div id="problem-context" class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100 text-gray-800 text-lg">
+                    <!-- Context injected here -->
+                </div>
+
+                <!-- Step Content -->
+                <div id="step-content" class="flex-grow">
+                    <!-- Injected Step UI -->
+                </div>
+
+                <!-- Feedback & Hint Area -->
+                <div id="feedback-area" class="mt-6 hidden">
+                    <div id="feedback-box" class="p-4 rounded-lg text-sm font-medium"></div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="hidden mt-4 text-blue-600 font-semibold flex items-center justify-center space-x-2">
+                    <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>AI is analyzing your answer...</span>
+                </div>
+            </div>
+
+            <!-- Win Screen -->
+            <div id="win-screen" class="hidden text-center space-y-6 py-10">
+                <h2 class="text-4xl font-extrabold text-blue-700" id="win-title">Worksheet Complete!</h2>
+                <div class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="win-names"></div>
+                <div class="text-gray-400 text-xs mb-8">Newton's Laws & Forces</div>
+                
+                <div class="inline-block bg-gray-50 border-4 border-blue-200 rounded-full w-48 h-48 flex items-center justify-center shadow-inner mx-auto mb-4">
+                    <div class="text-5xl font-black text-blue-800" id="win-score">--/25</div>
+                </div>
+                
+                <div id="win-alphanumeric" class="text-xs text-gray-400 tracking-widest font-mono mb-6"></div>
+
+                <p class="text-xl text-gray-700 font-medium italic px-4" id="win-message"></p>
+
+                <div class="pt-8 space-x-4 flex justify-center">
+                    <button id="btn-try-again" onclick="resetGame()" class="hidden bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded shadow transition">
+                        Try Again
+                    </button>
+                    <button onclick="downloadStudyGuide()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow transition flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Download Study Guide
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        /* -------------------------------------------------------------------------- */
+        /* EXACT FRONTEND ROUTING FUNCTION FROM PROMPT                                */
+        /* -------------------------------------------------------------------------- */
+        async function fetchFromAI(promptText, isJsonMode = false) {
+            // 1. Detect if running on a real web domain (like Vercel) instead of local preview
+            const isVercelEnvironment = window.location.hostname && 
+                                        window.location.hostname !== 'localhost' && 
+                                        window.location.hostname !== '127.0.0.1' && 
+                                        !window.location.hostname.includes('google') && 
+                                        !window.location.hostname.includes('csb.app');
+            
+            if (isVercelEnvironment) {
+                // 2. Route securely through Vercel backend
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText, requireJson: isJsonMode })
+                });
+                if (!response.ok) throw new Error("Backend fetch failed");
+                const data = await response.json();
+                return data.text;
+            } else {
+                // 3. Route via platform proxy (Empty API Key)
+                const apiKey = ""; // Leave empty for platform proxy
+                let payload = { contents: [{ parts: [{ text: promptText }] }] };
+                
+                // Inject JSON Schema if required
+                if (isJsonMode) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "explanation": { "type": "STRING" },
+                                "newQuestion": { "type": "STRING" }
+                            },
+                            required: ["explanation", "newQuestion"]
+                        }
+                    };
+                }
+                
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* STATE & CONSTANTS                                                          */
+        /* -------------------------------------------------------------------------- */
+        let state = {
+            names: [],
+            totalCorrections: 0,
+            questionCorrections: 0,
+            score: 0,
+            sequence: [], // Array of all generated steps across all 3 problems
+            currentStepIndex: 0,
+            maxUnlockedStep: 0
+        };
+
+        const GRAVITY = 9.8;
+
+        /* -------------------------------------------------------------------------- */
+        /* GENERATOR UTILITIES                                                        */
+        /* -------------------------------------------------------------------------- */
+        // Fisher-Yates Shuffle
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function createMCOptions(correctObj, distractorsArr) {
+            let options = [{ text: correctObj.text, hint: correctObj.hint || "Correct!", isCorrect: true }];
+            distractorsArr.forEach(d => options.push({ text: d.text, hint: d.hint || "Check your math or formula.", isCorrect: false }));
+            return shuffle(options);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* PHYSICS PROBLEM GENERATORS (6 Versions Each)                               */
+        /* -------------------------------------------------------------------------- */
+        
+        function generateProblem1() {
+            const versions = [
+                {F: 100, th: 3}, {F: 120, th: 4}, {F: 140, th: 5},
+                {F: 160, th: 6}, {F: 180, th: 7}, {F: 200, th: 8}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const thRad = v.th * (Math.PI / 180);
+            const exactTension = v.F / (2 * Math.sin(thRad));
+
+            const contextBase = `<strong>Problem 1 (Car Pulling):</strong> A car is mired up to the rims in sand. You tie it tightly to a tree with a rope and pull perpendicularly to the rope with force $F = ${v.F}$ lbs in the middle. The rope makes an angle of $\\theta = ${v.th}^\\circ$ with the straight dashed line between the car and tree.<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vRAjtzL0Z5rF44cr8KZlkT7uSUE0jZoambz_wXCpP1HXZ7WjYYbWsam9J7VqEWg_IUQ_MkJAvuu_u2J/pub?w=819&h=240" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Car pulling">`;
+
+            const contextWithVector = contextBase + `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Vector breakdown of the right-side Tension force</p>
+                    <svg width="220" height="140" viewBox="-20 -40 220 140">
+                        <defs>
+                            <marker id="arrowhead-red" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#ef4444" /></marker>
+                            <marker id="arrowhead-green" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#10b981" /></marker>
+                            <marker id="arrowhead-blue" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#3b82f6" /></marker>
+                        </defs>
+                        <!-- horizontal line (dashed) -->
+                        <line x1="0" y1="0" x2="180" y2="0" stroke="#9ca3af" stroke-dasharray="5,5" />
+                        <!-- Tension T -->
+                        <line x1="0" y1="0" x2="160" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="80" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <!-- Tx -->
+                        <line x1="0" y1="0" x2="160" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="80" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text>
+                        <text x="90" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <!-- Ty (Tip to tail) -->
+                        <line x1="160" y1="0" x2="160" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="172" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text>
+                        <text x="182" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <!-- Angle theta -->
+                        <path d="M 45 0 A 45 45 0 0 1 42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="52" y="20" font-size="14" font-weight="bold">θ</text>
+                    </svg>
+                </div>`;
+
+            const contextWithBothVectors = contextBase + `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Full vector breakdown (Left and Right)</p>
+                    <svg width="340" height="150" viewBox="-180 -50 360 150">
+                        <defs>
+                            <marker id="arrowhead-red" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#ef4444" /></marker>
+                            <marker id="arrowhead-green" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#10b981" /></marker>
+                            <marker id="arrowhead-blue" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#3b82f6" /></marker>
+                            <marker id="arrowhead-purple" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#8b5cf6" /></marker>
+                        </defs>
+                        <!-- F up -->
+                        <line x1="0" y1="0" x2="0" y2="-40" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowhead-purple)" />
+                        <text x="10" y="-25" fill="#8b5cf6" font-weight="bold" font-size="16">F</text>
+                        <!-- horizontal line (dashed) -->
+                        <line x1="-160" y1="0" x2="160" y2="0" stroke="#9ca3af" stroke-dasharray="5,5" />
+                        
+                        <!-- RIGHT TENSION -->
+                        <line x1="0" y1="0" x2="140" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="70" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <line x1="0" y1="0" x2="140" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="70" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text><text x="80" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <line x1="140" y1="0" x2="140" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="152" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text><text x="162" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <path d="M 45 0 A 45 45 0 0 1 42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="52" y="20" font-size="14" font-weight="bold">θ</text>
+                        
+                        <!-- LEFT TENSION -->
+                        <line x1="0" y1="0" x2="-140" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="-80" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <line x1="0" y1="0" x2="-140" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="-80" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text><text x="-70" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <line x1="-140" y1="0" x2="-140" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="-165" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text><text x="-155" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <path d="M -45 0 A 45 45 0 0 0 -42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="-62" y="20" font-size="14" font-weight="bold">θ</text>
+                    </svg>
+                </div>`;
+
+            return [
+                {
+                    problemNum: 1, context: contextBase, type: 'fbd',
+                    prompt: "First, construct the Free Body Diagram for the knot in the middle of the rope where you pull. Add the necessary forces and their directions.",
+                    targetForces: [
+                        { force: "Applied Force (F)", dir: "Up" },
+                        { force: "Tension (T)", dir: "Slightly Down-Left" },
+                        { force: "Tension (T)", dir: "Slightly Down-Right" }
+                    ]
+                },
+                {
+                    problemNum: 1, context: contextWithVector, type: 'mc',
+                    prompt: "Look at the tip-to-tail vector diagram. The y-component ($T_y$) is the opposite side of the triangle from angle $\\theta$. What is the algebraic expression for the magnitude of the vertical component in terms of T and $\\theta$?",
+                    options: createMCOptions(
+                        { text: `$T\\sin(\\theta)$`, hint: "Correct! The opposite side uses sine." },
+                        [
+                            { text: `$T\\cos(\\theta)$`, hint: "Cosine is for the adjacent side (x-component). Look at the opposite side." },
+                            { text: `$T\\tan(\\theta)$`, hint: "Tangent relates opposite and adjacent. We need to relate the hypotenuse (T) to the opposite side." },
+                            { text: `$\\frac{T}{\\sin(\\theta)}$`, hint: "Remember SOH CAH TOA. $\\sin(\\theta) = \\frac{Opp}{Hyp}$. Solve for Opp." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: "Write the algebraic equation for the net force in the y-direction ($F_{net,y} = m a_y$), noting that the knot is stationary ($a_y = 0$). Remember there are TWO tension vectors, each with a downward vertical component.",
+                    options: createMCOptions(
+                        { text: `$F - 2T\\sin(\\theta) = 0$`, hint: "Correct! Applied force F goes up, two Tension y-components go down." },
+                        [
+                            { text: `$F - T\\sin(\\theta) = 0$`, hint: "You forgot that there is a rope on the left AND the right! There are two tension components." },
+                            { text: `$F - 2T\\cos(\\theta) = 0$`, hint: "Remember from the previous step, the vertical component uses sine, not cosine." },
+                            { text: `$T\\sin(\\theta) - 2F = 0$`, hint: "There is only one applied force F, and it points in the opposite direction of the two tension components." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: "Now solve that net force equation ($F - 2T\\sin(\\theta) = 0$) algebraically for the full Tension (T).",
+                    options: createMCOptions(
+                        { text: `$T = \\frac{F}{2\\sin(\\theta)}$`, hint: "Correct! You isolated T perfectly." },
+                        [
+                            { text: `$T = \\frac{F}{\\sin(\\theta)}$`, hint: "What happened to the 2? Don't lose the factor of 2 from the two sides of the rope." },
+                            { text: `$T = \\frac{F}{2\\cos(\\theta)}$`, hint: "Careful, the vertical component is based on sine, not cosine." },
+                            { text: `$T = 2F\\sin(\\theta)$`, hint: "You multiplied by the terms instead of dividing. Isolate T by dividing both sides." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: `Using the correct equation $T = \\frac{F}{2\\sin(\\theta)}$, plug in the numbers: If F is ${v.F} lbs and $\\theta$ is ${v.th}^\\circ$, what is the exact full tension (T) in the rope in lbs?`,
+                    options: createMCOptions(
+                        { text: `${exactTension.toFixed(1)} lbs`, hint: "Correct! You successfully calculated the tension." },
+                        [
+                            { text: `${(v.F / Math.sin(thRad)).toFixed(1)} lbs`, hint: "Did you divide by 2? There are TWO sides of the rope pulling back." },
+                            { text: `${(v.F / (2 * Math.cos(thRad))).toFixed(1)} lbs`, hint: "It looks like you used cosine instead of sine. Make sure your calculator is using sine." },
+                            { text: `${(v.F * 2 * Math.sin(thRad)).toFixed(1)} lbs`, hint: "You multiplied by the terms instead of dividing! Remember T = F / (2*sin(theta))." },
+                            { text: `${(v.F / Math.cos(thRad)).toFixed(1)} lbs`, hint: "You used cosine AND forgot to divide by 2. Check your formula." },
+                            { text: `${(v.F / 2).toFixed(1)} lbs`, hint: "You just divided by 2 but completely forgot the trigonometry! The angle drastically changes the force." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        function generateProblem2() {
+            const versions = [
+                {m: 100, ay: -2.0}, {m: 90, ay: -1.5}, {m: 110, ay: -2.5},
+                {m: 95, ay: -1.8}, {m: 105, ay: -2.2}, {m: 115, ay: -2.8}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const exactTension = v.m * v.ay + v.m * GRAVITY;
+
+            const contextBase = `<strong>Problem 2 (Fast Rope):</strong> A ${v.m} kg pararescue recovery specialist (PJ) fast ropes out of a helicopter with a downward acceleration of $a_y = ${v.ay.toFixed(1)} m/s^2$. (Assume $g = 9.8 m/s^2$ and UP is positive +y, DOWN is negative -y).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vT2NkwSrTICNCIKShozvNvHtqQoZekhsFonuKJuU9qzFTEBRWVl_VHxNuClwTeQwShrUeYdlz--uWSS/pub?w=284&h=435" class="my-4 mx-auto rounded shadow-sm max-w-[200px]" alt="Helicopter PJ">`;
+
+            const fbdSVG = `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Correct Free Body Diagram</p>
+                    <svg width="120" height="180" viewBox="-60 -100 120 200">
+                        <defs><marker id="ah-t" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#10b981" /></marker></defs>
+                        <defs><marker id="ah-g" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#ef4444" /></marker></defs>
+                        <circle cx="0" cy="0" r="6" fill="#1f2937" />
+                        <!-- Tension (Shorter) -->
+                        <line x1="0" y1="0" x2="0" y2="-40" stroke="#10b981" stroke-width="4" marker-end="url(#ah-t)" />
+                        <text x="15" y="-20" fill="#10b981" font-weight="bold">T</text>
+                        <!-- Gravity (Longer because accelerating down) -->
+                        <line x1="0" y1="0" x2="0" y2="80" stroke="#ef4444" stroke-width="4" marker-end="url(#ah-g)" />
+                        <text x="15" y="40" fill="#ef4444" font-weight="bold">mg</text>
+                    </svg>
+                </div>
+            `;
+            
+            const contextWithFBD = contextBase + fbdSVG;
+
+            return [
+                {
+                    problemNum: 2, context: contextBase, type: 'fbd',
+                    prompt: "Construct the Free Body Diagram for the PJ. (Note: Because the PJ is accelerating downwards, the downward force must be visually longer than the upward force in your final diagram!)",
+                    targetForces: [
+                        { force: "Tension (T)", dir: "Up" },
+                        { force: "Gravity (Weight)", dir: "Down" }
+                    ]
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: "Look at the correct FBD above. Set up the algebraic equation for $F_{net,y} = m a_y$. (Assume Up is positive +y, and Down is negative -y).",
+                    options: createMCOptions(
+                        { text: `$T - mg = m a_y$`, hint: "Correct! Tension is positive (up), mg is negative (down)." },
+                        [
+                            { text: `$-T - mg = m a_y$`, hint: "Is Tension pointing downwards? Look at the arrows. Up is positive." },
+                            { text: `$T = m a_y$`, hint: "You forgot the force of Gravity! There are two forces acting on the PJ." },
+                            { text: `$-mg = m a_y$`, hint: "You forgot the Tension force from the rope!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: "Starting from the correct equation $T - mg = m a_y$, solve algebraically for Tension (T). Do not factor out m.",
+                    options: createMCOptions(
+                        { text: `$T = m a_y + mg$`, hint: "Correct! You added mg to both sides." },
+                        [
+                            { text: `$T = mg - m a_y$`, hint: "You subtracted $m a_y$. To move $mg$ over, you must ADD it to both sides." },
+                            { text: `$T = m a_y - mg$`, hint: "If it was $-mg$ on the left, it should be $+mg$ when moved to the right." },
+                            { text: `$T = \\frac{mg}{a_y}$`, hint: "You are dealing with addition/subtraction, not multiplication/division." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: `Calculate the numerical tension force (T) of the rope on the PJ. Use $T = m a_y + mg$. Remember $a_y = ${v.ay.toFixed(1)}$ and $g = 9.8$.`,
+                    options: createMCOptions(
+                        { text: `${exactTension.toFixed(1)} N`, hint: "Correct! You successfully accounted for the negative acceleration." },
+                        [
+                            { text: `${(v.m * Math.abs(v.ay)).toFixed(1)} N`, hint: "You calculated $ma_y$ but totally forgot to add the weight ($mg$)!" },
+                            { text: `${(v.m * Math.abs(v.ay) - v.m * GRAVITY).toFixed(1)} N`, hint: "You subtracted $mg$ instead of adding it. $T = ma_y + mg$." },
+                            { text: `${(v.m * Math.abs(v.ay) + v.m * GRAVITY).toFixed(1)} N`, hint: "Careful with signs! $a_y$ is a NEGATIVE value because they are accelerating downwards." },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You just calculated their weight ($mg$). You must account for the acceleration ($ma_y$)." },
+                            { text: `${(v.m + v.ay + v.m * GRAVITY).toFixed(1)} N`, hint: "You added mass and acceleration instead of multiplying them ($m * a_y$)." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        function generateProblem3() {
+            const versions = [
+                {m: 15, th: 30}, {m: 10, th: 20}, {m: 20, th: 25},
+                {m: 25, th: 35}, {m: 30, th: 40}, {m: 12, th: 15}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const thRad = v.th * (Math.PI / 180);
+            
+            const tensionN = v.m * GRAVITY * Math.sin(thRad);
+            const normalN = v.m * GRAVITY * Math.cos(thRad);
+            const accel = GRAVITY * Math.sin(thRad);
+
+            const context = `<strong>Problem 3 (Block on Ramp):</strong> A cord holds stationary a ${v.m} kg block on a frictionless ramp. Angle $\\theta$ is $${v.th}^\\circ$. Assume $g = 9.8 m/s^2$. (The FBD is standard: y-axis perpendicular to the ramp surface, x-axis parallel to surface pointing upwards).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vS5atT2teqjZRN95NK4Ke4yCuEPWlcPsSqz3UBM9EsvilFoiTkdYYFWy7vKuj3IXF_qU64NyIGNdOFS/pub?w=456&h=537" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Block on Ramp">`;
+
+            const contextCut = context + `<br><br><div class="p-3 bg-red-50 border border-red-200 rounded text-red-800"><strong>UPDATE:</strong> The cord is now cut! The block freely slides down the frictionless ramp. (Assume uphill is the positive x direction and downhill is the negative x direction).</div>`;
+
+            return [
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "What is the correct algebraic equation for the net force in the x-direction ($F_{net,x} = m a_x$)? Note that the block is stationary ($a_x = 0$).",
+                    options: createMCOptions(
+                        { text: `$T - mg\\sin(\\theta) = 0$`, hint: "Correct! Tension balances the parallel (sine) component of gravity." },
+                        [
+                            { text: `$T - mg\\cos(\\theta) = 0$`, hint: "Cosine gives you the perpendicular component. For an incline, the parallel x-component uses sine." },
+                            { text: `$T + mg\\sin(\\theta) = 0$`, hint: "Tension and gravity's parallel component point in opposite directions, so they must have opposite signs." },
+                            { text: `$mg\\sin(\\theta) - T = m a_x$`, hint: "The block is stationary, so $a_x = 0$. You should set the equation equal to 0." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "Starting from the correct equation ($T - mg\\sin(\\theta) = 0$), what is the isolated algebraic equation for the Tension (T) in the cord?",
+                    options: createMCOptions(
+                        { text: `$T = mg\\sin(\\theta)$`, hint: "Correct! Tension balances the parallel component of gravity." },
+                        [
+                            { text: `$T = mg\\cos(\\theta)$`, hint: "Cosine gives you the perpendicular component (which balances Normal force). We want the parallel component." },
+                            { text: `$T = mg\\tan(\\theta)$`, hint: "Tangent is not used for resolving gravity on a ramp." },
+                            { text: `$T = \\frac{mg}{\\sin(\\theta)}$`, hint: "You multiplied incorrectly when moving the term to the other side." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: `What is the numerical tension in the cord? Use $T = mg\\sin(\\theta)$. ($m = ${v.m}, \\theta = ${v.th}^\\circ$)`,
+                    options: createMCOptions(
+                        { text: `${tensionN.toFixed(1)} N`, hint: "Correct! You found the tension." },
+                        [
+                            { text: `${(v.m * GRAVITY * Math.cos(thRad)).toFixed(1)} N`, hint: "You used cosine instead of sine. Cosine is for the Normal force." },
+                            { text: `${(v.m * GRAVITY * Math.tan(thRad)).toFixed(1)} N`, hint: "You used tangent. Stick to sine for the parallel component." },
+                            { text: `${(v.m * Math.sin(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by gravity (g)!" },
+                            { text: `${(GRAVITY * Math.sin(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by the mass (m)!" },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You completely forgot the trigonometry. The ramp angle changes things!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "What is the correct algebraic equation for the net force in the y-direction ($F_{net,y} = m a_y$)? Note that the block is not moving vertically relative to the ramp ($a_y = 0$).",
+                    options: createMCOptions(
+                        { text: `$N - mg\\cos(\\theta) = 0$`, hint: "Correct! Normal force balances the perpendicular (cosine) component of gravity." },
+                        [
+                            { text: `$N - mg\\sin(\\theta) = 0$`, hint: "Sine gives the parallel component (which balances tension). We want the perpendicular component." },
+                            { text: `$N + mg\\cos(\\theta) = 0$`, hint: "Normal force and gravity's perpendicular component point in opposite directions, so they must have opposite signs." },
+                            { text: `$N - mg = 0$`, hint: "You forgot to resolve the gravity vector using the angle. The full weight does not push directly into the ramp." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "Starting from the correct equation ($N - mg\\cos(\\theta) = 0$), what is the isolated algebraic equation for the Normal Force (N)?",
+                    options: createMCOptions(
+                        { text: `$N = mg\\cos(\\theta)$`, hint: "Correct! Normal force balances the perpendicular component of gravity." },
+                        [
+                            { text: `$N = mg\\sin(\\theta)$`, hint: "Sine gives the parallel component (which balances tension). We want perpendicular." },
+                            { text: `$N = mg\\tan(\\theta)$`, hint: "Tangent is not used for resolving gravity on a ramp." },
+                            { text: `$N = \\frac{mg}{\\cos(\\theta)}$`, hint: "You multiplied incorrectly when moving the term to the other side." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: `What is the numerical Normal Force (N)? Use $N = mg\\cos(\\theta)$.`,
+                    options: createMCOptions(
+                        { text: `${normalN.toFixed(1)} N`, hint: "Correct! You found the normal force." },
+                        [
+                            { text: `${(v.m * GRAVITY * Math.sin(thRad)).toFixed(1)} N`, hint: "You used sine instead of cosine. Sine is for Tension." },
+                            { text: `${(v.m * GRAVITY * Math.tan(thRad)).toFixed(1)} N`, hint: "You used tangent. Stick to cosine for the perpendicular component." },
+                            { text: `${(v.m * Math.cos(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by gravity (g)!" },
+                            { text: `${(GRAVITY * Math.cos(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by the mass (m)!" },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You completely forgot the trigonometry. The ramp angle changes the normal force!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: "The cord is now cut, so the block slides down the frictionless ramp. Using the exact same coordinate system (x-axis points UP the ramp), what is the new $F_{net,x} = m a_x$ equation?",
+                    options: createMCOptions(
+                        { text: `$-mg\\sin(\\theta) = m a_x$`, hint: "Correct! With Tension gone, only the parallel component of gravity acts in the negative x-direction." },
+                        [
+                            { text: `$mg\\sin(\\theta) = m a_x$`, hint: "Gravity pulls DOWN the ramp, but we defined the x-axis as pointing UP the ramp. The force should be negative." },
+                            { text: `$-mg\\cos(\\theta) = m a_x$`, hint: "Cosine is for the perpendicular y-direction. We want the parallel x-direction." },
+                            { text: `$T - mg\\sin(\\theta) = m a_x$`, hint: "The cord was cut! There is no more Tension force." },
+                            { text: `$m a_x = 0$`, hint: "The block is no longer stationary; it is accelerating down the ramp!" },
+                            { text: `$T + mg\\sin(\\theta) = m a_x$`, hint: "Tension is gone! Even if it wasn't, they don't point in the same direction." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: "Starting from the correct equation ($-mg\\sin(\\theta) = m a_x$), what is the algebraic expression for the acceleration ($a_x$)? (Solve for $a_x$).",
+                    options: createMCOptions(
+                        { text: `$a_x = -g\\sin(\\theta)$`, hint: "Correct! The mass (m) cancels out on both sides." },
+                        [
+                            { text: `$a_x = g\\sin(\\theta)$`, hint: "You lost the negative sign. It accelerates in the negative x-direction (down the ramp)." },
+                            { text: `$a_x = -mg\\sin(\\theta)$`, hint: "You forgot to divide both sides by the mass (m) to isolate a_x." },
+                            { text: `$a_x = -g\\cos(\\theta)$`, hint: "Don't change the trig function! The parallel component uses sine." },
+                            { text: `$a_x = -\\frac{g}{\\sin(\\theta)}$`, hint: "The sine term is multiplied by g; it shouldn't move to the denominator." },
+                            { text: `$a_x = -m\\sin(\\theta)$`, hint: "You canceled out gravity (g) instead of mass (m)!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: `What is the numerical value of the acceleration ($a_x$)? Use $a_x = -g\\sin(\\theta)$. ($\\theta = ${v.th}^\\circ$)`,
+                    options: createMCOptions(
+                        { text: `${(-accel).toFixed(2)} m/s^2`, hint: "Correct! You successfully found the acceleration." },
+                        [
+                            { text: `${(accel).toFixed(2)} m/s^2`, hint: "Check your sign. It should be accelerating in the negative direction (down the ramp)." },
+                            { text: `${(-GRAVITY * Math.cos(thRad)).toFixed(2)} m/s^2`, hint: "You used cosine instead of sine. Stick to the parallel component." },
+                            { text: `${(-v.m * accel).toFixed(2)} m/s^2`, hint: "You calculated the Force, not the acceleration! Remember the mass cancels out." },
+                            { text: `${(-9.8).toFixed(2)} m/s^2`, hint: "You forgot the trigonometry! It is on a ramp, not in free fall." },
+                            { text: `${(-GRAVITY * Math.tan(thRad)).toFixed(2)} m/s^2`, hint: "You used tangent. Use sine for the parallel component." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* CORE APPLICATION LOGIC                                                     */
+        /* -------------------------------------------------------------------------- */
+
+        function startGame() {
+            const n1 = document.getElementById('student1').value.trim();
+            const n2 = document.getElementById('student2').value.trim();
+            const n3 = document.getElementById('student3').value.trim();
+            
+            if (!n1) { alert("Please enter at least Student 1's name."); return; }
+            
+            state.names = [n1, n2, n3].filter(n => n !== "");
+            document.getElementById('header-names').innerText = "Team: " + state.names.join(', ');
+            document.getElementById('header-status').classList.remove('hidden');
+            
+            // Build Sequence
+            state.sequence = [
+                ...generateProblem1(),
+                ...generateProblem2(),
+                ...generateProblem3()
+            ];
+            state.currentStepIndex = 0;
+            state.maxUnlockedStep = 0;
+            state.totalCorrections = 0;
+            state.questionCorrections = 0;
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('workspace-screen').classList.remove('hidden');
+            
+            renderStep();
+        }
+
+        function renderStep() {
+            const step = state.sequence[state.currentStepIndex];
+            state.questionCorrections = step.corrections || 0; // retain if revisiting
+            
+            document.getElementById('progress-indicator').innerText = `Problem ${step.problemNum} (Step ${state.currentStepIndex + 1} of ${state.sequence.length})`;
+            
+            const contextDiv = document.getElementById('problem-context');
+            contextDiv.innerHTML = step.context;
+
+            const contentDiv = document.getElementById('step-content');
+            let html = `<h3 class="text-xl font-bold mb-4">${step.prompt}</h3>`;
+            
+            if (step.type === 'mc') {
+                html += `<div class="space-y-3" id="mc-options-container">`;
+                step.options.forEach((opt, idx) => {
+                    html += `
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition ${step.isCompleted && opt.isCorrect ? 'bg-green-100 border-green-500' : 'bg-white'}">
+                            <input type="radio" name="mc-option" value="${idx}" class="form-radio h-5 w-5 text-blue-600" ${step.isCompleted ? 'disabled' : ''} ${step.isCompleted && opt.isCorrect ? 'checked' : ''}>
+                            <span class="ml-3 text-lg">${opt.text}</span>
+                        </label>
+                    `;
+                });
+                html += `</div>`;
+            } else if (step.type === 'numeric') {
+                html += `
+                    <div class="flex items-center space-x-2">
+                        <input type="number" step="any" id="num-input" class="w-48 px-4 py-2 border rounded-lg text-lg focus:ring-2 focus:ring-blue-500 outline-none" ${step.isCompleted ? `value="${step.correctValue.toFixed(2)}" disabled` : 'placeholder="Enter value"'} >
+                        <span class="text-xl font-semibold text-gray-700">${step.unit}</span>
+                    </div>
+                `;
+            } else if (step.type === 'fbd') {
+                html += `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div id="fbd-builder" class="flex-1 bg-gray-50 p-4 border rounded-lg ${step.isCompleted ? 'opacity-70 pointer-events-none' : ''}">
+                            <div id="fbd-rows-container" class="space-y-2 mb-4">
+                                <!-- Rows injected here -->
+                            </div>
+                            <button onclick="addFBDRow()" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold transition" ${step.isCompleted ? 'hidden' : ''}>+ Add Force Vector</button>
+                        </div>
+                        <div class="w-full md:w-64 h-64 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-inner relative flex-shrink-0">
+                            <svg id="fbd-svg" width="100%" height="100%" viewBox="-100 -100 200 200">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                                        <polygon points="0 0, 6 2, 0 4" fill="#3b82f6" />
+                                    </marker>
+                                </defs>
+                                <circle cx="0" cy="0" r="5" fill="#1f2937" />
+                                <g id="fbd-arrows"></g>
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (!step.isCompleted) {
+                html += `
+                    <div class="mt-6">
+                        <button onclick="submitAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition">
+                            Check Answer
+                        </button>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="mt-6 p-3 bg-green-100 text-green-800 font-bold rounded-lg border border-green-300">
+                        Completed! Exact Answer Logged.
+                    </div>
+                `;
+            }
+
+            contentDiv.innerHTML = html;
+
+            // Initialize FBD if needed
+            if (step.type === 'fbd') {
+                if (step.isCompleted) {
+                    // prefill with correct state
+                    step.targetForces.forEach(tf => addFBDRow(tf.force, tf.dir));
+                } else {
+                    addFBDRow(); // start with 1 row
+                }
+                setTimeout(updateFBDVisual, 0); // initial draw
+            }
+
+            // Render math
+            renderMathInElement(document.getElementById('workspace-screen'), {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+
+            updateNavButtons();
+            hideFeedback();
+        }
+
+        // --- FBD Builder Logic ---
+        function addFBDRow(presetForce="", presetDir="") {
+            const container = document.getElementById('fbd-rows-container');
+            const row = document.createElement('div');
+            row.className = 'fbd-row';
+            row.innerHTML = `
+                <select class="fbd-force px-3 py-2 border rounded text-sm bg-white" onchange="updateFBDVisual()">
+                    <option value="">-- Select Force --</option>
+                    <option value="Applied Force (F)" ${presetForce==="Applied Force (F)"?"selected":""}>Applied Force (F)</option>
+                    <option value="Tension (T)" ${presetForce==="Tension (T)"?"selected":""}>Tension (T)</option>
+                    <option value="Gravity (Weight)" ${presetForce==="Gravity (Weight)"?"selected":""}>Gravity (Weight)</option>
+                    <option value="Normal Force (N)" ${presetForce==="Normal Force (N)"?"selected":""}>Normal Force (N)</option>
+                    <option value="Friction" ${presetForce==="Friction"?"selected":""}>Friction</option>
+                </select>
+                <span class="text-sm font-semibold text-gray-500">pointing</span>
+                <select class="fbd-dir px-3 py-2 border rounded text-sm bg-white" onchange="updateFBDVisual()">
+                    <option value="">-- Direction --</option>
+                    <option value="Up" ${presetDir==="Up"?"selected":""}>Up &uarr;</option>
+                    <option value="Down" ${presetDir==="Down"?"selected":""}>Down &darr;</option>
+                    <option value="Left" ${presetDir==="Left"?"selected":""}>Left &larr;</option>
+                    <option value="Right" ${presetDir==="Right"?"selected":""}>Right &rarr;</option>
+                    <option value="Slightly Up-Left" ${presetDir==="Slightly Up-Left"?"selected":""}>Slightly Up-Left &#8598;</option>
+                    <option value="Slightly Up-Right" ${presetDir==="Slightly Up-Right"?"selected":""}>Slightly Up-Right &#8599;</option>
+                    <option value="Slightly Down-Left" ${presetDir==="Slightly Down-Left"?"selected":""}>Slightly Down-Left &#8601;</option>
+                    <option value="Slightly Down-Right" ${presetDir==="Slightly Down-Right"?"selected":""}>Slightly Down-Right &#8600;</option>
+                </select>
+                <button onclick="this.parentElement.remove(); updateFBDVisual()" class="text-red-500 hover:text-red-700 px-2 font-bold text-xl">&times;</button>
+            `;
+            container.appendChild(row);
+            updateFBDVisual();
+        }
+
+        function getFBDState() {
+            const rows = document.querySelectorAll('.fbd-row');
+            let stateArr = [];
+            rows.forEach(r => {
+                const force = r.querySelector('.fbd-force').value;
+                const dir = r.querySelector('.fbd-dir').value;
+                if (force && dir) stateArr.push({ force, dir });
+            });
+            return stateArr;
+        }
+
+        function validateFBD(targetForces, userState) {
+            if (targetForces.length !== userState.length) return false;
+            // Create copies to match off
+            let tempTargets = [...targetForces];
+            for (let u of userState) {
+                let foundIdx = tempTargets.findIndex(t => t.force === u.force && t.dir === u.dir);
+                if (foundIdx === -1) return false;
+                tempTargets.splice(foundIdx, 1);
+            }
+            return tempTargets.length === 0;
+        }
+
+        function updateFBDVisual() {
+            const arrowGroup = document.getElementById('fbd-arrows');
+            if (!arrowGroup) return;
+            arrowGroup.innerHTML = ''; // clear
+
+            const stateArr = getFBDState();
+            stateArr.forEach(item => {
+                let dx = 0, dy = 0;
+                
+                // Adjust length and color based on force type to make Tension shorter than Gravity
+                let len = 70; 
+                let strokeColor = '#3b82f6'; // default blue
+                if (item.force.includes('Gravity')) { len = 90; strokeColor = '#ef4444'; } // Red, longer
+                if (item.force.includes('Tension')) { len = 50; strokeColor = '#10b981'; } // Green, shorter
+
+                switch (item.dir) {
+                    case "Up": dx = 0; dy = -len; break;
+                    case "Down": dx = 0; dy = len; break;
+                    case "Left": dx = -len; dy = 0; break;
+                    case "Right": dx = len; dy = 0; break;
+                    case "Slightly Up-Left": dx = -len; dy = -20; break;
+                    case "Slightly Up-Right": dx = len; dy = -20; break;
+                    case "Slightly Down-Left": dx = -len; dy = 20; break;
+                    case "Slightly Down-Right": dx = len; dy = 20; break;
+                }
+
+                if (dx !== 0 || dy !== 0) {
+                    // Create marker defs if not exist
+                    const markerId = `ah-${strokeColor.replace('#', '')}`;
+                    let defs = arrowGroup.parentNode.querySelector('defs');
+                    if (!defs.querySelector(`#${markerId}`)) {
+                        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                        marker.setAttribute('id', markerId);
+                        marker.setAttribute('markerWidth', '6');
+                        marker.setAttribute('markerHeight', '4');
+                        marker.setAttribute('refX', '5');
+                        marker.setAttribute('refY', '2');
+                        marker.setAttribute('orient', 'auto');
+                        marker.innerHTML = `<polygon points="0 0, 6 2, 0 4" fill="${strokeColor}" />`;
+                        defs.appendChild(marker);
+                    }
+
+                    // Create line
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', '0');
+                    line.setAttribute('y1', '0');
+                    line.setAttribute('x2', dx);
+                    line.setAttribute('y2', dy);
+                    line.setAttribute('stroke', strokeColor);
+                    line.setAttribute('stroke-width', '4');
+                    line.setAttribute('marker-end', `url(#${markerId})`);
+                    arrowGroup.appendChild(line);
+
+                    // Add text label
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', dx * 1.2);
+                    text.setAttribute('y', dy * 1.2);
+                    text.setAttribute('fill', strokeColor);
+                    text.setAttribute('font-size', '14');
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.textContent = item.force.split(' ')[0]; // Extract just the first word
+                    arrowGroup.appendChild(text);
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ANSWER CHECKING & HINTS                                                    */
+        /* -------------------------------------------------------------------------- */
+
+        async function submitAnswer() {
+            const step = state.sequence[state.currentStepIndex];
+            let isCorrect = false;
+            let userInputValue = "";
+            let selectedIdx = -1;
+
+            if (step.type === 'mc') {
+                const selected = document.querySelector('input[name="mc-option"]:checked');
+                if (!selected) { showFeedback("Please select an option.", "warning"); return; }
+                selectedIdx = parseInt(selected.value);
+                isCorrect = step.options[selectedIdx].isCorrect;
+                userInputValue = step.options[selectedIdx].text;
+            } else if (step.type === 'numeric') {
+                const input = document.getElementById('num-input');
+                const val = parseFloat(input.value);
+                if (isNaN(val)) { showFeedback("Please enter a valid number.", "warning"); return; }
+                userInputValue = val.toString();
+                
+                // Tolerance Check (5%)
+                const target = step.correctValue;
+                const error = Math.abs(val - target) / (target === 0 ? 1 : Math.abs(target));
+                if (error <= 0.05) {
+                    isCorrect = true;
+                    // Auto-overwrite to exact value to prevent propagation
+                    input.value = target.toFixed(2);
+                }
+            } else if (step.type === 'fbd') {
+                const userState = getFBDState();
+                isCorrect = validateFBD(step.targetForces, userState);
+                userInputValue = JSON.stringify(userState);
+            }
+
+            if (isCorrect) {
+                step.isCompleted = true;
+                if (state.currentStepIndex === state.maxUnlockedStep) {
+                    state.maxUnlockedStep++;
+                }
+                
+                let extraMsg = step.type === 'numeric' ? " Corrected to exact target to prevent compounding errors." : "";
+                showFeedback("Correct! " + extraMsg, "success");
+                
+                setTimeout(() => {
+                    navigateStep(1);
+                }, 1500);
+
+            } else {
+                state.questionCorrections++;
+                state.totalCorrections++;
+                step.corrections = state.questionCorrections;
+
+                if (state.questionCorrections >= 5) {
+                    // Fail safe. Reveal answer and forcefully advance.
+                    step.isCompleted = true; // Force completion
+                    if (state.currentStepIndex === state.maxUnlockedStep) {
+                        state.maxUnlockedStep++;
+                    }
+                    
+                    let exactInfo = "";
+                    if (step.type === 'mc') exactInfo = step.options.find(o => o.isCorrect).text;
+                    else if (step.type === 'numeric') exactInfo = step.correctValue.toFixed(2) + " " + step.unit;
+                    else exactInfo = "Correct forces: " + step.targetForces.map(t => `${t.force} pointing ${t.dir}`).join(', ');
+
+                    showFeedback(`Maximum hints reached. The exact correct answer is: ${exactInfo}. Auto-advancing in 5 seconds...`, "fail");
+                    updateNavButtons();
+                    
+                    setTimeout(() => {
+                        if (state.currentStepIndex < state.sequence.length - 1) {
+                            navigateStep(1);
+                        } else {
+                            finishWorksheet();
+                        }
+                    }, 5000);
+                    return;
+                }
+
+                // Smart Hints Fallback & AI Fetch
+                const fallbackHint = (step.type === 'mc' && selectedIdx > -1 && step.options[selectedIdx].hint) 
+                                        ? step.options[selectedIdx].hint 
+                                        : "Incorrect. Please check your work and try again.";
+
+                document.getElementById('loading-indicator').classList.remove('hidden');
+                hideFeedback();
+                
+                try {
+                    let aiPrompt = `A student is working on this physics problem context: "${step.context}".\n`;
+                    aiPrompt += `Current step prompt: "${step.prompt}".\n`;
+                    if (step.type === 'numeric') {
+                        aiPrompt += `The exact target answer is ${step.correctValue}. The student entered ${userInputValue}.\n`;
+                    } else if (step.type === 'fbd') {
+                        aiPrompt += `They constructed the following vectors: ${userInputValue}. They need: ${JSON.stringify(step.targetForces)}.\n`;
+                    }
+                    aiPrompt += `Give a very brief, encouraging 1-2 sentence hint to help them find their mistake WITHOUT giving away the final answer. Address the student directly. They have ${5 - state.questionCorrections} attempts left before the answer is revealed.`;
+
+                    const hint = await fetchFromAI(aiPrompt, false);
+                    showFeedback(`Hint: ${hint} (Attempts left: ${5 - state.questionCorrections})`, "error");
+                } catch (e) {
+                    // Fallback to built-in smart hints perfectly if AI fails or block is active
+                    showFeedback(`Hint: ${fallbackHint} (Attempts left: ${5 - state.questionCorrections})`, "error");
+                } finally {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                }
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* UI HELPERS                                                                 */
+        /* -------------------------------------------------------------------------- */
+        function showFeedback(msg, type) {
+            const box = document.getElementById('feedback-box');
+            const area = document.getElementById('feedback-area');
+            area.classList.remove('hidden');
+            
+            box.className = 'p-4 rounded-lg text-sm font-medium shadow ';
+            if (type === 'success') box.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-300');
+            else if (type === 'error') box.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-300');
+            else if (type === 'fail') box.classList.add('bg-purple-100', 'text-purple-900', 'border', 'border-purple-300');
+            else box.classList.add('bg-yellow-100', 'text-yellow-800', 'border', 'border-yellow-300');
+            
+            // Render basic markdown (bold/italic) to HTML to fix formatting issues in AI hints
+            let htmlMsg = msg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+            box.innerHTML = htmlMsg;
+
+            // Render Math in feedback just in case AI used it
+            renderMathInElement(box, { delimiters: [{left: "$", right: "$", display: false}] });
+        }
+
+        function hideFeedback() {
+            document.getElementById('feedback-area').classList.add('hidden');
+        }
+
+        function updateNavButtons() {
+            const backBtn = document.getElementById('btn-back');
+            const fwdBtn = document.getElementById('btn-forward');
+            
+            backBtn.disabled = (state.currentStepIndex === 0);
+            fwdBtn.disabled = (state.currentStepIndex >= state.maxUnlockedStep || state.currentStepIndex === state.sequence.length - 1);
+        }
+
+        function navigateStep(dir) {
+            if (dir === 1 && state.currentStepIndex === state.sequence.length - 1) {
+                // Done!
+                finishWorksheet();
+                return;
+            }
+            state.currentStepIndex += dir;
+            renderStep();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* WIN SCREEN & GRADING LOGIC                                                 */
+        /* -------------------------------------------------------------------------- */
+        function finishWorksheet() {
+            document.getElementById('workspace-screen').classList.add('hidden');
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+
+            // Grading Logic
+            let finalScore = 25;
+            let c = state.totalCorrections;
+            
+            if (c === 0) finalScore += 5;
+            else if (c === 1) finalScore += 4;
+            else if (c === 2) finalScore += 3;
+            else if (c === 3) finalScore += 2;
+            else if (c === 4) finalScore += 1;
+            else if (c >= 5 && c <= 10) finalScore = 25;
+            else if (c > 12) {
+                finalScore = 25 - (c - 12);
+                if (finalScore < 0) finalScore = 0;
+            }
+
+            document.getElementById('win-score').innerText = `${finalScore}/25`;
+            document.getElementById('win-names').innerText = state.names.join(' • ');
+
+            // AlphaNumeric
+            const firstName = state.names[0] || "Student";
+            const code = generateCode(firstName);
+            document.getElementById('win-alphanumeric').innerText = "V-CODE: " + code;
+
+            // Message Gen
+            const adjectives = ["Spectacular", "Amazing", "Incredible", "Outstanding", "Phenomenal", "Stellar", "Fantastic"];
+            const nouns = ["job", "work", "performance", "effort", "achievement", "success", "mastery"];
+            const exclamations = ["Keep it up!", "You are a physics wizard!", "Einstein would be proud!", "Way to go!", "Simply brilliant!", "Nailed it!"];
+            const conciliatory = ["Good effort, keep practicing!", "You're getting there!", "Physics is tough, but so are you.", "Review the steps and try again!"];
+            
+            let msg = "";
+            if (finalScore >= 25) {
+                msg = `${adjectives[Math.floor(Math.random()*adjectives.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}! ${exclamations[Math.floor(Math.random()*exclamations.length)]}`;
+            } else if (finalScore >= 20) {
+                msg = conciliatory[Math.floor(Math.random()*conciliatory.length)];
+            } else {
+                msg = "Don't give up! Please click 'Try Again' and give it another shot to master these concepts.";
+            }
+            document.getElementById('win-message').innerText = msg;
+
+            // Try Again Button visibility
+            if (finalScore < 25) {
+                document.getElementById('btn-try-again').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-try-again').classList.add('hidden');
+            }
+
+            // Confetti
+            if (finalScore >= 25) {
+                let rounds = 1;
+                if (finalScore === 30) rounds = 4;
+                else if (finalScore >= 28) rounds = 3;
+                else if (finalScore >= 26) rounds = 2;
+                fireConfetti(rounds);
+            }
+        }
+
+        function resetGame() {
+            document.getElementById('win-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            // Keep names in inputs
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            canvas.classList.add('hidden');
+        }
+
+        function generateCode(name) {
+            let namePart = name.replace(/[^a-zA-Z]/g, '').padEnd(3, 'X').substring(0, 3).toUpperCase();
+            let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let codeArr = namePart.split('');
+            for(let i=0; i<9; i++) codeArr.push(chars.charAt(Math.floor(Math.random() * chars.length)));
+            return shuffle(codeArr).join('');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* CONFETTI ANIMATION SYSTEM                                                  */
+        /* -------------------------------------------------------------------------- */
+        let confettiParticles = [];
+        function fireConfetti(rounds) {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+            function createBurst() {
+                for (let i = 0; i < 100; i++) {
+                    confettiParticles.push({
+                        x: canvas.width / 2,
+                        y: canvas.height,
+                        vx: (Math.random() - 0.5) * 20,
+                        vy: (Math.random() - 1) * 25 - 5,
+                        size: Math.random() * 8 + 4,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * 360,
+                        rs: (Math.random() - 0.5) * 10
+                    });
+                }
+            }
+
+            createBurst();
+            rounds--;
+            let roundInterval = setInterval(() => {
+                if (rounds > 0) {
+                    createBurst();
+                    rounds--;
+                } else {
+                    clearInterval(roundInterval);
+                }
+            }, 800);
+
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                confettiParticles.forEach((p, index) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.5; // gravity
+                    p.rotation += p.rs;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+
+                    if (p.y > canvas.height + 100) confettiParticles.splice(index, 1);
+                });
+
+                if (confettiParticles.length > 0) requestAnimationFrame(render);
+                else if (rounds <= 0) canvas.classList.add('hidden');
+            }
+            render();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* STUDY GUIDE EXPORT                                                         */
+        /* -------------------------------------------------------------------------- */
+        function downloadStudyGuide() {
+            let guideHTML = `
+                <html>
+                <head>
+                    <title>Physics Study Guide - ${state.names.join(', ')}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+                    <!-- Load KaTeX with defer and trigger render strictly on load to prevent local file timing issues -->
+                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js">\x3C/script>
+                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });">\x3C/script>
+                    <style>
+                        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6; color: #333; }
+                        h1 { color: #1d4ed8; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+                        .step { margin-bottom: 20px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
+                        .context { font-size: 1.1em; margin-bottom: 20px; background: #eff6ff; padding: 15px; border-radius: 8px; }
+                        .context img { max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        .context svg { display: block; margin: 15px auto; }
+                        .correct-ans { font-weight: bold; color: #059669; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Newton's Laws & Forces - Study Guide</h1>
+                    <p><strong>Prepared for:</strong> ${state.names.join(', ')}</p>
+                    <p><strong>Final Score:</strong> ${document.getElementById('win-score').innerText}</p>
+                    <hr>
+            `;
+
+            let currentContext = "";
+            state.sequence.forEach((step, index) => {
+                if (step.context !== currentContext) {
+                    guideHTML += `<div class="context">${step.context}</div>`;
+                    currentContext = step.context;
+                }
+
+                guideHTML += `<div class="step"><strong>Step ${index + 1}:</strong> ${step.prompt}<br>`;
+                
+                if (step.type === 'mc') {
+                    const correctOpt = step.options.find(o => o.isCorrect).text;
+                    guideHTML += `<em>Solution:</em> <span class="correct-ans">${correctOpt}</span>`;
+                } else if (step.type === 'numeric') {
+                    guideHTML += `<em>Solution:</em> <span class="correct-ans">${step.correctValue.toFixed(2)} ${step.unit}</span>`;
+                } else if (step.type === 'fbd') {
+                    const forcesStr = step.targetForces.map(t => `${t.force} pointing ${t.dir}`).join('; ');
+                    guideHTML += `<em>Solution FBD:</em> <span class="correct-ans">${forcesStr}</span>`;
+                }
+                guideHTML += `</div>`;
+            });
+            
+            guideHTML += `
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([guideHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Physics_Study_Guide_${state.names[0] || 'Student'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+    </script>
+</body>
+</html>
