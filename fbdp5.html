@@ -214,7 +214,7 @@
             const thRad = v.th * (Math.PI / 180);
             const exactTension = v.F / (2 * Math.sin(thRad));
 
-            const contextBase = `<strong>Problem 1 (Car Pulling):</strong> A car is mired up to the rims in sand. You tie it tightly to a tree with a rope and pull perpendicularly to the rope with force $F = ${v.F}$ lbs in the middle. The rope makes an angle of $\\theta = ${v.th}^\\circ$ with the straight dashed line between the car and tree.<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vRAjtzL0Z5rF44cr8KZlkT7uSUE0jZoambz_wXCpP1HXZ7WjYYbWsam9J7VqEWg_IUQ_MkJAvuu_u2J/pub?w=819&h=240" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Car pulling">`;
+            const contextBase = `<strong>Problem 1 (Car Pulling):</strong> A car is mired up to the rims in sand. You tie it tightly to a tree with a rope and pull perpendicularly to the rope with force $F = ${v.F}$ lbs in the middle. The rope makes an angle of $\\theta = ${v.th}^{\\circ}$ with the straight dashed line between the car and tree.<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vRAjtzL0Z5rF44cr8KZlkT7uSUE0jZoambz_wXCpP1HXZ7WjYYbWsam9J7VqEWg_IUQ_MkJAvuu_u2J/pub?w=819&h=240" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Car pulling">`;
 
             const contextWithVector = contextBase + `
                 <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
@@ -330,7 +330,7 @@
                 },
                 {
                     problemNum: 1, context: contextWithBothVectors, type: 'mc',
-                    prompt: `Using the correct equation $T = \\frac{F}{2\\sin(\\theta)}$, plug in the numbers: If F is ${v.F} lbs and $\\theta$ is ${v.th}^\\circ$, what is the exact full tension (T) in the rope in lbs?`,
+                    prompt: `Using the correct equation $T = \\frac{F}{2\\sin(\\theta)}$, plug in the numbers: If $F = ${v.F}$ lbs and $\\theta = ${v.th}^{\\circ}$, what is the exact full tension (T) in the rope in lbs?`,
                     options: createMCOptions(
                         { text: `${exactTension.toFixed(1)} lbs`, hint: "Correct! You successfully calculated the tension." },
                         [
@@ -436,7 +436,7 @@
             const normalN = v.m * GRAVITY * Math.cos(thRad);
             const accel = GRAVITY * Math.sin(thRad);
 
-            const context = `<strong>Problem 3 (Block on Ramp):</strong> A cord holds stationary a ${v.m} kg block on a frictionless ramp. Angle $\\theta$ is $${v.th}^\\circ$. Assume $g = 9.8 m/s^2$. (The FBD is standard: y-axis perpendicular to the ramp surface, x-axis parallel to surface pointing upwards).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vS5atT2teqjZRN95NK4Ke4yCuEPWlcPsSqz3UBM9EsvilFoiTkdYYFWy7vKuj3IXF_qU64NyIGNdOFS/pub?w=456&h=537" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Block on Ramp">`;
+            const context = `<strong>Problem 3 (Block on Ramp):</strong> A cord holds stationary a ${v.m} kg block on a frictionless ramp. Angle $\\theta = ${v.th}^{\\circ}$. Assume $g = 9.8 m/s^2$. (The FBD is standard: y-axis perpendicular to the ramp surface, x-axis parallel to surface pointing upwards).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vS5atT2teqjZRN95NK4Ke4yCuEPWlcPsSqz3UBM9EsvilFoiTkdYYFWy7vKuj3IXF_qU64NyIGNdOFS/pub?w=456&h=537" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Block on Ramp">`;
 
             const contextCut = context + `<br><br><div class="p-3 bg-red-50 border border-red-200 rounded text-red-800"><strong>UPDATE:</strong> The cord is now cut! The block freely slides down the frictionless ramp. (Assume uphill is the positive x direction and downhill is the negative x direction).</div>`;
 
@@ -467,7 +467,7 @@
                 },
                 {
                     problemNum: 3, context, type: 'mc',
-                    prompt: `What is the numerical tension in the cord? Use $T = mg\\sin(\\theta)$. ($m = ${v.m}, \\theta = ${v.th}^\\circ$)`,
+                    prompt: `What is the numerical tension in the cord? Use $T = mg\\sin(\\theta)$. ($m = ${v.m}$ kg, $\\theta = ${v.th}^\\circ$)`,
                     options: createMCOptions(
                         { text: `${tensionN.toFixed(1)} N`, hint: "Correct! You found the tension." },
                         [
@@ -1116,11 +1116,9 @@
             let guideHTML = `
                 <html>
                 <head>
+                    <meta charset="UTF-8">
                     <title>Physics Study Guide - ${state.names.join(', ')}</title>
                     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-                    <!-- Load KaTeX with defer and trigger render strictly on load to prevent local file timing issues -->
-                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js">\x3C/script>
-                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });">\x3C/script>
                     <style>
                         body { font-family: sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6; color: #333; }
                         h1 { color: #1d4ed8; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
@@ -1160,6 +1158,18 @@
             });
             
             guideHTML += `
+                    \x3Cscript src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js">\x3C/script>
+                    \x3Cscript src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js">\x3C/script>
+                    \x3Cscript>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            renderMathInElement(document.body, {
+                                delimiters: [
+                                    {left: "$$", right: "$$", display: true},
+                                    {left: "$", right: "$", display: false}
+                                ]
+                            });
+                        });
+                    \x3C/script>
                 </body>
                 </html>
             `;
