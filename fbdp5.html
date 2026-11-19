@@ -3,909 +3,1178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Physics Interactive Quiz: Equations & Unknowns</title>
+    <title>Physics Interactive Worksheet</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- KaTeX for equation rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .canvas-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; }
-        canvas { width: 100%; height: auto; border-radius: 0.75rem; background: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; position: relative; z-index: 10; }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%;
-            background: #2563eb; cursor: pointer; margin-top: -9px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 2px solid white;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 6px; cursor: pointer; background: #cbd5e1; border-radius: 3px;
-        }
-        input[type=range]:disabled::-webkit-slider-thumb { background: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
-        .pointer-events-none { pointer-events: none; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow-x: hidden; }
+        .step-container { transition: all 0.3s ease; }
         .hidden { display: none !important; }
-        .confetti-piece { position: fixed; width: 10px; height: 10px; z-index: 9999; pointer-events: none; }
+        /* Confetti Canvas */
+        #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+        /* FBD Builder styles */
+        .fbd-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; flex-wrap: wrap; }
     </style>
-    <!-- MathJax for rendering LaTeX -->
-    <script>
-        window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] } };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 </head>
-<body class="text-slate-800">
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
 
-    <!-- Welcome Screen -->
-    <div id="welcomeScreen" class="fixed inset-0 bg-slate-900/95 flex flex-col items-center justify-center z-50 p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border-t-8 border-blue-600">
-            <h2 class="text-3xl font-bold text-slate-900 mb-4">Physics Quiz</h2>
-            <p class="text-slate-600 mb-6 font-medium">Test your mastery of Free Body Diagrams, Equations, and Unknowns. What is your name?</p>
-            <input type="text" id="studentNameInput" placeholder="Enter Your Name" class="w-full px-4 py-3 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-blue-500 mb-2 text-lg text-center font-bold transition-colors" autocomplete="off">
-            <p id="nameError" class="text-red-500 text-sm font-semibold h-5 mb-4 opacity-0 transition-opacity">Please enter a valid name.</p>
-            <button id="startLessonBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg shadow-blue-600/30">Start Quiz</button>
-        </div>
-    </div>
+    <canvas id="confetti-canvas" class="hidden"></canvas>
 
-    <div class="max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
-        <header class="mb-8 text-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Equations & Unknowns Quiz</h1>
-            <p class="text-slate-500 font-medium">Read scenarios, build scale diagrams, and identify the correct mathematical truths.</p>
-        </header>
-
-        <div class="flex flex-col lg:flex-row gap-8">
-            <!-- Left Column: Visuals & FBD Suite -->
-            <div class="w-full lg:w-1/2 flex flex-col gap-6">
-                
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold mb-3 text-slate-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                        Scenario Context
-                    </h2>
-                    <div class="canvas-container bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
-                        <canvas id="scenarioCanvas" width="400" height="280"></canvas>
-                    </div>
-                </div>
-
-                <div id="fbdSuiteContainer" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hidden">
-                    <h2 class="text-lg font-bold mb-2 text-slate-800">Drawing Suite</h2>
-                    <p class="text-sm text-slate-500 mb-4 font-medium">Build the Free Body Diagram. Unknowns will hide their numeric scale.</p>
-                    
-                    <div class="flex gap-6">
-                        <div class="w-1/2 canvas-container bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
-                            <canvas id="fbdCanvas" width="220" height="280"></canvas>
-                        </div>
-                        <div class="w-1/2 flex flex-col justify-center gap-4">
-                            <div class="relative bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                                <label class="flex justify-between text-xs font-bold text-blue-800 mb-2 pointer-events-none uppercase tracking-wide">
-                                    <span>Normal (N)</span><span id="fnLabel">0.5 mg</span>
-                                </label>
-                                <input type="range" id="fnSlider" min="0" max="5" step="0.1" value="0.5">
-                            </div>
-                            <div class="relative bg-red-50/50 p-2 rounded-lg border border-red-100">
-                                <label class="flex justify-between text-xs font-bold text-red-700 mb-2 pointer-events-none uppercase tracking-wide">
-                                    <span>Gravity (mg)</span><span id="fgLabel">1.0 mg</span>
-                                </label>
-                                <input type="range" id="fgSlider" min="0" max="5" step="0.1" value="1.0" disabled>
-                            </div>
-                            <div id="horizontalControls" class="flex flex-col gap-4 hidden">
-                                <div class="relative bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
-                                    <label class="flex justify-between text-xs font-bold text-emerald-700 mb-2 pointer-events-none uppercase tracking-wide">
-                                        <span id="fsNameLabel">Friction (f<sub>s</sub>)</span><span id="fsLabel">0.0 mg</span>
-                                    </label>
-                                    <input type="range" id="fsSlider" min="-5" max="5" step="0.1" value="0.0">
-                                </div>
-                                <div class="relative bg-orange-50/50 p-2 rounded-lg border border-orange-100">
-                                    <label class="flex justify-between text-xs font-bold text-orange-700 mb-2 pointer-events-none uppercase tracking-wide">
-                                        <span>Drag (D)</span><span id="dLabel">0.0 mg</span>
-                                    </label>
-                                    <input type="range" id="dSlider" min="-5" max="5" step="0.1" value="0.0">
-                                </div>
-                            </div>
-                            <button id="checkFbdBtn" class="mt-2 w-full bg-slate-800 hover:bg-slate-900 text-white py-3 px-4 rounded-xl font-bold transition-all shadow-md active:scale-95">
-                                Lock Diagram
-                            </button>
-                            <div id="fbdFeedback" class="text-sm font-medium hidden"></div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Right Column: Interactive Questions & AI Fallback -->
-            <div class="w-full lg:w-1/2 flex flex-col gap-6">
-                
-                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-md border-t-8 border-blue-600 relative overflow-hidden">
-                    <div id="stepHeader" class="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4">Question 1 of 20</div>
-                    <h2 id="scenarioTitle" class="text-2xl md:text-3xl font-black text-slate-900 mb-3 leading-tight">Title</h2>
-                    <p id="scenarioDesc" class="text-slate-600 text-lg mb-6 border-b border-slate-100 pb-6">Description</p>
-
-                    <div id="mcqSection" class="hidden">
-                        <!-- Dedicated Canvas for MCQ FBDs -->
-                        <div class="flex justify-center w-full mb-8">
-                            <canvas id="mcqFbdCanvas" width="220" height="260" class="hidden bg-slate-50 border border-slate-200 rounded-xl shadow-inner"></canvas>
-                        </div>
-                        
-                        <h3 class="font-bold text-xl text-slate-800 mb-5 leading-snug" id="mcqQuestion">Question?</h3>
-
-                        <div id="optionsContainer" class="flex flex-col gap-3 mb-6">
-                            <!-- Options injected here -->
-                        </div>
-                        
-                        <div class="flex flex-col gap-4">
-                            <div id="mcqFeedback" class="p-4 rounded-xl text-sm md:text-base font-medium hidden"></div>
-                            
-                            <div id="aiLoading" class="hidden items-center justify-center gap-3 text-purple-600 font-bold p-4 bg-purple-50 rounded-xl border border-purple-100">
-                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Generating Second Chance Question...
-                            </div>
-                            
-                            <button id="submitAnswerBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-blue-600/30 active:scale-95">
-                                Submit Answer
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="nextStepContainer" class="hidden mt-6 flex justify-end border-t border-slate-100 pt-6">
-                        <button id="nextStepBtn" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-8 rounded-xl font-bold text-lg transition-all shadow-lg shadow-emerald-600/30 active:scale-95">
-                            Continue Quiz →
-                        </button>
-                    </div>
-                </div>
-
+    <!-- Header -->
+    <header class="bg-blue-700 text-white p-4 shadow-md sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Physics: Newton's Laws & Forces</h1>
+            <div id="header-status" class="hidden text-sm opacity-90">
+                <span id="header-names"></span>
             </div>
         </div>
-    </div>
+    </header>
 
-<script>
-    // --- Application State ---
-    let studentName = "";
-    let currentStepIndex = 0;
-    let fnValue = 0.5, fgValue = 1.0, fsValue = 0.0, dValue = 0.0;
-    let fbdLocked = false;
-    let attempts = 0;
-    let currentSelectedAnswer = null;
-    let firstTryCorrect = 0, totalExtraCredit = 0, totalPenalties = 0;
-    let isAiRetry = false;
-    let aiRetryCorrectOption = null;
-    let steps = [];
-
-    // --- DOM Elements ---
-    const welcomeScreen = document.getElementById('welcomeScreen');
-    const studentNameInput = document.getElementById('studentNameInput');
-    const nameError = document.getElementById('nameError');
-    const startLessonBtn = document.getElementById('startLessonBtn');
-    
-    const scenarioCanvas = document.getElementById('scenarioCanvas'), sCtx = scenarioCanvas.getContext('2d');
-    const fbdCanvas = document.getElementById('fbdCanvas'), fCtx = fbdCanvas.getContext('2d');
-    const mcqFbdCanvas = document.getElementById('mcqFbdCanvas'), mCtx = mcqFbdCanvas.getContext('2d');
-    
-    const fbdSuiteContainer = document.getElementById('fbdSuiteContainer');
-    const fnSlider = document.getElementById('fnSlider'), fgSlider = document.getElementById('fgSlider');
-    const fsSlider = document.getElementById('fsSlider'), dSlider = document.getElementById('dSlider');
-    const fnLabel = document.getElementById('fnLabel'), fgLabel = document.getElementById('fgLabel');
-    const fsLabel = document.getElementById('fsLabel'), dLabel = document.getElementById('dLabel');
-    const horizontalControls = document.getElementById('horizontalControls');
-    const checkFbdBtn = document.getElementById('checkFbdBtn'), fbdFeedback = document.getElementById('fbdFeedback');
-    
-    const mcqSection = document.getElementById('mcqSection'), optionsContainer = document.getElementById('optionsContainer');
-    const submitAnswerBtn = document.getElementById('submitAnswerBtn'), mcqFeedback = document.getElementById('mcqFeedback');
-    const nextStepContainer = document.getElementById('nextStepContainer'), nextStepBtn = document.getElementById('nextStepBtn');
-    const aiLoading = document.getElementById('aiLoading');
-    
-    const stepHeader = document.getElementById('stepHeader'), scenarioTitle = document.getElementById('scenarioTitle'), scenarioDesc = document.getElementById('scenarioDesc');
-    const mcqQuestion = document.getElementById('mcqQuestion');
-
-    // --- Data Generation (Procedural Randomization) ---
-    function buildOpts(correctText, allOptsTexts, numDistractors = 5, correctFb = "Correct!", wrongFb = "Incorrect. Let's analyze this concept deeper.") {
-        let unique = [...new Set(allOptsTexts.map(t => t.replace('+-','-')))];
-        let cClean = correctText.replace('+-','-');
-        unique = unique.filter(t => t !== cClean);
-        unique.sort(() => 0.5 - Math.random());
-        let finalOpts = unique.slice(0, numDistractors).map(text => ({ text, isCorrect: false, feedback: wrongFb }));
-        finalOpts.push({ text: cClean, isCorrect: true, feedback: correctFb });
-        finalOpts.sort(() => 0.5 - Math.random());
-        return finalOpts.map((opt, i) => ({ id: 'opt'+i, text: `\\( ${opt.text} \\)`, isCorrect: opt.isCorrect, feedback: opt.feedback }));
-    }
-
-    function initSteps() {
-        steps = [];
-        const rChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
-        const f = (n) => n === 0 ? '0' : (n > 0 ? `+${n.toFixed(2)}` : n.toFixed(2));
-        const fmag = (n) => Math.abs(n).toFixed(2);
-        
-        const elevatorObjects = ["A heavy steel crate", "A person", "A block of ice", "A loaded dolly"];
-        const carObjects = ["A sports car", "A delivery truck", "A racecar", "A heavy SUV"];
-
-        // Topic 1: Elevator Down (Negative fractional accel)
-        let a1 = rChoice([-0.15, -0.25, -0.35, -0.45, -0.55, -0.65, -0.75, -0.85]);
-        let n1 = 1.0 + a1;
-        let obj1 = rChoice(elevatorObjects);
-        
-        steps.push({
-            mode: 'draw', topic: 1, title: "1. Accelerating Downwards",
-            desc: `${obj1} is inside an elevator accelerating downwards at ${f(a1)}g. Gravity is 1.0 mg. Adjust the Normal force (N) slider to build the Free Body Diagram. (Numbers hidden!)`,
-            scenarioType: 'elevator', unknownForce: 'fn',
-            givenFn: n1, givenFg: 1.0, givenFs: 0, givenD: 0, expectedFn: n1, expectedFs: 0, expectedD: 0, accel: a1
-        });
-        steps.push({
-            mode: 'mcq', topic: 1, title: "1. Equation Setup",
-            desc: `Based on your FBD for the elevator accelerating at ${f(a1)}g...`,
-            question: "What is the correct expression for \\( F_{net,y} = ma_y \\)? (Assume UP is positive)",
-            options: buildOpts(`N - mg = m(${a1.toFixed(2)}g)`, [
-                `N + mg = m(${a1.toFixed(2)}g)`, `mg - N = m(${a1.toFixed(2)}g)`, `-N - mg = m(${a1.toFixed(2)}g)`,
-                `N - mg = m(${(-a1).toFixed(2)}g)`, `N + mg = m(${(-a1).toFixed(2)}g)`
-            ]),
-            givenFn: n1, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-        steps.push({
-            mode: 'mcq', topic: 1, title: "1. Solve Algebraically",
-            desc: `Using the correct equation: \\( N - mg = m(${a1.toFixed(2)}g) \\)...`,
-            question: "Solve for the Normal force (N) algebraically:",
-            options: buildOpts(`N = m(${a1.toFixed(2)}g) + mg`, [
-                `N = m(${a1.toFixed(2)}g) - mg`, `N = mg - m(${a1.toFixed(2)}g)`, `N = -m(${a1.toFixed(2)}g) - mg`
-            ]),
-            givenFn: n1, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-        steps.push({
-            mode: 'mcq', topic: 1, title: "1. Solve Numerically",
-            desc: `Using the correct algebraic equation: \\( N = m(${a1.toFixed(2)}g) + mg \\)...`,
-            question: "What is the numerical value of the Normal force?",
-            options: buildOpts(`${f(n1)}mg`, [`${f(1.0 - a1)}mg`, `${f(-1.0 + a1)}mg`, `${f(n1 + 0.1)}mg`, `${f(n1 - 0.2)}mg`]),
-            givenFn: n1, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-
-        // Topic 2: Elevator Up
-        let a2 = rChoice([0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85]);
-        let n2 = 1.0 + a2;
-        let obj2 = rChoice(elevatorObjects);
-        
-        steps.push({
-            mode: 'draw', topic: 2, title: "2. Accelerating Upwards",
-            desc: `${obj2} is in an elevator accelerating upwards at ${f(a2)}g. Gravity is 1.0 mg. Adjust the Normal force (N) slider to build the FBD.`,
-            scenarioType: 'elevator', unknownForce: 'fn',
-            givenFn: n2, givenFg: 1.0, givenFs: 0, givenD: 0, expectedFn: n2, expectedFs: 0, expectedD: 0, accel: a2
-        });
-        steps.push({
-            mode: 'mcq', topic: 2, title: "2. Equation Setup",
-            desc: `Based on your FBD for the elevator accelerating at ${f(a2)}g...`,
-            question: "What is the correct expression for \\( F_{net,y} = ma_y \\)? (Assume UP is positive)",
-            options: buildOpts(`N - mg = m(${a2.toFixed(2)}g)`, [
-                `N + mg = m(${a2.toFixed(2)}g)`, `mg - N = m(${a2.toFixed(2)}g)`, `-N - mg = m(${a2.toFixed(2)}g)`,
-                `N - mg = m(${(-a2).toFixed(2)}g)`, `N + mg = m(${(-a2).toFixed(2)}g)`
-            ]),
-            givenFn: n2, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-        steps.push({
-            mode: 'mcq', topic: 2, title: "2. Solve Algebraically",
-            desc: `Using the correct equation: \\( N - mg = m(${a2.toFixed(2)}g) \\)...`,
-            question: "Solve for the Normal force (N) algebraically:",
-            options: buildOpts(`N = m(${a2.toFixed(2)}g) + mg`, [
-                `N = m(${a2.toFixed(2)}g) - mg`, `N = mg - m(${a2.toFixed(2)}g)`, `N = -m(${a2.toFixed(2)}g) - mg`
-            ]),
-            givenFn: n2, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-        steps.push({
-            mode: 'mcq', topic: 2, title: "2. Solve Numerically",
-            desc: `Using the correct algebraic equation: \\( N = m(${a2.toFixed(2)}g) + mg \\)...`,
-            question: "What is the numerical value of the Normal force?",
-            options: buildOpts(`${f(n2)}mg`, [`${f(1.0 - a2)}mg`, `${f(-1.0 + a2)}mg`, `${f(n2+0.1)}mg`, `${f(n2-0.1)}mg`]),
-            givenFn: n2, givenFg: 1.0, givenFs: 0, givenD: 0
-        });
-
-        // Topic 3: Car Accel Right
-        let a3 = rChoice([0.8, 1.2, 1.6, 2.2]);
-        let fs3 = rChoice([2.6, 3.2, 3.8, 4.4]); 
-        if (fs3 <= a3) fs3 = a3 + 1.0; 
-        let d3mag = fs3 - a3; let d3 = -d3mag; 
-        let obj3 = rChoice(carObjects);
-        
-        steps.push({
-            mode: 'draw', topic: 3, title: "3. Accelerating Right",
-            desc: `${obj3} is accelerating right at ${f(a3)}g. Friction (\\( f_s \\)) points right with magnitude ${fmag(fs3)} mg. Adjust the <strong>unknown Drag force (D)</strong> slider to build the FBD.`,
-            scenarioType: 'racecar', unknownForce: 'd',
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs3, givenD: d3, expectedFn: 1.0, expectedFs: fs3, expectedD: d3, accel: a3
-        });
-        steps.push({
-            mode: 'mcq', topic: 3, title: "3. Equation Setup",
-            desc: `Based on your FBD for the vehicle accelerating at ${f(a3)}g...`,
-            question: "What is the correct expression for \\( F_{net,x} = ma_x \\)? (Assume RIGHT is positive, D is a magnitude)",
-            options: buildOpts(`f_s - D = m(${a3.toFixed(2)}g)`, [
-                `f_s + D = m(${a3.toFixed(2)}g)`, `D - f_s = m(${a3.toFixed(2)}g)`, `-f_s - D = m(${a3.toFixed(2)}g)`,
-                `f_s - D = m(${(-a3).toFixed(2)}g)`, `f_s + D = m(${(-a3).toFixed(2)}g)`
-            ]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs3, givenD: d3
-        });
-        steps.push({
-            mode: 'mcq', topic: 3, title: "3. Solve Algebraically",
-            desc: `Using the correct equation: \\( f_s - D = m(${a3.toFixed(2)}g) \\)...`,
-            question: "Solve for Drag (D) algebraically:",
-            options: buildOpts(`D = f_s - m(${a3.toFixed(2)}g)`, [
-                `D = f_s + m(${a3.toFixed(2)}g)`, `D = m(${a3.toFixed(2)}g) - f_s`, `D = -f_s - m(${a3.toFixed(2)}g)`
-            ]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs3, givenD: d3
-        });
-        steps.push({
-            mode: 'mcq', topic: 3, title: "3. Solve Numerically",
-            desc: `Using the correct algebraic equation: \\( D = f_s - m(${a3.toFixed(2)}g) \\) and knowing \\( a_x = ${a3.toFixed(2)}g \\) and \\( f_s = ${fmag(fs3)}mg \\)...`,
-            question: "What is the magnitude of the Drag force (D)?",
-            options: buildOpts(`${fmag(d3)}mg`, [`${fmag(fs3 + a3)}mg`, `${fmag(a3 - fs3)}mg`, `${fmag(d3+0.4)}mg`, `${fmag(d3-0.2)}mg`]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs3, givenD: d3
-        });
-
-        // Topic 4: Car Braking
-        let a4mag = rChoice([0.6, 1.1, 1.4, 1.8]); 
-        let d4mag = rChoice([0.4, 0.9, 1.3]);
-        let fs4mag = a4mag - d4mag; 
-        if (fs4mag <= 0) { fs4mag = 1.2; a4mag = fs4mag + d4mag; }
-        let a4 = -a4mag; let d4 = -d4mag; let fs4 = -fs4mag;
-        let obj4 = rChoice(carObjects);
-
-        steps.push({
-            mode: 'draw', topic: 4, title: "4. Braking (Decelerating)",
-            desc: `${obj4} is braking at ${f(a4)}g. Drag (D) points left with magnitude ${d4mag.toFixed(2)} mg. Adjust the <strong>unknown Friction force (\\( f_s \\))</strong> slider to build the FBD.`,
-            scenarioType: 'racecar', unknownForce: 'fs',
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs4, givenD: d4, expectedFn: 1.0, expectedFs: fs4, expectedD: d4, accel: a4
-        });
-        steps.push({
-            mode: 'mcq', topic: 4, title: "4. Equation Setup",
-            desc: `Based on your FBD for the vehicle braking at ${f(a4)}g...`,
-            question: "What is the correct expression for \\( F_{net,x} = ma_x \\)? (Assume RIGHT is positive, both f_s and D are magnitudes pointing left)",
-            options: buildOpts(`-f_s - D = m(${a4.toFixed(2)}g)`, [
-                `f_s - D = m(${a4.toFixed(2)}g)`, `f_s + D = m(${a4.toFixed(2)}g)`, `D - f_s = m(${a4.toFixed(2)}g)`,
-                `-f_s - D = m(${a4mag.toFixed(2)}g)`, `-f_s + D = m(${a4.toFixed(2)}g)`
-            ]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs4, givenD: d4
-        });
-        steps.push({
-            mode: 'mcq', topic: 4, title: "4. Solve Algebraically",
-            desc: `Using the correct equation: \\( -f_s - D = m(${a4.toFixed(2)}g) \\)...`,
-            question: "Solve for the Friction magnitude (\\( f_s \\)) algebraically:",
-            options: buildOpts(`f_s = -m(${a4.toFixed(2)}g) - D`, [
-                `f_s = m(${a4.toFixed(2)}g) + D`, `f_s = m(${a4.toFixed(2)}g) - D`, `f_s = -m(${a4.toFixed(2)}g) + D`,
-                `f_s = D - m(${a4.toFixed(2)}g)`
-            ]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs4, givenD: d4
-        });
-        steps.push({
-            mode: 'mcq', topic: 4, title: "4. Solve Numerically",
-            desc: `Substitute \\( D = ${d4mag.toFixed(2)}mg \\) and \\( a_x = ${a4mag.toFixed(2)}g \\) into the correct algebraic equation: \\( f_s = -m(${a4.toFixed(2)}g) - D \\)...`,
-            question: "What is the magnitude of the friction force (\\( f_s \\))?",
-            options: buildOpts(`${fmag(fs4)}mg`, [`${fmag(fs4 + 0.8)}mg`, `${fmag(a4mag + d4mag)}mg`, `${fmag(d4mag - a4mag)}mg`, `${fmag(fs4 + 0.3)}mg`]),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs4, givenD: d4
-        });
-
-        // Topic 5: Solve Accel
-        let fs5 = rChoice([0.7, 1.3, 1.9, 2.7, -0.7, -1.3, -1.9]);
-        let d5mag = rChoice([0.6, 1.2, 1.8]);
-        let d5 = -d5mag;
-        let a5 = fs5 + d5;
-        let isLeft = fs5 < 0;
-        let fs5mag = Math.abs(fs5);
-        let eq18 = isLeft ? `-f_s - D = ma_x` : `f_s - D = ma_x`;
-        let eq19 = isLeft ? `a_x = \\frac{-f_s - D}{m}` : `a_x = \\frac{f_s - D}{m}`;
-        let obj5 = rChoice(carObjects);
-
-        steps.push({
-            mode: 'draw', topic: 5, title: "5. Find the Acceleration",
-            desc: `Friction (\\( f_s \\)) on ${obj5.toLowerCase()} is ${fs5mag.toFixed(2)} mg (${isLeft ? 'left' : 'right'}). Drag (D) is ${d5mag.toFixed(2)} mg (left). Build the complete FBD.`,
-            scenarioType: 'racecar', unknownForce: null,
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5, expectedFn: 1.0, expectedFs: fs5, expectedD: d5, accel: a5
-        });
-        steps.push({
-            mode: 'mcq', topic: 5, title: "5. Equation Setup",
-            desc: `Based on your completed FBD...`,
-            question: "What is the correct expression for \\( F_{net,x} = ma_x \\)? (Assume D and \\( f_s \\) are magnitudes based on their drawn directions)",
-            options: buildOpts(eq18, [
-                `f_s + D = ma_x`, `D - f_s = ma_x`, `-f_s - D = ma_x`,
-                `f_s - D = ma_x`, `-f_s + D = ma_x`, `f_s - D = -ma_x`, `-f_s - D = -ma_x`
-            ], 5, "Spot on! The signs perfectly match the directions drawn on the FBD."),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
-        });
-        steps.push({
-            mode: 'mcq', topic: 5, title: "5. Solve Algebraically",
-            desc: `Using the correct equation: \\( ${eq18} \\)...`,
-            question: "Solve for acceleration (\\( a_x \\)) algebraically:",
-            options: buildOpts(eq19, [
-                `a_x = \\frac{f_s + D}{m}`, `a_x = \\frac{D - f_s}{m}`, `a_x = \\frac{-f_s - D}{m}`, `a_x = \\frac{f_s - D}{m}`, `a_x = m(${eq18.split('=')[0].trim()})`
-            ], 4, "Correct algebraic isolation!"),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
-        });
-        steps.push({
-            mode: 'mcq', topic: 5, title: "5. Solve Numerically",
-            desc: `Substitute \\( f_s = ${fs5mag.toFixed(2)}mg \\) and \\( D = ${d5mag.toFixed(2)}mg \\) into the correct algebraic equation: \\( ${eq19} \\)...`,
-            question: "What is the acceleration (\\( a_x \\)) in g's?",
-            options: buildOpts(`${f(a5)}g`, [
-                `${f(fs5mag + d5mag)}g`, `${f(-a5)}g`, `${f(d5mag - fs5mag)}g`, 
-                `${f(a5+1.2)}g`, `${f(a5-0.8)}g`, `${f(fs5)}g`, `${f(-d5mag)}g`
-            ].filter(v => v !== '0g' && v !== '+0.00g' && v !== '-0.00g'), 5, "Great calculation!"),
-            givenFn: 1.0, givenFg: 1.0, givenFs: fs5, givenD: d5
-        });
-    }
-
-    startLessonBtn.addEventListener('click', () => {
-        const name = studentNameInput.value.trim();
-        if (name.length > 0) { studentName = name; initSteps(); welcomeScreen.classList.add('hidden'); loadStep(); } 
-        else { nameError.classList.remove('opacity-0'); }
-    });
-
-    function generateFbdImageURL(step) {
-        const c = document.createElement('canvas');
-        c.width = 220; c.height = 260;
-        const ctx = c.getContext('2d');
-        
-        ctx.fillStyle = '#ffffff'; 
-        ctx.fillRect(0, 0, c.width, c.height);
-
-        const cx = c.width / 2, cy = c.height / 2 + 10;
-        let expFg = step.expectedFg !== undefined ? step.expectedFg : (step.givenFg !== undefined ? step.givenFg : 1.0);
-        const maxF = Math.max(step.expectedFn, expFg, Math.abs(step.expectedFs), Math.abs(step.expectedD), 1.0);
-        
-        const scaleH = (c.height / 2 - 20) / maxF;
-        const scaleW = (c.width / 2 - 35) / maxF;
-        const scale = Math.min(55, scaleH, scaleW); 
-
-        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
-        
-        if (step.expectedFn > 0) drawArrow(ctx, cx, cy, cx, cy - step.expectedFn * scale, '#2563eb', 'N', 5);
-        if (expFg > 0) drawArrow(ctx, cx, cy, cx, cy + expFg * scale, '#dc2626', 'mg', 5);
-        
-        if (step.expectedFs !== 0) {
-            drawArrow(ctx, cx, cy, step.expectedFs > 0 ? cx + Math.abs(step.expectedFs)*scale : cx - Math.abs(step.expectedFs)*scale, cy, '#10b981', 'f_s', 5);
-        }
-        
-        if (step.expectedD !== 0) {
-            const sameSide = (Math.sign(step.expectedFs) === Math.sign(step.expectedD) && step.expectedFs !== 0 && step.expectedD !== 0);
-            const yOffset = sameSide ? -10 : 0;
-            drawArrow(ctx, cx, cy + yOffset, step.expectedD > 0 ? cx + Math.abs(step.expectedD)*scale : cx - Math.abs(step.expectedD)*scale, cy + yOffset, '#f97316', 'D', 5);
-        }
-        return c.toDataURL('image/png');
-    }
-
-    // --- Study Guide Generator ---
-    function downloadStudyGuide() {
-        let html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>${studentName}'s Physics Quiz Study Guide</title>
-<style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #1e293b; background: #f8fafc; }
-    h1 { color: #2563eb; text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-    .question-block { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .q-title { font-size: 1.25em; font-weight: bold; color: #0f172a; margin-top: 0; }
-    .q-desc { font-style: italic; color: #475569; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #e2e8f0; }
-    .correct-ans { background: #ecfdf5; color: #065f46; padding: 12px; border-radius: 6px; font-weight: bold; margin: 15px 0; border-left: 4px solid #10b981; }
-    .feedback { font-size: 0.95em; color: #334155; margin-top: 10px; }
-</style>
-<script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></scr` + `ipt>
-</head>
-<body>
-    <h1>Physics Equations & Unknowns: Study Guide</h1>
-    <p style="text-align: center; font-size: 1.1em;">Prepared for: <strong>${studentName}</strong></p>
-    <div style="margin-top: 30px;">
-`;
-
-        steps.forEach((step, i) => {
-            html += `<div class="question-block">
-                <h2 class="q-title">Q${i+1}: ${step.title}</h2>
-                <p class="q-desc">${step.desc}</p>`;
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="max-w-4xl w-full bg-white rounded-xl shadow-lg p-6 md:p-8 relative min-h-[400px]">
             
-            if (step.mode === 'mcq') {
-                html += `<p style="font-weight: 600;">Question: ${step.question}</p>`;
-                let correctOpt = step.options.find(o => o.isCorrect);
-                if (correctOpt) {
-                    html += `<div class="correct-ans">Correct Answer: ${correctOpt.text}</div>`;
-                    html += `<p class="feedback"><strong>Explanation:</strong> ${correctOpt.feedback}</p>`;
-                }
-            } else {
-                let expFg = step.expectedFg !== undefined ? step.expectedFg : (step.givenFg !== undefined ? step.givenFg : 1.0);
-                let imgData = generateFbdImageURL(step);
-                html += `<div class="correct-ans" style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-                    <div>
-                        Correct Diagram Values: <br>
-                        N = ${step.expectedFn.toFixed(2)} mg <br>
-                        Gravity = ${expFg.toFixed(2)} mg <br>
-                        Friction = ${step.expectedFs.toFixed(2)} mg <br>
-                        Drag = ${step.expectedD.toFixed(2)} mg
-                    </div>
-                    <img src="${imgData}" alt="Free Body Diagram" style="max-width: 220px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" />
-                </div>`;
-            }
-            html += `</div>`;
-        });
-
-        html += `</div>
-<script>
-    window.addEventListener('load', function() {
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            MathJax.typesetPromise().catch(function(err) { console.error('MathJax rendering error:', err); });
-        }
-    });
-</scr` + `ipt>
-</body></html>`;
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Physics_Study_Guide_${studentName.replace(/\s+/g, '_')}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    // --- Drawing System ---
-    function drawPerson(ctx, x, y) {
-        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3; ctx.beginPath();
-        ctx.arc(x, y - 50, 15, 0, Math.PI * 2);
-        ctx.moveTo(x, y - 35); ctx.lineTo(x, y + 10); ctx.moveTo(x, y - 20); ctx.lineTo(x - 20, y + 5);
-        ctx.moveTo(x, y - 20); ctx.lineTo(x + 20, y + 5); ctx.moveTo(x, y + 10); ctx.lineTo(x - 15, y + 50);
-        ctx.moveTo(x, y + 10); ctx.lineTo(x + 15, y + 50); ctx.stroke();
-    }
-
-    function drawRaceCar(ctx, x, y, accel, hideAccel) {
-        ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, y + 20, ctx.canvas.width, 40);
-        ctx.fillStyle = '#ef4444'; ctx.beginPath();
-        ctx.moveTo(x - 50, y + 10); ctx.lineTo(x + 40, y + 10); ctx.lineTo(x + 50, y); ctx.lineTo(x + 30, y - 20);
-        ctx.lineTo(x - 20, y - 20); ctx.lineTo(x - 40, y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(x - 30, y + 15, 10, 0, Math.PI * 2); ctx.arc(x + 30, y + 15, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(x - 30, y + 15, 4, 0, Math.PI * 2); ctx.arc(x + 30, y + 15, 4, 0, Math.PI * 2); ctx.fill();
-
-        if (accel !== 0 && !hideAccel) {
-            const isFwd = accel > 0; ctx.strokeStyle = isFwd ? '#22c55e' : '#ef4444'; ctx.lineWidth = 3; ctx.beginPath();
-            const startX = isFwd ? x + 60 : x - 60, endX = isFwd ? x + 100 : x - 100;
-            ctx.moveTo(startX, y - 10); ctx.lineTo(endX, y - 10); ctx.lineTo(isFwd ? endX - 10 : endX + 10, y - 20);
-            ctx.moveTo(endX, y - 10); ctx.lineTo(isFwd ? endX - 10 : endX + 10, y); ctx.stroke();
-            ctx.fillStyle = ctx.strokeStyle; ctx.font = 'bold 14px Inter'; ctx.fillText('a = ' + Math.abs(accel).toFixed(2) + 'g', isFwd ? startX : endX - 40, y - 30);
-        }
-    }
-
-    function renderScenario() {
-        const step = steps[currentStepIndex]; sCtx.clearRect(0, 0, scenarioCanvas.width, scenarioCanvas.height);
-        const cx = scenarioCanvas.width / 2, cy = scenarioCanvas.height / 2 + 10;
-        sCtx.fillStyle = '#f8fafc'; sCtx.fillRect(0, 0, scenarioCanvas.width, scenarioCanvas.height);
-
-        if (step.scenarioType === 'elevator') {
-            sCtx.strokeStyle = '#64748b'; sCtx.lineWidth = 4; sCtx.strokeRect(cx - 60, cy - 90, 120, 140);
-            sCtx.beginPath(); sCtx.moveTo(cx, cy - 90); sCtx.lineTo(cx, 0); sCtx.lineWidth = 3; sCtx.strokeStyle = '#475569'; sCtx.stroke();
-            sCtx.fillStyle = '#94a3b8'; sCtx.fillRect(cx - 58, cy + 46, 116, 4); drawPerson(sCtx, cx, cy - 4); 
-            if (step.accel && step.accel !== 0) {
-                const isUp = step.accel > 0; sCtx.strokeStyle = isUp ? '#22c55e' : '#ef4444'; sCtx.lineWidth = 3; sCtx.beginPath();
-                if(isUp) { sCtx.moveTo(cx + 80, cy - 20); sCtx.lineTo(cx + 80, cy - 70); sCtx.lineTo(cx + 70, cy - 60); sCtx.moveTo(cx + 80, cy - 70); sCtx.lineTo(cx + 90, cy - 60); } 
-                else { sCtx.moveTo(cx + 80, cy - 70); sCtx.lineTo(cx + 80, cy - 20); sCtx.lineTo(cx + 70, cy - 30); sCtx.moveTo(cx + 80, cy - 20); sCtx.lineTo(cx + 90, cy - 30); }
-                sCtx.stroke(); sCtx.fillStyle = sCtx.strokeStyle; sCtx.font = 'bold 14px Inter'; sCtx.fillText('a = ' + Math.abs(step.accel).toFixed(2) + 'g', cx + 95, cy - 40);
-            }
-        } else if (step.scenarioType === 'racecar') { drawRaceCar(sCtx, cx, cy + 30, step.accel, step.unknownForce === null); }
-    }
-
-    function drawArrow(ctx, fromx, fromy, tox, toy, color, label, dotRadius = 5) {
-        const headlen = 12, dx = tox - fromx, dy = toy - fromy, angle = Math.atan2(dy, dx);
-        const rawDist = Math.sqrt(dx*dx + dy*dy);
-        if (rawDist < 0.1) return; 
-        
-        const startOffset = dotRadius + 1;
-        const actualToX = fromx + (rawDist + startOffset) * Math.cos(angle);
-        const actualToY = fromy + (rawDist + startOffset) * Math.sin(angle);
-        const actualFromX = fromx + startOffset * Math.cos(angle);
-        const actualFromY = fromy + startOffset * Math.sin(angle);
-        const actualHeadlen = Math.min(headlen, rawDist * 0.7);
-        
-        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 4; 
-        ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
-        
-        const lineEndX = actualToX - actualHeadlen * 0.8 * Math.cos(angle);
-        const lineEndY = actualToY - actualHeadlen * 0.8 * Math.sin(angle);
-        
-        ctx.beginPath(); ctx.moveTo(actualFromX, actualFromY); ctx.lineTo(lineEndX, lineEndY); ctx.stroke();
-        
-        ctx.beginPath(); ctx.moveTo(actualToX, actualToY);
-        ctx.lineTo(actualToX - actualHeadlen * Math.cos(angle - Math.PI / 6), actualToY - actualHeadlen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(actualToX - actualHeadlen * Math.cos(angle + Math.PI / 6), actualToY - actualHeadlen * Math.sin(angle + Math.PI / 6));
-        ctx.closePath(); ctx.fill();
-        
-        ctx.font = 'bold 14px Inter';
-        if (label === 'f_s') {
-            if (dx > 0) { ctx.fillText('f', actualToX - 25, actualToY - 10); ctx.font = 'bold 10px Inter'; ctx.fillText('s', actualToX - 18, actualToY - 5); }
-            else if (dx < 0) { ctx.fillText('f', actualToX + 5, actualToY - 10); ctx.font = 'bold 10px Inter'; ctx.fillText('s', actualToX + 12, actualToY - 5); }
-            else { ctx.fillText('f', actualToX + 10, actualToY); ctx.font = 'bold 10px Inter'; ctx.fillText('s', actualToX + 17, actualToY + 5); }
-        } else {
-            if (dx > 0) ctx.fillText(label, actualToX - 25, actualToY - 10); else if (dx < 0) ctx.fillText(label, actualToX + 5, actualToY - 10);
-            else if (dy < 0) ctx.fillText(label, actualToX + 10, actualToY + 10); else ctx.fillText(label, actualToX + 10, actualToY);
-        }
-    }
-
-    function renderFBD() {
-        fCtx.clearRect(0, 0, fbdCanvas.width, fbdCanvas.height);
-        const cx = fbdCanvas.width / 2, cy = fbdCanvas.height / 2;
-        const maxF = Math.max(fnValue, fgValue, Math.abs(fsValue), Math.abs(dValue), 1.0);
-        
-        const scaleH = (fbdCanvas.height / 2 - 30) / maxF;
-        const scaleW = (fbdCanvas.width / 2 - 40) / maxF;
-        const scale = Math.min(60, scaleH, scaleW);
-
-        fCtx.fillStyle = '#0f172a'; fCtx.beginPath(); fCtx.arc(cx, cy, 6, 0, Math.PI * 2); fCtx.fill();
-        if (fnValue > 0) drawArrow(fCtx, cx, cy, cx, cy - fnValue * scale, '#2563eb', 'N', 6);
-        if (fgValue > 0) drawArrow(fCtx, cx, cy, cx, cy + fgValue * scale, '#dc2626', 'mg', 6);
-        if (fsValue !== 0) drawArrow(fCtx, cx, cy, fsValue > 0 ? cx + Math.abs(fsValue)*scale : cx - Math.abs(fsValue)*scale, cy, '#10b981', 'f_s', 6);
-        if (dValue !== 0) {
-            const sameSide = (Math.sign(fsValue) === Math.sign(dValue) && fsValue !== 0 && dValue !== 0);
-            const yOffset = sameSide ? -12 : 0;
-            drawArrow(fCtx, cx, cy + yOffset, dValue > 0 ? cx + Math.abs(dValue)*scale : cx - Math.abs(dValue)*scale, cy + yOffset, '#f97316', 'D', 6);
-        }
-    }
-
-    function renderMcqFbd(forces) {
-        mCtx.clearRect(0, 0, mcqFbdCanvas.width, mcqFbdCanvas.height);
-        const cx = mcqFbdCanvas.width / 2, cy = mcqFbdCanvas.height / 2 + 10;
-        const maxF = Math.max(forces.fn, forces.fg, Math.abs(forces.fs), Math.abs(forces.d), 1.0);
-        
-        const scaleH = (mcqFbdCanvas.height / 2 - 20) / maxF;
-        const scaleW = (mcqFbdCanvas.width / 2 - 35) / maxF;
-        const scale = Math.min(55, scaleH, scaleW); 
-
-        mCtx.fillStyle = '#0f172a'; mCtx.beginPath(); mCtx.arc(cx, cy, 5, 0, Math.PI * 2); mCtx.fill();
-        if (forces.fn > 0) drawArrow(mCtx, cx, cy, cx, cy - forces.fn * scale, '#2563eb', 'N', 5);
-        if (forces.fg > 0) drawArrow(mCtx, cx, cy, cx, cy + forces.fg * scale, '#dc2626', 'mg', 5);
-        if (forces.fs !== 0) drawArrow(mCtx, cx, cy, forces.fs > 0 ? cx + Math.abs(forces.fs)*scale : cx - Math.abs(forces.fs)*scale, cy, '#10b981', 'f_s', 5);
-        if (forces.d !== 0) {
-            const sameSide = (Math.sign(forces.fs) === Math.sign(forces.d) && forces.fs !== 0 && forces.d !== 0);
-            const yOffset = sameSide ? -10 : 0;
-            drawArrow(mCtx, cx, cy + yOffset, forces.d > 0 ? cx + Math.abs(forces.d)*scale : cx - Math.abs(forces.d)*scale, cy + yOffset, '#f97316', 'D', 5);
-        }
-    }
-
-    // --- State Management & Event Listeners ---
-    function updateFbdState() {
-        if(fbdLocked) return;
-        fnValue = parseFloat(fnSlider.value); fgValue = parseFloat(fgSlider.value);
-        fsValue = parseFloat(fsSlider.value); dValue = parseFloat(dSlider.value);
-        const step = steps[currentStepIndex], formatSign = (val) => val > 0 ? '+' + val.toFixed(2) : val.toFixed(2);
-        
-        fnLabel.textContent = step.unknownForce === 'fn' ? "???" : fnValue.toFixed(2) + ' mg';
-        fgLabel.textContent = fgValue.toFixed(2) + ' mg';
-        fsLabel.textContent = step.unknownForce === 'fs' ? "???" : formatSign(fsValue) + ' mg';
-        dLabel.textContent = step.unknownForce === 'd' ? "???" : formatSign(dValue) + ' mg';
-        
-        renderFBD(); fbdFeedback.classList.add('hidden');
-    }
-
-    fnSlider.addEventListener('input', updateFbdState); fgSlider.addEventListener('input', updateFbdState);
-    fsSlider.addEventListener('input', updateFbdState); dSlider.addEventListener('input', updateFbdState);
-
-    checkFbdBtn.addEventListener('click', () => {
-        if(fbdLocked) return;
-        const step = steps[currentStepIndex]; attempts++;
-        let pass = false, extraCredit = false, fbMsg = "";
-
-        if (step.unknownForce === 'fn') {
-            if (step.accel < 0) {
-                if (fnValue > 0 && fnValue < fgValue) pass = true;
-                else fbMsg = "Since it accelerates downwards, gravity must be winning. N must be shorter than mg.";
-            } else {
-                if (fnValue > fgValue) pass = true;
-                else fbMsg = "Since it accelerates upwards, the upward force must be winning. N must be longer than mg.";
-            }
-            if (pass) {
-                if (Math.abs(fnValue - step.expectedFn) <= step.expectedFn * 0.1 + 0.02) extraCredit = true;
-                fbMsg = extraCredit ? "Wow! You estimated the length within 10% and earned an extra credit point! Because it accelerates correctly, any properly proportioned N gets full credit, but you nailed the exact math!" : "Good job! You correctly deduced the relative length of N to create the proper net force direction.";
-            }
-        } else if (step.unknownForce === 'fs' || step.unknownForce === 'd') {
-            let val = step.unknownForce === 'fs' ? fsValue : dValue, exp = step.unknownForce === 'fs' ? step.expectedFs : step.expectedD;
-            if (Math.sign(val) === Math.sign(exp) || (val === 0 && exp === 0)) {
-                if (exp === 0 && Math.abs(val) < 0.1) pass = true;
-                else if (exp !== 0 && Math.abs(val - exp) <= Math.abs(exp) * 0.6 + 0.05) pass = true;
-            }
-            if (!pass) {
-                if (exp !== 0 && val !== 0 && Math.sign(val) !== Math.sign(exp) && Math.abs(Math.abs(val) - Math.abs(exp)) <= Math.abs(exp) * 0.6 + 0.05) {
-                    fbMsg = "Your vector is roughly the correct length, but it is pointing in the WRONG direction!";
-                } else {
-                    fbMsg = "Re-evaluate the direction and approximate size of the unknown force needed to achieve the target net force.";
-                }
-            } else {
-                if (Math.abs(val - exp) <= Math.abs(exp) * 0.1 + 0.02) extraCredit = true;
-                fbMsg = extraCredit ? "Incredible estimation! You got within 10% of the exact mathematical length for an extra credit point!" : "Great! Your vector is pointing in the correct direction and is roughly the right size to create the necessary net force.";
-            }
-        } else {
-            pass = (Math.abs(fsValue - step.expectedFs) < 0.05 && Math.abs(dValue - step.expectedD) < 0.05);
-            fbMsg = pass ? "Perfect! You constructed the diagram exactly according to the known numbers." : "Make sure to set both Friction and Drag to the exact given numerical values.";
-            extraCredit = false;
-        }
-
-        fbdFeedback.classList.remove('hidden');
-        if (pass || attempts >= 2) {
-            fbdLocked = true;
-            if (pass) {
-                if (attempts === 1 && extraCredit) totalExtraCredit++;
-                else if (attempts > 1) totalPenalties += 2; // doubled
-            } else { totalPenalties += 4; fbMsg = "Out of attempts! Snapping to the correct diagram."; } // doubled
-
-            fbdFeedback.innerHTML = pass ? fbMsg : `<span class="font-bold text-red-600">${fbMsg}</span>`;
-            fbdFeedback.className = pass ? (extraCredit ? "text-sm font-semibold text-purple-700 mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200" : "text-sm font-semibold text-emerald-700 mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200") : "text-sm text-red-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
-            
-            checkFbdBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
-            fnSlider.disabled = true; fsSlider.disabled = true; dSlider.disabled = true;
-            
-            fnSlider.value = step.expectedFn; fnValue = step.expectedFn; fsSlider.value = step.expectedFs; fsValue = step.expectedFs; dSlider.value = step.expectedD; dValue = step.expectedD;
-            
-            if (step.unknownForce === 'fn') fnLabel.innerHTML = `<span class="text-purple-600 font-bold italic">Locked</span>`;
-            if (step.unknownForce === 'fs') fsLabel.innerHTML = `<span class="text-purple-600 font-bold italic">Locked</span>`;
-            if (step.unknownForce === 'd') dLabel.innerHTML = `<span class="text-purple-600 font-bold italic">Locked</span>`;
-            
-            renderFBD();
-        } else {
-            fbdFeedback.innerHTML = `<span class="font-bold text-red-600">Not quite.</span> ${fbMsg}`;
-            fbdFeedback.className = "text-sm text-slate-700 mt-3 p-3 bg-red-50 rounded-lg border border-red-200";
-        }
-    });
-
-    submitAnswerBtn.addEventListener('click', async () => {
-        if (!currentSelectedAnswer) { showMcqFeedback(`Please select an answer first.`, "warning"); return; }
-        
-        if (!isAiRetry) {
-            attempts++;
-            if (currentSelectedAnswer.isCorrect) {
-                firstTryCorrect++;
-                showMcqFeedback(currentSelectedAnswer.feedback || "Correct!", "success"); 
-                submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
-                document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
-            } else {
-                // Static Second Chance (No AI Required)
-                const step = steps[currentStepIndex];
-                const wrongAnswerId = currentSelectedAnswer.id;
-                isAiRetry = true; currentSelectedAnswer = null;
+            <!-- Start Screen -->
+            <div id="start-screen" class="text-center space-y-6">
+                <h2 class="text-3xl font-extrabold text-gray-900 mb-2">Welcome to the Physics Lab</h2>
+                <p class="text-gray-600 mb-6">Enter the first names of the students in your group (up to 3) to begin.</p>
                 
-                let staticHint = "Make sure your mathematical signs (+ / -) match the visual directions of the arrows on the Free Body Diagram. Remember that vectors pointing left or down are usually negative, and right or up are positive. Double check your algebra!";
-                
-                mcqQuestion.innerHTML = `<div class="mb-5 p-4 bg-blue-50 text-blue-900 border border-blue-200 rounded-xl shadow-sm"><strong class="text-blue-700 flex items-center gap-2 uppercase tracking-wide text-xs mb-1">Hint</strong> ${staticHint}</div><div class="mt-4 font-black text-blue-800 text-xl">Second Chance Challenge:</div><div class="mt-2">${step.question}</div>`;
-                
-                optionsContainer.innerHTML = '';
-                // Remove the student's selected wrong answer to give them a better chance
-                let fallbackOpts = step.options.filter(o => o.id !== wrongAnswerId);
-                fallbackOpts.sort(() => 0.5 - Math.random());
-                
-                fallbackOpts.forEach((opt, i) => {
-                    if (opt.isCorrect) aiRetryCorrectOption = opt;
-                    const label = document.createElement('label'); label.className = "flex items-start gap-4 p-4 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-blue-50 transition-all font-medium text-lg";
-                    label.innerHTML = `<input type="radio" name="mcq" value="fallback_opt${i}" class="mt-1.5 flex-shrink-0 w-5 h-5 text-blue-600 cursor-pointer"><span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>`;
-                    label.querySelector('input').addEventListener('change', (e) => {
-                        document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
-                        if(e.target.checked) { label.classList.add('bg-blue-50', 'border-blue-400'); currentSelectedAnswer = opt; }
-                    });
-                    optionsContainer.appendChild(label);
-                });
-                
-                if (window.MathJax) MathJax.typesetPromise([mcqSection]);
-                submitAnswerBtn.innerHTML = "Submit Second Try";
-            }
-        } else {
-            // Processing Second Chance Submission
-            if (currentSelectedAnswer.isCorrect) {
-                showMcqFeedback(`Correct! Excellent job applying the feedback. You get full points for this question!`, "success");
-            } else {
-                totalPenalties += 2; // doubled penalty
-                showMcqFeedback(`Not quite. The correct answer was ${aiRetryCorrectOption.text}. (-2 points)`, "error");
-            }
-            submitAnswerBtn.classList.add('hidden'); nextStepContainer.classList.remove('hidden');
-            document.querySelectorAll('input[name="mcq"]').forEach(r => r.disabled = true);
-        }
-    });
+                <div class="space-y-4 max-w-sm mx-auto">
+                    <input type="text" id="student1" placeholder="Student 1 Name (Required)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="student2" placeholder="Student 2 Name (Optional)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="student3" placeholder="Student 3 Name (Optional)" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
 
-    function showMcqFeedback(msg, type) {
-        mcqFeedback.className = "p-4 rounded-xl text-sm md:text-base font-medium"; mcqFeedback.classList.remove('hidden'); mcqFeedback.innerHTML = msg;
-        if (type === 'success') mcqFeedback.classList.add('bg-emerald-100', 'text-emerald-800', 'border', 'border-emerald-200');
-        else if (type === 'error') mcqFeedback.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
-        else mcqFeedback.classList.add('bg-amber-50', 'text-amber-800', 'border', 'border-amber-200');
-        if (window.MathJax) MathJax.typesetPromise([mcqFeedback]).catch(console.error);
-    }
+                <button onclick="startGame()" class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105">
+                    Start Worksheet
+                </button>
+            </div>
 
-    nextStepBtn.addEventListener('click', () => {
-        if (currentStepIndex < steps.length - 1) { currentStepIndex++; loadStep(); } 
-        else {
-            let mistakes = totalPenalties, finalScore = Math.max(0, 40 - mistakes) + totalExtraCredit;
-            let nameClean = studentName.toUpperCase().replace(/[^A-Z]/g, ''); while(nameClean.length < 3) nameClean += 'X';
-            let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", secArr = Array.from({length: 12}, () => chars.charAt(Math.floor(Math.random() * chars.length)));
-            secArr[2] = nameClean[0]; secArr[6] = nameClean[1]; secArr[10] = nameClean[2];
-            let securityString = secArr.join('');
+            <!-- Workspace Screen -->
+            <div id="workspace-screen" class="hidden flex flex-col h-full">
+                <!-- Navigation & Progress -->
+                <div class="flex justify-between items-center mb-6 border-b pb-4">
+                    <button onclick="navigateStep(-1)" id="btn-back" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        &larr; Back
+                    </button>
+                    <span id="progress-indicator" class="text-sm font-bold text-gray-500">Problem 1 / 3</span>
+                    <button onclick="navigateStep(1)" id="btn-forward" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        Forward &rarr;
+                    </button>
+                </div>
 
-            document.getElementById('fbdSuiteContainer').classList.add('hidden');
-            mcqSection.classList.remove('hidden'); nextStepContainer.classList.add('hidden');
-            
-            mcqSection.innerHTML = `
-                <div class="text-center animate-[fadeIn_0.5s_ease-out]">
-                    <h3 class="text-3xl font-bold text-slate-900 mb-2">Quiz Complete, ${studentName}!</h3>
-                    <p class="text-slate-600 mb-6">Here is your final Equations & Unknowns score:</p>
-                    <div class="bg-blue-50 border border-blue-200 p-8 rounded-2xl mb-8 shadow-sm">
-                        <div class="text-6xl font-black text-blue-700">${finalScore}<span class="text-3xl text-blue-500 font-bold">/40</span></div>
-                        <div class="text-sm text-slate-400 mt-3 font-mono tracking-widest">${securityString}</div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 mb-8">
-                        <div class="bg-purple-50 p-5 rounded-2xl border border-purple-200 shadow-sm">
-                            <div class="text-3xl font-black text-purple-600">+${totalExtraCredit}</div>
-                            <div class="text-xs font-bold text-purple-800 uppercase tracking-wider mt-2">Extra Credit</div>
-                        </div>
-                        <div class="bg-amber-50 p-5 rounded-2xl border border-amber-200 shadow-sm">
-                            <div class="text-3xl font-black text-amber-600">${mistakes}</div>
-                            <div class="text-xs font-bold text-amber-800 uppercase tracking-wider mt-2">Mistake Penalties</div>
-                        </div>
-                    </div>
-                    <button id="downloadStudyGuideBtn" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95 mb-4 flex justify-center items-center gap-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <!-- Problem Context -->
+                <div id="problem-context" class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100 text-gray-800 text-lg">
+                    <!-- Context injected here -->
+                </div>
+
+                <!-- Step Content -->
+                <div id="step-content" class="flex-grow">
+                    <!-- Injected Step UI -->
+                </div>
+
+                <!-- Feedback & Hint Area -->
+                <div id="feedback-area" class="mt-6 hidden">
+                    <div id="feedback-box" class="p-4 rounded-lg text-sm font-medium"></div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="hidden mt-4 text-blue-600 font-semibold flex items-center justify-center space-x-2">
+                    <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>AI is analyzing your answer...</span>
+                </div>
+            </div>
+
+            <!-- Win Screen -->
+            <div id="win-screen" class="hidden text-center space-y-6 py-10">
+                <h2 class="text-4xl font-extrabold text-blue-700" id="win-title">Worksheet Complete!</h2>
+                <div class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="win-names"></div>
+                <div class="text-gray-400 text-xs mb-8">Newton's Laws & Forces</div>
+                
+                <div class="inline-block bg-gray-50 border-4 border-blue-200 rounded-full w-48 h-48 flex items-center justify-center shadow-inner mx-auto mb-4">
+                    <div class="text-5xl font-black text-blue-800" id="win-score">--/25</div>
+                </div>
+                
+                <div id="win-alphanumeric" class="text-xs text-gray-400 tracking-widest font-mono mb-6"></div>
+
+                <p class="text-xl text-gray-700 font-medium italic px-4" id="win-message"></p>
+
+                <div class="pt-8 space-x-4 flex justify-center">
+                    <button id="btn-try-again" onclick="resetGame()" class="hidden bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded shadow transition">
+                        Try Again
+                    </button>
+                    <button onclick="downloadStudyGuide()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow transition flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Download Study Guide
                     </button>
-                    ${finalScore < 40 ? `<button onclick="location.reload()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95">Restart Quiz</button>` : `<p class="text-lg font-black text-emerald-600 mt-4">Physics Master!</p>`}
-                </div>`;
-            
-            document.getElementById('downloadStudyGuideBtn').addEventListener('click', downloadStudyGuide);
-            
-            if (finalScore >= 42) fireConfetti(3); else if (finalScore >= 40) fireConfetti(2); else if (finalScore >= 36) fireConfetti(1);
-        }
-    });
+                </div>
+            </div>
 
-    function loadStep() {
-        const step = steps[currentStepIndex]; fbdLocked = false;
-        attempts = 0; currentSelectedAnswer = null; mcqFeedback.classList.add('hidden'); nextStepContainer.classList.add('hidden');
-        aiLoading.classList.add('hidden'); aiLoading.classList.remove('flex');
-        isAiRetry = false; aiRetryCorrectOption = null;
-        
-        stepHeader.textContent = `Question ${currentStepIndex + 1} of ${steps.length}`;
-        scenarioTitle.innerHTML = step.title; scenarioDesc.innerHTML = step.desc;
-        renderScenario();
+        </div>
+    </main>
 
-        if (step.mode === 'draw') {
-            fbdSuiteContainer.classList.remove('hidden'); mcqSection.classList.add('hidden'); checkFbdBtn.classList.remove('hidden');
+    <script>
+        /* -------------------------------------------------------------------------- */
+        /* EXACT FRONTEND ROUTING FUNCTION FROM PROMPT                                */
+        /* -------------------------------------------------------------------------- */
+        async function fetchFromAI(promptText, isJsonMode = false) {
+            // 1. Detect if running on a real web domain (like Vercel) instead of local preview
+            const isVercelEnvironment = window.location.hostname && 
+                                        window.location.hostname !== 'localhost' && 
+                                        window.location.hostname !== '127.0.0.1' && 
+                                        !window.location.hostname.includes('google') && 
+                                        !window.location.hostname.includes('csb.app');
             
-            fnSlider.value = 1.0; fgSlider.value = 1.0; fsSlider.value = 0.0; dSlider.value = 0.0;
-            horizontalControls.classList.toggle('hidden', step.scenarioType === 'elevator');
-            
-            if (step.unknownForce === 'fn') {
-                fnSlider.disabled = false; fgSlider.disabled = true; fnSlider.value = 0.5; 
-            } else if (step.unknownForce === 'fs') {
-                fsSlider.disabled = false; dSlider.disabled = true; fnSlider.disabled = true; fgSlider.disabled = true;
-                dSlider.value = step.givenD; fsSlider.value = 0.0;
-            } else if (step.unknownForce === 'd') {
-                dSlider.disabled = false; fsSlider.disabled = true; fnSlider.disabled = true; fgSlider.disabled = true;
-                fsSlider.value = step.givenFs; dSlider.value = 0.0;
-            } else {
-                fsSlider.disabled = false; dSlider.disabled = false; fnSlider.disabled = true; fgSlider.disabled = true;
-            }
-            updateFbdState();
-        } else {
-            fbdSuiteContainer.classList.add('hidden'); mcqSection.classList.remove('hidden');
-            mcqFbdCanvas.classList.remove('hidden');
-            renderMcqFbd({ fn: step.givenFn, fg: step.givenFg, fs: step.givenFs, d: step.givenD });
-            
-            mcqQuestion.textContent = step.question; submitAnswerBtn.classList.remove('hidden'); optionsContainer.innerHTML = '';
-            step.options.forEach(opt => {
-                const label = document.createElement('label'); label.className = "flex items-start gap-4 p-4 rounded-xl border-2 border-slate-200 cursor-pointer hover:bg-blue-50 transition-all font-medium text-lg";
-                label.innerHTML = `<input type="radio" name="mcq" value="${opt.id}" class="mt-1.5 flex-shrink-0 w-5 h-5 text-blue-600 cursor-pointer"><span class="text-slate-800 leading-snug cursor-pointer">${opt.text}</span>`;
-                label.querySelector('input').addEventListener('change', (e) => {
-                    document.querySelectorAll('#optionsContainer label').forEach(l => l.classList.remove('bg-blue-50', 'border-blue-400'));
-                    if(e.target.checked) { label.classList.add('bg-blue-50', 'border-blue-400'); currentSelectedAnswer = opt; }
+            if (isVercelEnvironment) {
+                // 2. Route securely through Vercel backend
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText, requireJson: isJsonMode })
                 });
-                optionsContainer.appendChild(label);
-            });
-            submitAnswerBtn.disabled = false;
-            submitAnswerBtn.innerHTML = "Submit Answer";
-            if (window.MathJax) MathJax.typesetPromise([document.getElementById('mcqSection')]);
-        }
-        if (window.MathJax) MathJax.typesetPromise([document.getElementById('scenarioDesc')]);
-    }
-
-    function fireConfetti(bursts) {
-        let b = 0, int = setInterval(() => {
-            if(b >= bursts) { clearInterval(int); return; }
-            for(let i=0; i<40; i++) {
-                let c = document.createElement('div'); c.className = 'confetti-piece';
-                c.style.backgroundColor = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][Math.floor(Math.random()*5)];
-                document.body.appendChild(c);
-                let v = 15 + Math.random() * 20, theta = (Math.random() * 60 + 60) * (Math.PI / 180); 
-                let vx = v * Math.cos(theta), vy = -v * Math.sin(theta), x = window.innerWidth / 2, y = window.innerHeight, frame = 0;
-                function step() {
-                    frame++; vy += 0.5; x += vx; y += vy; c.style.left = x + 'px'; c.style.top = y + 'px'; c.style.transform = `rotate(${frame * 15}deg)`;
-                    if (y < window.innerHeight + 20) requestAnimationFrame(step); else c.remove();
+                if (!response.ok) throw new Error("Backend fetch failed");
+                const data = await response.json();
+                return data.text;
+            } else {
+                // 3. Route via platform proxy (Empty API Key)
+                const apiKey = ""; // Leave empty for platform proxy
+                let payload = { contents: [{ parts: [{ text: promptText }] }] };
+                
+                // Inject JSON Schema if required
+                if (isJsonMode) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "explanation": { "type": "STRING" },
+                                "newQuestion": { "type": "STRING" }
+                            },
+                            required: ["explanation", "newQuestion"]
+                        }
+                    };
                 }
-                requestAnimationFrame(step);
+                
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
             }
-            b++;
-        }, 600);
-    }
-</script>
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* STATE & CONSTANTS                                                          */
+        /* -------------------------------------------------------------------------- */
+        let state = {
+            names: [],
+            totalCorrections: 0,
+            questionCorrections: 0,
+            score: 0,
+            sequence: [], // Array of all generated steps across all 3 problems
+            currentStepIndex: 0,
+            maxUnlockedStep: 0
+        };
+
+        const GRAVITY = 9.8;
+
+        /* -------------------------------------------------------------------------- */
+        /* GENERATOR UTILITIES                                                        */
+        /* -------------------------------------------------------------------------- */
+        // Fisher-Yates Shuffle
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function createMCOptions(correctObj, distractorsArr) {
+            let options = [{ text: correctObj.text, hint: correctObj.hint || "Correct!", isCorrect: true }];
+            distractorsArr.forEach(d => options.push({ text: d.text, hint: d.hint || "Check your math or formula.", isCorrect: false }));
+            return shuffle(options);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* PHYSICS PROBLEM GENERATORS (6 Versions Each)                               */
+        /* -------------------------------------------------------------------------- */
+        
+        function generateProblem1() {
+            const versions = [
+                {F: 100, th: 3}, {F: 120, th: 4}, {F: 140, th: 5},
+                {F: 160, th: 6}, {F: 180, th: 7}, {F: 200, th: 8}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const thRad = v.th * (Math.PI / 180);
+            const exactTension = v.F / (2 * Math.sin(thRad));
+
+            const contextBase = `<strong>Problem 1 (Car Pulling):</strong> A car is mired up to the rims in sand. You tie it tightly to a tree with a rope and pull perpendicularly to the rope with force $F = ${v.F}$ lbs in the middle. The rope makes an angle of $\\theta = ${v.th}^\\circ$ with the straight dashed line between the car and tree.<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vRAjtzL0Z5rF44cr8KZlkT7uSUE0jZoambz_wXCpP1HXZ7WjYYbWsam9J7VqEWg_IUQ_MkJAvuu_u2J/pub?w=819&h=240" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Car pulling">`;
+
+            const contextWithVector = contextBase + `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Vector breakdown of the right-side Tension force</p>
+                    <svg width="220" height="140" viewBox="-20 -40 220 140">
+                        <defs>
+                            <marker id="arrowhead-red" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#ef4444" /></marker>
+                            <marker id="arrowhead-green" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#10b981" /></marker>
+                            <marker id="arrowhead-blue" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#3b82f6" /></marker>
+                        </defs>
+                        <!-- horizontal line (dashed) -->
+                        <line x1="0" y1="0" x2="180" y2="0" stroke="#9ca3af" stroke-dasharray="5,5" />
+                        <!-- Tension T -->
+                        <line x1="0" y1="0" x2="160" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="80" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <!-- Tx -->
+                        <line x1="0" y1="0" x2="160" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="80" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text>
+                        <text x="90" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <!-- Ty (Tip to tail) -->
+                        <line x1="160" y1="0" x2="160" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="172" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text>
+                        <text x="182" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <!-- Angle theta -->
+                        <path d="M 45 0 A 45 45 0 0 1 42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="52" y="20" font-size="14" font-weight="bold">θ</text>
+                    </svg>
+                </div>`;
+
+            const contextWithBothVectors = contextBase + `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Full vector breakdown (Left and Right)</p>
+                    <svg width="340" height="150" viewBox="-180 -50 360 150">
+                        <defs>
+                            <marker id="arrowhead-red" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#ef4444" /></marker>
+                            <marker id="arrowhead-green" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#10b981" /></marker>
+                            <marker id="arrowhead-blue" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#3b82f6" /></marker>
+                            <marker id="arrowhead-purple" markerWidth="4" markerHeight="3" refX="3" refY="1.5" orient="auto"><polygon points="0 0, 4 1.5, 0 3" fill="#8b5cf6" /></marker>
+                        </defs>
+                        <!-- F up -->
+                        <line x1="0" y1="0" x2="0" y2="-40" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowhead-purple)" />
+                        <text x="10" y="-25" fill="#8b5cf6" font-weight="bold" font-size="16">F</text>
+                        <!-- horizontal line (dashed) -->
+                        <line x1="-160" y1="0" x2="160" y2="0" stroke="#9ca3af" stroke-dasharray="5,5" />
+                        
+                        <!-- RIGHT TENSION -->
+                        <line x1="0" y1="0" x2="140" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="70" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <line x1="0" y1="0" x2="140" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="70" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text><text x="80" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <line x1="140" y1="0" x2="140" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="152" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text><text x="162" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <path d="M 45 0 A 45 45 0 0 1 42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="52" y="20" font-size="14" font-weight="bold">θ</text>
+                        
+                        <!-- LEFT TENSION -->
+                        <line x1="0" y1="0" x2="-140" y2="60" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowhead-blue)" />
+                        <text x="-80" y="55" fill="#3b82f6" font-weight="bold" font-size="16">T</text>
+                        <line x1="0" y1="0" x2="-140" y2="0" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowhead-red)" />
+                        <text x="-80" y="-15" fill="#ef4444" font-weight="bold" font-size="16">T</text><text x="-70" y="-10" fill="#ef4444" font-weight="bold" font-size="12">x</text>
+                        <line x1="-140" y1="0" x2="-140" y2="60" stroke="#10b981" stroke-width="3" marker-end="url(#arrowhead-green)" />
+                        <text x="-165" y="35" fill="#10b981" font-weight="bold" font-size="16">T</text><text x="-155" y="40" fill="#10b981" font-weight="bold" font-size="12">y</text>
+                        <path d="M -45 0 A 45 45 0 0 0 -42 16" fill="none" stroke="#111827" stroke-width="1.5" />
+                        <text x="-62" y="20" font-size="14" font-weight="bold">θ</text>
+                    </svg>
+                </div>`;
+
+            return [
+                {
+                    problemNum: 1, context: contextBase, type: 'fbd',
+                    prompt: "First, construct the Free Body Diagram for the knot in the middle of the rope where you pull. Add the necessary forces and their directions.",
+                    targetForces: [
+                        { force: "Applied Force (F)", dir: "Up" },
+                        { force: "Tension (T)", dir: "Slightly Down-Left" },
+                        { force: "Tension (T)", dir: "Slightly Down-Right" }
+                    ]
+                },
+                {
+                    problemNum: 1, context: contextWithVector, type: 'mc',
+                    prompt: "Look at the tip-to-tail vector diagram. The y-component ($T_y$) is the opposite side of the triangle from angle $\\theta$. What is the algebraic expression for the magnitude of the vertical component in terms of T and $\\theta$?",
+                    options: createMCOptions(
+                        { text: `$T\\sin(\\theta)$`, hint: "Correct! The opposite side uses sine." },
+                        [
+                            { text: `$T\\cos(\\theta)$`, hint: "Cosine is for the adjacent side (x-component). Look at the opposite side." },
+                            { text: `$T\\tan(\\theta)$`, hint: "Tangent relates opposite and adjacent. We need to relate the hypotenuse (T) to the opposite side." },
+                            { text: `$\\frac{T}{\\sin(\\theta)}$`, hint: "Remember SOH CAH TOA. $\\sin(\\theta) = \\frac{Opp}{Hyp}$. Solve for Opp." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: "Write the algebraic equation for the net force in the y-direction ($F_{net,y} = m a_y$), noting that the knot is stationary ($a_y = 0$). Remember there are TWO tension vectors, each with a downward vertical component.",
+                    options: createMCOptions(
+                        { text: `$F - 2T\\sin(\\theta) = 0$`, hint: "Correct! Applied force F goes up, two Tension y-components go down." },
+                        [
+                            { text: `$F - T\\sin(\\theta) = 0$`, hint: "You forgot that there is a rope on the left AND the right! There are two tension components." },
+                            { text: `$F - 2T\\cos(\\theta) = 0$`, hint: "Remember from the previous step, the vertical component uses sine, not cosine." },
+                            { text: `$T\\sin(\\theta) - 2F = 0$`, hint: "There is only one applied force F, and it points in the opposite direction of the two tension components." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: "Now solve that net force equation ($F - 2T\\sin(\\theta) = 0$) algebraically for the full Tension (T).",
+                    options: createMCOptions(
+                        { text: `$T = \\frac{F}{2\\sin(\\theta)}$`, hint: "Correct! You isolated T perfectly." },
+                        [
+                            { text: `$T = \\frac{F}{\\sin(\\theta)}$`, hint: "What happened to the 2? Don't lose the factor of 2 from the two sides of the rope." },
+                            { text: `$T = \\frac{F}{2\\cos(\\theta)}$`, hint: "Careful, the vertical component is based on sine, not cosine." },
+                            { text: `$T = 2F\\sin(\\theta)$`, hint: "You multiplied by the terms instead of dividing. Isolate T by dividing both sides." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 1, context: contextWithBothVectors, type: 'mc',
+                    prompt: `Using the correct equation $T = \\frac{F}{2\\sin(\\theta)}$, plug in the numbers: If F is ${v.F} lbs and $\\theta$ is ${v.th}^\\circ$, what is the exact full tension (T) in the rope in lbs?`,
+                    options: createMCOptions(
+                        { text: `${exactTension.toFixed(1)} lbs`, hint: "Correct! You successfully calculated the tension." },
+                        [
+                            { text: `${(v.F / Math.sin(thRad)).toFixed(1)} lbs`, hint: "Did you divide by 2? There are TWO sides of the rope pulling back." },
+                            { text: `${(v.F / (2 * Math.cos(thRad))).toFixed(1)} lbs`, hint: "It looks like you used cosine instead of sine. Make sure your calculator is using sine." },
+                            { text: `${(v.F * 2 * Math.sin(thRad)).toFixed(1)} lbs`, hint: "You multiplied by the terms instead of dividing! Remember T = F / (2*sin(theta))." },
+                            { text: `${(v.F / Math.cos(thRad)).toFixed(1)} lbs`, hint: "You used cosine AND forgot to divide by 2. Check your formula." },
+                            { text: `${(v.F / 2).toFixed(1)} lbs`, hint: "You just divided by 2 but completely forgot the trigonometry! The angle drastically changes the force." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        function generateProblem2() {
+            const versions = [
+                {m: 100, ay: -2.0}, {m: 90, ay: -1.5}, {m: 110, ay: -2.5},
+                {m: 95, ay: -1.8}, {m: 105, ay: -2.2}, {m: 115, ay: -2.8}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const exactTension = v.m * v.ay + v.m * GRAVITY;
+
+            const contextBase = `<strong>Problem 2 (Fast Rope):</strong> A ${v.m} kg pararescue recovery specialist (PJ) fast ropes out of a helicopter with a downward acceleration of $a_y = ${v.ay.toFixed(1)} m/s^2$. (Assume $g = 9.8 m/s^2$ and UP is positive +y, DOWN is negative -y).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vT2NkwSrTICNCIKShozvNvHtqQoZekhsFonuKJuU9qzFTEBRWVl_VHxNuClwTeQwShrUeYdlz--uWSS/pub?w=284&h=435" class="my-4 mx-auto rounded shadow-sm max-w-[200px]" alt="Helicopter PJ">`;
+
+            const fbdSVG = `
+                <div class="mt-4 p-4 bg-white rounded border border-gray-300 flex justify-center items-center flex-col shadow-inner">
+                    <p class="text-sm text-gray-500 mb-2 font-semibold">Correct Free Body Diagram</p>
+                    <svg width="120" height="180" viewBox="-60 -100 120 200">
+                        <defs><marker id="ah-t" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#10b981" /></marker></defs>
+                        <defs><marker id="ah-g" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#ef4444" /></marker></defs>
+                        <circle cx="0" cy="0" r="6" fill="#1f2937" />
+                        <!-- Tension (Shorter) -->
+                        <line x1="0" y1="0" x2="0" y2="-40" stroke="#10b981" stroke-width="4" marker-end="url(#ah-t)" />
+                        <text x="15" y="-20" fill="#10b981" font-weight="bold">T</text>
+                        <!-- Gravity (Longer because accelerating down) -->
+                        <line x1="0" y1="0" x2="0" y2="80" stroke="#ef4444" stroke-width="4" marker-end="url(#ah-g)" />
+                        <text x="15" y="40" fill="#ef4444" font-weight="bold">mg</text>
+                    </svg>
+                </div>
+            `;
+            
+            const contextWithFBD = contextBase + fbdSVG;
+
+            return [
+                {
+                    problemNum: 2, context: contextBase, type: 'fbd',
+                    prompt: "Construct the Free Body Diagram for the PJ. (Note: Because the PJ is accelerating downwards, the downward force must be visually longer than the upward force in your final diagram!)",
+                    targetForces: [
+                        { force: "Tension (T)", dir: "Up" },
+                        { force: "Gravity (Weight)", dir: "Down" }
+                    ]
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: "Look at the correct FBD above. Set up the algebraic equation for $F_{net,y} = m a_y$. (Assume Up is positive +y, and Down is negative -y).",
+                    options: createMCOptions(
+                        { text: `$T - mg = m a_y$`, hint: "Correct! Tension is positive (up), mg is negative (down)." },
+                        [
+                            { text: `$-T - mg = m a_y$`, hint: "Is Tension pointing downwards? Look at the arrows. Up is positive." },
+                            { text: `$T = m a_y$`, hint: "You forgot the force of Gravity! There are two forces acting on the PJ." },
+                            { text: `$-mg = m a_y$`, hint: "You forgot the Tension force from the rope!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: "Starting from the correct equation $T - mg = m a_y$, solve algebraically for Tension (T). Do not factor out m.",
+                    options: createMCOptions(
+                        { text: `$T = m a_y + mg$`, hint: "Correct! You added mg to both sides." },
+                        [
+                            { text: `$T = mg - m a_y$`, hint: "You subtracted $m a_y$. To move $mg$ over, you must ADD it to both sides." },
+                            { text: `$T = m a_y - mg$`, hint: "If it was $-mg$ on the left, it should be $+mg$ when moved to the right." },
+                            { text: `$T = \\frac{mg}{a_y}$`, hint: "You are dealing with addition/subtraction, not multiplication/division." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 2, context: contextWithFBD, type: 'mc',
+                    prompt: `Calculate the numerical tension force (T) of the rope on the PJ. Use $T = m a_y + mg$. Remember $a_y = ${v.ay.toFixed(1)}$ and $g = 9.8$.`,
+                    options: createMCOptions(
+                        { text: `${exactTension.toFixed(1)} N`, hint: "Correct! You successfully accounted for the negative acceleration." },
+                        [
+                            { text: `${(v.m * Math.abs(v.ay)).toFixed(1)} N`, hint: "You calculated $ma_y$ but totally forgot to add the weight ($mg$)!" },
+                            { text: `${(v.m * Math.abs(v.ay) - v.m * GRAVITY).toFixed(1)} N`, hint: "You subtracted $mg$ instead of adding it. $T = ma_y + mg$." },
+                            { text: `${(v.m * Math.abs(v.ay) + v.m * GRAVITY).toFixed(1)} N`, hint: "Careful with signs! $a_y$ is a NEGATIVE value because they are accelerating downwards." },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You just calculated their weight ($mg$). You must account for the acceleration ($ma_y$)." },
+                            { text: `${(v.m + v.ay + v.m * GRAVITY).toFixed(1)} N`, hint: "You added mass and acceleration instead of multiplying them ($m * a_y$)." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        function generateProblem3() {
+            const versions = [
+                {m: 15, th: 30}, {m: 10, th: 20}, {m: 20, th: 25},
+                {m: 25, th: 35}, {m: 30, th: 40}, {m: 12, th: 15}
+            ];
+            const v = versions[Math.floor(Math.random() * versions.length)];
+            const thRad = v.th * (Math.PI / 180);
+            
+            const tensionN = v.m * GRAVITY * Math.sin(thRad);
+            const normalN = v.m * GRAVITY * Math.cos(thRad);
+            const accel = GRAVITY * Math.sin(thRad);
+
+            const context = `<strong>Problem 3 (Block on Ramp):</strong> A cord holds stationary a ${v.m} kg block on a frictionless ramp. Angle $\\theta$ is $${v.th}^\\circ$. Assume $g = 9.8 m/s^2$. (The FBD is standard: y-axis perpendicular to the ramp surface, x-axis parallel to surface pointing upwards).<br><img src="https://docs.google.com/drawings/d/e/2PACX-1vS5atT2teqjZRN95NK4Ke4yCuEPWlcPsSqz3UBM9EsvilFoiTkdYYFWy7vKuj3IXF_qU64NyIGNdOFS/pub?w=456&h=537" class="my-4 mx-auto rounded shadow-sm max-w-full" alt="Block on Ramp">`;
+
+            const contextCut = context + `<br><br><div class="p-3 bg-red-50 border border-red-200 rounded text-red-800"><strong>UPDATE:</strong> The cord is now cut! The block freely slides down the frictionless ramp. (Assume uphill is the positive x direction and downhill is the negative x direction).</div>`;
+
+            return [
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "What is the correct algebraic equation for the net force in the x-direction ($F_{net,x} = m a_x$)? Note that the block is stationary ($a_x = 0$).",
+                    options: createMCOptions(
+                        { text: `$T - mg\\sin(\\theta) = 0$`, hint: "Correct! Tension balances the parallel (sine) component of gravity." },
+                        [
+                            { text: `$T - mg\\cos(\\theta) = 0$`, hint: "Cosine gives you the perpendicular component. For an incline, the parallel x-component uses sine." },
+                            { text: `$T + mg\\sin(\\theta) = 0$`, hint: "Tension and gravity's parallel component point in opposite directions, so they must have opposite signs." },
+                            { text: `$mg\\sin(\\theta) - T = m a_x$`, hint: "The block is stationary, so $a_x = 0$. You should set the equation equal to 0." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "Starting from the correct equation ($T - mg\\sin(\\theta) = 0$), what is the isolated algebraic equation for the Tension (T) in the cord?",
+                    options: createMCOptions(
+                        { text: `$T = mg\\sin(\\theta)$`, hint: "Correct! Tension balances the parallel component of gravity." },
+                        [
+                            { text: `$T = mg\\cos(\\theta)$`, hint: "Cosine gives you the perpendicular component (which balances Normal force). We want the parallel component." },
+                            { text: `$T = mg\\tan(\\theta)$`, hint: "Tangent is not used for resolving gravity on a ramp." },
+                            { text: `$T = \\frac{mg}{\\sin(\\theta)}$`, hint: "You multiplied incorrectly when moving the term to the other side." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: `What is the numerical tension in the cord? Use $T = mg\\sin(\\theta)$. ($m = ${v.m}, \\theta = ${v.th}^\\circ$)`,
+                    options: createMCOptions(
+                        { text: `${tensionN.toFixed(1)} N`, hint: "Correct! You found the tension." },
+                        [
+                            { text: `${(v.m * GRAVITY * Math.cos(thRad)).toFixed(1)} N`, hint: "You used cosine instead of sine. Cosine is for the Normal force." },
+                            { text: `${(v.m * GRAVITY * Math.tan(thRad)).toFixed(1)} N`, hint: "You used tangent. Stick to sine for the parallel component." },
+                            { text: `${(v.m * Math.sin(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by gravity (g)!" },
+                            { text: `${(GRAVITY * Math.sin(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by the mass (m)!" },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You completely forgot the trigonometry. The ramp angle changes things!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "What is the correct algebraic equation for the net force in the y-direction ($F_{net,y} = m a_y$)? Note that the block is not moving vertically relative to the ramp ($a_y = 0$).",
+                    options: createMCOptions(
+                        { text: `$N - mg\\cos(\\theta) = 0$`, hint: "Correct! Normal force balances the perpendicular (cosine) component of gravity." },
+                        [
+                            { text: `$N - mg\\sin(\\theta) = 0$`, hint: "Sine gives the parallel component (which balances tension). We want the perpendicular component." },
+                            { text: `$N + mg\\cos(\\theta) = 0$`, hint: "Normal force and gravity's perpendicular component point in opposite directions, so they must have opposite signs." },
+                            { text: `$N - mg = 0$`, hint: "You forgot to resolve the gravity vector using the angle. The full weight does not push directly into the ramp." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: "Starting from the correct equation ($N - mg\\cos(\\theta) = 0$), what is the isolated algebraic equation for the Normal Force (N)?",
+                    options: createMCOptions(
+                        { text: `$N = mg\\cos(\\theta)$`, hint: "Correct! Normal force balances the perpendicular component of gravity." },
+                        [
+                            { text: `$N = mg\\sin(\\theta)$`, hint: "Sine gives the parallel component (which balances tension). We want perpendicular." },
+                            { text: `$N = mg\\tan(\\theta)$`, hint: "Tangent is not used for resolving gravity on a ramp." },
+                            { text: `$N = \\frac{mg}{\\cos(\\theta)}$`, hint: "You multiplied incorrectly when moving the term to the other side." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context, type: 'mc',
+                    prompt: `What is the numerical Normal Force (N)? Use $N = mg\\cos(\\theta)$.`,
+                    options: createMCOptions(
+                        { text: `${normalN.toFixed(1)} N`, hint: "Correct! You found the normal force." },
+                        [
+                            { text: `${(v.m * GRAVITY * Math.sin(thRad)).toFixed(1)} N`, hint: "You used sine instead of cosine. Sine is for Tension." },
+                            { text: `${(v.m * GRAVITY * Math.tan(thRad)).toFixed(1)} N`, hint: "You used tangent. Stick to cosine for the perpendicular component." },
+                            { text: `${(v.m * Math.cos(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by gravity (g)!" },
+                            { text: `${(GRAVITY * Math.cos(thRad)).toFixed(1)} N`, hint: "You forgot to multiply by the mass (m)!" },
+                            { text: `${(v.m * GRAVITY).toFixed(1)} N`, hint: "You completely forgot the trigonometry. The ramp angle changes the normal force!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: "The cord is now cut, so the block slides down the frictionless ramp. Using the exact same coordinate system (x-axis points UP the ramp), what is the new $F_{net,x} = m a_x$ equation?",
+                    options: createMCOptions(
+                        { text: `$-mg\\sin(\\theta) = m a_x$`, hint: "Correct! With Tension gone, only the parallel component of gravity acts in the negative x-direction." },
+                        [
+                            { text: `$mg\\sin(\\theta) = m a_x$`, hint: "Gravity pulls DOWN the ramp, but we defined the x-axis as pointing UP the ramp. The force should be negative." },
+                            { text: `$-mg\\cos(\\theta) = m a_x$`, hint: "Cosine is for the perpendicular y-direction. We want the parallel x-direction." },
+                            { text: `$T - mg\\sin(\\theta) = m a_x$`, hint: "The cord was cut! There is no more Tension force." },
+                            { text: `$m a_x = 0$`, hint: "The block is no longer stationary; it is accelerating down the ramp!" },
+                            { text: `$T + mg\\sin(\\theta) = m a_x$`, hint: "Tension is gone! Even if it wasn't, they don't point in the same direction." }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: "Starting from the correct equation ($-mg\\sin(\\theta) = m a_x$), what is the algebraic expression for the acceleration ($a_x$)? (Solve for $a_x$).",
+                    options: createMCOptions(
+                        { text: `$a_x = -g\\sin(\\theta)$`, hint: "Correct! The mass (m) cancels out on both sides." },
+                        [
+                            { text: `$a_x = g\\sin(\\theta)$`, hint: "You lost the negative sign. It accelerates in the negative x-direction (down the ramp)." },
+                            { text: `$a_x = -mg\\sin(\\theta)$`, hint: "You forgot to divide both sides by the mass (m) to isolate a_x." },
+                            { text: `$a_x = -g\\cos(\\theta)$`, hint: "Don't change the trig function! The parallel component uses sine." },
+                            { text: `$a_x = -\\frac{g}{\\sin(\\theta)}$`, hint: "The sine term is multiplied by g; it shouldn't move to the denominator." },
+                            { text: `$a_x = -m\\sin(\\theta)$`, hint: "You canceled out gravity (g) instead of mass (m)!" }
+                        ]
+                    )
+                },
+                {
+                    problemNum: 3, context: contextCut, type: 'mc',
+                    prompt: `What is the numerical value of the acceleration ($a_x$)? Use $a_x = -g\\sin(\\theta)$. ($\\theta = ${v.th}^\\circ$)`,
+                    options: createMCOptions(
+                        { text: `${(-accel).toFixed(2)} m/s^2`, hint: "Correct! You successfully found the acceleration." },
+                        [
+                            { text: `${(accel).toFixed(2)} m/s^2`, hint: "Check your sign. It should be accelerating in the negative direction (down the ramp)." },
+                            { text: `${(-GRAVITY * Math.cos(thRad)).toFixed(2)} m/s^2`, hint: "You used cosine instead of sine. Stick to the parallel component." },
+                            { text: `${(-v.m * accel).toFixed(2)} m/s^2`, hint: "You calculated the Force, not the acceleration! Remember the mass cancels out." },
+                            { text: `${(-9.8).toFixed(2)} m/s^2`, hint: "You forgot the trigonometry! It is on a ramp, not in free fall." },
+                            { text: `${(-GRAVITY * Math.tan(thRad)).toFixed(2)} m/s^2`, hint: "You used tangent. Use sine for the parallel component." }
+                        ]
+                    )
+                }
+            ];
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* CORE APPLICATION LOGIC                                                     */
+        /* -------------------------------------------------------------------------- */
+
+        function startGame() {
+            const n1 = document.getElementById('student1').value.trim();
+            const n2 = document.getElementById('student2').value.trim();
+            const n3 = document.getElementById('student3').value.trim();
+            
+            if (!n1) { alert("Please enter at least Student 1's name."); return; }
+            
+            state.names = [n1, n2, n3].filter(n => n !== "");
+            document.getElementById('header-names').innerText = "Team: " + state.names.join(', ');
+            document.getElementById('header-status').classList.remove('hidden');
+            
+            // Build Sequence
+            state.sequence = [
+                ...generateProblem1(),
+                ...generateProblem2(),
+                ...generateProblem3()
+            ];
+            state.currentStepIndex = 0;
+            state.maxUnlockedStep = 0;
+            state.totalCorrections = 0;
+            state.questionCorrections = 0;
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('workspace-screen').classList.remove('hidden');
+            
+            renderStep();
+        }
+
+        function renderStep() {
+            const step = state.sequence[state.currentStepIndex];
+            state.questionCorrections = step.corrections || 0; // retain if revisiting
+            
+            document.getElementById('progress-indicator').innerText = `Problem ${step.problemNum} (Step ${state.currentStepIndex + 1} of ${state.sequence.length})`;
+            
+            const contextDiv = document.getElementById('problem-context');
+            contextDiv.innerHTML = step.context;
+
+            const contentDiv = document.getElementById('step-content');
+            let html = `<h3 class="text-xl font-bold mb-4">${step.prompt}</h3>`;
+            
+            if (step.type === 'mc') {
+                html += `<div class="space-y-3" id="mc-options-container">`;
+                step.options.forEach((opt, idx) => {
+                    html += `
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition ${step.isCompleted && opt.isCorrect ? 'bg-green-100 border-green-500' : 'bg-white'}">
+                            <input type="radio" name="mc-option" value="${idx}" class="form-radio h-5 w-5 text-blue-600" ${step.isCompleted ? 'disabled' : ''} ${step.isCompleted && opt.isCorrect ? 'checked' : ''}>
+                            <span class="ml-3 text-lg">${opt.text}</span>
+                        </label>
+                    `;
+                });
+                html += `</div>`;
+            } else if (step.type === 'numeric') {
+                html += `
+                    <div class="flex items-center space-x-2">
+                        <input type="number" step="any" id="num-input" class="w-48 px-4 py-2 border rounded-lg text-lg focus:ring-2 focus:ring-blue-500 outline-none" ${step.isCompleted ? `value="${step.correctValue.toFixed(2)}" disabled` : 'placeholder="Enter value"'} >
+                        <span class="text-xl font-semibold text-gray-700">${step.unit}</span>
+                    </div>
+                `;
+            } else if (step.type === 'fbd') {
+                html += `
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div id="fbd-builder" class="flex-1 bg-gray-50 p-4 border rounded-lg ${step.isCompleted ? 'opacity-70 pointer-events-none' : ''}">
+                            <div id="fbd-rows-container" class="space-y-2 mb-4">
+                                <!-- Rows injected here -->
+                            </div>
+                            <button onclick="addFBDRow()" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-semibold transition" ${step.isCompleted ? 'hidden' : ''}>+ Add Force Vector</button>
+                        </div>
+                        <div class="w-full md:w-64 h-64 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-inner relative flex-shrink-0">
+                            <svg id="fbd-svg" width="100%" height="100%" viewBox="-100 -100 200 200">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                                        <polygon points="0 0, 6 2, 0 4" fill="#3b82f6" />
+                                    </marker>
+                                </defs>
+                                <circle cx="0" cy="0" r="5" fill="#1f2937" />
+                                <g id="fbd-arrows"></g>
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (!step.isCompleted) {
+                html += `
+                    <div class="mt-6">
+                        <button onclick="submitAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition">
+                            Check Answer
+                        </button>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="mt-6 p-3 bg-green-100 text-green-800 font-bold rounded-lg border border-green-300">
+                        Completed! Exact Answer Logged.
+                    </div>
+                `;
+            }
+
+            contentDiv.innerHTML = html;
+
+            // Initialize FBD if needed
+            if (step.type === 'fbd') {
+                if (step.isCompleted) {
+                    // prefill with correct state
+                    step.targetForces.forEach(tf => addFBDRow(tf.force, tf.dir));
+                } else {
+                    addFBDRow(); // start with 1 row
+                }
+                setTimeout(updateFBDVisual, 0); // initial draw
+            }
+
+            // Render math
+            renderMathInElement(document.getElementById('workspace-screen'), {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+
+            updateNavButtons();
+            hideFeedback();
+        }
+
+        // --- FBD Builder Logic ---
+        function addFBDRow(presetForce="", presetDir="") {
+            const container = document.getElementById('fbd-rows-container');
+            const row = document.createElement('div');
+            row.className = 'fbd-row';
+            row.innerHTML = `
+                <select class="fbd-force px-3 py-2 border rounded text-sm bg-white" onchange="updateFBDVisual()">
+                    <option value="">-- Select Force --</option>
+                    <option value="Applied Force (F)" ${presetForce==="Applied Force (F)"?"selected":""}>Applied Force (F)</option>
+                    <option value="Tension (T)" ${presetForce==="Tension (T)"?"selected":""}>Tension (T)</option>
+                    <option value="Gravity (Weight)" ${presetForce==="Gravity (Weight)"?"selected":""}>Gravity (Weight)</option>
+                    <option value="Normal Force (N)" ${presetForce==="Normal Force (N)"?"selected":""}>Normal Force (N)</option>
+                    <option value="Friction" ${presetForce==="Friction"?"selected":""}>Friction</option>
+                </select>
+                <span class="text-sm font-semibold text-gray-500">pointing</span>
+                <select class="fbd-dir px-3 py-2 border rounded text-sm bg-white" onchange="updateFBDVisual()">
+                    <option value="">-- Direction --</option>
+                    <option value="Up" ${presetDir==="Up"?"selected":""}>Up &uarr;</option>
+                    <option value="Down" ${presetDir==="Down"?"selected":""}>Down &darr;</option>
+                    <option value="Left" ${presetDir==="Left"?"selected":""}>Left &larr;</option>
+                    <option value="Right" ${presetDir==="Right"?"selected":""}>Right &rarr;</option>
+                    <option value="Slightly Up-Left" ${presetDir==="Slightly Up-Left"?"selected":""}>Slightly Up-Left &#8598;</option>
+                    <option value="Slightly Up-Right" ${presetDir==="Slightly Up-Right"?"selected":""}>Slightly Up-Right &#8599;</option>
+                    <option value="Slightly Down-Left" ${presetDir==="Slightly Down-Left"?"selected":""}>Slightly Down-Left &#8601;</option>
+                    <option value="Slightly Down-Right" ${presetDir==="Slightly Down-Right"?"selected":""}>Slightly Down-Right &#8600;</option>
+                </select>
+                <button onclick="this.parentElement.remove(); updateFBDVisual()" class="text-red-500 hover:text-red-700 px-2 font-bold text-xl">&times;</button>
+            `;
+            container.appendChild(row);
+            updateFBDVisual();
+        }
+
+        function getFBDState() {
+            const rows = document.querySelectorAll('.fbd-row');
+            let stateArr = [];
+            rows.forEach(r => {
+                const force = r.querySelector('.fbd-force').value;
+                const dir = r.querySelector('.fbd-dir').value;
+                if (force && dir) stateArr.push({ force, dir });
+            });
+            return stateArr;
+        }
+
+        function validateFBD(targetForces, userState) {
+            if (targetForces.length !== userState.length) return false;
+            // Create copies to match off
+            let tempTargets = [...targetForces];
+            for (let u of userState) {
+                let foundIdx = tempTargets.findIndex(t => t.force === u.force && t.dir === u.dir);
+                if (foundIdx === -1) return false;
+                tempTargets.splice(foundIdx, 1);
+            }
+            return tempTargets.length === 0;
+        }
+
+        function updateFBDVisual() {
+            const arrowGroup = document.getElementById('fbd-arrows');
+            if (!arrowGroup) return;
+            arrowGroup.innerHTML = ''; // clear
+
+            const stateArr = getFBDState();
+            stateArr.forEach(item => {
+                let dx = 0, dy = 0;
+                
+                // Adjust length and color based on force type to make Tension shorter than Gravity
+                let len = 70; 
+                let strokeColor = '#3b82f6'; // default blue
+                if (item.force.includes('Gravity')) { len = 90; strokeColor = '#ef4444'; } // Red, longer
+                if (item.force.includes('Tension')) { len = 50; strokeColor = '#10b981'; } // Green, shorter
+
+                switch (item.dir) {
+                    case "Up": dx = 0; dy = -len; break;
+                    case "Down": dx = 0; dy = len; break;
+                    case "Left": dx = -len; dy = 0; break;
+                    case "Right": dx = len; dy = 0; break;
+                    case "Slightly Up-Left": dx = -len; dy = -20; break;
+                    case "Slightly Up-Right": dx = len; dy = -20; break;
+                    case "Slightly Down-Left": dx = -len; dy = 20; break;
+                    case "Slightly Down-Right": dx = len; dy = 20; break;
+                }
+
+                if (dx !== 0 || dy !== 0) {
+                    // Create marker defs if not exist
+                    const markerId = `ah-${strokeColor.replace('#', '')}`;
+                    let defs = arrowGroup.parentNode.querySelector('defs');
+                    if (!defs.querySelector(`#${markerId}`)) {
+                        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                        marker.setAttribute('id', markerId);
+                        marker.setAttribute('markerWidth', '6');
+                        marker.setAttribute('markerHeight', '4');
+                        marker.setAttribute('refX', '5');
+                        marker.setAttribute('refY', '2');
+                        marker.setAttribute('orient', 'auto');
+                        marker.innerHTML = `<polygon points="0 0, 6 2, 0 4" fill="${strokeColor}" />`;
+                        defs.appendChild(marker);
+                    }
+
+                    // Create line
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', '0');
+                    line.setAttribute('y1', '0');
+                    line.setAttribute('x2', dx);
+                    line.setAttribute('y2', dy);
+                    line.setAttribute('stroke', strokeColor);
+                    line.setAttribute('stroke-width', '4');
+                    line.setAttribute('marker-end', `url(#${markerId})`);
+                    arrowGroup.appendChild(line);
+
+                    // Add text label
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', dx * 1.2);
+                    text.setAttribute('y', dy * 1.2);
+                    text.setAttribute('fill', strokeColor);
+                    text.setAttribute('font-size', '14');
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.textContent = item.force.split(' ')[0]; // Extract just the first word
+                    arrowGroup.appendChild(text);
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ANSWER CHECKING & HINTS                                                    */
+        /* -------------------------------------------------------------------------- */
+
+        async function submitAnswer() {
+            const step = state.sequence[state.currentStepIndex];
+            let isCorrect = false;
+            let userInputValue = "";
+            let selectedIdx = -1;
+
+            if (step.type === 'mc') {
+                const selected = document.querySelector('input[name="mc-option"]:checked');
+                if (!selected) { showFeedback("Please select an option.", "warning"); return; }
+                selectedIdx = parseInt(selected.value);
+                isCorrect = step.options[selectedIdx].isCorrect;
+                userInputValue = step.options[selectedIdx].text;
+            } else if (step.type === 'numeric') {
+                const input = document.getElementById('num-input');
+                const val = parseFloat(input.value);
+                if (isNaN(val)) { showFeedback("Please enter a valid number.", "warning"); return; }
+                userInputValue = val.toString();
+                
+                // Tolerance Check (5%)
+                const target = step.correctValue;
+                const error = Math.abs(val - target) / (target === 0 ? 1 : Math.abs(target));
+                if (error <= 0.05) {
+                    isCorrect = true;
+                    // Auto-overwrite to exact value to prevent propagation
+                    input.value = target.toFixed(2);
+                }
+            } else if (step.type === 'fbd') {
+                const userState = getFBDState();
+                isCorrect = validateFBD(step.targetForces, userState);
+                userInputValue = JSON.stringify(userState);
+            }
+
+            if (isCorrect) {
+                step.isCompleted = true;
+                if (state.currentStepIndex === state.maxUnlockedStep) {
+                    state.maxUnlockedStep++;
+                }
+                
+                let extraMsg = step.type === 'numeric' ? " Corrected to exact target to prevent compounding errors." : "";
+                showFeedback("Correct! " + extraMsg, "success");
+                
+                setTimeout(() => {
+                    navigateStep(1);
+                }, 1500);
+
+            } else {
+                state.questionCorrections++;
+                state.totalCorrections++;
+                step.corrections = state.questionCorrections;
+
+                if (state.questionCorrections >= 5) {
+                    // Fail safe. Reveal answer and forcefully advance.
+                    step.isCompleted = true; // Force completion
+                    if (state.currentStepIndex === state.maxUnlockedStep) {
+                        state.maxUnlockedStep++;
+                    }
+                    
+                    let exactInfo = "";
+                    if (step.type === 'mc') exactInfo = step.options.find(o => o.isCorrect).text;
+                    else if (step.type === 'numeric') exactInfo = step.correctValue.toFixed(2) + " " + step.unit;
+                    else exactInfo = "Correct forces: " + step.targetForces.map(t => `${t.force} pointing ${t.dir}`).join(', ');
+
+                    showFeedback(`Maximum hints reached. The exact correct answer is: ${exactInfo}. Auto-advancing in 5 seconds...`, "fail");
+                    updateNavButtons();
+                    
+                    setTimeout(() => {
+                        if (state.currentStepIndex < state.sequence.length - 1) {
+                            navigateStep(1);
+                        } else {
+                            finishWorksheet();
+                        }
+                    }, 5000);
+                    return;
+                }
+
+                // Smart Hints Fallback & AI Fetch
+                const fallbackHint = (step.type === 'mc' && selectedIdx > -1 && step.options[selectedIdx].hint) 
+                                        ? step.options[selectedIdx].hint 
+                                        : "Incorrect. Please check your work and try again.";
+
+                document.getElementById('loading-indicator').classList.remove('hidden');
+                hideFeedback();
+                
+                try {
+                    let aiPrompt = `A student is working on this physics problem context: "${step.context}".\n`;
+                    aiPrompt += `Current step prompt: "${step.prompt}".\n`;
+                    if (step.type === 'numeric') {
+                        aiPrompt += `The exact target answer is ${step.correctValue}. The student entered ${userInputValue}.\n`;
+                    } else if (step.type === 'fbd') {
+                        aiPrompt += `They constructed the following vectors: ${userInputValue}. They need: ${JSON.stringify(step.targetForces)}.\n`;
+                    }
+                    aiPrompt += `Give a very brief, encouraging 1-2 sentence hint to help them find their mistake WITHOUT giving away the final answer. Address the student directly. They have ${5 - state.questionCorrections} attempts left before the answer is revealed.`;
+
+                    const hint = await fetchFromAI(aiPrompt, false);
+                    showFeedback(`Hint: ${hint} (Attempts left: ${5 - state.questionCorrections})`, "error");
+                } catch (e) {
+                    // Fallback to built-in smart hints perfectly if AI fails or block is active
+                    showFeedback(`Hint: ${fallbackHint} (Attempts left: ${5 - state.questionCorrections})`, "error");
+                } finally {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                }
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* UI HELPERS                                                                 */
+        /* -------------------------------------------------------------------------- */
+        function showFeedback(msg, type) {
+            const box = document.getElementById('feedback-box');
+            const area = document.getElementById('feedback-area');
+            area.classList.remove('hidden');
+            
+            box.className = 'p-4 rounded-lg text-sm font-medium shadow ';
+            if (type === 'success') box.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-300');
+            else if (type === 'error') box.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-300');
+            else if (type === 'fail') box.classList.add('bg-purple-100', 'text-purple-900', 'border', 'border-purple-300');
+            else box.classList.add('bg-yellow-100', 'text-yellow-800', 'border', 'border-yellow-300');
+            
+            // Render basic markdown (bold/italic) to HTML to fix formatting issues in AI hints
+            let htmlMsg = msg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+            box.innerHTML = htmlMsg;
+
+            // Render Math in feedback just in case AI used it
+            renderMathInElement(box, { delimiters: [{left: "$", right: "$", display: false}] });
+        }
+
+        function hideFeedback() {
+            document.getElementById('feedback-area').classList.add('hidden');
+        }
+
+        function updateNavButtons() {
+            const backBtn = document.getElementById('btn-back');
+            const fwdBtn = document.getElementById('btn-forward');
+            
+            backBtn.disabled = (state.currentStepIndex === 0);
+            fwdBtn.disabled = (state.currentStepIndex >= state.maxUnlockedStep || state.currentStepIndex === state.sequence.length - 1);
+        }
+
+        function navigateStep(dir) {
+            if (dir === 1 && state.currentStepIndex === state.sequence.length - 1) {
+                // Done!
+                finishWorksheet();
+                return;
+            }
+            state.currentStepIndex += dir;
+            renderStep();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* WIN SCREEN & GRADING LOGIC                                                 */
+        /* -------------------------------------------------------------------------- */
+        function finishWorksheet() {
+            document.getElementById('workspace-screen').classList.add('hidden');
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+
+            // Grading Logic
+            let finalScore = 25;
+            let c = state.totalCorrections;
+            
+            if (c === 0) finalScore += 5;
+            else if (c === 1) finalScore += 4;
+            else if (c === 2) finalScore += 3;
+            else if (c === 3) finalScore += 2;
+            else if (c === 4) finalScore += 1;
+            else if (c >= 5 && c <= 10) finalScore = 25;
+            else if (c > 12) {
+                finalScore = 25 - (c - 12);
+                if (finalScore < 0) finalScore = 0;
+            }
+
+            document.getElementById('win-score').innerText = `${finalScore}/25`;
+            document.getElementById('win-names').innerText = state.names.join(' • ');
+
+            // AlphaNumeric
+            const firstName = state.names[0] || "Student";
+            const code = generateCode(firstName);
+            document.getElementById('win-alphanumeric').innerText = "V-CODE: " + code;
+
+            // Message Gen
+            const adjectives = ["Spectacular", "Amazing", "Incredible", "Outstanding", "Phenomenal", "Stellar", "Fantastic"];
+            const nouns = ["job", "work", "performance", "effort", "achievement", "success", "mastery"];
+            const exclamations = ["Keep it up!", "You are a physics wizard!", "Einstein would be proud!", "Way to go!", "Simply brilliant!", "Nailed it!"];
+            const conciliatory = ["Good effort, keep practicing!", "You're getting there!", "Physics is tough, but so are you.", "Review the steps and try again!"];
+            
+            let msg = "";
+            if (finalScore >= 25) {
+                msg = `${adjectives[Math.floor(Math.random()*adjectives.length)]} ${nouns[Math.floor(Math.random()*nouns.length)]}! ${exclamations[Math.floor(Math.random()*exclamations.length)]}`;
+            } else if (finalScore >= 20) {
+                msg = conciliatory[Math.floor(Math.random()*conciliatory.length)];
+            } else {
+                msg = "Don't give up! Please click 'Try Again' and give it another shot to master these concepts.";
+            }
+            document.getElementById('win-message').innerText = msg;
+
+            // Try Again Button visibility
+            if (finalScore < 25) {
+                document.getElementById('btn-try-again').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-try-again').classList.add('hidden');
+            }
+
+            // Confetti
+            if (finalScore >= 25) {
+                let rounds = 1;
+                if (finalScore === 30) rounds = 4;
+                else if (finalScore >= 28) rounds = 3;
+                else if (finalScore >= 26) rounds = 2;
+                fireConfetti(rounds);
+            }
+        }
+
+        function resetGame() {
+            document.getElementById('win-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            // Keep names in inputs
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            canvas.classList.add('hidden');
+        }
+
+        function generateCode(name) {
+            let namePart = name.replace(/[^a-zA-Z]/g, '').padEnd(3, 'X').substring(0, 3).toUpperCase();
+            let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let codeArr = namePart.split('');
+            for(let i=0; i<9; i++) codeArr.push(chars.charAt(Math.floor(Math.random() * chars.length)));
+            return shuffle(codeArr).join('');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* CONFETTI ANIMATION SYSTEM                                                  */
+        /* -------------------------------------------------------------------------- */
+        let confettiParticles = [];
+        function fireConfetti(rounds) {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.classList.remove('hidden');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+            function createBurst() {
+                for (let i = 0; i < 100; i++) {
+                    confettiParticles.push({
+                        x: canvas.width / 2,
+                        y: canvas.height,
+                        vx: (Math.random() - 0.5) * 20,
+                        vy: (Math.random() - 1) * 25 - 5,
+                        size: Math.random() * 8 + 4,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * 360,
+                        rs: (Math.random() - 0.5) * 10
+                    });
+                }
+            }
+
+            createBurst();
+            rounds--;
+            let roundInterval = setInterval(() => {
+                if (rounds > 0) {
+                    createBurst();
+                    rounds--;
+                } else {
+                    clearInterval(roundInterval);
+                }
+            }, 800);
+
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                confettiParticles.forEach((p, index) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.5; // gravity
+                    p.rotation += p.rs;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+
+                    if (p.y > canvas.height + 100) confettiParticles.splice(index, 1);
+                });
+
+                if (confettiParticles.length > 0) requestAnimationFrame(render);
+                else if (rounds <= 0) canvas.classList.add('hidden');
+            }
+            render();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* STUDY GUIDE EXPORT                                                         */
+        /* -------------------------------------------------------------------------- */
+        function downloadStudyGuide() {
+            let guideHTML = `
+                <html>
+                <head>
+                    <title>Physics Study Guide - ${state.names.join(', ')}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+                    <!-- Load KaTeX with defer and trigger render strictly on load to prevent local file timing issues -->
+                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js">\x3C/script>
+                    \x3Cscript defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });">\x3C/script>
+                    <style>
+                        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6; color: #333; }
+                        h1 { color: #1d4ed8; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+                        .step { margin-bottom: 20px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
+                        .context { font-size: 1.1em; margin-bottom: 20px; background: #eff6ff; padding: 15px; border-radius: 8px; }
+                        .context img { max-width: 100%; height: auto; display: block; margin: 15px auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        .context svg { display: block; margin: 15px auto; }
+                        .correct-ans { font-weight: bold; color: #059669; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Newton's Laws & Forces - Study Guide</h1>
+                    <p><strong>Prepared for:</strong> ${state.names.join(', ')}</p>
+                    <p><strong>Final Score:</strong> ${document.getElementById('win-score').innerText}</p>
+                    <hr>
+            `;
+
+            let currentContext = "";
+            state.sequence.forEach((step, index) => {
+                if (step.context !== currentContext) {
+                    guideHTML += `<div class="context">${step.context}</div>`;
+                    currentContext = step.context;
+                }
+
+                guideHTML += `<div class="step"><strong>Step ${index + 1}:</strong> ${step.prompt}<br>`;
+                
+                if (step.type === 'mc') {
+                    const correctOpt = step.options.find(o => o.isCorrect).text;
+                    guideHTML += `<em>Solution:</em> <span class="correct-ans">${correctOpt}</span>`;
+                } else if (step.type === 'numeric') {
+                    guideHTML += `<em>Solution:</em> <span class="correct-ans">${step.correctValue.toFixed(2)} ${step.unit}</span>`;
+                } else if (step.type === 'fbd') {
+                    const forcesStr = step.targetForces.map(t => `${t.force} pointing ${t.dir}`).join('; ');
+                    guideHTML += `<em>Solution FBD:</em> <span class="correct-ans">${forcesStr}</span>`;
+                }
+                guideHTML += `</div>`;
+            });
+            
+            guideHTML += `
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([guideHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Physics_Study_Guide_${state.names[0] || 'Student'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+    </script>
 </body>
 </html>
